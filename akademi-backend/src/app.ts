@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/env';
 import { connectRedis } from './config/redis';
 import authRoutes from './modules/auth/auth.routes';
+import userRoutes from './modules/users/users.routes';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(limiter);
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

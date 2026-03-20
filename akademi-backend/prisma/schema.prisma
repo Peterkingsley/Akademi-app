@@ -101,6 +101,7 @@ model User {
   verification_token_expires_at DateTime?
   created_at                    DateTime         @default(now())
   updated_at                    DateTime         @updatedAt
+  is_deleted                    Boolean          @default(false)
   learning_profile              LearningProfile?
   materials                     Material[]
   sessions                      Session[]
