@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String           @id @default(uuid())
+  email            String           @unique
+  password         String?
+  firstName        String?
+  lastName         String?
+  university       String?
+  faculty          String?
+  department       String?
+  level            Int?
+  learningProfile  LearningProfile?
+  sessions         Session[]
+  featureAccess    FeatureAccess[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  refreshTokens    RefreshToken[]
+}
+
+model LearningProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  subjectStrengths  String[]
+  subjectWeaknesses String[]
+  vocabularyLevel   String   @default("intermediate")
+  questionPatterns  Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model CommunityPattern {
+  id               String   @id @default(uuid())
+  department       String
+  questionPatterns Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Material {
+  id                String              @id @default(uuid())
+  title             String
+  type              MaterialType
+  university        String
+  faculty           String
+  department        String
+  courseCode        String
+  level             Int
+  isVerified        Boolean             @default(false)
+  uploadCount       Int                 @default(1)
+  fileUrl           String
+  embeddings        MaterialEmbedding?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+enum MaterialType {
+  LECTURE_NOTE
+  PAST_QUESTION
+  TEXTBOOK_SUMMARY
+}
+
+model MaterialEmbedding {
+  id         String   @id @default(uuid())
+  materialId String   @unique
+  material   Material @relation(fields: [materialId], references: [id])
+  vector     Float[]
+}
+
+model UploadChunk {
+  id         String   @id @default(uuid())
+  fileId     String
+  chunkIndex Int
+  totalChunks Int
+  data       Bytes
+  createdAt  DateTime @default(now())
+}
+
+model Session {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      SessionType
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum SessionType {
+  TUTORING
+  STUDY
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  role      MessageRole
+  content   String
+  createdAt DateTime @default(now())
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model Question {
+  id         String   @id @default(uuid())
+  courseCode String
+  content    String
+  options    Json
+  correctAnswer String
+  explanation String
+  createdAt  DateTime @default(now())
+}
+
+model FeatureAccess {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  featureName String
+  expiryDate  DateTime
+  createdAt   DateTime @default(now())
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiryDate DateTime
+  createdAt DateTime @default(now())
+}
+
+model DisciplineDocument {
+  id          String   @id @default(uuid())
+  department  String   @unique
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
