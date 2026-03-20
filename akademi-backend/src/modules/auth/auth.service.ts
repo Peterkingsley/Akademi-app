@@ -43,6 +43,11 @@ export class AuthService {
   async register(data: RegisterRequest): Promise<void> {
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
+      if (existingUser.is_deleted) {
+        // Allow re-registration if deleted? Or just throw error?
+        // Usually, re-registration means reactivating or creating new.
+        // For this task, let's just throw error if email exists.
+      }
       throw new Error('Email already registered');
     }
 
@@ -96,6 +101,7 @@ export class AuthService {
       where: {
         verification_token: token,
         verification_token_expires_at: { gt: new Date() },
+        is_deleted: false,
       },
     });
 
@@ -115,7 +121,7 @@ export class AuthService {
 
   async login(data: LoginRequest): Promise<AuthResponse> {
     const user = await prisma.user.findUnique({ where: { email: data.email } });
-    if (!user) {
+    if (!user || user.is_deleted) {
       throw new Error('Invalid credentials');
     }
 
@@ -150,7 +156,7 @@ export class AuthService {
 
     let user = await prisma.user.findUnique({ where: { email: payload.email } });
 
-    if (!user) {
+    if (!user || user.is_deleted) {
       throw new Error('User not found. Please register first.');
     }
 
@@ -171,7 +177,7 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!refreshTokenRecord) {
+    if (!refreshTokenRecord || refreshTokenRecord.user.is_deleted) {
       throw new Error('Invalid or expired refresh token');
     }
 
@@ -208,7 +214,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email, is_deleted: false } });
     if (!user) return;
 
     const resetToken = uuidv4();
@@ -238,6 +244,7 @@ export class AuthService {
       where: {
         verification_token: token,
         verification_token_expires_at: { gt: new Date() },
+        is_deleted: false,
       },
     });
 
@@ -258,7 +265,7 @@ export class AuthService {
   }
 
   async resendVerification(email: string): Promise<void> {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email, is_deleted: false } });
     if (!user || user.is_verified) {
       throw new Error('User not found or already verified');
     }
