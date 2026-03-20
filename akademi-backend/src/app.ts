@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { config } from './config/env';
 import { connectRedis } from './config/redis';
+import authRoutes from './modules/auth/auth.routes';
 
 const app = express();
 
@@ -14,10 +15,13 @@ app.use(express.json());
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // limit each IP to 100 requests per minute
 });
 app.use(limiter);
+
+// Routes
+app.use('/auth', authRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
