@@ -6,6 +6,8 @@ import { config } from './config/env';
 import { connectRedis } from './config/redis';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
+import materialsRoutes from './modules/materials/materials.routes';
+import sessionsRoutes from './modules/sessions/sessions.routes';
 
 const app = express();
 
@@ -24,6 +26,8 @@ app.use(limiter);
 // Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
+app.use('/materials', materialsRoutes);
+app.use('/sessions', sessionsRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
