@@ -108,6 +108,9 @@ model User {
   messages                      Message[]
   feature_access                FeatureAccess[]
   refresh_tokens                RefreshToken[]
+  exam_prep_plans               ExamPrepPlan[]
+  mock_attempts                 MockAttempt[]
+  question_attempts             QuestionAttempt[]
 
   @@index([email])
   @@index([university])
@@ -250,6 +253,9 @@ model Question {
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
 
+  attempts       QuestionAttempt[]
+  mock_exams     MockExam[]
+
   @@index([course_code])
   @@index([department])
   @@index([difficulty])
@@ -318,4 +324,95 @@ model DisciplineDocument {
   @@index([course_code])
   @@index([is_active])
   @@map("discipline_documents")
+}
+
+model University {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  location    String?
+  departments Department[]
+  created_at  DateTime     @default(now())
+
+  @@map("universities")
+}
+
+model Department {
+  id            String     @id @default(uuid())
+  name          String
+  university_id String
+  university    University @relation(fields: [university_id], references: [id])
+  faculty       String
+  created_at    DateTime   @default(now())
+
+  @@unique([name, university_id])
+  @@map("departments")
+}
+
+model ExamPrepPlan {
+  id           String     @id @default(uuid())
+  user_id      String
+  user         User       @relation(fields: [user_id], references: [id])
+  course_code  String
+  exam_date    DateTime
+  created_at   DateTime   @default(now())
+  updated_at   DateTime   @updatedAt
+  tasks        PrepTask[]
+  mock_exams   MockExam[]
+
+  @@index([user_id])
+  @@map("exam_prep_plans")
+}
+
+model PrepTask {
+  id           String       @id @default(uuid())
+  plan_id      String
+  plan         ExamPrepPlan @relation(fields: [plan_id], references: [id])
+  title        String
+  description  String?
+  due_date     DateTime
+  completed    Boolean      @default(false)
+  completed_at DateTime?
+  created_at   DateTime     @default(now())
+
+  @@map("prep_tasks")
+}
+
+model MockExam {
+  id          String       @id @default(uuid())
+  plan_id     String
+  plan        ExamPrepPlan @relation(fields: [plan_id], references: [id])
+  title       String
+  questions   Question[]
+  created_at  DateTime     @default(now())
+  attempts    MockAttempt[]
+
+  @@map("mock_exams")
+}
+
+model MockAttempt {
+  id             String    @id @default(uuid())
+  mock_exam_id   String
+  mock_exam      MockExam  @relation(fields: [mock_exam_id], references: [id])
+  user_id        String
+  user           User      @relation(fields: [user_id], references: [id])
+  score          Float
+  feedback       String?
+  started_at     DateTime  @default(now())
+  completed_at   DateTime?
+
+  @@map("mock_attempts")
+}
+
+model QuestionAttempt {
+  id          String   @id @default(uuid())
+  question_id String
+  question    Question @relation(fields: [question_id], references: [id])
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id])
+  answer      String
+  is_correct  Boolean
+  feedback    String?
+  created_at  DateTime @default(now())
+
+  @@map("question_attempts")
 }
