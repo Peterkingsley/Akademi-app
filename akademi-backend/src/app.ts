@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import http from 'http';
 import { config } from './config/env';
 import { connectRedis } from './config/redis';
 import authRoutes from './modules/auth/auth.routes';
@@ -13,8 +14,10 @@ import questionsRoutes from './modules/questions/questions.routes';
 import featureAccessRoutes from './modules/feature-access/feature-access.routes';
 import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
 import searchRoutes from './modules/search/search.routes';
+import { initWebSocket } from './modules/websocket/websocket.server';
 
 const app = express();
+const server = http.createServer(app);
 
 // Middleware
 app.use(helmet());
@@ -48,8 +51,9 @@ app.get('/health', (req, res) => {
 const startServer = async () => {
   try {
     await connectRedis();
+    initWebSocket(server);
     if (config.nodeEnv !== 'test') {
-      app.listen(config.port, () => {
+      server.listen(config.port, () => {
         console.log(`Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });
     }
@@ -61,4 +65,4 @@ const startServer = async () => {
 
 startServer();
 
-export default app;
+export { app, server };

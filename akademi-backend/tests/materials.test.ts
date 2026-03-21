@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/app';
+import { app } from '../src/app';
 import prisma from '../src/config/db';
 import { DeviceType, FileType, VerificationStatus } from '@prisma/client';
 
