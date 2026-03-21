@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import { typesenseService } from './shared/search/typesense.service';
 import express from 'express';
 import cors from 'cors';
@@ -16,6 +17,13 @@ import featureAccessRoutes from './modules/feature-access/feature-access.routes'
 import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
 import searchRoutes from './modules/search/search.routes';
 import { initWebSocket } from './modules/websocket/websocket.server';
+
+// Sentry Initialization
+Sentry.init({
+  dsn: config.sentryDsn,
+  environment: config.nodeEnv,
+  tracesSampleRate: 1.0,
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -45,22 +53,52 @@ app.use('/search', searchRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    service: config.serviceType
+  });
 });
+
+// Sentry Error Handler (must be after all controllers)
+Sentry.setupExpressErrorHandler(app);
 
 // Start Server
 const startServer = async () => {
+  if (config.nodeEnv === 'test') return;
+
   try {
     await connectRedis();
-    await typesenseService.initCollections();
-    initWebSocket(server);
-    if (config.nodeEnv !== 'test') {
+
+    if (config.serviceType === 'api') {
+      await typesenseService.initCollections();
       server.listen(config.port, () => {
-        console.log(`Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+        console.log(`API Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+      });
+    } else if (config.serviceType === 'websocket') {
+      initWebSocket(server);
+      server.listen(config.port, () => {
+        console.log(`WebSocket Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+      });
+    } else if (config.serviceType === 'jobs') {
+      console.log('Jobs Processor mode active');
+      // Jobs are typically triggered by events or schedules.
+      // In this setup, we keep the process alive.
+      // We can still listen for health checks
+      server.listen(config.port, () => {
+        console.log(`Jobs Health Check Server is running on port ${config.port}`);
+      });
+    } else {
+      console.warn(`Unknown service type: ${config.serviceType}. Starting all components.`);
+      await typesenseService.initCollections();
+      initWebSocket(server);
+      server.listen(config.port, () => {
+        console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });
     }
   } catch (error) {
     console.error('Failed to start server:', error);
+    Sentry.captureException(error);
     process.exit(1);
   }
 };

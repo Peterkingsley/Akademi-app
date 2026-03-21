@@ -23,6 +23,7 @@
     "@google-cloud/text-to-speech": "^6.4.0",
     "@google-cloud/vision": "^5.3.5",
     "@prisma/client": "^6.0.0",
+    "@sentry/node": "^10.45.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

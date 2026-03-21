@@ -25,4 +25,5 @@ export const config = {
   sentryDsn: process.env.SENTRY_DSN || '',
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
+  serviceType: process.env.SERVICE_TYPE || 'api',
 };

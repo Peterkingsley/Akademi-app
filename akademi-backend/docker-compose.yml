@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15
@@ -24,6 +26,50 @@ services:
       TYPESENSE_DATA_DIR: /data
     volumes:
       - typesense-data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    depends_on:
+      - postgres
+      - redis
+      - typesense
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/akademi?schema=public
+      - REDIS_URL=redis://redis:6379
+      - TYPESENSE_HOST=typesense
+      - TYPESENSE_API_KEY=your_typesense_key
+      - SERVICE_TYPE=api
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+
+  websocket:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.websocket
+    depends_on:
+      - redis
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_TYPE=websocket
+      - NODE_ENV=development
+    ports:
+      - "3001:3000"
+
+  jobs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.jobs
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/akademi?schema=public
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_TYPE=jobs
+      - NODE_ENV=development
 
 volumes:
   pgdata:
