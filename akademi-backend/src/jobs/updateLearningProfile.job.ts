@@ -24,8 +24,8 @@ export async function updateLearningProfileJob(sessionId: string) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1000,
-    system: "Analyze student learning patterns.",
-    messages: [{ role: 'user', content: prompt }]
+    system: 'Analyze student learning patterns.',
+    messages: [{ role: 'user', content: prompt }],
   });
 
   const analysis = JSON.parse((response.content[0] as any).text);

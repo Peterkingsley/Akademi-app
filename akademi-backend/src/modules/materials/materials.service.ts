@@ -5,6 +5,8 @@ import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
 import { VerificationStatus } from '@prisma/client';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
+import { assembleChunksJob } from '../../jobs/assembleChunks.job';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -125,19 +127,22 @@ export class MaterialsService {
   async confirmUpload(id: string, userId: string) {
     const material = await prisma.material.findUnique({
       where: { id, uploaded_by: userId },
+      include: { upload_chunks: true }
     });
 
     if (!material) {
       throw new Error('Material not found');
     }
 
-    // Trigger ingestMaterial background job (mocked)
-    console.log(`Triggering ingestMaterial job for material ${id}`);
+    console.log(`Confirming upload for material ${id}`);
 
-    // Assuming verification happens here for mock or after some logic
-    // In real app, another process would mark it VERIFIED.
-    // For this ticket's requirement: "Question generation triggered after material verification"
-    // I will simulate this by checking if it's verified.
+    // If chunks exist, trigger assembly
+    if (material.upload_chunks.length > 0) {
+      assembleChunksJob(id).catch(console.error);
+    } else {
+      // Direct upload, trigger ingestion
+      ingestMaterialJob(id).catch(console.error);
+    }
 
     return prisma.material.update({
       where: { id },
