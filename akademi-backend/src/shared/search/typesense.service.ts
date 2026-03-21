@@ -20,7 +20,7 @@ export class TypesenseService {
         await typesenseClient.collections(schema.name).retrieve();
         // console.log(`Collection ${schema.name} already exists.`);
       } catch (error: any) {
-        if (error.status === 404) {
+        if (error.status === 404 || error.httpStatus === 404) {
           await typesenseClient.collections().create(schema);
           console.log(`Collection ${schema.name} created.`);
         } else {

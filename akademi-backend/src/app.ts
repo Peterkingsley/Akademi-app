@@ -19,7 +19,7 @@ import searchRoutes from './modules/search/search.routes';
 import { initWebSocket } from './modules/websocket/websocket.server';
 
 // Sentry Initialization — only runs if a real DSN is provided
-if (config.sentryDsn) {
+if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
   Sentry.init({
     dsn: config.sentryDsn,
     environment: config.nodeEnv,
@@ -63,7 +63,7 @@ app.get('/health', (req, res) => {
 });
 
 // Sentry Error Handler — only runs if a real DSN is provided
-if (config.sentryDsn) {
+if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
   Sentry.setupExpressErrorHandler(app);
 }
 
@@ -99,7 +99,7 @@ const startServer = async () => {
     }
   } catch (error) {
     console.error('Failed to start server:', error);
-    if (config.sentryDsn) {
+    if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
       Sentry.captureException(error);
     }
     process.exit(1);
