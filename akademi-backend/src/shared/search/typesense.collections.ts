@@ -11,7 +11,7 @@ export const materialSchema: CollectionCreateSchema = {
     { name: 'department', type: 'string', facet: true },
     { name: 'level', type: 'int32', facet: true },
     { name: 'verification_status', type: 'string', facet: true },
-    { name: 'verified_at', type: 'int64', optional: true }
+    { name: 'verified_at', type: 'int64', value: 0 }
   ],
   default_sorting_field: 'verified_at'
 };
