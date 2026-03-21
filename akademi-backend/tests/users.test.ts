@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../src/app';
+import { app } from '../src/app';
 import prisma from '../src/config/db';
 import { DeviceType, VocabularyLevel } from '@prisma/client';
 import { S3Client } from '@aws-sdk/client-s3';

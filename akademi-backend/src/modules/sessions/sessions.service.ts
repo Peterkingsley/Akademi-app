@@ -128,10 +128,12 @@ export class SessionsService {
   }
 
   async getSessionSummary(sessionId: string) {
+      // In a real scenario, this would probably pull from the generated session summary job's results
+      // For now, we return a mock summary that follows the requirements
       return {
-          summary: "Session summary goes here. AI identified key concepts discussed.",
-          key_points: ["Concept A", "Concept B"],
-          next_steps: ["Read Chapter 3", "Practice mock exam"]
+          summary: "This session covered key topics in the specified course code. The AI tutor helped the student understand fundamental concepts and addressed specific questions.",
+          key_points: ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
+          next_steps: ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
   }
 }

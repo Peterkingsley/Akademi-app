@@ -18,12 +18,13 @@ export const config = {
   r2PublicUrl: process.env.R2_PUBLIC_URL || '',
   resendApiKey: process.env.RESEND_API_KEY || 're_dummy_key',
   typesenseHost: process.env.TYPESENSE_HOST || 'localhost',
-  typesensePort: parseInt(process.env.TYPESENSE_PORT || '443', 10),
-  typesenseProtocol: process.env.TYPESENSE_PROTOCOL || 'https',  // ← FIXED: was hardcoded http
+  typesensePort: parseInt(process.env.TYPESENSE_PORT || '8108', 10),
   typesenseApiKey: process.env.TYPESENSE_API_KEY || '',
+  typesenseProtocol: process.env.TYPESENSE_PROTOCOL || 'https',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
-  sentryDsn: process.env.SENTRY_DSN || null,  // ← FIXED: null instead of empty string
+  sentryDsn: process.env.SENTRY_DSN || null,
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
+  serviceType: process.env.SERVICE_TYPE || 'api',
 };
