@@ -1,3 +1,4 @@
+import { addQuestionsToIndex } from '../shared/search/typesense.sync';
 import prisma from '../config/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config/env';
@@ -45,7 +46,7 @@ export async function generateQuestionsJob(materialId: string) {
     });
 
     if (!existing) {
-      await prisma.question.create({
+      const createdQuestion = await prisma.question.create({
         data: {
           material_id: materialId,
           course_code: material.course_code,
@@ -57,6 +58,7 @@ export async function generateQuestionsJob(materialId: string) {
           difficulty: q.difficulty as Difficulty,
         },
       });
+      await addQuestionsToIndex([createdQuestion.id]);
     }
   }
 }
