@@ -6,6 +6,13 @@ import { config } from './config/env';
 import { connectRedis } from './config/redis';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
+import materialsRoutes from './modules/materials/materials.routes';
+import sessionsRoutes from './modules/sessions/sessions.routes';
+import universitiesRoutes from './modules/universities/universities.routes';
+import questionsRoutes from './modules/questions/questions.routes';
+import featureAccessRoutes from './modules/feature-access/feature-access.routes';
+import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
+import searchRoutes from './modules/search/search.routes';
 
 const app = express();
 
@@ -24,6 +31,13 @@ app.use(limiter);
 // Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
+app.use('/materials', materialsRoutes);
+app.use('/sessions', sessionsRoutes);
+app.use('/universities', universitiesRoutes);
+app.use('/questions', questionsRoutes);
+app.use('/feature-access', featureAccessRoutes);
+app.use('/exam-prep', examPrepRoutes);
+app.use('/search', searchRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
