@@ -6,10 +6,11 @@ const searchService = new SearchService();
 export class SearchController {
   async search(req: Request, res: Response) {
     try {
-      const results = await searchService.search(req.query);
+      const results = await searchService.search(req.query, (req as any).user);
       res.status(200).json(results);
-    } catch (error) {
-      res.status(500).json({ message: 'Search failed' });
+    } catch (error: any) {
+      console.error('Search failed:', error);
+      res.status(500).json({ message: 'Search failed', error: error.message });
     }
   }
 }

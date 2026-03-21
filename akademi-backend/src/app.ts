@@ -1,3 +1,4 @@
+import { typesenseService } from './shared/search/typesense.service';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -51,6 +52,7 @@ app.get('/health', (req, res) => {
 const startServer = async () => {
   try {
     await connectRedis();
+    await typesenseService.initCollections();
     initWebSocket(server);
     if (config.nodeEnv !== 'test') {
       server.listen(config.port, () => {
