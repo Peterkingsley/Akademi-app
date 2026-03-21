@@ -18,12 +18,14 @@ import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
 import searchRoutes from './modules/search/search.routes';
 import { initWebSocket } from './modules/websocket/websocket.server';
 
-// Sentry Initialization
-Sentry.init({
-  dsn: config.sentryDsn,
-  environment: config.nodeEnv,
-  tracesSampleRate: 1.0,
-});
+// Sentry Initialization — only runs if a real DSN is provided
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: config.nodeEnv,
+    tracesSampleRate: 1.0,
+  });
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -35,8 +37,8 @@ app.use(express.json());
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // limit each IP to 100 requests per minute
+  windowMs: 1 * 60 * 1000,
+  max: 100,
 });
 app.use(limiter);
 
@@ -60,8 +62,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Sentry Error Handler (must be after all controllers)
-Sentry.setupExpressErrorHandler(app);
+// Sentry Error Handler — only runs if a real DSN is provided
+if (config.sentryDsn) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // Start Server
 const startServer = async () => {
@@ -82,9 +86,6 @@ const startServer = async () => {
       });
     } else if (config.serviceType === 'jobs') {
       console.log('Jobs Processor mode active');
-      // Jobs are typically triggered by events or schedules.
-      // In this setup, we keep the process alive.
-      // We can still listen for health checks
       server.listen(config.port, () => {
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
       });
@@ -98,7 +99,9 @@ const startServer = async () => {
     }
   } catch (error) {
     console.error('Failed to start server:', error);
-    Sentry.captureException(error);
+    if (config.sentryDsn) {
+      Sentry.captureException(error);
+    }
     process.exit(1);
   }
 };
