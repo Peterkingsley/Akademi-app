@@ -3,6 +3,8 @@ import { StartSessionRequest, SendMessageRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
+import { updateLearningProfileJob } from '../../jobs/updateLearningProfile.job';
+import { generateSessionSummaryJob } from '../../jobs/generateSessionSummary.job';
 
 export class SessionsService {
   private mapSessionTypeToFeature(type: SessionType): Feature {
@@ -71,10 +73,16 @@ export class SessionsService {
   }
 
   async endSession(id: string) {
-    return prisma.session.update({
+    const session = await prisma.session.update({
       where: { id },
       data: { ended_at: new Date() },
     });
+
+    // Trigger background jobs
+    updateLearningProfileJob(id).catch(console.error);
+    generateSessionSummaryJob(id).catch(console.error);
+
+    return session;
   }
 
   async listMessages(sessionId: string) {

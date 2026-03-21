@@ -4,6 +4,7 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
 import { VerificationStatus } from '@prisma/client';
+import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -133,12 +134,33 @@ export class MaterialsService {
     // Trigger ingestMaterial background job (mocked)
     console.log(`Triggering ingestMaterial job for material ${id}`);
 
+    // Assuming verification happens here for mock or after some logic
+    // In real app, another process would mark it VERIFIED.
+    // For this ticket's requirement: "Question generation triggered after material verification"
+    // I will simulate this by checking if it's verified.
+
     return prisma.material.update({
       where: { id },
       data: {
         verification_status: VerificationStatus.PENDING,
       },
     });
+  }
+
+  // Helper method for admin or auto-verification to trigger question generation
+  async verifyMaterial(id: string) {
+    const material = await prisma.material.update({
+      where: { id },
+      data: {
+        verification_status: VerificationStatus.VERIFIED,
+        verified_at: new Date(),
+      },
+    });
+
+    // Trigger question generation job
+    generateQuestionsJob(id).catch(console.error);
+
+    return material;
   }
 
   async getPendingUploads(userId: string) {

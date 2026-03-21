@@ -1,5 +1,7 @@
-import { ReplyMode, SessionType } from '@prisma/client';
-import prisma from '../../config/db';
+import { ReplyMode } from '@prisma/client';
+import { aiService } from '../../modules/ai/ai.service';
+import { checkFeatureAccess } from './feature-access';
+import { Feature } from '@prisma/client';
 
 export async function orchestrateAIResponse(
   userId: string,
@@ -7,39 +9,16 @@ export async function orchestrateAIResponse(
   content: string,
   replyMode: ReplyMode | null
 ) {
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-  });
+  // Free check for Study Mode (as per monetization table in Ticket-00)
+  // Actually, we check feature access in SessionsService, but let's be safe.
+  const feature = Feature.ASSIGNMENT_SOLVING; // Default feature for general AI queries
+  const hasActivePaidFeature = await checkFeatureAccess(userId, feature);
 
-  if (!session) throw new Error('Session not found');
-
-  // Fetch context layers
-  const learningProfile = await prisma.learningProfile.findUnique({
-    where: { user_id: userId },
-  });
-
-  const communityPatterns = await prisma.communityPattern.findMany({
-    where: {
-      department: session.department,
-      course_code: session.course_code,
-    },
-  });
-
-  const disciplineDocs = await prisma.disciplineDocument.findMany({
-    where: {
-      department: session.department,
-      course_code: session.course_code,
-      is_active: true,
-    },
-  });
-
-  // Call Claude (mocked for now)
-  const response = `Mock response based on context:
-Learning Profile: ${JSON.stringify(learningProfile)}
-Community Patterns count: ${communityPatterns.length}
-Discipline Docs count: ${disciplineDocs.length}
-Input: ${content}
-Reply Mode: ${replyMode}`;
-
-  return response;
+  return await aiService.getOrchestratedResponse(
+    userId,
+    sessionId,
+    content,
+    replyMode || ReplyMode.DIRECT,
+    hasActivePaidFeature
+  );
 }
