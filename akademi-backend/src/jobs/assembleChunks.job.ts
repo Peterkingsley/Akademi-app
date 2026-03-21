@@ -1,22 +1,10 @@
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-} from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import prisma from '../config/db';
-import { config } from '../config/env';
 import { ChunkStatus } from '@prisma/client';
 import { ingestMaterialJob } from './ingestMaterial.job';
-
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: config.r2AccessKey,
-    secretAccessKey: config.r2SecretKey,
-  },
-});
+import { s3Client } from '../shared/storage/r2.client';
+import { uploadFile, deleteFile } from '../shared/storage/r2.service';
+import { config } from '../config/env';
 
 export async function assembleChunksJob(materialId: string) {
   const chunks = await prisma.uploadChunk.findMany({
@@ -61,22 +49,11 @@ export async function assembleChunksJob(materialId: string) {
   const assembledBuffer = Buffer.concat(buffers);
   const fileKey = `materials/pending/${materialId}`;
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: config.r2BucketName,
-      Key: fileKey,
-      Body: assembledBuffer,
-    }),
-  );
+  await uploadFile(fileKey, assembledBuffer, 'application/pdf');
 
   // Delete chunks from R2 and update DB
   for (const chunk of chunks) {
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: config.r2BucketName,
-        Key: chunk.chunk_ref,
-      }),
-    );
+    await deleteFile(chunk.chunk_ref);
   }
 
   await prisma.uploadChunk.updateMany({
