@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jobs
+  template:
+    metadata:
+      labels:
+        app: jobs
+    spec:
+      containers:
+      - name: jobs
+        image: gcr.io/akademi/jobs:latest
+        envFrom:
+        - secretRef:
+            name: akademi-secrets
+        env:
+        - name: SERVICE_TYPE
+          value: "jobs"
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"

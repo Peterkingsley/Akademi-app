@@ -1,0 +1,54 @@
+name: Deploy to Production
+on:
+  push:
+    branches: [production]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: akademi-backend/package-lock.json
+
+      - name: Install dependencies
+        run: cd akademi-backend && npm ci
+
+      - name: Lint
+        run: cd akademi-backend && npm run lint
+
+      - name: Test
+        run: cd akademi-backend && npm test
+
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker
+
+      - name: Build and Push Images
+        run: |
+          docker build -t gcr.io/akademi/api:${{ github.sha }} -f akademi-backend/docker/Dockerfile.api akademi-backend
+          docker build -t gcr.io/akademi/websocket:${{ github.sha }} -f akademi-backend/docker/Dockerfile.websocket akademi-backend
+          docker build -t gcr.io/akademi/jobs:${{ github.sha }} -f akademi-backend/docker/Dockerfile.jobs akademi-backend
+          docker push gcr.io/akademi/api:${{ github.sha }}
+          docker push gcr.io/akademi/websocket:${{ github.sha }}
+          docker push gcr.io/akademi/jobs:${{ github.sha }}
+
+      - name: Deploy to GKE production
+        run: |
+          gcloud container clusters get-credentials production-cluster --region europe-west1
+          kubectl set image deployment/api api=gcr.io/akademi/api:${{ github.sha }}
+          kubectl set image deployment/websocket websocket=gcr.io/akademi/websocket:${{ github.sha }}
+          kubectl set image deployment/jobs jobs=gcr.io/akademi/jobs:${{ github.sha }}
