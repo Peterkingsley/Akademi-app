@@ -6,7 +6,7 @@ export const typesenseClient = new Client({
     {
       host: config.typesenseHost,
       port: config.typesensePort,
-      protocol: 'http', // Typesense usually runs on http unless configured otherwise
+      protocol: config.typesenseProtocol,
     },
   ],
   apiKey: config.typesenseApiKey,
