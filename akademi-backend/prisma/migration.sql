@@ -238,6 +238,97 @@ CREATE TABLE "discipline_documents" (
     CONSTRAINT "discipline_documents_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "universities" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "location" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "universities_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "departments" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "university_id" TEXT NOT NULL,
+    "faculty" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "departments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "exam_prep_plans" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "course_code" TEXT NOT NULL,
+    "exam_date" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "exam_prep_plans_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "prep_tasks" (
+    "id" TEXT NOT NULL,
+    "plan_id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "due_date" TIMESTAMP(3) NOT NULL,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "completed_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "prep_tasks_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "mock_exams" (
+    "id" TEXT NOT NULL,
+    "plan_id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "mock_exams_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "mock_attempts" (
+    "id" TEXT NOT NULL,
+    "mock_exam_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "score" DOUBLE PRECISION NOT NULL,
+    "feedback" TEXT,
+    "started_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completed_at" TIMESTAMP(3),
+
+    CONSTRAINT "mock_attempts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "question_attempts" (
+    "id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "is_correct" BOOLEAN NOT NULL,
+    "feedback" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "question_attempts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_MockExamToQuestion" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_MockExamToQuestion_AB_pkey" PRIMARY KEY ("A","B")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -316,6 +407,18 @@ CREATE INDEX "discipline_documents_course_code_idx" ON "discipline_documents"("c
 -- CreateIndex
 CREATE INDEX "discipline_documents_is_active_idx" ON "discipline_documents"("is_active");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "universities_name_key" ON "universities"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "departments_name_university_id_key" ON "departments"("name", "university_id");
+
+-- CreateIndex
+CREATE INDEX "exam_prep_plans_user_id_idx" ON "exam_prep_plans"("user_id");
+
+-- CreateIndex
+CREATE INDEX "_MockExamToQuestion_B_index" ON "_MockExamToQuestion"("B");
+
 -- AddForeignKey
 ALTER TABLE "learning_profiles" ADD CONSTRAINT "learning_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -351,3 +454,33 @@ ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "discipline_documents" ADD CONSTRAINT "discipline_documents_last_updated_by_fkey" FOREIGN KEY ("last_updated_by") REFERENCES "admins"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "departments" ADD CONSTRAINT "departments_university_id_fkey" FOREIGN KEY ("university_id") REFERENCES "universities"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "exam_prep_plans" ADD CONSTRAINT "exam_prep_plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "prep_tasks" ADD CONSTRAINT "prep_tasks_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "exam_prep_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "mock_exams" ADD CONSTRAINT "mock_exams_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "exam_prep_plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "mock_attempts" ADD CONSTRAINT "mock_attempts_mock_exam_id_fkey" FOREIGN KEY ("mock_exam_id") REFERENCES "mock_exams"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "mock_attempts" ADD CONSTRAINT "mock_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "questions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "question_attempts" ADD CONSTRAINT "question_attempts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_MockExamToQuestion" ADD CONSTRAINT "_MockExamToQuestion_A_fkey" FOREIGN KEY ("A") REFERENCES "mock_exams"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_MockExamToQuestion" ADD CONSTRAINT "_MockExamToQuestion_B_fkey" FOREIGN KEY ("B") REFERENCES "questions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
