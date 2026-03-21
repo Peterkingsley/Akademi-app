@@ -28,8 +28,8 @@ export async function generateQuestionsJob(materialId: string) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
-    system: "You are an expert academic assistant.",
-    messages: [{ role: 'user', content: prompt }]
+    system: 'You are an expert academic assistant.',
+    messages: [{ role: 'user', content: prompt }],
   });
 
   const content = (response.content[0] as any).text;

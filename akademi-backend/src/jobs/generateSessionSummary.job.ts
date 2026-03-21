@@ -18,8 +18,8 @@ export async function generateSessionSummaryJob(sessionId: string) {
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 500,
-    system: "Generate academic session summaries.",
-    messages: [{ role: 'user', content: prompt }]
+    system: 'Generate academic session summaries.',
+    messages: [{ role: 'user', content: prompt }],
   });
 
   const summary = JSON.parse((response.content[0] as any).text);
