@@ -1,0 +1,39 @@
+<<<<<<< SEARCH
+// Sentry Initialization — only runs if a real DSN is provided
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+=======
+// Sentry Initialization — only runs if a real DSN is provided
+if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+// Sentry Error Handler — only runs if a real DSN is provided
+if (config.sentryDsn) {
+  Sentry.setupExpressErrorHandler(app);
+}
+=======
+// Sentry Error Handler — only runs if a real DSN is provided
+if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
+  Sentry.setupExpressErrorHandler(app);
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    if (config.sentryDsn) {
+      Sentry.captureException(error);
+    }
+    process.exit(1);
+  }
+=======
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
+      Sentry.captureException(error);
+    }
+    process.exit(1);
+  }
+>>>>>>> REPLACE

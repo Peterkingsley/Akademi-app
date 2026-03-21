@@ -7,13 +7,13 @@ describe('Typesense Integration', () => {
   });
 
   it('should initialize collections', async () => {
-    const spyRetrieve = jest.spyOn(typesenseClient.collections('materials'), 'retrieve').mockRejectedValue({ status: 404 });
+    const spyRetrieve = jest.spyOn(typesenseClient.collections('materials'), 'retrieve').mockRejectedValue({ httpStatus: 404 });
     const spyCreate = jest.spyOn(typesenseClient.collections(), 'create').mockResolvedValue({} as any);
 
     // Mocking other retrieve calls as well
-    jest.spyOn(typesenseClient.collections('questions'), 'retrieve').mockRejectedValue({ status: 404 });
-    jest.spyOn(typesenseClient.collections('courses'), 'retrieve').mockRejectedValue({ status: 404 });
-    jest.spyOn(typesenseClient.collections('universities'), 'retrieve').mockRejectedValue({ status: 404 });
+    jest.spyOn(typesenseClient.collections('questions'), 'retrieve').mockRejectedValue({ httpStatus: 404 });
+    jest.spyOn(typesenseClient.collections('courses'), 'retrieve').mockRejectedValue({ httpStatus: 404 });
+    jest.spyOn(typesenseClient.collections('universities'), 'retrieve').mockRejectedValue({ httpStatus: 404 });
 
     await typesenseService.initCollections();
 
