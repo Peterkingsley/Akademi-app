@@ -1,0 +1,63 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# Windows
+Thumbs.db
+
+# Environment files — never commit these
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env*.local
+
+# EAS Build
+.easignore
+eas-build-pre-install.sh
+
+# Logs
+logs/
+*.log
+
+# TypeScript
+*.tsbuildinfo
+
+# Generated native folders
+/ios
+/android
+
+# VS Code
+.vscode/
+
+# Test coverage
+coverage/
