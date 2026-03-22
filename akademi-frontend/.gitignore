@@ -30,34 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# Windows
-Thumbs.db
-
-# Environment files — never commit these
-.env
-.env.local
-.env.development
-.env.staging
-.env.production
+# local env files
 .env*.local
 
-# EAS Build
-.easignore
-eas-build-pre-install.sh
-
-# Logs
-logs/
-*.log
-
-# TypeScript
+# typescript
 *.tsbuildinfo
 
-# Generated native folders
+# generated native folders
 /ios
 /android
-
-# VS Code
-.vscode/
-
-# Test coverage
-coverage/
