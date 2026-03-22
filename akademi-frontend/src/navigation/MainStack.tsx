@@ -7,6 +7,8 @@ import { MainStackParamList } from "./types";
 import { MainTabs } from "./MainTabs";
 import { AssignmentResultScreen } from "../screens/main/AssignmentResultScreen";
 import { StudyModeScreen } from "../screens/main/StudyModeScreen";
+import { SocraticScreen } from "../screens/main/SocraticScreen";
+import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
 import { CameraScreen } from "../screens/main/CameraScreen";
 import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
 import { AIProcessingScreen } from "../screens/main/AIProcessingScreen";
@@ -41,6 +43,8 @@ export const MainStack = () => {
         component={AssignmentResultScreen}
       />
       <Stack.Screen name="StudyMode" component={StudyModeScreen} />
+      <Stack.Screen name="Socratic" component={SocraticScreen} />
+      <Stack.Screen name="ChallengeResult" component={ChallengeResultScreen} />
       <Stack.Screen
         name="Camera"
         component={CameraScreen}
