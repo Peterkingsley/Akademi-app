@@ -1,14 +1,14 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ViewStyle,
-} from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native";
+import { ChevronLeft } from "lucide-react-native";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface HeaderProps {
   title?: string;
@@ -43,23 +43,23 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     backgroundColor: colors.background,
   },
   left: {
     width: 40,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   center: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   right: {
     width: 40,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   title: {
     color: colors.textPrimary,

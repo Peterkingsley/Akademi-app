@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   StyleSheet,
@@ -6,10 +6,10 @@ import {
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeArea } from './SafeArea';
-import { Header } from './Header';
-import { colors } from '../../theme/colors';
+} from "react-native";
+import { SafeArea } from "./SafeArea";
+import { Header } from "./Header";
+import { colors } from "../../theme/colors";
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ export const Screen: React.FC<ScreenProps> = ({
   return (
     <SafeArea>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
         <Header title={title} onBack={onBack} rightAction={rightAction} />

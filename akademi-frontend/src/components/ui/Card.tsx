@@ -1,11 +1,6 @@
-import React from 'react';
-import {
-  TouchableOpacity,
-  View,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
-import { colors } from '../../theme/colors';
+import React from "react";
+import { TouchableOpacity, View, StyleSheet, ViewStyle } from "react-native";
+import { colors } from "../../theme/colors";
 
 interface CardProps {
   children: React.ReactNode;
@@ -44,7 +39,7 @@ const styles = StyleSheet.create({
   base: {
     borderRadius: 12,
     padding: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   default: {
     backgroundColor: colors.surface,

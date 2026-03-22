@@ -1,13 +1,7 @@
-import React from 'react';
-import {
-  View,
-  Image,
-  Text,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+import React from "react";
+import { View, Image, Text, StyleSheet, ViewStyle } from "react-native";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface AvatarProps {
   uri?: string;
@@ -23,9 +17,9 @@ export const Avatar: React.FC<AvatarProps> = ({
   style,
 }) => {
   const initials = name
-    .split(' ')
+    .split(" ")
     .map((word) => word[0])
-    .join('')
+    .join("")
     .substring(0, 2)
     .toUpperCase();
 
@@ -51,7 +45,7 @@ export const Avatar: React.FC<AvatarProps> = ({
           <Text
             style={[
               typography.bodySmall,
-              { color: colors.textPrimary, fontWeight: '700' },
+              { color: colors.textPrimary, fontWeight: "700" },
             ]}
           >
             {initials}
@@ -65,16 +59,16 @@ export const Avatar: React.FC<AvatarProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surfaceElevated,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   placeholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

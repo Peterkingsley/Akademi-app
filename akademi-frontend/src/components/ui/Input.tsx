@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   TextInput,
@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   KeyboardTypeOptions,
   ViewStyle,
-} from 'react-native';
-import { Eye, EyeOff } from 'lucide-react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native";
+import { Eye, EyeOff } from "lucide-react-native";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface InputProps {
   label: string;
@@ -31,7 +31,7 @@ export const Input: React.FC<InputProps> = ({
   onChangeText,
   error,
   secureTextEntry,
-  keyboardType = 'default',
+  keyboardType = "default",
   leftIcon,
   style,
 }) => {
@@ -78,7 +78,9 @@ export const Input: React.FC<InputProps> = ({
           </TouchableOpacity>
         )}
       </View>
-      {!!error && <Text style={[styles.errorText, typography.caption]}>{error}</Text>}
+      {!!error && (
+        <Text style={[styles.errorText, typography.caption]}>{error}</Text>
+      )}
     </View>
   );
 };
@@ -86,18 +88,18 @@ export const Input: React.FC<InputProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
   },
   label: {
     color: colors.textSecondary,
     marginBottom: 8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1.2,
     fontSize: 13,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
     borderWidth: 1,

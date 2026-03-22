@@ -1,18 +1,14 @@
-import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
   withSequence,
-} from 'react-native-reanimated';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native-reanimated";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface AIInsightBannerProps {
   text: string;
@@ -25,10 +21,10 @@ export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
     glowOpacity.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1000 }),
-        withTiming(0.3, { duration: 1000 })
+        withTiming(0.3, { duration: 1000 }),
       ),
       -1,
-      true
+      true,
     );
   }, []);
 
@@ -40,7 +36,11 @@ export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
     <View style={styles.container}>
       <Animated.View style={[styles.glowBorder, glowStyle]} />
       <View style={styles.content}>
-        <Text style={[styles.sparkle, typography.h3, { color: colors.primary }]}>✦</Text>
+        <Text
+          style={[styles.sparkle, typography.h3, { color: colors.primary }]}
+        >
+          ✦
+        </Text>
         <Text style={[styles.text, typography.mono]}>{text}</Text>
       </View>
     </View>
@@ -49,9 +49,9 @@ export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0D1526',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#0D1526",
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginVertical: 10,
@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   sparkle: {
     marginRight: 10,
