@@ -5,7 +5,7 @@ import { typography } from "../../theme/typography";
 
 interface BadgeProps {
   label: string;
-  variant: "verified" | "pending" | "course" | "ai";
+  variant: "verified" | "pending" | "course" | "ai" | "purple" | "blue" | "warning";
   style?: ViewStyle;
 }
 
@@ -15,10 +15,13 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
       case "verified":
         return styles.verified;
       case "pending":
+      case "warning":
         return styles.pending;
       case "ai":
+      case "purple":
         return styles.ai;
       case "course":
+      case "blue":
         return styles.course;
       default:
         return styles.course;
@@ -28,6 +31,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
   const getTextStyle = (): TextStyle => {
     switch (variant) {
       case "course":
+      case "blue":
         return { color: colors.primary };
       default:
         return { color: "#FFFFFF" };
