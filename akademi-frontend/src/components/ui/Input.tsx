@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardTypeOptions,
   ViewStyle,
+  TextStyle,
 } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
 import { colors } from "../../theme/colors";
@@ -22,6 +23,7 @@ interface InputProps {
   keyboardType?: KeyboardTypeOptions;
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
+  labelStyle?: TextStyle;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -34,6 +36,7 @@ export const Input: React.FC<InputProps> = ({
   keyboardType = "default",
   leftIcon,
   style,
+  labelStyle,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
@@ -44,7 +47,9 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={[styles.label, typography.caption]}>{label}</Text>
+      {label ? (
+        <Text style={[styles.label, typography.caption, labelStyle]}>{label}</Text>
+      ) : null}
       <View
         style={[
           styles.inputContainer,
@@ -109,7 +114,6 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: colors.primary,
-    // Note: React Native doesn't support 'shadowBlur' like CSS, but we use primary border.
   },
   inputError: {
     borderColor: colors.error,
