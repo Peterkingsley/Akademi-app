@@ -89,6 +89,8 @@ export const Button: React.FC<ButtonProps> = ({
         style,
         (disabled || loading) && styles.disabled,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Animated.View style={[styles.content, animatedStyle]}>
         {loading ? (
