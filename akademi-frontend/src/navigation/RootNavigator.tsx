@@ -13,10 +13,10 @@ export const RootNavigator = () => {
   const { isAuthenticated, hasSeenOnboarding } = useAuthStore();
 
   useEffect(() => {
-    // Simulate splash screen for 2 seconds
+    // 5. After 2.5 seconds total: navigate to OnboardingScreen
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, []);

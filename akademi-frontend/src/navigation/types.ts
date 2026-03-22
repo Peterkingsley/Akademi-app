@@ -4,9 +4,9 @@ export type AuthStackParamList = {
   Onboarding: undefined;
   Register: undefined;
   UniversityPicker: undefined;
-  DepartmentPicker: { universityId: string };
-  CoursePicker: { departmentId: string };
-  EmailVerification: { email: string };
+  DepartmentPicker: { universityId?: string };
+  CoursePicker: { departmentId?: string };
+  EmailVerification: { email?: string };
   SetupComplete: undefined;
   Login: undefined;
   ForgotPassword: { email?: string };
