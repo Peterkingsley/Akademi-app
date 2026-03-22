@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   TouchableOpacity,
   Text,
@@ -6,22 +6,23 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
-} from 'react-native';
+} from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-} from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: "primary" | "secondary" | "ghost";
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
@@ -31,7 +32,7 @@ interface ButtonProps {
 export const Button: React.FC<ButtonProps> = ({
   label,
   onPress,
-  variant = 'primary',
+  variant = "primary",
   loading = false,
   disabled = false,
   icon,
@@ -56,11 +57,11 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
-      case 'secondary':
+      case "secondary":
         return styles.secondary;
-      case 'ghost':
+      case "ghost":
         return styles.ghost;
-      case 'primary':
+      case "primary":
       default:
         return styles.primary;
     }
@@ -68,7 +69,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getTextStyle = (): TextStyle => {
     switch (variant) {
-      case 'ghost':
+      case "ghost":
         return styles.ghostText;
       default:
         return styles.text;
@@ -82,15 +83,26 @@ export const Button: React.FC<ButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
-      style={[styles.base, getVariantStyle(), style, (disabled || loading) && styles.disabled]}
+      style={[
+        styles.base,
+        getVariantStyle(),
+        style,
+        (disabled || loading) && styles.disabled,
+      ]}
     >
       <Animated.View style={[styles.content, animatedStyle]}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
           <>
-            {icon && <Animated.View style={styles.iconContainer}>{icon}</Animated.View>}
-            <Text style={[getTextStyle(), typography.body, { fontWeight: '600' }]}>{label}</Text>
+            {icon && (
+              <Animated.View style={styles.iconContainer}>{icon}</Animated.View>
+            )}
+            <Text
+              style={[getTextStyle(), typography.body, { fontWeight: "600" }]}
+            >
+              {label}
+            </Text>
           </>
         )}
       </Animated.View>
@@ -102,9 +114,9 @@ const styles = StyleSheet.create({
   base: {
     height: 56,
     borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
   },
   primary: {
     backgroundColor: colors.primary,
@@ -113,12 +125,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   ghost: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
     color: colors.textPrimary,

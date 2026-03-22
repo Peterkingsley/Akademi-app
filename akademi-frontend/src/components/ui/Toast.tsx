@@ -1,10 +1,5 @@
-import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
+import React, { useEffect } from "react";
+import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,20 +7,20 @@ import Animated, {
   withDelay,
   withSequence,
   runOnJS,
-} from 'react-native-reanimated';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native-reanimated";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface ToastProps {
   message: string;
-  type?: 'success' | 'error' | 'warning';
+  type?: "success" | "error" | "warning";
   onHide?: () => void;
   duration?: number;
 }
 
 export const Toast: React.FC<ToastProps> = ({
   message,
-  type = 'success',
+  type = "success",
   onHide,
   duration = 3000,
 }) => {
@@ -41,12 +36,12 @@ export const Toast: React.FC<ToastProps> = ({
           if (finished && onHide) {
             runOnJS(onHide)();
           }
-        })
-      )
+        }),
+      ),
     );
     translateY.value = withSequence(
       withTiming(0, { duration: 300 }),
-      withDelay(duration, withTiming(20, { duration: 300 }))
+      withDelay(duration, withTiming(20, { duration: 300 })),
     );
   }, []);
 
@@ -57,38 +52,46 @@ export const Toast: React.FC<ToastProps> = ({
 
   const getBackgroundColor = () => {
     switch (type) {
-      case 'error':
+      case "error":
         return colors.error;
-      case 'warning':
+      case "warning":
         return colors.warning;
-      case 'success':
+      case "success":
       default:
         return colors.success;
     }
   };
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor: getBackgroundColor() }, animatedStyle]}>
-      <Text style={[styles.text, typography.bodySmall, { fontWeight: '600' }]}>{message}</Text>
+    <Animated.View
+      style={[
+        styles.container,
+        { backgroundColor: getBackgroundColor() },
+        animatedStyle,
+      ]}
+    >
+      <Text style={[styles.text, typography.bodySmall, { fontWeight: "600" }]}>
+        {message}
+      </Text>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 50,
     left: 20,
     right: 20,
     padding: 16,
     borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     zIndex: 9999,
   },
   text: {
-    color: '#FFFFFF',
-    textAlign: 'center',
+    color: "#FFFFFF",
+    textAlign: "center",
   },
 });

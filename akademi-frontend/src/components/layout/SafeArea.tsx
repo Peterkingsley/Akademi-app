@@ -1,12 +1,12 @@
-import React from 'react';
+import React from "react";
 import {
   SafeAreaView,
   StatusBar,
   StyleSheet,
   ViewStyle,
   Platform,
-} from 'react-native';
-import { colors } from '../../theme/colors';
+} from "react-native";
+import { colors } from "../../theme/colors";
 
 interface SafeAreaProps {
   children: React.ReactNode;
@@ -26,6 +26,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
 });

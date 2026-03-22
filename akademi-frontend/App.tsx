@@ -1,37 +1,46 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors } from './src/theme/colors';
-import { typography } from './src/theme/typography';
-import { Screen } from './src/components/layout/Screen';
-import { Button } from './src/components/ui/Button';
+import React, { useEffect, useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import { SpaceMono_400Regular } from "@expo-google-fonts/space-mono";
+import * as SplashScreenNative from "expo-splash-screen";
+import { RootNavigator } from "./src/navigation/RootNavigator";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { StatusBar } from "expo-status-bar";
+
+// Keep the splash screen visible while we fetch resources
+SplashScreenNative.preventAutoHideAsync();
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    "Inter-Regular": Inter_400Regular,
+    "Inter-Medium": Inter_500Medium,
+    "Inter-SemiBold": Inter_600SemiBold,
+    "Inter-Bold": Inter_700Bold,
+    "SpaceMono-Regular": SpaceMono_400Regular,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreenNative.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <Screen title="Akademi Design System">
-      <View style={styles.container}>
-        <Text style={[typography.h1, { color: colors.textPrimary }]}>
-          Learn Deeper.
-        </Text>
-        <Text style={[typography.h2, { color: colors.primary }]}>
-          Go Further.
-        </Text>
-        <View style={styles.section}>
-          <Button label="Primary Button" onPress={() => {}} />
-          <View style={{ height: 16 }} />
-          <Button label="Secondary Button" variant="secondary" onPress={() => {}} />
-        </View>
-      </View>
-    </Screen>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: colors.background,
-  },
-  section: {
-    marginTop: 32,
-  },
-});

@@ -1,16 +1,11 @@
-import React, { useMemo, useCallback } from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  ViewStyle,
-} from 'react-native';
+import React, { useMemo, useCallback } from "react";
+import { View, StyleSheet, Text, ViewStyle } from "react-native";
 import GorhomBottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   BottomSheetBackdropProps,
-} from '@gorhom/bottom-sheet';
-import { colors } from '../../theme/colors';
+} from "@gorhom/bottom-sheet";
+import { colors } from "../../theme/colors";
 
 interface BottomSheetProps {
   children: React.ReactNode;
@@ -21,7 +16,7 @@ interface BottomSheetProps {
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
   children,
-  snapPoints = ['25%', '50%', '90%'],
+  snapPoints = ["25%", "50%", "90%"],
   index = -1,
   onClose,
 }) => {
@@ -34,7 +29,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         opacity={0.5}
       />
     ),
-    []
+    [],
   );
 
   return (
@@ -47,9 +42,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handle}
     >
-      <BottomSheetView style={styles.content}>
-        {children}
-      </BottomSheetView>
+      <BottomSheetView style={styles.content}>{children}</BottomSheetView>
     </GorhomBottomSheet>
   );
 };
@@ -59,7 +52,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   handle: {
-    backgroundColor: '#374151',
+    backgroundColor: "#374151",
     width: 40,
     height: 4,
     borderRadius: 2,

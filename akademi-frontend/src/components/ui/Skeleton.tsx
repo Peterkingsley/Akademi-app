@@ -1,18 +1,13 @@
-import React, { useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ViewStyle,
-  LayoutChangeEvent,
-} from 'react-native';
+import React, { useEffect } from "react";
+import { View, StyleSheet, ViewStyle, LayoutChangeEvent } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
   interpolate,
-} from 'react-native-reanimated';
-import { colors } from '../../theme/colors';
+} from "react-native-reanimated";
+import { colors } from "../../theme/colors";
 
 interface SkeletonProps {
   width?: number | string;
@@ -22,7 +17,7 @@ interface SkeletonProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
-  width = '100%',
+  width = "100%",
   height = 20,
   borderRadius = 4,
   style,
@@ -33,7 +28,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     shimmerValue.value = withRepeat(
       withTiming(1, { duration: 1500 }),
       -1,
-      false
+      false,
     );
   }, []);
 
@@ -41,7 +36,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     const translateX = interpolate(
       shimmerValue.value,
       [0, 1],
-      [-100, 100] // Relative percentages
+      [-100, 100], // Relative percentages
     );
     return {
       transform: [{ translateX: `${translateX}%` }],
@@ -68,11 +63,11 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
 const styles = StyleSheet.create({
   base: {
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   shimmer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#252F42',
+    backgroundColor: "#252F42",
     opacity: 0.5,
   },
 });

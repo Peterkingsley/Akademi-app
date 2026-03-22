@@ -3,6 +3,7 @@
     "name": "Akademi",
     "slug": "akademi",
     "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -24,6 +25,10 @@
         "backgroundColor": "#0A0F1E"
       },
       "package": "com.akademi.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [

@@ -1,14 +1,15 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
-} from 'react-native';
-import { House, Camera, Library, BarChart2 } from 'lucide-react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
+} from "react-native";
+import { House, Camera, Library, BarChart2 } from "lucide-react-native";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
+import * as Haptics from "expo-haptics";
 
 interface BottomTabBarProps {
   state: any;
@@ -23,13 +24,13 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 }) => {
   const getIcon = (name: string, color: string) => {
     switch (name) {
-      case 'Home':
+      case "Home":
         return <House size={24} color={color} />;
-      case 'Solve':
+      case "Solve":
         return <Camera size={24} color={color} />;
-      case 'Library':
+      case "Library":
         return <Library size={24} color={color} />;
-      case 'Insights':
+      case "Insights":
         return <BarChart2 size={24} color={color} />;
       default:
         return null;
@@ -44,26 +45,27 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
           options.tabBarLabel !== undefined
             ? options.tabBarLabel
             : options.title !== undefined
-            ? options.title
-            : route.name;
+              ? options.title
+              : route.name;
 
         const isFocused = state.index === index;
 
         const onPress = () => {
           const event = navigation.emit({
-            type: 'tabPress',
+            type: "tabPress",
             target: route.key,
             canPreventDefault: true,
           });
 
           if (!isFocused && !event.defaultPrevented) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             navigation.navigate(route.name);
           }
         };
 
         const onLongPress = () => {
           navigation.emit({
-            type: 'tabLongPress',
+            type: "tabLongPress",
             target: route.key,
           });
         };
@@ -83,6 +85,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             style={styles.tabItem}
             activeOpacity={0.8}
           >
+            {isFocused && <View style={styles.indicator} />}
             {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
             <Text
               style={[
@@ -93,7 +96,6 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             >
               {label}
             </Text>
-            {isFocused && <View style={styles.indicator} />}
           </TouchableOpacity>
         );
       })}
@@ -103,30 +105,27 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    height: Platform.OS === 'ios' ? 88 : 64,
+    flexDirection: "row",
+    height: Platform.OS === "ios" ? 88 : 64,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 0,
+    paddingBottom: Platform.OS === "ios" ? 24 : 0,
   },
   tabItem: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   label: {
     marginTop: 4,
-    fontSize: 10,
-    fontWeight: '500',
   },
   indicator: {
-    position: 'absolute',
-    top: 0,
-    width: 20,
-    height: 3,
+    position: "absolute",
+    top: 10,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: colors.primary,
-    borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
   },
 });
