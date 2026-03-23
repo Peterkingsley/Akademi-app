@@ -25,7 +25,7 @@ export interface MaterialCardProps {
   onBookmarkPress?: () => void;
 }
 
-export const MaterialCard: React.FC<MaterialCardProps> = ({
+export const MaterialCard = React.forwardRef<TouchableOpacity, MaterialCardProps>(({
   title,
   courseCode,
   fileType,
@@ -36,7 +36,7 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
   isBookmarked,
   onPress,
   onBookmarkPress,
-}) => {
+}, ref) => {
   const getIconConfig = () => {
     switch (fileType) {
       case "PDF":
@@ -56,6 +56,7 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
 
   return (
     <TouchableOpacity
+      ref={ref}
       onPress={onPress}
       activeOpacity={0.8}
       style={styles.container}
@@ -111,7 +112,7 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
       </TouchableOpacity>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
