@@ -5,8 +5,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
-  RefreshControl
+  RefreshControl,
 } from "react-native";
 import { Search, Plus, Upload } from "lucide-react-native";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
@@ -26,8 +25,6 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
-
-const AnimatedMaterialCard = Animated.createAnimatedComponent(MaterialCard);
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -176,7 +173,11 @@ export const LibraryScreen: React.FC = () => {
           </Animated.View>
         )}
         ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={[
+          styles.listContent,
+          filteredMaterials.length === 0 && { flexGrow: 1, justifyContent: "center" }
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -257,6 +258,7 @@ export const LibraryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
+    flex: 1,
   },
   header: {
     paddingTop: 10,
@@ -303,7 +305,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyContainer: {
-    padding: 40,
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
   emptyText: {
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     bottom: 24,
-    right: 20,
+    right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,

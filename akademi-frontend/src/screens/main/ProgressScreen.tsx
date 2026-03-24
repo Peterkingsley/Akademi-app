@@ -10,7 +10,7 @@ export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   return (
-    <Screen title="ProgressScreen">
+    <Screen style={{ flex: 1 }} title="ProgressScreen">
       <View style={styles.container}>
         <Text style={[typography.h2, { color: colors.textPrimary }]}>
           ProgressScreen

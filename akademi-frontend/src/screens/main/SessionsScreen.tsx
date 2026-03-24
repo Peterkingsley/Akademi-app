@@ -10,7 +10,7 @@ export const SessionsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   return (
-    <Screen title="SessionsScreen">
+    <Screen style={{ flex: 1 }} title="SessionsScreen">
       <View style={styles.container}>
         <Text style={[typography.h2, { color: colors.textPrimary }]}>
           SessionsScreen

@@ -41,7 +41,7 @@ export const DepartmentPickerScreen: React.FC = () => {
   };
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
@@ -172,6 +172,7 @@ export const DepartmentPickerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 24,
+    flex: 1,
   },
   progressDots: {
     flexDirection: "row",

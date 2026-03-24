@@ -383,10 +383,12 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
+    flex: 1,
   },
   container: {
     padding: 20,
     paddingTop: 0,
+    flex: 1,
   },
   header: {
     flexDirection: "row",

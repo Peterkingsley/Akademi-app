@@ -140,6 +140,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: "space-between",
     paddingVertical: 40,
+    flex: 1,
   },
   systemStats: {
     paddingHorizontal: 20,

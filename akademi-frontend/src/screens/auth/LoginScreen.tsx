@@ -55,7 +55,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
@@ -163,6 +163,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     paddingBottom: 100,
+    flex: 1,
   },
   centerTop: {
     alignItems: "center",
