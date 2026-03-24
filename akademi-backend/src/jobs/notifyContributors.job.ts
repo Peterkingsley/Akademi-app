@@ -21,7 +21,7 @@ export async function notifyContributorsJob(materialId: string) {
   for (const user of users) {
     try {
       await resend.emails.send({
-        from: 'Akademi <noreply@onboarding@resend.dev>',
+        from: 'Akademi <noreply@akademi.edu.ng>',
         to: user.email,
         subject: `Material Verified: ${material.title}`,
         html: `<p>Hello ${user.name},</p>
