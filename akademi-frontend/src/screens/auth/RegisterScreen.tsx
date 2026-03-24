@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -54,11 +55,8 @@ export const RegisterScreen: React.FC = () => {
       });
       navigation.navigate("EmailVerification", { email: form.email });
     } catch (err: any) {
-      console.error("Registration failed", err);
-      const message = err.response?.data?.message || "Registration failed. Please try again.";
+      const message = getErrorMessage(err);
       setError(message);
-      // For testing/demo purposes, navigate anyway if API fails
-      // In production we should show an error
     } finally {
       setLoading(false);
     }

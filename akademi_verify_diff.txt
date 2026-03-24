@@ -1,0 +1,103 @@
+<<<<<<< SEARCH
+import api from "../../services/api";
+
+export const EmailVerificationScreen: React.FC = () => {
+=======
+import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
+
+export const EmailVerificationScreen: React.FC = () => {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  const [timer, setTimer] = useState(45);
+  const [loading, setLoading] = useState(false);
+=======
+  const [timer, setTimer] = useState(45);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  const handleVerify = async () => {
+    const otpCode = code.join("");
+    if (otpCode.length !== 6) return;
+
+    setLoading(true);
+    try {
+      await api.post("/auth/verify-email", { token: otpCode });
+      navigation.navigate("SetupComplete");
+    } catch (error) {
+      console.error("Verification failed", error);
+      // For now, let's navigate anyway to allow the flow to be tested
+      navigation.navigate("SetupComplete");
+    } finally {
+      setLoading(false);
+    }
+  };
+=======
+  const handleVerify = async () => {
+    const otpCode = code.join("");
+    if (otpCode.length !== 6) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/auth/verify-email", { token: otpCode });
+      navigation.navigate("SetupComplete");
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        <Text style={styles.body}>
+          We sent a 6-digit code to <Text style={{ color: colors.primary }}>{email}</Text>. Enter it below to verify your account.
+        </Text>
+
+        <View style={styles.otpContainer}>
+=======
+        <Text style={styles.body}>
+          We sent a 6-digit code to <Text style={{ color: colors.primary }}>{email}</Text>. Enter it below to verify your account.
+        </Text>
+
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <View style={styles.otpContainer}>
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  footerPillText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+});
+=======
+  footerPillText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 24,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+  },
+});
+>>>>>>> REPLACE

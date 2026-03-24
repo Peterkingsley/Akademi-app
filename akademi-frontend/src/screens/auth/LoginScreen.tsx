@@ -17,6 +17,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
+import { getErrorMessage } from "../../utils/error-handler";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -51,8 +52,7 @@ export const LoginScreen: React.FC = () => {
       setAuth(user, accessToken, refreshToken);
       // Navigation to MainStack will be handled by RootNavigator based on isAuthenticated
     } catch (err: any) {
-      console.error("Login failed", err);
-      const message = err.response?.data?.message || "Invalid email or password";
+      const message = getErrorMessage(err);
       setError(message);
     } finally {
       setLoading(false);

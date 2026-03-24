@@ -1,0 +1,24 @@
+<<<<<<< SEARCH
+import api from "../../services/api";
+
+export const RegisterScreen: React.FC = () => {
+=======
+import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
+
+export const RegisterScreen: React.FC = () => {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    } catch (err: any) {
+      console.error("Registration failed", err);
+      const message = err.response?.data?.message || "Registration failed. Please try again.";
+      setError(message);
+      // For testing/demo purposes, navigate anyway if API fails
+      // In production we should show an error
+    } finally {
+=======
+    } catch (err: any) {
+      const message = getErrorMessage(err);
+      setError(message);
+    } finally {
+>>>>>>> REPLACE

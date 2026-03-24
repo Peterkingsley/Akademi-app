@@ -1,0 +1,90 @@
+<<<<<<< SEARCH
+import api from "../../services/api";
+
+export const ForgotPasswordScreen: React.FC = () => {
+=======
+import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
+
+export const ForgotPasswordScreen: React.FC = () => {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleReset = async () => {
+    if (!email) return;
+    setLoading(true);
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setSuccess(true);
+    } catch (error) {
+      console.error("Forgot password failed", error);
+      // For demo, show success anyway
+      setSuccess(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+=======
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleReset = async () => {
+    if (!email) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setSuccess(true);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        <Text style={styles.headline}>Reset your password</Text>
+        <Text style={styles.body}>Enter your email and we'll send you a reset link.</Text>
+
+        <Input
+=======
+        <Text style={styles.headline}>Reset your password</Text>
+        <Text style={styles.body}>Enter your email and we'll send you a reset link.</Text>
+
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <Input
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  linkText: {
+    color: colors.primary,
+    fontFamily: "Inter-Bold",
+  },
+});
+=======
+  linkText: {
+    color: colors.primary,
+    fontFamily: "Inter-Bold",
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 24,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
+  },
+});
+>>>>>>> REPLACE
