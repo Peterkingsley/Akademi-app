@@ -310,7 +310,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <no-reply@onboarding@resend.dev>',
+          from: 'Akademi <onboarding@resend.dev>',
           to: user.email,
           subject: 'Verify your email',
           html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
