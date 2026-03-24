@@ -45,6 +45,16 @@ export class AuthService {
   }
 
   async register(data: RegisterRequest): Promise<void> {
+    // Validation
+    if (!data.name || !data.email || !data.university || !data.faculty || !data.department || !data.level) {
+      throw new Error("All registration fields are required");
+    }
+
+    const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    if (!emailRegex.test(data.email)) {
+      throw new Error("Invalid email format");
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
       throw new Error('Email already registered');
