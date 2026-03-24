@@ -121,6 +121,7 @@ model User {
   @@index([email])
   @@index([university])
   @@index([department])
+  @@map("users")
 }
 
 model LearningProfile {
@@ -136,6 +137,7 @@ model LearningProfile {
   updated_at            DateTime        @updatedAt
 
   user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@map("learning_profiles")
 }
 
 model CommunityPattern {
@@ -150,6 +152,7 @@ model CommunityPattern {
 
   @@index([department])
   @@index([course_code])
+  @@map("community_patterns")
 }
 
 model Material {
@@ -181,6 +184,7 @@ model Material {
   @@index([department])
   @@index([level])
   @@index([verification_status])
+  @@map("materials")
 }
 
 model MaterialEmbedding {
@@ -192,6 +196,7 @@ model MaterialEmbedding {
   created_at  DateTime @default(now())
 
   material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  @@map("material_embeddings")
 }
 
 model UploadChunk {
@@ -204,6 +209,7 @@ model UploadChunk {
   created_at   DateTime    @default(now())
 
   material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  @@map("upload_chunks")
 }
 
 model Session {
@@ -223,6 +229,7 @@ model Session {
 
   @@index([user_id])
   @@index([course_code])
+  @@map("sessions")
 }
 
 model Message {
@@ -238,6 +245,7 @@ model Message {
   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([session_id])
+  @@map("messages")
 }
 
 model Question {
@@ -259,6 +267,7 @@ model Question {
   @@index([course_code])
   @@index([department])
   @@index([difficulty])
+  @@map("questions")
 }
 
 model FeatureAccess {
@@ -275,6 +284,7 @@ model FeatureAccess {
 
   @@index([user_id])
   @@index([feature])
+  @@map("feature_access")
 }
 
 model Admin {
@@ -285,6 +295,7 @@ model Admin {
   role          AdminRole @default(MODERATOR)
   created_at    DateTime  @default(now())
   last_login    DateTime?
+  @@map("admins")
 }
 
 model RefreshToken {
@@ -301,6 +312,7 @@ model RefreshToken {
 
   @@index([user_id])
   @@index([is_active])
+  @@map("refresh_tokens")
 }
 
 model DisciplineDocument {
@@ -317,6 +329,7 @@ model DisciplineDocument {
   @@index([department])
   @@index([course_code])
   @@index([is_active])
+  @@map("discipline_documents")
 }
 
 // Additional models required by the codebase
@@ -326,6 +339,7 @@ model University {
   location    String?
   departments Department[]
   created_at  DateTime     @default(now())
+  @@map("universities")
 }
 
 model Department {
@@ -337,6 +351,7 @@ model Department {
   created_at    DateTime   @default(now())
 
   @@unique([name, university_id])
+  @@map("departments")
 }
 
 model ExamPrepPlan {
@@ -351,6 +366,7 @@ model ExamPrepPlan {
   mock_exams   MockExam[]
 
   @@index([user_id])
+  @@map("exam_prep_plans")
 }
 
 model PrepTask {
@@ -363,6 +379,7 @@ model PrepTask {
   completed    Boolean      @default(false)
   completed_at DateTime?
   created_at   DateTime     @default(now())
+  @@map("prep_tasks")
 }
 
 model MockExam {
@@ -373,6 +390,7 @@ model MockExam {
   questions   Question[]
   created_at  DateTime     @default(now())
   attempts    MockAttempt[]
+  @@map("mock_exams")
 }
 
 model MockAttempt {
@@ -385,6 +403,7 @@ model MockAttempt {
   feedback       String?
   started_at     DateTime  @default(now())
   completed_at   DateTime?
+  @@map("mock_attempts")
 }
 
 model QuestionAttempt {
@@ -397,4 +416,5 @@ model QuestionAttempt {
   is_correct  Boolean
   feedback    String?
   created_at  DateTime @default(now())
+  @@map("question_attempts")
 }
