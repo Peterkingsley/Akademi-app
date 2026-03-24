@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Enums
 enum AuthProvider {
   EMAIL
   GOOGLE
@@ -73,6 +74,7 @@ enum Feature {
 enum AccessType {
   TIME_WINDOW
   USE_BASED
+  FREE_TRIAL
 }
 
 enum AdminRole {
@@ -85,53 +87,55 @@ enum DeviceType {
   IOS
 }
 
+// Models
 model User {
-  id                            String           @id @default(uuid())
-  name                          String
-  email                         String           @unique
-  password_hash                 String?
-  university                    String
-  faculty                       String
-  department                    String
-  level                         Int
-  profile_photo_url             String?
-  auth_provider                 AuthProvider
-  is_verified                   Boolean          @default(false)
-  verification_token            String?
+  id                           String         @id @default(uuid())
+  name                         String
+  email                        String         @unique
+  password_hash                String?
+  university                   String
+  faculty                      String
+  department                   String
+  level                        Int
+  profile_photo_url            String?
+  auth_provider                AuthProvider   @default(EMAIL)
+  is_verified                  Boolean        @default(false)
+  verification_token           String?
   verification_token_expires_at DateTime?
-  created_at                    DateTime         @default(now())
-  updated_at                    DateTime         @updatedAt
-  is_deleted                    Boolean          @default(false)
-  learning_profile              LearningProfile?
-  materials                     Material[]
-  sessions                      Session[]
-  messages                      Message[]
-  feature_access                FeatureAccess[]
-  refresh_tokens                RefreshToken[]
-  exam_prep_plans               ExamPrepPlan[]
-  mock_attempts                 MockAttempt[]
-  question_attempts             QuestionAttempt[]
+  created_at                   DateTime       @default(now())
+  updated_at                   DateTime       @updatedAt
+  is_deleted                   Boolean        @default(false) // Required by AuthService
+
+  learning_profile  LearningProfile?
+  sessions          Session[]
+  messages          Message[]
+  feature_access    FeatureAccess[]
+  refresh_tokens    RefreshToken[]
+  materials         Material[]       @relation("UploadedBy")
+
+  // Relations to additional models used in codebase
+  question_attempts QuestionAttempt[]
+  exam_prep_plans   ExamPrepPlan[]
+  mock_attempts     MockAttempt[]
 
   @@index([email])
   @@index([university])
   @@index([department])
-  @@map("users")
 }
 
 model LearningProfile {
-  id                   String          @id @default(uuid())
-  user_id              String          @unique
-  user                 User            @relation(fields: [user_id], references: [id])
-  subject_strengths    Json
-  subject_weaknesses   Json
-  preferred_reply_mode ReplyMode?
-  question_patterns    Json
-  vocabulary_level     VocabularyLevel
-  session_count        Int             @default(0)
-  last_active          DateTime?
-  updated_at           DateTime        @updatedAt
+  id                    String          @id @default(uuid())
+  user_id               String          @unique
+  subject_strengths     Json            @default("{}")
+  subject_weaknesses    Json            @default("{}")
+  preferred_reply_mode  ReplyMode?
+  question_patterns     Json            @default("{}")
+  vocabulary_level      VocabularyLevel @default(BASIC)
+  session_count         Int             @default(0)
+  last_active           DateTime?
+  updated_at            DateTime        @updatedAt
 
-  @@map("learning_profiles")
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model CommunityPattern {
@@ -140,13 +144,12 @@ model CommunityPattern {
   faculty          String
   department       String
   course_code      String
-  question_pattern Json
+  question_pattern Json     @default("{}")
   frequency        Int      @default(1)
   updated_at       DateTime @updatedAt
 
   @@index([department])
   @@index([course_code])
-  @@map("community_patterns")
 }
 
 model Material {
@@ -159,57 +162,53 @@ model Material {
   level               Int
   file_ref            String
   file_type           FileType
-  verification_status VerificationStatus
+  verification_status VerificationStatus @default(PENDING)
   upload_count        Int                @default(1)
-  contributor_ids     Json
+  contributor_ids     Json               @default("[]")
   verified_at         DateTime?
   uploaded_by         String
-  user                User               @relation(fields: [uploaded_by], references: [id])
   admin_reviewed_by   String?
-  admin               Admin?             @relation(fields: [admin_reviewed_by], references: [id])
   admin_reviewed_at   DateTime?
   created_at          DateTime           @default(now())
-  embeddings          MaterialEmbedding[]
-  upload_chunks       UploadChunk[]
-  questions           Question[]
+
+  user        User               @relation("UploadedBy", fields: [uploaded_by], references: [id])
+  questions   Question[]
+  embeddings  MaterialEmbedding[]
+  upload_chunks      UploadChunk[] // Named upload_chunks to match codebase
 
   @@index([course_code])
   @@index([university])
   @@index([department])
   @@index([level])
   @@index([verification_status])
-  @@map("materials")
 }
 
 model MaterialEmbedding {
   id          String   @id @default(uuid())
   material_id String
-  material    Material @relation(fields: [material_id], references: [id])
   chunk_index Int
   chunk_text  String
   embedding   Json
   created_at  DateTime @default(now())
 
-  @@map("material_embeddings")
+  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
 }
 
 model UploadChunk {
   id           String      @id @default(uuid())
   material_id  String
-  material     Material    @relation(fields: [material_id], references: [id])
   chunk_index  Int
   chunk_ref    String
   total_chunks Int
-  status       ChunkStatus
+  status       ChunkStatus @default(PENDING)
   created_at   DateTime    @default(now())
 
-  @@map("upload_chunks")
+  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
 }
 
 model Session {
   id           String      @id @default(uuid())
   user_id      String
-  user         User        @relation(fields: [user_id], references: [id])
   session_type SessionType
   reply_mode   ReplyMode?
   course_code  String
@@ -218,32 +217,32 @@ model Session {
   started_at   DateTime    @default(now())
   ended_at     DateTime?
   created_at   DateTime    @default(now())
-  messages     Message[]
+
+  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  messages  Message[]
 
   @@index([user_id])
   @@index([course_code])
-  @@map("sessions")
 }
 
 model Message {
   id         String      @id @default(uuid())
   session_id String
-  session    Session     @relation(fields: [session_id], references: [id])
   user_id    String
-  user       User        @relation(fields: [user_id], references: [id])
   role       MessageRole
   content    String
   reply_mode ReplyMode?
   created_at DateTime    @default(now())
 
+  session  Session  @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([session_id])
-  @@map("messages")
 }
 
 model Question {
   id             String     @id @default(uuid())
   material_id    String
-  material       Material   @relation(fields: [material_id], references: [id])
   course_code    String
   university     String
   department     String
@@ -253,49 +252,44 @@ model Question {
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
 
-  attempts       QuestionAttempt[]
-  mock_exams     MockExam[]
+  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  attempts  QuestionAttempt[]
+  mock_exams MockExam[]
 
   @@index([course_code])
   @@index([department])
   @@index([difficulty])
-  @@map("questions")
 }
 
 model FeatureAccess {
   id             String     @id @default(uuid())
   user_id        String
-  user           User       @relation(fields: [user_id], references: [id])
   feature        Feature
   access_type    AccessType
   expires_at     DateTime?
   uses_remaining Int?
   purchased_at   DateTime   @default(now())
-  payment_ref    String
+  payment_ref    String     @default("")
+
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([feature])
-  @@map("feature_access")
 }
 
 model Admin {
-  id                   String               @id @default(uuid())
-  name                 String
-  email                String               @unique
-  password_hash        String
-  role                 AdminRole
-  created_at           DateTime             @default(now())
-  last_login           DateTime?
-  reviewed_materials   Material[]
-  discipline_documents DisciplineDocument[]
-
-  @@map("admins")
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password_hash String
+  role          AdminRole @default(MODERATOR)
+  created_at    DateTime  @default(now())
+  last_login    DateTime?
 }
 
 model RefreshToken {
   id          String     @id @default(uuid())
   user_id     String
-  user        User       @relation(fields: [user_id], references: [id])
   token_hash  String
   device_name String
   device_type DeviceType
@@ -303,37 +297,35 @@ model RefreshToken {
   created_at  DateTime   @default(now())
   expires_at  DateTime
 
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([user_id])
   @@index([is_active])
-  @@map("refresh_tokens")
 }
 
 model DisciplineDocument {
-  id              String   @id @default(uuid())
-  faculty         String
-  department      String
-  course_code     String?
-  document_ref    String
-  version         Int      @default(1)
-  last_updated_by String
-  admin           Admin    @relation(fields: [last_updated_by], references: [id])
-  updated_at      DateTime @updatedAt
-  is_active       Boolean  @default(true)
+  id               String   @id @default(uuid())
+  faculty          String
+  department       String
+  course_code      String?
+  document_ref     String
+  version          Int      @default(1)
+  last_updated_by  String
+  updated_at       DateTime @updatedAt
+  is_active        Boolean  @default(true)
 
   @@index([department])
   @@index([course_code])
   @@index([is_active])
-  @@map("discipline_documents")
 }
 
+// Additional models required by the codebase
 model University {
   id          String       @id @default(uuid())
   name        String       @unique
   location    String?
   departments Department[]
   created_at  DateTime     @default(now())
-
-  @@map("universities")
 }
 
 model Department {
@@ -345,7 +337,6 @@ model Department {
   created_at    DateTime   @default(now())
 
   @@unique([name, university_id])
-  @@map("departments")
 }
 
 model ExamPrepPlan {
@@ -360,7 +351,6 @@ model ExamPrepPlan {
   mock_exams   MockExam[]
 
   @@index([user_id])
-  @@map("exam_prep_plans")
 }
 
 model PrepTask {
@@ -373,8 +363,6 @@ model PrepTask {
   completed    Boolean      @default(false)
   completed_at DateTime?
   created_at   DateTime     @default(now())
-
-  @@map("prep_tasks")
 }
 
 model MockExam {
@@ -385,8 +373,6 @@ model MockExam {
   questions   Question[]
   created_at  DateTime     @default(now())
   attempts    MockAttempt[]
-
-  @@map("mock_exams")
 }
 
 model MockAttempt {
@@ -399,8 +385,6 @@ model MockAttempt {
   feedback       String?
   started_at     DateTime  @default(now())
   completed_at   DateTime?
-
-  @@map("mock_attempts")
 }
 
 model QuestionAttempt {
@@ -413,6 +397,4 @@ model QuestionAttempt {
   is_correct  Boolean
   feedback    String?
   created_at  DateTime @default(now())
-
-  @@map("question_attempts")
 }
