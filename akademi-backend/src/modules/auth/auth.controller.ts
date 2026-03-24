@@ -9,6 +9,7 @@ export class AuthController {
       await authService.register(req.body);
       res.status(201).json({ message: 'Registration successful. Please check your email for verification.' });
     } catch (error: any) {
+      console.error('Registration error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -19,6 +20,7 @@ export class AuthController {
       await authService.verifyEmail(token);
       res.status(200).json({ message: 'Email verified successfully.' });
     } catch (error: any) {
+      console.error('Email verification error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -28,6 +30,7 @@ export class AuthController {
       const result = await authService.login(req.body);
       res.status(200).json(result);
     } catch (error: any) {
+      console.error('Login error:', error);
       const status = error.message === 'Email not verified' ? 403 : 401;
       res.status(status).json({ message: error.message });
     }
@@ -39,6 +42,7 @@ export class AuthController {
       const result = await authService.googleLogin(googleToken, deviceInfo);
       res.status(200).json(result);
     } catch (error: any) {
+      console.error('Google login error:', error);
       res.status(401).json({ message: error.message });
     }
   }
@@ -49,6 +53,7 @@ export class AuthController {
       const result = await authService.refreshToken(refreshToken);
       res.status(200).json(result);
     } catch (error: any) {
+      console.error('Token refresh error:', error);
       res.status(401).json({ message: error.message });
     }
   }
@@ -59,6 +64,7 @@ export class AuthController {
       await authService.logout(refreshToken);
       res.status(200).json({ message: 'Logged out successfully.' });
     } catch (error: any) {
+      console.error('Logout error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -68,6 +74,7 @@ export class AuthController {
       await authService.logoutAll(req.user!.userId);
       res.status(200).json({ message: 'Logged out from all devices successfully.' });
     } catch (error: any) {
+      console.error('Logout all error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -78,6 +85,7 @@ export class AuthController {
       await authService.forgotPassword(email);
       res.status(200).json({ message: 'If an account with that email exists, a reset link has been sent.' });
     } catch (error: any) {
+      console.error('Forgot password error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -88,6 +96,7 @@ export class AuthController {
       await authService.resetPassword(token, newPassword);
       res.status(200).json({ message: 'Password reset successfully.' });
     } catch (error: any) {
+      console.error('Reset password error:', error);
       res.status(400).json({ message: error.message });
     }
   }
@@ -98,6 +107,7 @@ export class AuthController {
       await authService.resendVerification(email);
       res.status(200).json({ message: 'Verification email resent.' });
     } catch (error: any) {
+      console.error('Resend verification error:', error);
       res.status(400).json({ message: error.message });
     }
   }

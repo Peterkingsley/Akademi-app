@@ -40,6 +40,10 @@ export class AuthService {
     return token;
   }
 
+  private isDummyResendKey(): boolean {
+    return !config.resendApiKey || config.resendApiKey === 're_dummy_key' || config.resendApiKey === 'your_resend_api_key';
+  }
+
   async register(data: RegisterRequest): Promise<void> {
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
@@ -81,13 +85,20 @@ export class AuthService {
       },
     });
 
-    if (config.nodeEnv !== 'test') {
-      await resend.emails.send({
-        from: 'Akademi <no-reply@akademi.edu.ng>',
-        to: user.email,
-        subject: 'Verify your email',
-        html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
-      });
+    if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <no-reply@akademi.edu.ng>',
+          to: user.email,
+          subject: 'Verify your email',
+          html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
+        });
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // We don't throw here to allow registration to succeed in dev/staging even if email fails
+      }
+    } else if (this.isDummyResendKey()) {
+      console.log(`Skipping email send due to dummy Resend API key. Verification token for ${user.email} is: ${verificationToken}`);
     }
   }
 
@@ -227,13 +238,19 @@ export class AuthService {
       },
     });
 
-    if (config.nodeEnv !== 'test') {
-      await resend.emails.send({
-        from: 'Akademi <no-reply@akademi.edu.ng>',
-        to: user.email,
-        subject: 'Reset your password',
-        html: `<p>Click <a href="https://akademi.edu.ng/reset-password?token=${resetToken}">here</a> to reset your password.</p>`,
-      });
+    if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <no-reply@akademi.edu.ng>',
+          to: user.email,
+          subject: 'Reset your password',
+          html: `<p>Click <a href="https://akademi.edu.ng/reset-password?token=${resetToken}">here</a> to reset your password.</p>`,
+        });
+      } catch (emailError) {
+        console.error('Failed to send forgot password email:', emailError);
+      }
+    } else if (this.isDummyResendKey()) {
+      console.log(`Skipping forgot password email send. Reset token for ${user.email} is: ${resetToken}`);
     }
   }
 
@@ -280,13 +297,19 @@ export class AuthService {
       },
     });
 
-    if (config.nodeEnv !== 'test') {
-      await resend.emails.send({
-        from: 'Akademi <no-reply@akademi.edu.ng>',
-        to: user.email,
-        subject: 'Verify your email',
-        html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
-      });
+    if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <no-reply@akademi.edu.ng>',
+          to: user.email,
+          subject: 'Verify your email',
+          html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
+        });
+      } catch (emailError) {
+        console.error('Failed to resend verification email:', emailError);
+      }
+    } else if (this.isDummyResendKey()) {
+      console.log(`Skipping resend verification email send. New verification token for ${user.email} is: ${verificationToken}`);
     }
   }
 }
