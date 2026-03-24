@@ -98,7 +98,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <no-reply@onboarding@resend.dev>',
+          from: 'Akademi <onboarding@resend.dev>',
           to: user.email,
           subject: 'Verify your email',
           html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
@@ -251,7 +251,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <no-reply@onboarding@resend.dev>',
+          from: 'Akademi <onboarding@resend.dev>',
           to: user.email,
           subject: 'Reset your password',
           html: `<p>Click <a href="https://onboarding@resend.dev/reset-password?token=${resetToken}">here</a> to reset your password.</p>`,
