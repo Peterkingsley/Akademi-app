@@ -33,10 +33,12 @@ export const RegisterScreen: React.FC = () => {
     phone: "",
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
     setLoading(true);
+    setError(null);
     try {
       // Convert level string to number (e.g. "300L" -> 300)
       const levelInt = parseInt(level.replace(/[^0-9]/g, ""), 10) || 100;
@@ -51,11 +53,12 @@ export const RegisterScreen: React.FC = () => {
         level: levelInt,
       });
       navigation.navigate("EmailVerification", { email: form.email });
-    } catch (error: any) {
-      console.error("Registration failed", error);
+    } catch (err: any) {
+      console.error("Registration failed", err);
+      const message = err.response?.data?.message || "Registration failed. Please try again.";
+      setError(message);
       // For testing/demo purposes, navigate anyway if API fails
       // In production we should show an error
-      navigation.navigate("EmailVerification", { email: form.email });
     } finally {
       setLoading(false);
     }
@@ -85,6 +88,12 @@ export const RegisterScreen: React.FC = () => {
       <View style={styles.container}>
         <Text style={styles.headline}>Almost there!</Text>
         <Text style={styles.subtext}>Create your account to save your progress</Text>
+
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
         <View style={styles.socialRow}>
           <TouchableOpacity style={styles.googleButton}>
@@ -372,6 +381,19 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 24,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
   },
   tabIndicator: {
     position: "absolute",
