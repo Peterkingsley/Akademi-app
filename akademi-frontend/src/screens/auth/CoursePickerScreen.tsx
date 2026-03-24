@@ -7,7 +7,7 @@ import {
   FlatList,
   Dimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { Search, CheckCircle2, PlusCircle } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -35,6 +35,9 @@ const COURSES: Course[] = [
 
 export const CoursePickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { university, faculty, department, level } = route.params || {};
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -51,7 +54,12 @@ export const CoursePickerScreen: React.FC = () => {
   );
 
   const handleDone = () => {
-    navigation.navigate("Register");
+    navigation.navigate("Register", {
+      university,
+      faculty,
+      department,
+      level,
+    });
   };
 
   const renderItem = ({ item }: { item: Course }) => {

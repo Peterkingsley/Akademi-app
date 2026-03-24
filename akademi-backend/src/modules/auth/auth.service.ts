@@ -43,11 +43,6 @@ export class AuthService {
   async register(data: RegisterRequest): Promise<void> {
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
-      if (existingUser.is_deleted) {
-        // Allow re-registration if deleted? Or just throw error?
-        // Usually, re-registration means reactivating or creating new.
-        // For this task, let's just throw error if email exists.
-      }
       throw new Error('Email already registered');
     }
 
@@ -56,9 +51,9 @@ export class AuthService {
       passwordHash = await bcrypt.hash(data.password, 12);
     }
 
-    const verificationToken = uuidv4();
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationTokenExpiresAt = new Date();
-    verificationTokenExpiresAt.setHours(verificationTokenExpiresAt.getHours() + 24);
+    verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 
     const user = await prisma.user.create({
       data: {
@@ -91,7 +86,7 @@ export class AuthService {
         from: 'Akademi <no-reply@akademi.edu.ng>',
         to: user.email,
         subject: 'Verify your email',
-        html: `<p>Click <a href="https://akademi.edu.ng/verify-email?token=${verificationToken}">here</a> to verify your email.</p>`,
+        html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
       });
     }
   }
@@ -141,7 +136,8 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, data.deviceInfo);
 
-    return { accessToken, refreshToken };
+    const { password_hash, ...userWithoutPassword } = user;
+    return { accessToken, refreshToken, user: userWithoutPassword };
   }
 
   async googleLogin(token: string, deviceInfo: { name: string; type: any }): Promise<AuthResponse> {
@@ -163,7 +159,8 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, deviceInfo);
 
-    return { accessToken, refreshToken };
+    const { password_hash, ...userWithoutPassword } = user;
+    return { accessToken, refreshToken, user: userWithoutPassword };
   }
 
   async refreshToken(token: string): Promise<AuthResponse> {
@@ -195,7 +192,8 @@ export class AuthService {
       type: refreshTokenRecord.device_type,
     });
 
-    return { accessToken, refreshToken: newRefreshToken };
+    const { password_hash, ...userWithoutPassword } = refreshTokenRecord.user;
+    return { accessToken, refreshToken: newRefreshToken, user: userWithoutPassword };
   }
 
   async logout(token: string): Promise<void> {
@@ -270,9 +268,9 @@ export class AuthService {
       throw new Error('User not found or already verified');
     }
 
-    const verificationToken = uuidv4();
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
     const verificationTokenExpiresAt = new Date();
-    verificationTokenExpiresAt.setHours(verificationTokenExpiresAt.getHours() + 24);
+    verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -287,7 +285,7 @@ export class AuthService {
         from: 'Akademi <no-reply@akademi.edu.ng>',
         to: user.email,
         subject: 'Verify your email',
-        html: `<p>Click <a href="https://akademi.edu.ng/verify-email?token=${verificationToken}">here</a> to verify your email.</p>`,
+        html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
       });
     }
   }

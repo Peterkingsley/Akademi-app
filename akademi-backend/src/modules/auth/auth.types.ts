@@ -1,4 +1,4 @@
-import { DeviceType, VocabularyLevel } from '@prisma/client';
+import { DeviceType, User } from '@prisma/client';
 
 export interface JwtPayload {
   userId: string;
@@ -8,6 +8,7 @@ export interface JwtPayload {
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
+  user: Partial<User>;
 }
 
 export interface RegisterRequest {

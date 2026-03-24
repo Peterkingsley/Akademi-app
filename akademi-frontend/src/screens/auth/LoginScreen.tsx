@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Apple, Eye, EyeOff } from "lucide-react-native";
@@ -36,6 +37,10 @@ export const LoginScreen: React.FC = () => {
       const response = await api.post("/auth/login", {
         email: form.email,
         password: form.password,
+        deviceInfo: {
+          name: Platform.OS === 'ios' ? 'iPhone' : 'Android Device',
+          type: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
+        }
       });
 
       const { user, accessToken, refreshToken } = response.data;

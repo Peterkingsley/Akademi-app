@@ -2,10 +2,20 @@ import { NavigatorScreenParams } from "@react-navigation/native";
 
 export type AuthStackParamList = {
   Onboarding: undefined;
-  Register: undefined;
+  Register: {
+    university: string;
+    faculty: string;
+    department: string;
+    level: string;
+  };
   UniversityPicker: undefined;
-  DepartmentPicker: { universityId?: string };
-  CoursePicker: { departmentId?: string };
+  DepartmentPicker: { university: string };
+  CoursePicker: {
+    university: string;
+    faculty: string;
+    department: string;
+    level: string;
+  };
   EmailVerification: { email?: string };
   SetupComplete: undefined;
   Login: undefined;
