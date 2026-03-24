@@ -9,6 +9,7 @@ export const config = {
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'your_refresh_secret',
   claudeApiKey: process.env.CLAUDE_API_KEY || '',
   googleTtsApiKey: process.env.GOOGLE_TTS_API_KEY || '',
+  googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
   googleOauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || 'dummy_client_id',
   googleOauthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
   r2AccountId: process.env.R2_ACCOUNT_ID || '',

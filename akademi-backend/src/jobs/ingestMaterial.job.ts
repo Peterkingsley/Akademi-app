@@ -4,7 +4,7 @@ import { config } from '../config/env';
 import { FileType } from '@prisma/client';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
-import vision from '@google-cloud/vision';
+import * as vision from '@google-cloud/vision';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 
 const s3Client = new S3Client({
@@ -16,7 +16,16 @@ const s3Client = new S3Client({
   },
 });
 
-const visionClient = new vision.ImageAnnotatorClient();
+let visionClient: vision.ImageAnnotatorClient | null = null;
+
+const getVisionClient = () => {
+  if (!visionClient) {
+    visionClient = new vision.ImageAnnotatorClient(
+      config.googleVisionApiKey ? { apiKey: config.googleVisionApiKey } : {}
+    );
+  }
+  return visionClient;
+};
 
 export async function ingestMaterialJob(materialId: string) {
   const material = await prisma.material.findUnique({
@@ -44,7 +53,7 @@ export async function ingestMaterialJob(materialId: string) {
     const result = await mammoth.extractRawText({ buffer });
     extractedText = result.value;
   } else if (material.file_type === FileType.IMAGE) {
-    const [result] = await visionClient.textDetection(buffer);
+    const [result] = await getVisionClient().textDetection(buffer);
     const detections = result.textAnnotations;
     extractedText =
       detections && detections.length > 0
