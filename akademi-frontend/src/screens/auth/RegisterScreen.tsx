@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Linking,
 } from "react-native";
@@ -20,7 +19,6 @@ export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
 
-  // These would ideally come from a global state or route params from the onboarding flow
   const {
     university = "University of Lagos",
     faculty = "Engineering",
@@ -40,6 +38,9 @@ export const RegisterScreen: React.FC = () => {
   const handleRegister = async () => {
     setLoading(true);
     try {
+      // Convert level string to number (e.g. "300L" -> 300)
+      const levelInt = parseInt(level.replace(/[^0-9]/g, ""), 10) || 100;
+
       await api.post("/auth/register", {
         name: form.name,
         email: form.email,
@@ -47,12 +48,13 @@ export const RegisterScreen: React.FC = () => {
         university,
         faculty,
         department,
-        level,
+        level: levelInt,
       });
       navigation.navigate("EmailVerification", { email: form.email });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration failed", error);
       // For testing/demo purposes, navigate anyway if API fails
+      // In production we should show an error
       navigation.navigate("EmailVerification", { email: form.email });
     } finally {
       setLoading(false);

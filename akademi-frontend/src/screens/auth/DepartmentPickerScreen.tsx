@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { Search, CheckCircle2 } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,6 +27,9 @@ const LEVELS = ["100L", "200L", "300L", "400L", "500L", "PG"];
 
 export const DepartmentPickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { university } = route.params || {};
+
   const [selectedFaculty, setSelectedFaculty] = useState("Engineering");
   const [selectedDept, setSelectedDept] = useState("Mechanical Engineering");
   const [selectedLevel, setSelectedLevel] = useState("300L");
@@ -37,7 +40,12 @@ export const DepartmentPickerScreen: React.FC = () => {
   );
 
   const handleContinue = () => {
-    navigation.navigate("CoursePicker");
+    navigation.navigate("CoursePicker", {
+      university,
+      faculty: selectedFaculty,
+      department: selectedDept,
+      level: selectedLevel,
+    });
   };
 
   return (

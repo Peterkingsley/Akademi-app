@@ -38,8 +38,9 @@ export const UniversityPickerScreen: React.FC = () => {
   );
 
   const handleContinue = () => {
-    if (selectedId) {
-      navigation.navigate("DepartmentPicker");
+    const selectedUni = UNIVERSITIES.find(u => u.id === selectedId);
+    if (selectedUni) {
+      navigation.navigate("DepartmentPicker", { university: selectedUni.name });
     }
   };
 
