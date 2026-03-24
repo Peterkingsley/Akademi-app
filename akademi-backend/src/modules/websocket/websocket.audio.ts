@@ -1,15 +1,25 @@
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
+import { config } from '../../config/env';
 import { Socket } from 'socket.io';
 import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketData } from './websocket.types';
 
-const client = new TextToSpeechClient();
+let client: TextToSpeechClient | null = null;
+
+const getClient = () => {
+  if (!client) {
+    client = new TextToSpeechClient(
+      config.googleTtsApiKey ? { apiKey: config.googleTtsApiKey } : {}
+    );
+  }
+  return client;
+};
 
 export async function streamAudio(
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   text: string
 ) {
   try {
-    const [response] = await client.synthesizeSpeech({
+    const [response] = await getClient().synthesizeSpeech({
       input: { text },
       voice: { languageCode: 'en-NG', ssmlGender: 'NEUTRAL' },
       audioConfig: { audioEncoding: 'MP3' },
