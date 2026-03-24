@@ -206,7 +206,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
   };
 
   return (
-    <Screen>
+    <Screen style={{ flex: 1 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}

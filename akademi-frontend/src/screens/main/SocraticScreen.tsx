@@ -131,6 +131,7 @@ export const SocraticScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
+    flex: 1,
   },
   header: {
     flexDirection: "row",

@@ -72,7 +72,7 @@ export const RegisterScreen: React.FC = () => {
   const strengthColors = [colors.error, colors.error, colors.warning, colors.warning, colors.success];
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     paddingBottom: 100,
+    flex: 1,
   },
   headline: {
     color: colors.textPrimary,

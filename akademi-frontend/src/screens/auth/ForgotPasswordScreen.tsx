@@ -41,7 +41,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 
   if (success) {
     return (
-      <Screen onBack={() => navigation.goBack()} title="">
+      <Screen style={{ flex: 1 }} onBack={() => navigation.goBack()} title="">
         <View style={styles.container}>
           <View style={styles.iconContainer}>
             <Mail size={24} color={colors.primary} />
@@ -61,7 +61,7 @@ export const ForgotPasswordScreen: React.FC = () => {
   }
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={

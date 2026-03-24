@@ -60,7 +60,7 @@ export const SetupCompleteScreen: React.FC = () => {
   };
 
   return (
-    <Screen>
+    <Screen style={{ flex: 1 }}>
       <View style={styles.container}>
         <View style={styles.center}>
           <Animated.View style={[styles.checkCircle, checkStyle]}>

@@ -63,7 +63,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <Screen>
+      <Screen style={{ flex: 1 }}>
         <View style={styles.container}>
           {renderHeader()}
           <Skeleton height={100} width="100%" borderRadius={12} style={{ marginBottom: 20 }} />
@@ -74,7 +74,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
   }
 
   return (
-    <Screen scrollable>
+    <Screen style={{ flex: 1 }} scrollable>
       <View style={styles.container}>
         {renderHeader()}
 
@@ -198,6 +198,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     backgroundColor: colors.background,
+    flex: 1,
   },
   header: {
     flexDirection: "row",

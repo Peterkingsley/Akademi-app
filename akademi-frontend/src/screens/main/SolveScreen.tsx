@@ -199,6 +199,7 @@ export const SolveScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: "transparent",
+    flex: 1,
   },
   header: {
     flexDirection: "row",

@@ -10,7 +10,7 @@ export const NotificationsSettingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   return (
-    <Screen title="NotificationsSettingsScreen">
+    <Screen style={{ flex: 1 }} title="NotificationsSettingsScreen">
       <View style={styles.container}>
         <Text style={[typography.h2, { color: colors.textPrimary }]}>
           NotificationsSettingsScreen

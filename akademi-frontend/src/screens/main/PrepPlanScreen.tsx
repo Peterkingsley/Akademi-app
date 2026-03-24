@@ -10,7 +10,7 @@ export const PrepPlanScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   return (
-    <Screen title="PrepPlanScreen">
+    <Screen style={{ flex: 1 }} title="PrepPlanScreen">
       <View style={styles.container}>
         <Text style={[typography.h2, { color: colors.textPrimary }]}>
           PrepPlanScreen

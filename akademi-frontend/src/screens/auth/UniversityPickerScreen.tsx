@@ -69,7 +69,7 @@ export const UniversityPickerScreen: React.FC = () => {
   };
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={

@@ -1,33 +1,46 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, FlatList } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+} from "react-native";
+import {
+  GraduationCap,
+  Sparkles,
+  ChevronRight,
+  ChevronDown,
+  Settings,
+} from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Button } from "../../components/ui/Button";
-import { useNavigation } from "@react-navigation/native";
 import { Avatar } from "../../components/ui/Avatar";
-import { Settings, GraduationCap, ChevronDown, Sparkles, Clock, ChevronRight } from "lucide-react-native";
-import { useAuthStore } from "../../store/useAuthStore";
-import { sessionService, Session, LearningProfile } from "../../services/session";
+import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { useAuthStore } from "../../store/useAuthStore";
+import { useNavigation } from "@react-navigation/native";
+import { sessionService, Session, LearningProfile } from "../../services/session";
 
-const DURATIONS = ["10 min", "20 min", "30 min", "Open-ended"];
+const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
 export const LiveTutorEntryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
   const [topic, setTopic] = useState("");
-  const [selectedDuration, setSelectedDuration] = useState("10 min");
   const [selectedCourse, setSelectedCourse] = useState("Select Course");
+  const [selectedDuration, setSelectedDuration] = useState("30 min");
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchEntryData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchEntryData = async () => {
     try {
       setLoading(true);
       const [sessions, profile] = await Promise.all([
@@ -139,8 +152,8 @@ export const LiveTutorEntryScreen: React.FC = () => {
   };
 
   return (
-    <Screen scrollable>
-      <View style={styles.container}>
+    <Screen scrollable style={{ flex: 1 }}>
+      <View style={[styles.container, { flex: 1 }]}>
         {renderHeader()}
 
         <Text style={[styles.title, typography.h1]}>Live Tutor</Text>
@@ -148,48 +161,50 @@ export const LiveTutorEntryScreen: React.FC = () => {
           Start a tutoring session on any topic
         </Text>
 
-        <View style={styles.setupCard}>
-          <Text style={[styles.label, typography.bodySmall]}>What do you want to learn?</Text>
+        <View style={[styles.setupCard, { flex: 1 }]}>
+          <View>
+            <Text style={[styles.label, typography.bodySmall]}>What do you want to learn?</Text>
 
-          <TouchableOpacity style={styles.courseSelector} onPress={() => {}}>
-            <View style={styles.courseSelectorLeft}>
-              <GraduationCap size={20} color={colors.primary} />
-              <Text style={[styles.courseText, typography.body]}>{selectedCourse}</Text>
-            </View>
-            <ChevronDown size={20} color={colors.textMuted} />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.courseSelector} onPress={() => {}}>
+              <View style={styles.courseSelectorLeft}>
+                <GraduationCap size={20} color={colors.primary} />
+                <Text style={[styles.courseText, typography.body]}>{selectedCourse}</Text>
+              </View>
+              <ChevronDown size={20} color={colors.textMuted} />
+            </TouchableOpacity>
 
-          <TextInput
-            style={[styles.topicInput, typography.body]}
-            placeholder="e.g. Thevenin's theorem, Integration by parts..."
-            placeholderTextColor={colors.textMuted}
-            value={topic}
-            onChangeText={setTopic}
-            multiline
-          />
+            <TextInput
+              style={[styles.topicInput, typography.body]}
+              placeholder="e.g. Thevenin's theorem, Integration by parts..."
+              placeholderTextColor={colors.textMuted}
+              value={topic}
+              onChangeText={setTopic}
+              multiline
+            />
 
-          <Text style={[styles.durationLabel, typography.mono]}>DURATION</Text>
-          <View style={styles.durationRow}>
-            {DURATIONS.map((dur) => (
-              <TouchableOpacity
-                key={dur}
-                style={[
-                  styles.durationPill,
-                  selectedDuration === dur ? styles.durationPillActive : styles.durationPillInactive
-                ]}
-                onPress={() => setSelectedDuration(dur)}
-              >
-                <Text
+            <Text style={[styles.durationLabel, typography.mono]}>DURATION</Text>
+            <View style={styles.durationRow}>
+              {DURATIONS.map((dur) => (
+                <TouchableOpacity
+                  key={dur}
                   style={[
-                    styles.durationText,
-                    typography.caption,
-                    { color: selectedDuration === dur ? colors.background : colors.textSecondary }
+                    styles.durationPill,
+                    selectedDuration === dur ? styles.durationPillActive : styles.durationPillInactive
                   ]}
+                  onPress={() => setSelectedDuration(dur)}
                 >
-                  {dur}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.durationText,
+                      typography.caption,
+                      { color: selectedDuration === dur ? colors.background : colors.textSecondary }
+                    ]}
+                  >
+                    {dur}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <Button
@@ -240,6 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 20,
     marginBottom: 32,
+    justifyContent: "space-between",
   },
   label: {
     color: colors.textSecondary,

@@ -10,7 +10,7 @@ export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
 
   return (
-    <Screen title="SubscriptionScreen">
+    <Screen style={{ flex: 1 }} title="SubscriptionScreen">
       <View style={styles.container}>
         <Text style={[typography.h2, { color: colors.textPrimary }]}>
           SubscriptionScreen

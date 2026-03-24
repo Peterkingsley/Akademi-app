@@ -74,7 +74,7 @@ export const CoursePickerScreen: React.FC = () => {
   };
 
   return (
-    <Screen
+    <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
