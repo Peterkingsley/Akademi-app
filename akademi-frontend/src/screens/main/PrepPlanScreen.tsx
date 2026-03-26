@@ -213,7 +213,7 @@ export const PrepPlanScreen: React.FC = () => {
               icon={<TrendingUp size={18} color="white" />}
               onPress={() => navigation.navigate("MockExam", { examId })}
               disabled={plan.readinessScore < 60}
-              style={[styles.mockBtn, plan.readinessScore < 60 && styles.disabledBtn]}
+              style={StyleSheet.flatten([styles.mockBtn, plan.readinessScore < 60 ? styles.disabledBtn : undefined])}
             />
           </View>
         </View>

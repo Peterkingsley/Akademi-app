@@ -39,7 +39,7 @@ export const ChallengeResultScreen: React.FC = () => {
         <Text style={[styles.title, typography.h2]}>Challenge Result</Text>
         <Text style={[styles.subtitle, typography.bodySmall]}>Neural Analysis of your last submission</Text>
 
-        <Card style={[styles.resultCard, { borderLeftColor: colors.success }]}>
+        <Card style={StyleSheet.flatten([styles.resultCard, { borderLeftColor: colors.success }])}>
           <View style={styles.cardHeader}>
             <CheckCircle2 size={24} color={colors.success} style={styles.cardIcon} />
             <Text style={[styles.cardTitle, typography.bodySmall, { fontWeight: "700" }]}>What you got right</Text>
@@ -49,7 +49,7 @@ export const ChallengeResultScreen: React.FC = () => {
           </Text>
         </Card>
 
-        <Card style={[styles.resultCard, { borderLeftColor: colors.error }]}>
+        <Card style={StyleSheet.flatten([styles.resultCard, { borderLeftColor: colors.error }])}>
           <View style={styles.cardHeader}>
             <XCircle size={24} color={colors.error} style={styles.cardIcon} />
             <Text style={[styles.cardTitle, typography.bodySmall, { fontWeight: "700" }]}>Where you went wrong</Text>
@@ -63,7 +63,7 @@ export const ChallengeResultScreen: React.FC = () => {
           </View>
         </Card>
 
-        <Card style={[styles.resultCard, { borderLeftColor: colors.primary }]}>
+        <Card style={StyleSheet.flatten([styles.resultCard, { borderLeftColor: colors.primary }])}>
           <View style={styles.cardHeader}>
             <Settings size={24} color={colors.primary} style={styles.cardIcon} />
             <Text style={[styles.cardTitle, typography.bodySmall, { fontWeight: "700" }]}>The correct approach</Text>

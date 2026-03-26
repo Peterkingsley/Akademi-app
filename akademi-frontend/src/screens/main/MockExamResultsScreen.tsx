@@ -23,7 +23,7 @@ import { SafeArea } from "../../components/layout/SafeArea";
 import { Avatar } from "../../components/ui/Avatar";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { ExpoLinearGradient as LinearGradient } from "expo-linear-gradient";
+import { LinearGradient as LinearGradient } from "expo-linear-gradient";
 import examPrepService, { MockResult, MockResultQuestion } from "../../services/examPrep";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -253,7 +253,7 @@ export const MockExamResultsScreen: React.FC = () => {
               <Button
                 label="Study Weak Areas"
                 icon={<ArrowRight size={18} color="white" />}
-                iconPosition="right"
+
                 onPress={() => {}}
                 style={styles.mainBtn}
               />
