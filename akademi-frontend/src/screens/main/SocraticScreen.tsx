@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   monoLabel: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     marginBottom: 4,
   },
   assignmentTitle: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   senderLabel: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     marginBottom: 8,
   },
   bubble: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   optionMono: {
     color: colors.textMuted,
     marginRight: 12,
-    fontSize: 10,
+    fontSize: 7.5,
   },
   optionText: {
     color: "#FFFFFF",
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   actionLink: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
   },
   divider: {
     color: colors.textMuted,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
   },
 });

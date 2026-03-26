@@ -206,7 +206,7 @@ export const RegisterScreen: React.FC = () => {
 const styles = StyleSheet.create({
   headerTitle: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 13.5,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -217,13 +217,13 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 32,
@@ -244,14 +244,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   googleIcon: {
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: "700",
     color: "#4285F4",
     marginRight: 8,
   },
   googleText: {
     color: "#000000",
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-SemiBold",
     fontWeight: "600",
   },
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   appleText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-SemiBold",
     fontWeight: "600",
     marginLeft: 8,
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
     marginHorizontal: 16,
   },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   strengthLabel: {
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
   },
   phoneInputContainer: {
@@ -318,19 +318,19 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "Inter-Regular",
     textTransform: "uppercase",
     letterSpacing: 1.2,
   },
   optionalTag: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
   },
   termsText: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "Inter-Regular",
     lineHeight: 18,
     textAlign: "center",
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   },
   signInText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   tabSwitcher: {
@@ -374,12 +374,12 @@ const styles = StyleSheet.create({
   },
   tabTextInactive: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-SemiBold",
   },
   tabTextActive: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-SemiBold",
   },
   errorBanner: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Medium",
   },
   tabIndicator: {

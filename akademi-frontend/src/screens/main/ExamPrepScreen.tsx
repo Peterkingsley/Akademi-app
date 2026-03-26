@@ -1,130 +1,135 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   RefreshControl,
   Dimensions,
   Platform,
 } from "react-native";
 import {
-  Settings,
-  PlusCircle,
-  Calendar,
-  GraduationCap,
-  Flame,
-  Shield,
-  Zap,
-  BookOpen,
-  Bell,
-  Clock,
-  Layers,
-  Sparkles,
-  ChevronRight,
   History,
-  TrendingUp,
+  Zap,
+  Shield,
+  PlusCircle,
+  BookOpen,
+  Flame,
+  ChevronLeft,
 } from "lucide-react-native";
+import { useNavigation } from "@react-navigation/native";
+import Animated, { FadeInUp } from "react-native-reanimated";
+import { Screen } from "../../components/layout/Screen";
 import { SafeArea } from "../../components/layout/SafeArea";
+import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { ProgressBar } from "../../components/ui/ProgressBar";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { AIInsightBanner } from "../../components/ui/AIInsightBanner";
+import { Badge } from "../../components/ui/Badge";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Avatar } from "../../components/ui/Avatar";
-import { useAuthStore } from "../../store/useAuthStore";
 import examPrepService, { ExamPrepPlan } from "../../services/examPrep";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { useNavigation } from "@react-navigation/native";
-import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
-import { ProgressBar } from "../../components/ui/ProgressBar";
-import { Badge } from "../../components/ui/Badge";
-import { AIInsightBanner } from "../../components/ui/AIInsightBanner";
-import Animated, { FadeInUp, FadeIn } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
 
 export const ExamPrepScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { user } = useAuthStore();
-  const [plans, setPlans] = useState<ExamPrepPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [plans, setPlans] = useState<ExamPrepPlan[]>([]);
 
-  const fetchPlans = useCallback(async () => {
+  const fetchPlans = async () => {
     try {
+      setLoading(true);
       const data = await examPrepService.getAllPlans();
-      setPlans(data || []);
+      setPlans(data);
     } catch (error) {
-      console.error("Failed to fetch exam prep plans:", error);
+      console.error("Error fetching exam plans:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchPlans();
-  }, [fetchPlans]);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchPlans();
   };
 
-  const urgentExam = useMemo(() => {
-    return plans.find(plan => plan.daysLeft >= 0 && plan.daysLeft <= 5);
-  }, [plans]);
-
   const renderHeader = () => (
     <View style={styles.header}>
-      <Avatar name={user?.name || "Student"} size={36} />
-      <Text style={[styles.headerTitle, typography.h3]}>Akademi</Text>
-      <TouchableOpacity onPress={() => navigation.navigate("NotificationsSettings")}>
-        <Settings size={24} color={colors.textSecondary} />
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <ChevronLeft size={24} color={colors.textPrimary} />
       </TouchableOpacity>
+      <Text style={[styles.headerTitle, typography.h3]}>Exam Prep</Text>
+      <View style={{ width: 24 }} />
     </View>
   );
 
   const renderUrgentBanner = () => {
-    if (!urgentExam) return null;
+    const urgentPlan = plans.find((p) => p.daysLeft <= 5);
+    if (!urgentPlan) return null;
 
     return (
-      <Animated.View entering={FadeInUp} style={styles.urgentBanner}>
+      <View style={styles.urgentBanner}>
         <View style={styles.urgentContent}>
-          <Bell size={18} color={colors.warning} style={styles.urgentIcon} />
+          <Flame size={20} color={colors.warning} style={styles.urgentIcon} />
           <Text style={[styles.urgentText, typography.bodySmall]}>
-            {urgentExam.courseCode} exam in {urgentExam.daysLeft} days
+            {urgentPlan.courseCode} Exam in {urgentPlan.daysLeft} days!
           </Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate("PrepPlan", { examId: urgentExam.id })}>
-          <Text style={[styles.viewPlanLink, typography.bodySmall]}>View Plan →</Text>
+        <TouchableOpacity
+          onPress={() =>
+            navigation.navigate("PrepPlan", { examId: urgentPlan.id })
+          }
+        >
+          <Text style={[styles.viewPlanLink, typography.caption]}>VIEW PLAN</Text>
         </TouchableOpacity>
-      </Animated.View>
+      </View>
     );
   };
 
   const renderPrimaryExamCard = (plan: ExamPrepPlan) => {
-    const mockActive = plan.progress >= 60;
+    const mockActive = plan.progress >= 70;
 
     return (
-      <Card key={plan.id} style={styles.primaryCard} onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}>
+      <Card key={plan.id} style={styles.primaryCard}>
         <View style={styles.cardHeader}>
-          <Text style={[styles.subjectTag, typography.caption]}>{plan.subject}</Text>
+          <Text style={[styles.subjectTag, typography.caption]}>
+            {plan.subject}
+          </Text>
         </View>
+
         <View style={styles.cardBody}>
-          <Text style={[styles.examTitle, typography.h2]}>{plan.courseCode}</Text>
+          <Text style={[styles.examTitle, typography.h2]}>
+            {plan.courseCode} FINAL
+          </Text>
           <View style={styles.examMeta}>
-            <Text style={[styles.examDate, typography.bodySmall]}>{plan.examDate}</Text>
+            <Text style={[styles.examDate, typography.caption]}>
+              Exam Date: {new Date(plan.examDate).toLocaleDateString()}
+            </Text>
             <View style={styles.dot} />
             <View style={styles.daysLeftContainer}>
               <Flame size={14} color={colors.warning} style={styles.flameIcon} />
-              <Text style={[styles.daysLeftText, typography.bodySmall]}>{plan.daysLeft} days away</Text>
+              <Text style={[styles.daysLeftText, typography.caption]}>
+                {plan.daysLeft} days left
+              </Text>
             </View>
           </View>
 
           <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, typography.mono]}>PREPARATION PROGRESS</Text>
-            <Text style={[styles.progressPercentage, typography.mono]}>{plan.progress}%</Text>
+            <Text style={[styles.progressLabel, typography.mono]}>
+              PREPARATION PROGRESS
+            </Text>
+            <Text style={[styles.progressPercentage, typography.mono]}>
+              {plan.progress}%
+            </Text>
           </View>
           <ProgressBar progress={plan.progress} style={styles.progressBar} />
 
@@ -138,8 +143,13 @@ export const ExamPrepScreen: React.FC = () => {
               label="Mock Exam"
               variant="secondary"
               disabled={!mockActive}
-              onPress={() => navigation.navigate("MockExam", { examId: plan.id })}
-              style={StyleSheet.flatten([styles.actionBtn, !mockActive ? styles.disabledBtn : undefined])}
+              onPress={() =>
+                navigation.navigate("MockExam", { examId: plan.id })
+              }
+              style={StyleSheet.flatten([
+                styles.actionBtn,
+                !mockActive ? styles.disabledBtn : undefined,
+              ])}
             />
           </View>
 
@@ -150,18 +160,32 @@ export const ExamPrepScreen: React.FC = () => {
   };
 
   const renderSecondaryExamCard = (plan: ExamPrepPlan) => (
-    <Card key={plan.id} style={styles.secondaryCard} onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}>
+    <Card
+      key={plan.id}
+      style={styles.secondaryCard}
+      onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
+    >
       <View style={styles.secondaryHeader}>
-        <Text style={[styles.subjectTag, typography.caption]}>{plan.subject}</Text>
-        <Text style={[styles.secondaryPercentage, typography.mono]}>{plan.progress}%</Text>
+        <Text style={[styles.subjectTag, typography.caption]}>
+          {plan.subject}
+        </Text>
+        <Text style={[styles.secondaryPercentage, typography.mono]}>
+          {plan.progress}%
+        </Text>
       </View>
-      <Text style={[styles.secondaryTitle, typography.h3]}>{plan.courseCode}</Text>
-      <Text style={[styles.secondaryDays, typography.bodySmall]}>{plan.daysLeft} days left</Text>
-      <ProgressBar progress={plan.progress} style={styles.secondaryProgressBar} />
+      <Text style={[styles.secondaryTitle, typography.h3]}>
+        {plan.courseCode}
+      </Text>
+      <Text style={[styles.secondaryDays, typography.bodySmall]}>
+        {plan.daysLeft} days left
+      </Text>
+      <ProgressBar
+        progress={plan.progress}
+        style={styles.secondaryProgressBar}
+      />
       <Button
         label="Resume Study"
         variant="secondary"
-
         onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
         style={styles.secondaryBtn}
       />
@@ -170,20 +194,47 @@ export const ExamPrepScreen: React.FC = () => {
 
   const renderStats = () => {
     const stats = [
-      { id: 'mock', label: 'Mock History', value: '14 Completed', icon: History, color: colors.primary },
-      { id: 'score', label: 'Average Score', value: '78.4%', icon: Zap, color: colors.warning },
-      { id: 'confidence', label: 'Confidence Level', value: 'High', icon: Shield, color: colors.success },
+      {
+        id: "mock",
+        label: "Mock History",
+        value: "14 Completed",
+        icon: History,
+        color: colors.primary,
+      },
+      {
+        id: "score",
+        label: "Average Score",
+        value: "78.4%",
+        icon: Zap,
+        color: colors.warning,
+      },
+      {
+        id: "confidence",
+        label: "Confidence Level",
+        value: "High",
+        icon: Shield,
+        color: colors.success,
+      },
     ];
 
     return (
       <View style={styles.statsGrid}>
         {stats.map((stat) => (
           <View key={stat.id} style={styles.statTile}>
-            <View style={[styles.statIconContainer, { backgroundColor: stat.color + '20' }]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                { backgroundColor: stat.color + "20" },
+              ]}
+            >
               <stat.icon size={18} color={stat.color} />
             </View>
-            <Text style={[styles.statValue, typography.bodySmall]}>{stat.value}</Text>
-            <Text style={[styles.statLabel, typography.caption]}>{stat.label}</Text>
+            <Text style={[styles.statValue, typography.bodySmall]}>
+              {stat.value}
+            </Text>
+            <Text style={[styles.statLabel, typography.caption]}>
+              {stat.label}
+            </Text>
           </View>
         ))}
       </View>
@@ -197,21 +248,30 @@ export const ExamPrepScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
         }
       >
-        <Animated.View entering={FadeInUp.duration(600)}>
-          <Text style={[styles.pageTitle, typography.h1]}>Exam Prep</Text>
-          <Text style={[styles.subtitle, typography.bodySmall]}>
-            Plan, practice, and show up ready
-          </Text>
-        </Animated.View>
-
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <Skeleton height={60} borderRadius={10} style={{ marginBottom: 16 }} />
-            <Skeleton height={200} borderRadius={12} style={{ marginBottom: 16 }} />
-            <Skeleton height={100} borderRadius={12} style={{ marginBottom: 16 }} />
+            <Skeleton
+              height={60}
+              borderRadius={10}
+              style={{ marginBottom: 16 }}
+            />
+            <Skeleton
+              height={200}
+              borderRadius={12}
+              style={{ marginBottom: 16 }}
+            />
+            <Skeleton
+              height={100}
+              borderRadius={12}
+              style={{ marginBottom: 16 }}
+            />
           </View>
         ) : (
           <View>
@@ -225,7 +285,9 @@ export const ExamPrepScreen: React.FC = () => {
             ) : (
               <View style={styles.emptyState}>
                 <BookOpen size={48} color={colors.textMuted} />
-                <Text style={[styles.emptyText, typography.body]}>No active exams yet.</Text>
+                <Text style={[styles.emptyText, typography.body]}>
+                  No active exams yet.
+                </Text>
               </View>
             )}
 
@@ -241,21 +303,6 @@ export const ExamPrepScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
-
-      {/* Bottom Nav Placeholder */}
-      <View style={styles.bottomNav}>
-         {['Tutor', 'Hub', 'Timeline', 'Exams'].map((tab) => (
-           <TouchableOpacity key={tab} style={styles.navItem} onPress={() => {}}>
-             <Text style={[
-               typography.caption,
-               { color: tab === 'Exams' ? colors.primary : colors.textMuted }
-             ]}>
-               {tab}
-             </Text>
-             {tab === 'Exams' && <View style={styles.activeDot} />}
-           </TouchableOpacity>
-         ))}
-      </View>
     </SafeArea>
   );
 };
@@ -271,25 +318,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     color: colors.textPrimary,
     fontWeight: "700",
+  },
+  backBtn: {
+    padding: 4,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
-  },
-  pageTitle: {
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    marginBottom: 24,
+    paddingBottom: 40,
   },
   loadingContainer: {
     marginTop: 20,
@@ -376,11 +420,11 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     color: colors.textSecondary,
-    fontSize: 10,
+    fontSize: 7.5,
   },
   progressPercentage: {
     color: colors.primary,
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: "700",
   },
   progressBar: {
@@ -409,7 +453,7 @@ const styles = StyleSheet.create({
   },
   secondaryPercentage: {
     color: colors.primary,
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: "700",
   },
   secondaryTitle: {
@@ -476,30 +520,5 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.textMuted,
     marginTop: 12,
-  },
-  bottomNav: {
-    flexDirection: "row",
-    height: Platform.OS === 'ios' ? 88 : 64,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 0,
-  },
-  navItem: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  activeDot: {
-    position: "absolute",
-    top: 10,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
   },
 });

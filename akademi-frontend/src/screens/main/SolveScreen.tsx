@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Switch,
   ScrollView,
 } from "react-native";
-import { X, ChevronDown, Lightbulb, Camera, Mic, Type, ArrowRight } from "lucide-react-native";
+import { X, ChevronDown, Lightbulb, Camera, Mic, Type } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -20,6 +20,9 @@ import api from "../../services/api";
 type InputMode = "Type" | "Photo" | "Voice";
 type AnswerMode = "DIRECT" | "STUDY";
 
+const CAUSES = ["Assignment", "Personal Project", "Exam Practice", "General Interest"];
+const TYPES = ["Math/Calculations", "Theoretical", "Programming", "Case Study"];
+
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [inputMode, setInputMode] = useState<InputMode>("Type");
@@ -27,15 +30,14 @@ export const SolveScreen: React.FC = () => {
   const [question, setQuestion] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
   const [course, setCourse] = useState("EEE 301");
+  const [selectedCause, setSelectedCause] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Since SolveScreen is a tab, we want to show the bottom sheet immediately
-  // But the BottomSheet component provided has an index prop.
-  // We'll use index 2 for 90% as per Frame 48's "opens as a bottom sheet"
   const [bottomSheetIndex, setBottomSheetIndex] = useState(2);
 
   const handleSolve = async () => {
-    if (!question.trim()) return;
+    if (!question.trim() || !selectedCause || !selectedType) return;
 
     setLoading(true);
     try {
@@ -43,6 +45,10 @@ export const SolveScreen: React.FC = () => {
         sessionType: "ASSIGNMENT",
         replyMode: answerMode,
         courseCode: course,
+        metadata: {
+            cause: selectedCause,
+            type: selectedType
+        }
       });
 
       await api.post(`/sessions/${session.id}/messages`, {
@@ -83,6 +89,29 @@ export const SolveScreen: React.FC = () => {
     </View>
   );
 
+  const renderChipSelector = (label: string, options: string[], selected: string | null, onSelect: (val: string) => void) => (
+      <View style={styles.selectionSection}>
+          <Text style={[styles.sectionLabel, typography.mono]}>{label.toUpperCase()}</Text>
+          <View style={styles.chipRow}>
+              {options.map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    onPress={() => onSelect(opt)}
+                    style={[styles.chip, selected === opt && styles.activeChip]}
+                  >
+                      <Text style={[
+                          styles.chipText,
+                          typography.caption,
+                          { color: selected === opt ? "#FFFFFF" : colors.textSecondary }
+                      ]}>
+                          {opt}
+                      </Text>
+                  </TouchableOpacity>
+              ))}
+          </View>
+      </View>
+  );
+
   return (
     <Screen style={styles.screen}>
       <BottomSheet
@@ -97,7 +126,11 @@ export const SolveScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.courseSelector}>
             <Text style={[styles.label, typography.caption]}>Solving for:</Text>
             <TouchableOpacity style={styles.coursePill}>
@@ -106,6 +139,9 @@ export const SolveScreen: React.FC = () => {
               <ChevronDown size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
+
+          {renderChipSelector("Select Cause", CAUSES, selectedCause, setSelectedCause)}
+          {renderChipSelector("Select Type", TYPES, selectedType, setSelectedType)}
 
           <View style={styles.tabsContainer}>
             {(["Type", "Photo", "Voice"] as InputMode[]).map((mode) => (
@@ -120,9 +156,6 @@ export const SolveScreen: React.FC = () => {
                   }
                 }}
               >
-                {mode === "Type" && <Type size={18} color={inputMode === mode ? colors.primary : colors.textSecondary} />}
-                {mode === "Photo" && <Camera size={18} color={inputMode === mode ? colors.primary : colors.textSecondary} />}
-                {mode === "Voice" && <Mic size={18} color={inputMode === mode ? colors.primary : colors.textSecondary} />}
                 <Text style={[
                   styles.tabLabel,
                   typography.bodySmall,
@@ -188,6 +221,7 @@ export const SolveScreen: React.FC = () => {
             label="Solve →"
             onPress={handleSolve}
             loading={loading}
+            disabled={!question.trim() || !selectedCause || !selectedType}
             style={styles.solveButton}
           />
         </ScrollView>
@@ -205,10 +239,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
     marginBottom: 24,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingBottom: 60,
+    flexGrow: 1,
   },
   courseSelector: {
     flexDirection: "row",
@@ -240,6 +277,30 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginRight: 8,
   },
+  selectionSection: {
+    marginBottom: 24,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  activeChip: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 9,
+  },
   tabsContainer: {
     flexDirection: "row",
     marginBottom: 24,
@@ -253,12 +314,8 @@ const styles = StyleSheet.create({
     marginRight: 24,
     position: "relative",
   },
-  activeTabPill: {
-    // borderBottomWidth: 2,
-    // borderBottomColor: colors.primary,
-  },
+  activeTabPill: {},
   tabLabel: {
-    marginLeft: 8,
     fontWeight: "600",
   },
   tabIndicator: {
@@ -309,8 +366,8 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.textMuted,
-    fontSize: 11,
-    marginBottom: 16,
+    fontSize: 8.25,
+    marginBottom: 8,
   },
   modePills: {
     flexDirection: "row",

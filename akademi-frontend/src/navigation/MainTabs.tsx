@@ -4,7 +4,7 @@ import { MainTabParamList } from "./types";
 import { HomeScreen } from "../screens/main/HomeScreen";
 import { SolveScreen } from "../screens/main/SolveScreen";
 import { LibraryScreen } from "../screens/main/LibraryScreen";
-import { InsightsScreen } from "../screens/main/InsightsScreen";
+import { ProfileScreen } from "../screens/main/ProfileScreen";
 import { BottomTabBar } from "../components/navigation/BottomTabBar";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -20,7 +20,7 @@ export const MainTabs = () => {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Solve" component={SolveScreen} />
       <Tab.Screen name="Library" component={LibraryScreen} />
-      <Tab.Screen name="Insights" component={InsightsScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 };

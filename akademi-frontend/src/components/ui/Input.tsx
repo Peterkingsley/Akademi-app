@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 1.2,
-    fontSize: 13,
+    fontSize: 9.75,
   },
   inputContainer: {
     flexDirection: "row",
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 12,
   },
   iconLeft: {
     marginRight: 12,

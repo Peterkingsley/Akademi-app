@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   monoLabel: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     marginBottom: 8,
   },
   questionText: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 9,
     lineHeight: 20,
   },
   conceptInsight: {
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   bannerArrow: {
     color: colors.primary,
-    fontSize: 20,
+    fontSize: 15,
     marginLeft: 12,
   },
   actions: {

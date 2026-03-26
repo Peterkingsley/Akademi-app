@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginLeft: 24,
     marginBottom: 20,
-    fontSize: 12,
+    fontSize: 9,
   },
   tasksList: {
     marginLeft: 24,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 8.25,
     flex: 1,
   },
   bottomBar: {

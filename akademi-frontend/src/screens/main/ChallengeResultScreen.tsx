@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 28,
+    fontSize: 21,
     textAlign: "center",
     marginBottom: 8,
   },
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 9,
     lineHeight: 20,
   },
   rememberBanner: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   rememberLabel: {
     color: colors.warning,
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
   },
   rememberText: {
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: 6.75,
   },
   reviewBtn: {
     marginBottom: 12,

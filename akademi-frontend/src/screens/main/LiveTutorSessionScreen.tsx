@@ -179,7 +179,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
         <Text style={[
           styles.messageText,
           { color: colors.textPrimary },
-          message.type === "ai" ? { fontSize: 15, lineHeight: 24 } : {}
+          message.type === "ai" ? { fontSize: 11.25, lineHeight: 24 } : {}
         ]}>
           {parts.map((part, i) => {
             if (part.startsWith("**") && part.endsWith("**")) {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   timerText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
   },
   endBtn: {
     color: colors.textSecondary,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   contextText: {
     color: colors.textPrimary,
     marginLeft: 8,
-    fontSize: 10,
+    fontSize: 7.5,
     letterSpacing: 0.5,
   },
   chatArea: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   messageText: {
-    fontSize: 15,
+    fontSize: 11.25,
   },
   academicInsight: {
     backgroundColor: "#0F1F3D",
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   },
   insightLabel: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
     marginBottom: 4,
     letterSpacing: 0.5,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     color: colors.textPrimary,
-    fontSize: 12,
+    fontSize: 9,
   },
   bottomSection: {
     backgroundColor: colors.background,

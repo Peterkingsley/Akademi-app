@@ -378,11 +378,11 @@ const styles = StyleSheet.create({
   },
   questionLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
   },
   completionText: {
     color: colors.primary,
-    fontSize: 12,
+    fontSize: 9,
   },
   questionTitle: {
     color: colors.textPrimary,
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   },
   insightText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
   },
   navRow: {
     flexDirection: "row",

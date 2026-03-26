@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
   suggestionLabel: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     marginBottom: 4,
   },
   suggestionText: {
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   courseCodeText: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
   },
   recentMeta: {

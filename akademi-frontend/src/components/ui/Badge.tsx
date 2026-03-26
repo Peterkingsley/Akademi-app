@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   text: {
-    fontSize: 11,
+    fontSize: 8.25,
     textTransform: "uppercase",
   },
 });

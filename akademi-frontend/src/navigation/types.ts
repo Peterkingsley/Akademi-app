@@ -26,7 +26,7 @@ export type MainTabParamList = {
   Home: undefined;
   Solve: undefined;
   Library: undefined;
-  Insights: undefined;
+  Profile: undefined;
 };
 
 export type MainStackParamList = {
@@ -49,7 +49,6 @@ export type MainStackParamList = {
   Sessions: undefined;
   Progress: undefined;
   Achievements: undefined;
-  Profile: undefined;
   Subscription: undefined;
   NotificationsSettings: undefined;
 };

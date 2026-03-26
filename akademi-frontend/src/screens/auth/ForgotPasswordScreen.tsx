@@ -125,7 +125,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
   headerTitle: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 13.5,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -145,13 +145,13 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     marginTop: 12,
     marginBottom: 32,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
     marginLeft: 12,
     flex: 1,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   techText: {
     color: colors.border,
-    fontSize: 10,
+    fontSize: 7.5,
     fontFamily: "SpaceMono-Regular",
     textAlign: "center",
   },
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   backLinkText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   linkText: {

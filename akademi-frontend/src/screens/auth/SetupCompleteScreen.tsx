@@ -60,7 +60,7 @@ export const SetupCompleteScreen: React.FC = () => {
   };
 
   return (
-    <Screen style={{ flex: 1 }}>
+    <Screen scrollable style={{ flex: 1 }}>
       <View style={styles.container}>
         <View style={styles.center}>
           <Animated.View style={[styles.checkCircle, checkStyle]}>
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   celebrationText: {
     color: colors.textPrimary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Medium",
   },
   textContainer: {
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     textAlign: "center",
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     textAlign: "center",
     marginTop: 12,
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   syncLabel: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
     textAlign: "center",
     marginBottom: 16,
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   courseText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
     fontFamily: "SpaceMono-Regular",
   },
   footer: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   footerMotto: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     fontFamily: "SpaceMono-Regular",
     marginTop: 20,
     letterSpacing: 1,

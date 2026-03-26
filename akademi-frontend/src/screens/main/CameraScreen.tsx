@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   instructionText: {
     color: "#000000",
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: 9,
   },
   controls: {
     flexDirection: "row",

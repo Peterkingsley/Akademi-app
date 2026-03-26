@@ -136,11 +136,11 @@ const styles = StyleSheet.create({
   },
   text: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 12,
   },
   ghostText: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 12,
   },
   iconContainer: {
     marginRight: 8,

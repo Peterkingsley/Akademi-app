@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   systemText: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 10,
+    fontSize: 7.5,
     color: colors.textMuted,
     lineHeight: 14,
   },
@@ -93,13 +93,13 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     fontFamily: "Inter-Bold",
-    fontSize: 40,
+    fontSize: 30,
     color: colors.textPrimary,
     fontWeight: "700",
   },
   tagline: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 13,
+    fontSize: 9.75,
     color: colors.textSecondary,
     letterSpacing: 13 * 0.15, // 0.15em
     marginTop: 8,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 11,
+    fontSize: 8.25,
     color: colors.textSecondary,
     letterSpacing: 11 * 0.1, // 0.1em
     marginLeft: 8,
