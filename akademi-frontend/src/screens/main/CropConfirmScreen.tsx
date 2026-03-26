@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   aiBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
   },
   qualityPrompt: {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     marginBottom: 12,
   },
   coursePill: {
@@ -288,6 +288,6 @@ const styles = StyleSheet.create({
   },
   hintText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
   },
 });

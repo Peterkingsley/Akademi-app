@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
   },
   illustrationArea: {
@@ -208,13 +208,13 @@ const styles = StyleSheet.create({
   },
   systemStatusLabel: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     fontFamily: "SpaceMono-Regular",
     marginBottom: 4,
   },
   systemStatusValue: {
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "Inter-Regular",
   },
   contentArea: {
@@ -222,14 +222,14 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     lineHeight: 40,
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     lineHeight: 24,
     marginTop: 16,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   },
   logoText: {
     color: colors.textPrimary,
-    fontSize: 18,
+    fontSize: 13.5,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     marginLeft: 8,
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     color: colors.textMuted,
     fontFamily: "SpaceMono-Regular",
-    fontSize: 12,
+    fontSize: 9,
   },
   slide2Content: {
     marginTop: height * 0.5,
@@ -323,14 +323,14 @@ const styles = StyleSheet.create({
   },
   slide2Headline: {
     color: colors.textPrimary,
-    fontSize: 36,
+    fontSize: 27,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     lineHeight: 44,
   },
   slide2Body: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     lineHeight: 22,
     marginTop: 12,

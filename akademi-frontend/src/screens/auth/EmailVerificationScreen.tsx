@@ -77,7 +77,7 @@ export const EmailVerificationScreen: React.FC = () => {
   };
 
   return (
-    <Screen style={{ flex: 1 }}
+    <Screen scrollable style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title="Akademi"
     >
@@ -143,14 +143,14 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     marginTop: 20,
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 12,
     lineHeight: 22,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   otpInput: {
     color: colors.textPrimary,
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: "Inter-Bold",
     textAlign: "center",
     width: "100%",
@@ -189,13 +189,13 @@ const styles = StyleSheet.create({
   },
   resendText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
     marginBottom: 8,
   },
   resendLink: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Bold",
   },
   resendDisabled: {
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   changeEmailText: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   footerPill: {
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   },
   footerPillText: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
     fontFamily: "SpaceMono-Regular",
     marginLeft: 8,
     letterSpacing: 0.5,

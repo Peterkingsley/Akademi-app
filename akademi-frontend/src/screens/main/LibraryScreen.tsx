@@ -3,20 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  FlatList,
   RefreshControl,
+  Dimensions,
 } from "react-native";
-import { Search, Plus, Upload } from "lucide-react-native";
+import { Plus, Upload, Search } from "lucide-react-native";
+import Animated, { FadeInUp, Layout } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import Animated, {
-  FadeInUp,
-  Layout
-} from "react-native-reanimated";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Avatar } from "../../components/ui/Avatar";
 import { MaterialCard } from "../../components/ui/MaterialCard";
 import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
 import { Button } from "../../components/ui/Button";
@@ -25,6 +22,8 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
+
+const { width } = Dimensions.get("window");
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -35,6 +34,7 @@ export const LibraryScreen: React.FC = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   // Upload Bottom Sheet state
   const bottomSheetRef = useRef<BottomSheet>(null);
@@ -110,16 +110,6 @@ export const LibraryScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
-          <Avatar name={user?.name || "User"} size={40} />
-        </TouchableOpacity>
-        <Text style={[styles.branding, typography.h3]}>Akademi</Text>
-        <TouchableOpacity style={styles.iconBtn}>
-          <Search size={24} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.titleSection}>
         <Text style={[styles.title, typography.h1]}>Library</Text>
         <Text style={[styles.subtitle, typography.bodySmall]}>
@@ -127,10 +117,26 @@ export const LibraryScreen: React.FC = () => {
         </Text>
       </View>
 
+      {isSearchActive && (
+        <View style={styles.searchBarContainer}>
+           <Input
+            label=""
+            placeholder="Search materials..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
+          <TouchableOpacity onPress={() => {setIsSearchActive(false); setSearchQuery("");}} style={styles.cancelSearch}>
+            <Text style={[typography.caption, {color: colors.primary}]}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <CourseFilterTabs
         courses={courses}
         selectedCourse={selectedCourse}
         onSelectCourse={setSelectedCourse}
+        onSearchPress={() => setIsSearchActive(true)}
       />
     </View>
   );
@@ -261,34 +267,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 10,
-  },
-  headerTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  branding: {
-    color: colors.primary,
-    fontWeight: "800",
-  },
-  iconBtn: {
-    padding: 8,
+    paddingTop: 20,
   },
   titleSection: {
     paddingHorizontal: 20,
-    marginBottom: 8,
+    marginBottom: 24,
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 32,
+    fontSize: 18,
     fontWeight: "700",
   },
   subtitle: {
     color: colors.textSecondary,
     marginTop: 4,
+  },
+  searchBarContainer: {
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  cancelSearch: {
+    marginLeft: 12,
   },
   listContent: {
     paddingHorizontal: 20,

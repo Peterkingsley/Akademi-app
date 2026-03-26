@@ -159,13 +159,13 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 28,
+    fontSize: 21,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 24,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 24, flexGrow: 1,
   },
   universityItem: {
     flexDirection: "row",
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   logoInitial: {
     color: "#000000",
-    fontSize: 18,
+    fontSize: 13.5,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -212,13 +212,13 @@ const styles = StyleSheet.create({
   },
   universityName: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-Bold",
     fontWeight: "600",
   },
   universityLocation: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "SpaceMono-Regular",
     marginTop: 2,
   },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   aiLabel: {
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     marginLeft: 8,
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     lineHeight: 18,
     fontFamily: "Inter-Regular",
   },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   },
   ghostLinkText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
 });

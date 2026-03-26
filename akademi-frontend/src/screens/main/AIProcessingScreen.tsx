@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     lineHeight: 18,
   },
   centerContent: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 28,
+    fontSize: 21,
     textAlign: "center",
     marginBottom: 24,
   },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
   },
   contextText: {
     color: colors.textSecondary,

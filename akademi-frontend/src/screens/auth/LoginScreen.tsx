@@ -161,14 +161,14 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
   headerTitle: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 13.5,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   container: {
     padding: 24,
     paddingBottom: 100,
-    flex: 1,
+    flexGrow: 1,
   },
   centerTop: {
     alignItems: "center",
@@ -177,19 +177,19 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     color: colors.primary,
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 32,
+    fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 32,
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Medium",
   },
   form: {
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 8.25,
     letterSpacing: 1,
     marginBottom: 8,
     textTransform: "uppercase",
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     color: colors.primary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "Inter-Medium",
     marginBottom: 8,
   },
@@ -244,13 +244,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   dividerLine: {
-    flex: 1,
+    flexGrow: 1,
     height: 1,
     backgroundColor: colors.border,
   },
   dividerText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
     marginHorizontal: 16,
   },
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   socialButton: {
-    flex: 1,
+    flexGrow: 1,
     height: 52,
     backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
@@ -272,14 +272,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   googleIcon: {
-    fontSize: 18,
+    fontSize: 13.5,
     fontWeight: "700",
     color: "#FFFFFF",
     marginRight: 8,
   },
   socialButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: "Inter-SemiBold",
     fontWeight: "600",
     marginLeft: 8,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   linkText: {
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   tabItem: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -319,12 +319,12 @@ const styles = StyleSheet.create({
   },
   tabTextInactive: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-SemiBold",
   },
   tabTextActive: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-SemiBold",
   },
   tabIndicator: {

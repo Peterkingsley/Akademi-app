@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   scorePercent: {
     color: "#FFFFFF",
-    fontSize: 48,
+    fontSize: 36,
     lineHeight: 56,
     fontWeight: "700",
   },
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   tableCol: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
   },
   colTopic: {
     flex: 3,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   aiLabel: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     marginBottom: 8,
   },
   aiText: {

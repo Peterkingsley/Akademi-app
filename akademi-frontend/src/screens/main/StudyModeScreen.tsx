@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: "#FFFFFF",
-    fontSize: 28,
+    fontSize: 21,
     marginBottom: 12,
   },
   intro: {
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   stepBadgeText: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
   },
   stepTitle: {
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 9.75,
     lineHeight: 24,
   },
   checkSection: {

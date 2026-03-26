@@ -199,14 +199,14 @@ const styles = StyleSheet.create({
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 28,
+    fontSize: 21,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     marginTop: 20,
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 24,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontFamily: "Inter-Regular",
     textTransform: "uppercase",
     letterSpacing: 1.2,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: "#000000",
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   },
   facultyChipText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   selectedFacultyChipText: {
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   },
   deptName: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
   },
   radioCircle: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   levelPillText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
   },
   selectedLevelPillText: {

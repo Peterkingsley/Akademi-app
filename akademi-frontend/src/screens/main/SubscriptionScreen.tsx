@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 12,
     color: "#C7D2FE",
     textAlign: "center",
   },
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   featureText: {
-    fontSize: 15,
+    fontSize: 11.25,
     color: colors.textPrimary,
   },
   toggleContainer: {
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   toggleText: {
-    fontSize: 14,
+    fontSize: 10.5,
     fontWeight: "600",
     color: colors.textSecondary,
   },
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   saveBadgeText: {
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
     color: "#000000",
   },
@@ -268,12 +268,12 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   priceText: {
-    fontSize: 40,
+    fontSize: 30,
     fontWeight: "800",
     color: "#FFFFFF",
   },
   pricePeriod: {
-    fontSize: 18,
+    fontSize: 13.5,
     fontWeight: "400",
     color: colors.textSecondary,
   },
@@ -283,13 +283,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   originalPrice: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.textMuted,
     textDecorationLine: "line-through",
     marginRight: 8,
   },
   savingsText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.success,
   },
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   trustText: {
-    fontSize: 12,
+    fontSize: 9,
     color: colors.textSecondary,
     textAlign: "center",
     marginBottom: 16,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   restoreText: {
-    fontSize: 14,
+    fontSize: 10.5,
     color: colors.textSecondary,
     textDecorationLine: "underline",
   },

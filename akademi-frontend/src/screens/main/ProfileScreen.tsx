@@ -171,8 +171,8 @@ export const ProfileScreen: React.FC = () => {
 
   return (
     <Screen
-      title="Akademi"
-      leftAction={profileHeaderLeft}
+      title="Profile"
+
       rightAction={
         <TouchableOpacity onPress={() => {}} style={styles.settingsIcon}>
           <Settings size={22} color={colors.textPrimary} />
@@ -256,7 +256,7 @@ export const ProfileScreen: React.FC = () => {
           <MenuItem
             icon={<Trash2 size={16} color={colors.error} />}
             label="Delete Account"
-            labelStyle={{ color: colors.error, fontSize: 13 }}
+            labelStyle={{ color: colors.error, fontSize: 9.75 }}
             onPress={handleDeleteAccount}
             hideChevron
           />
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   academicDetails: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 12,
+    fontSize: 9,
     color: colors.textSecondary,
     textAlign: "center",
     marginBottom: 16,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
   proPillText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 9.75,
     fontWeight: "700",
   },
   freePill: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   freePillText: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 9.75,
     fontWeight: "600",
   },
   statsRow: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 7.5,
     fontWeight: "700",
     color: colors.textMuted,
     textAlign: "center",
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 12,
+    fontSize: 9,
     color: colors.textMuted,
     marginBottom: 8,
     marginLeft: 4,
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   menuItemLabel: {
-    fontSize: 15,
+    fontSize: 11.25,
     color: colors.textPrimary,
     fontFamily: "Inter-Medium",
   },

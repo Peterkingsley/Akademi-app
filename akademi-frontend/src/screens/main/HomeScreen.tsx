@@ -286,7 +286,7 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.header}>
           <View>
             <Text style={[typography.h2, { color: colors.textPrimary }]}>
-              {greeting}, {user?.name?.split(" ")[0] || "Student"} 👋
+              {greeting}, {user?.name?.split(" ")[0] || "Student"}
             </Text>
             <Text style={[styles.subtitle, typography.mono]}>
               {examSubtitle}
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     marginTop: 4,
   },
   notificationBtn: {
@@ -432,12 +432,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   streakEmoji: {
-    fontSize: 20,
+    fontSize: 15,
     marginRight: 12,
   },
   streakText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     flex: 1,
   },
   dismissBtn: {
@@ -502,12 +502,12 @@ const styles = StyleSheet.create({
   },
   courseText: {
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 7.5,
     textTransform: "uppercase",
   },
   timeAgo: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 7.5,
   },
   sessionTitle: {
     color: colors.textPrimary,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   },
   aiTipText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
     flex: 1,
   },
 });

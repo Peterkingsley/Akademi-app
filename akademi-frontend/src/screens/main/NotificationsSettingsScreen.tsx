@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: "SpaceMono-Regular",
-    fontSize: 12,
+    fontSize: 9,
     color: colors.textMuted,
     marginBottom: 16,
     marginLeft: 4,
@@ -254,12 +254,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   settingLabel: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
     color: "#FFFFFF",
   },
   settingSubtext: {
-    fontSize: 13,
+    fontSize: 9.75,
     color: colors.textSecondary,
     marginTop: 4,
     lineHeight: 18,
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timePickerLabel: {
-    fontSize: 14,
+    fontSize: 10.5,
     color: colors.textSecondary,
     marginLeft: 8,
     marginRight: 12,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   timePillText: {
     color: colors.textPrimary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontWeight: "600",
   },
   optionsRow: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   optionPillText: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: "600",
     color: colors.textSecondary,
   },
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   pauseTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   pauseSubtext: {
-    fontSize: 13,
+    fontSize: 9.75,
     color: colors.textSecondary,
     marginTop: 2,
   },

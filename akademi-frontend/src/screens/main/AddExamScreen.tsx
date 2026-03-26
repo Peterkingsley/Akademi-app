@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
   },
   requiredBadge: {
     backgroundColor: colors.error + '20',

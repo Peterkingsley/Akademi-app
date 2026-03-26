@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   },
   insightLabel: {
     color: colors.textSecondary,
-    fontSize: 10,
+    fontSize: 7.5,
     marginBottom: 4,
   },
   insightText: {

@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   courseText: {
     fontWeight: "700",
-    fontSize: 10,
+    fontSize: 7.5,
   },
   verifiedBadge: {
     flexDirection: "row",
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   verifiedText: {
     color: "#3B82F6",
-    fontSize: 9,
+    fontSize: 6.75,
     fontWeight: "800",
   },
   footer: {
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.textMuted,
-    fontSize: 11,
+    fontSize: 8.25,
   },
   ratingContainer: {
     flexDirection: "row",

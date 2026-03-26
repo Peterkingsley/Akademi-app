@@ -171,19 +171,19 @@ const styles = StyleSheet.create({
   },
   stepText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 9,
     fontFamily: "SpaceMono-Regular",
     marginBottom: 8,
   },
   headline: {
     color: colors.textPrimary,
-    fontSize: 28,
+    fontSize: 21,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Regular",
     marginTop: 8,
   },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 100, flexGrow: 1,
   },
   courseCard: {
     width: CARD_WIDTH,
@@ -215,12 +215,12 @@ const styles = StyleSheet.create({
   },
   courseCode: {
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
   },
   courseName: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 11.25,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   addManualText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Regular",
     marginBottom: 8,
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   addManualLinkText: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 10.5,
     fontFamily: "Inter-Bold",
     marginLeft: 6,
   },
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   countText: {
     color: colors.textPrimary,
-    fontSize: 11,
+    fontSize: 8.25,
     fontFamily: "SpaceMono-Regular",
   },
   doneButton: {

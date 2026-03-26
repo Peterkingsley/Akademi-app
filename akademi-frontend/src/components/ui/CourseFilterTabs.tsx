@@ -1,5 +1,6 @@
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from "react-native";
+import { Search } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
@@ -7,12 +8,14 @@ interface CourseFilterTabsProps {
   courses: string[];
   selectedCourse: string;
   onSelectCourse: (course: string) => void;
+  onSearchPress?: () => void;
 }
 
 export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
   courses,
   selectedCourse,
   onSelectCourse,
+  onSearchPress,
 }) => {
   return (
     <View style={styles.container}>
@@ -21,6 +24,14 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <TouchableOpacity
+          onPress={onSearchPress}
+          style={styles.searchTab}
+          activeOpacity={0.8}
+        >
+          <Search size={18} color={colors.textSecondary} />
+        </TouchableOpacity>
+
         {["All", ...courses].map((course) => {
           const isSelected = selectedCourse === course;
           return (
@@ -58,6 +69,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     gap: 8,
+    alignItems: "center",
+  },
+  searchTab: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 4,
   },
   tab: {
     paddingHorizontal: 16,
@@ -66,6 +87,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     minWidth: 60,
+    height: 40,
   },
   selectedTab: {
     backgroundColor: colors.primary,
@@ -74,6 +96,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 9.75,
   },
 });
