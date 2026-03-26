@@ -256,7 +256,7 @@ export const HomeScreen: React.FC = () => {
 
   const renderRecommendationCard = ({ item, index }: { item: Recommendation, index: number }) => (
     <Animated.View key={item.id} entering={FadeInUp.delay(index * 100 + 400)}>
-      <Card style={[styles.recCard, { borderLeftWidth: 3, borderLeftColor: item.color }]} onPress={() => {}}>
+      <Card style={StyleSheet.flatten([styles.recCard, { borderLeftWidth: 3, borderLeftColor: item.color }])} onPress={() => {}}>
         <View style={styles.recTop}>
           <Text style={[styles.recTitle, typography.body]}>{item.title}</Text>
           <Badge

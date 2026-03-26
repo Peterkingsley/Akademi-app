@@ -5,6 +5,7 @@ import {
 } from "@react-navigation/stack";
 import { MainStackParamList } from "./types";
 import { MainTabs } from "./MainTabs";
+import { SessionsTabs } from "./SessionsTabs";
 import { AssignmentResultScreen } from "../screens/main/AssignmentResultScreen";
 import { StudyModeScreen } from "../screens/main/StudyModeScreen";
 import { SocraticScreen } from "../screens/main/SocraticScreen";
@@ -20,10 +21,6 @@ import { AddExamScreen } from "../screens/main/AddExamScreen";
 import { PrepPlanScreen } from "../screens/main/PrepPlanScreen";
 import { MockExamScreen } from "../screens/main/MockExamScreen";
 import { MockExamResultsScreen } from "../screens/main/MockExamResultsScreen";
-import { SessionsScreen } from "../screens/main/SessionsScreen";
-import { ProgressScreen } from "../screens/main/ProgressScreen";
-import { AchievementsScreen } from "../screens/main/AchievementsScreen";
-import { ProfileScreen } from "../screens/main/ProfileScreen";
 import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
 import { NotificationsSettingsScreen } from "../screens/main/NotificationsSettingsScreen";
 
@@ -68,10 +65,7 @@ export const MainStack = () => {
       <Stack.Screen name="PrepPlan" component={PrepPlanScreen} />
       <Stack.Screen name="MockExam" component={MockExamScreen} />
       <Stack.Screen name="MockExamResults" component={MockExamResultsScreen} />
-      <Stack.Screen name="Sessions" component={SessionsScreen} />
-      <Stack.Screen name="Progress" component={ProgressScreen} />
-      <Stack.Screen name="Achievements" component={AchievementsScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Sessions" component={SessionsTabs} />
       <Stack.Screen
         name="Subscription"
         component={SubscriptionScreen}

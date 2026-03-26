@@ -305,7 +305,7 @@ export const MockExamScreen: React.FC = () => {
            <Button
              label={currentIndex === (exam?.questions.length || 0) - 1 ? "Submit Exam" : "Next Question"}
              icon={<ChevronRight size={18} color="white" />}
-             iconPosition="right"
+
              onPress={handleNext}
              loading={submitting}
              style={styles.nextBtn}

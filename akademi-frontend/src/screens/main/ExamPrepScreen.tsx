@@ -139,7 +139,7 @@ export const ExamPrepScreen: React.FC = () => {
               variant="secondary"
               disabled={!mockActive}
               onPress={() => navigation.navigate("MockExam", { examId: plan.id })}
-              style={[styles.actionBtn, !mockActive && styles.disabledBtn]}
+              style={StyleSheet.flatten([styles.actionBtn, !mockActive ? styles.disabledBtn : undefined])}
             />
           </View>
 
@@ -161,7 +161,7 @@ export const ExamPrepScreen: React.FC = () => {
       <Button
         label="Resume Study"
         variant="secondary"
-        size="small"
+
         onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
         style={styles.secondaryBtn}
       />

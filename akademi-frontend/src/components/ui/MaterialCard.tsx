@@ -25,7 +25,7 @@ export interface MaterialCardProps {
   onBookmarkPress?: () => void;
 }
 
-export const MaterialCard = React.forwardRef<TouchableOpacity, MaterialCardProps>(({
+export const MaterialCard = React.forwardRef<any, MaterialCardProps>(({
   title,
   courseCode,
   fileType,
