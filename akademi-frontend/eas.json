@@ -16,6 +16,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "GOOGLE_SERVICE_ACCOUNT_KEY_PATH"
+      }
+    }
   }
 }
