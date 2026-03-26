@@ -22,7 +22,10 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.akademi.app"
+      "bundleIdentifier": "com.akademi.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
