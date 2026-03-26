@@ -1,41 +1,313 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Screen } from "../../components/layout/Screen";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import {
+  X,
+  Sparkles,
+  Infinity as InfinityIcon,
+  Book,
+  Bot,
+  Download,
+  Target,
+  ArrowRight
+} from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import * as WebBrowser from "expo-web-browser";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
-import { useNavigation } from "@react-navigation/native";
+import { userService } from "../../services/user";
+import { SafeArea } from "../../components/layout/SafeArea";
 
 export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
+  const [loading, setLoading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setLoading(true);
+    try {
+      const { paymentUrl } = await userService.purchaseSubscription(billingCycle);
+      await WebBrowser.openBrowserAsync(paymentUrl);
+    } catch (error) {
+      console.error("Subscription purchase failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const features = [
+    { icon: <InfinityIcon size={20} color="#FFFFFF" />, text: "Unlimited assignment solving" },
+    { icon: <Book size={20} color="#FFFFFF" />, text: "Full Study Mode with practice questions" },
+    { icon: <Bot size={20} color="#FFFFFF" />, text: "Unlimited Live Tutor sessions" },
+    { icon: <Download size={20} color="#FFFFFF" />, text: "Offline access to all materials" },
+    { icon: <Target size={20} color="#FFFFFF" />, text: "Full Exam Prep & unlimited mock exams" },
+  ];
+
+  const price = billingCycle === "yearly" ? "₦18,000" : "₦2,500";
+  const originalPrice = billingCycle === "yearly" ? "₦30,000" : null;
+  const savings = billingCycle === "yearly" ? "SAVE ₦12,000" : null;
 
   return (
-    <Screen style={{ flex: 1 }} title="SubscriptionScreen">
-      <View style={styles.container}>
-        <Text style={[typography.h2, { color: colors.textPrimary }]}>
-          SubscriptionScreen
-        </Text>
-        <Button
-          label="Go Back"
-          variant="secondary"
-          onPress={() => navigation.goBack()}
-          style={styles.button}
-        />
-      </View>
-    </Screen>
+    <View style={styles.container}>
+      <SafeArea style={{ flex: 1 }}>
+        <LinearGradient
+          colors={["#1E1B4B", "#4338CA"]}
+          style={styles.header}
+        >
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => navigation.goBack()}
+          >
+            <X size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Akademi Pro +</Text>
+              <Sparkles size={24} color="#FFFFFF" />
+            </View>
+            <Text style={styles.subtitle}>
+              Unlock the full potential of your academic journey.
+            </Text>
+          </View>
+        </LinearGradient>
+
+        <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+          {/* Features List */}
+          <View style={styles.featuresList}>
+            {features.map((feature, index) => (
+              <View key={index} style={styles.featureRow}>
+                <View style={styles.featureIconCircle}>
+                  {feature.icon}
+                </View>
+                <Text style={styles.featureText}>{feature.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Billing Toggle */}
+          <View style={styles.toggleContainer}>
+            <View style={styles.toggleBackground}>
+              <TouchableOpacity
+                style={[styles.toggleOption, billingCycle === "monthly" && styles.toggleActive]}
+                onPress={() => setBillingCycle("monthly")}
+              >
+                <Text style={[styles.toggleText, billingCycle === "monthly" && styles.toggleTextActive]}>
+                  Monthly
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleOption, billingCycle === "yearly" && styles.toggleActive]}
+                onPress={() => setBillingCycle("yearly")}
+              >
+                <View style={styles.yearlyOptionRow}>
+                  <Text style={[styles.toggleText, billingCycle === "yearly" && styles.toggleTextActive]}>
+                    Yearly
+                  </Text>
+                  <View style={styles.saveBadge}>
+                    <Text style={styles.saveBadgeText}>SAVE 40%</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Price Display */}
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceText}>{price}<Text style={styles.pricePeriod}>/{billingCycle === "yearly" ? "year" : "mo"}</Text></Text>
+            {billingCycle === "yearly" && (
+              <View style={styles.savingsRow}>
+                <Text style={styles.originalPrice}>{originalPrice}</Text>
+                <Text style={styles.savingsText}>{savings}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Action Button */}
+          <Button
+            label="Upgrade to Pro"
+            onPress={handleUpgrade}
+            loading={loading}
+            icon={<ArrowRight size={20} color="#FFFFFF" />}
+            style={styles.upgradeButton}
+          />
+
+          <Text style={styles.trustText}>
+            Cancel anytime • Secure payment • 3-day free trial
+          </Text>
+
+          <TouchableOpacity style={styles.restoreButton}>
+            <Text style={styles.restoreText}>Restore purchases</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeArea>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
     backgroundColor: colors.background,
   },
-  button: {
+  header: {
+    padding: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     marginTop: 20,
+  },
+  closeButton: {
+    alignSelf: "flex-end",
+    padding: 4,
+  },
+  headerContent: {
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  title: {
+    ...typography.h2,
+    color: "#FFFFFF",
+    marginRight: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#C7D2FE",
+    textAlign: "center",
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  featuresList: {
+    marginBottom: 32,
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  featureIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  featureText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  toggleContainer: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  toggleBackground: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 24,
+    padding: 4,
     width: "100%",
+  },
+  toggleOption: {
+    flex: 1,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleActive: {
+    backgroundColor: "#FFFFFF",
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  toggleTextActive: {
+    color: "#000000",
+  },
+  yearlyOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  saveBadge: {
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  saveBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#000000",
+  },
+  priceContainer: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  priceText: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  pricePeriod: {
+    fontSize: 18,
+    fontWeight: "400",
+    color: colors.textSecondary,
+  },
+  savingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  originalPrice: {
+    fontSize: 16,
+    color: colors.textMuted,
+    textDecorationLine: "line-through",
+    marginRight: 8,
+  },
+  savingsText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.success,
+  },
+  upgradeButton: {
+    marginBottom: 20,
+  },
+  trustText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  restoreButton: {
+    alignSelf: "center",
+  },
+  restoreText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textDecorationLine: "underline",
   },
 });

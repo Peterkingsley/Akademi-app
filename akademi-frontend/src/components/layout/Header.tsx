@@ -13,6 +13,7 @@ import { typography } from "../../theme/typography";
 interface HeaderProps {
   title?: string;
   onBack?: () => void;
+  leftAction?: React.ReactNode;
   rightAction?: React.ReactNode;
   style?: ViewStyle;
 }
@@ -20,17 +21,20 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   title,
   onBack,
+  leftAction,
   rightAction,
   style,
 }) => {
   return (
     <View style={[styles.container, style]}>
       <View style={styles.left}>
-        {onBack && (
+        {leftAction ? (
+          leftAction
+        ) : onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <ChevronLeft size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
       <View style={styles.center}>
         {title && <Text style={[styles.title, typography.h3]}>{title}</Text>}
@@ -50,7 +54,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   left: {
-    width: 40,
+    minWidth: 40,
     alignItems: "flex-start",
   },
   center: {
@@ -58,7 +62,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   right: {
-    width: 40,
+    minWidth: 40,
     alignItems: "flex-end",
   },
   title: {
