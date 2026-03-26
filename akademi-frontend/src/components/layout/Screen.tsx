@@ -19,6 +19,7 @@ interface ScreenProps {
   rightAction?: React.ReactNode;
   scrollable?: boolean;
   style?: ViewStyle;
+  hideHeader?: boolean;
 }
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -29,6 +30,7 @@ export const Screen: React.FC<ScreenProps> = ({
   rightAction,
   scrollable = false,
   style,
+  hideHeader = false,
 }) => {
   const Content = scrollable ? ScrollView : View;
 
@@ -38,12 +40,14 @@ export const Screen: React.FC<ScreenProps> = ({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
       >
-        <Header
-          title={title}
-          onBack={onBack}
-          leftAction={leftAction}
-          rightAction={rightAction}
-        />
+        {!hideHeader && (
+          <Header
+            title={title}
+            onBack={onBack}
+            leftAction={leftAction}
+            rightAction={rightAction}
+          />
+        )}
         <Content
           style={[styles.content, style]}
           contentContainerStyle={scrollable ? styles.scrollContent : undefined}

@@ -146,41 +146,13 @@ export const ProfileScreen: React.FC = () => {
 
   if (loading && !refreshing) {
     return (
-      <Screen style={styles.loadingContainer}>
+      <Screen hideHeader style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </Screen>
     );
   }
-
-  const academicLabel = [
-    profile?.department?.toUpperCase(),
-    profile?.university?.toUpperCase(),
-    profile?.level ? `YEAR ${profile.level}` : null
-  ].filter(Boolean).join(" • ");
-
-  const profileHeaderLeft = (
-    <View style={styles.headerLeft}>
-      <Avatar
-        name={profile?.name || "User"}
-        uri={profile?.avatar_url}
-        size={32}
-        style={styles.headerAvatar}
-      />
-    </View>
-  );
-
   return (
-    <Screen
-      title="Profile"
-
-      rightAction={
-        <TouchableOpacity onPress={() => {}} style={styles.settingsIcon}>
-          <Settings size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-      }
-      scrollable
-      style={{ flex: 1 }}
-    >
+    <Screen hideHeader scrollable style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -215,6 +187,25 @@ export const ProfileScreen: React.FC = () => {
               <Text style={styles.freePillText}>Free Plan</Text>
             </View>
           )}
+
+          <View style={styles.heroButtons}>
+            <TouchableOpacity
+              style={styles.heroButton}
+              onPress={() => navigation.navigate("Sessions")}
+              activeOpacity={0.7}
+            >
+              <Clock size={16} color={colors.primary} />
+              <Text style={styles.heroButtonText}>Sessions</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.heroButton}
+              onPress={() => navigation.navigate("Progress")}
+              activeOpacity={0.7}
+            >
+              <BarChart2 size={16} color={colors.primary} />
+              <Text style={styles.heroButtonText}>Progress</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Stats Row */}
@@ -429,5 +420,26 @@ const styles = StyleSheet.create({
     fontSize: 11.25,
     color: colors.textPrimary,
     fontFamily: "Inter-Medium",
+  },
+  heroButtons: {
+    flexDirection: "row",
+    marginTop: 20,
+    gap: 12,
+  },
+  heroButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  heroButtonText: {
+    fontSize: 11,
+    fontFamily: "Inter-Medium",
+    color: colors.textPrimary,
   },
 });

@@ -124,7 +124,7 @@ export const OnboardingScreen: React.FC = () => {
             />
           </View>
 
-          <View style={styles.slide2Content}>
+          <ScrollView style={styles.slide2Content} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.slide2Headline}>
               The tutor you always needed.{"\n"}
               <Text style={{ color: colors.primary }}>Finally here.</Text>
@@ -148,7 +148,7 @@ export const OnboardingScreen: React.FC = () => {
                 style={styles.secondaryButton}
               />
             </View>
-          </View>
+          </ScrollView>
         </View>
       </ScrollView>
     </View>

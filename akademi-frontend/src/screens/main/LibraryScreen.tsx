@@ -156,7 +156,7 @@ export const LibraryScreen: React.FC = () => {
   );
 
   return (
-    <Screen style={styles.screen}>
+    <Screen hideHeader style={styles.screen}>
       <FlatList
         data={filteredMaterials}
         keyExtractor={(item) => item.id}
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 20,
+    paddingTop: 10,
   },
   titleSection: {
     paddingHorizontal: 20,

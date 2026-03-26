@@ -71,18 +71,6 @@ export const LiveTutorEntryScreen: React.FC = () => {
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerLeft}>
-        <Avatar name={user?.name || "Student"} size={32} />
-        <Text style={[styles.brandText, typography.h3]}>Akademi</Text>
-      </View>
-      <TouchableOpacity>
-        <Settings size={24} color={colors.textSecondary} />
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderSuggestedTopics = () => {
     if (loading) return <Skeleton height={100} width="100%" borderRadius={12} />;
 
@@ -152,9 +140,8 @@ export const LiveTutorEntryScreen: React.FC = () => {
   };
 
   return (
-    <Screen scrollable style={{ flex: 1 }}>
+    <Screen hideHeader scrollable style={{ flex: 1 }}>
       <View style={[styles.container, { flex: 1 }]}>
-        {renderHeader()}
 
         <Text style={[styles.title, typography.h1]}>Live Tutor</Text>
         <Text style={[styles.subtitle, typography.body, { color: colors.textSecondary }]}>
@@ -225,6 +212,7 @@ export const LiveTutorEntryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+    paddingTop: 10,
     backgroundColor: colors.background,
   },
   header: {
