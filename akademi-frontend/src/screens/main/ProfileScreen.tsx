@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -46,6 +46,10 @@ export const ProfileScreen: React.FC = () => {
   const [featureAccess, setFeatureAccess] = useState<FeatureAccess | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const academicLabel = useMemo(() => {
+    if (!profile) return "";
+    return `${profile.level} LEVEL • ${profile.department?.toUpperCase()} • ${profile.university?.toUpperCase()}`;
+  }, [profile]);
 
   const fetchData = async () => {
     try {
@@ -308,7 +312,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   heroSection: {
     backgroundColor: colors.surface,

@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
     flexGrow: 1,
   },
   courseSelector: {
