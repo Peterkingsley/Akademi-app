@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   Switch,
-  ScrollView,
+  Dimensions,
 } from "react-native";
-import { X, ChevronDown, Lightbulb, Camera, Mic, Type } from "lucide-react-native";
+import { X, ChevronDown, Lightbulb } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -22,6 +22,9 @@ type AnswerMode = "DIRECT" | "STUDY";
 
 const CAUSES = ["Assignment", "Personal Project", "Exam Practice", "General Interest"];
 const TYPES = ["Math/Calculations", "Theoretical", "Programming", "Case Study"];
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
+const NAV_BAR_HEIGHT = 80;
 
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -46,9 +49,9 @@ export const SolveScreen: React.FC = () => {
         replyMode: answerMode,
         courseCode: course,
         metadata: {
-            cause: selectedCause,
-            type: selectedType
-        }
+          cause: selectedCause,
+          type: selectedType,
+        },
       });
 
       await api.post(`/sessions/${session.id}/messages`, {
@@ -58,7 +61,7 @@ export const SolveScreen: React.FC = () => {
       navigation.navigate("AIProcessing", {
         type: "assignment",
         sessionId: session.id,
-        replyMode: answerMode
+        replyMode: answerMode,
       });
     } catch (error) {
       console.error("Failed to start session:", error);
@@ -89,36 +92,44 @@ export const SolveScreen: React.FC = () => {
     </View>
   );
 
-  const renderChipSelector = (label: string, options: string[], selected: string | null, onSelect: (val: string) => void) => (
-      <View style={styles.selectionSection}>
-          <Text style={[styles.sectionLabel, typography.mono]}>{label.toUpperCase()}</Text>
-          <View style={styles.chipRow}>
-              {options.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    onPress={() => onSelect(opt)}
-                    style={[styles.chip, selected === opt && styles.activeChip]}
-                  >
-                      <Text style={[
-                          styles.chipText,
-                          typography.caption,
-                          { color: selected === opt ? "#FFFFFF" : colors.textSecondary }
-                      ]}>
-                          {opt}
-                      </Text>
-                  </TouchableOpacity>
-              ))}
-          </View>
+  const renderChipSelector = (
+    label: string,
+    options: string[],
+    selected: string | null,
+    onSelect: (val: string) => void
+  ) => (
+    <View style={styles.selectionSection}>
+      <Text style={[styles.sectionLabel, typography.mono]}>{label.toUpperCase()}</Text>
+      <View style={styles.chipRow}>
+        {options.map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            onPress={() => onSelect(opt)}
+            style={[styles.chip, selected === opt && styles.activeChip]}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                typography.caption,
+                { color: selected === opt ? "#FFFFFF" : colors.textSecondary },
+              ]}
+            >
+              {opt}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+    </View>
   );
 
   return (
     <Screen style={styles.screen}>
       <BottomSheet
-        snapPoints={["25%", "50%", "95%"]}
+        snapPoints={["25%", "50%", SCREEN_HEIGHT - NAV_BAR_HEIGHT]}
         index={bottomSheetIndex}
         onClose={() => navigation.navigate("Home")}
       >
+        {/* Header */}
         <View style={styles.header}>
           <Text style={[typography.h3, { color: colors.textPrimary }]}>Solve Assignment</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Home")}>
@@ -126,105 +137,110 @@ export const SolveScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.courseSelector}>
-            <Text style={[styles.label, typography.caption]}>Solving for:</Text>
-            <TouchableOpacity style={styles.coursePill}>
-              <View style={styles.dot} />
-              <Text style={[styles.courseText, typography.bodySmall]}>{course}</Text>
-              <ChevronDown size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+        {/* Course Selector */}
+        <View style={styles.courseSelector}>
+          <Text style={[styles.label, typography.caption]}>Solving for:</Text>
+          <TouchableOpacity style={styles.coursePill}>
+            <View style={styles.dot} />
+            <Text style={[styles.courseText, typography.bodySmall]}>{course}</Text>
+            <ChevronDown size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
-          {renderChipSelector("Select Cause", CAUSES, selectedCause, setSelectedCause)}
-          {renderChipSelector("Select Type", TYPES, selectedType, setSelectedType)}
+        {renderChipSelector("Select Cause", CAUSES, selectedCause, setSelectedCause)}
+        {renderChipSelector("Select Type", TYPES, selectedType, setSelectedType)}
 
-          <View style={styles.tabsContainer}>
-            {(["Type", "Photo", "Voice"] as InputMode[]).map((mode) => (
-              <TouchableOpacity
-                key={mode}
-                style={[styles.tabPill, inputMode === mode && styles.activeTabPill]}
-                onPress={() => {
-                  if (mode === "Photo") {
-                    navigation.navigate("Camera");
-                  } else {
-                    setInputMode(mode);
-                  }
-                }}
-              >
-                <Text style={[
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          {(["Type", "Photo", "Voice"] as InputMode[]).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[styles.tabPill, inputMode === mode && styles.activeTabPill]}
+              onPress={() => {
+                if (mode === "Photo") {
+                  navigation.navigate("Camera");
+                } else {
+                  setInputMode(mode);
+                }
+              }}
+            >
+              <Text
+                style={[
                   styles.tabLabel,
                   typography.bodySmall,
-                  { color: inputMode === mode ? colors.textPrimary : colors.textSecondary }
-                ]}>
-                  {mode}
-                </Text>
-                {inputMode === mode && <View style={styles.tabIndicator} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {inputMode === "Type" && renderTypeContent()}
-
-          <View style={styles.toggleRow}>
-            <View>
-              <Text style={[styles.toggleTitle, typography.body, { fontWeight: "700" }]}>
-                Include my course context
-              </Text>
-              <Text style={[styles.toggleSubtext, typography.caption]}>
-                Uses previous lectures & notes for the answer
-              </Text>
-            </View>
-            <Switch
-              value={includeContext}
-              onValueChange={setIncludeContext}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          <View style={styles.answerModeSection}>
-            <Text style={[styles.sectionLabel, typography.mono]}>HOW DO YOU WANT THE ANSWER?</Text>
-            <View style={styles.modePills}>
-              <TouchableOpacity
-                style={[styles.modePill, answerMode === "DIRECT" && styles.activeModePill]}
-                onPress={() => setAnswerMode("DIRECT")}
+                  { color: inputMode === mode ? colors.textPrimary : colors.textSecondary },
+                ]}
               >
-                <Text style={[
-                  styles.modeLabel,
-                  typography.bodySmall,
-                  { color: answerMode === "DIRECT" ? colors.textPrimary : colors.textSecondary }
-                ]}>
-                  ⚡ Direct Answer
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modePill, answerMode === "STUDY" && styles.activeModePill]}
-                onPress={() => setAnswerMode("STUDY")}
-              >
-                <Text style={[
-                  styles.modeLabel,
-                  typography.bodySmall,
-                  { color: answerMode === "STUDY" ? colors.textPrimary : colors.textSecondary }
-                ]}>
-                  📖 Study Mode
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                {mode}
+              </Text>
+              {inputMode === mode && <View style={styles.tabIndicator} />}
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          <Button
-            label="Solve →"
-            onPress={handleSolve}
-            loading={loading}
-            disabled={!question.trim() || !selectedCause || !selectedType}
-            style={styles.solveButton}
+        {inputMode === "Type" && renderTypeContent()}
+
+        {/* Context Toggle */}
+        <View style={styles.toggleRow}>
+          <View>
+            <Text style={[styles.toggleTitle, typography.body, { fontWeight: "700" }]}>
+              Include my course context
+            </Text>
+            <Text style={[styles.toggleSubtext, typography.caption]}>
+              Uses previous lectures & notes for the answer
+            </Text>
+          </View>
+          <Switch
+            value={includeContext}
+            onValueChange={setIncludeContext}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFFFFF"
           />
-        </ScrollView>
+        </View>
+
+        {/* Answer Mode */}
+        <View style={styles.answerModeSection}>
+          <Text style={[styles.sectionLabel, typography.mono]}>HOW DO YOU WANT THE ANSWER?</Text>
+          <View style={styles.modePills}>
+            <TouchableOpacity
+              style={[styles.modePill, answerMode === "DIRECT" && styles.activeModePill]}
+              onPress={() => setAnswerMode("DIRECT")}
+            >
+              <Text
+                style={[
+                  styles.modeLabel,
+                  typography.bodySmall,
+                  { color: answerMode === "DIRECT" ? colors.textPrimary : colors.textSecondary },
+                ]}
+              >
+                ⚡ Direct Answer
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modePill, answerMode === "STUDY" && styles.activeModePill]}
+              onPress={() => setAnswerMode("STUDY")}
+            >
+              <Text
+                style={[
+                  styles.modeLabel,
+                  typography.bodySmall,
+                  { color: answerMode === "STUDY" ? colors.textPrimary : colors.textSecondary },
+                ]}
+              >
+                📖 Study Mode
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Solve Button */}
+        <Button
+          label="Solve →"
+          onPress={handleSolve}
+          loading={loading}
+          disabled={!question.trim() || !selectedCause || !selectedType}
+          style={styles.solveButton}
+        />
       </BottomSheet>
     </Screen>
   );
@@ -239,13 +255,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
     marginBottom: 24,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 160,
-    flexGrow: 1,
   },
   courseSelector: {
     flexDirection: "row",
@@ -391,5 +401,6 @@ const styles = StyleSheet.create({
   },
   solveButton: {
     marginTop: 8,
+    marginBottom: 16,
   },
 });

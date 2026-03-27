@@ -1,15 +1,15 @@
-import React, { useMemo, useCallback } from "react";
-import { View, StyleSheet, Text, ViewStyle } from "react-native";
+import React, { useCallback } from "react";
+import { StyleSheet } from "react-native";
 import GorhomBottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetView,
+  BottomSheetScrollView,
   BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { colors } from "../../theme/colors";
 
 interface BottomSheetProps {
   children: React.ReactNode;
-  snapPoints?: string[];
+  snapPoints?: (string | number)[];
   index?: number;
   onClose?: () => void;
 }
@@ -42,7 +42,13 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handle}
     >
-      <BottomSheetView style={styles.content}>{children}</BottomSheetView>
+      <BottomSheetScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </BottomSheetScrollView>
     </GorhomBottomSheet>
   );
 };
@@ -58,7 +64,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   content: {
-    flex: 1,
-    padding: 24,
+    paddingBottom: 40,
   },
 });

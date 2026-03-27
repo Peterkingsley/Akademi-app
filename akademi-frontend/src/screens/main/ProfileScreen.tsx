@@ -27,6 +27,7 @@ import {
   Star,
   LogOut,
   Trash2,
+   BarChart2,
   Sparkles
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
