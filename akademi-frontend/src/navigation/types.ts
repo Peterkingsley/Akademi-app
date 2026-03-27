@@ -51,6 +51,16 @@ export type MainStackParamList = {
   Achievements: undefined;
   Subscription: undefined;
   NotificationsSettings: undefined;
+  EditAcademicDetails: undefined;
+  MyCourses: undefined;
+  MyUploads: undefined;
+  OfflineDownloads: undefined;
+  AppLanguage: undefined;
+  AppearanceSettings: undefined;
+  ChangePassword: undefined;
+  PrivacyData: undefined;
+  HelpSupport: undefined;
+  RateAkademi: undefined;
 };
 
 export type RootStackParamList = {

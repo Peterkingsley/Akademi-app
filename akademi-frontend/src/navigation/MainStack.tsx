@@ -23,6 +23,17 @@ import { MockExamScreen } from "../screens/main/MockExamScreen";
 import { MockExamResultsScreen } from "../screens/main/MockExamResultsScreen";
 import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
 import { NotificationsSettingsScreen } from "../screens/main/NotificationsSettingsScreen";
+import { EditAcademicDetailsScreen } from "../screens/main/EditAcademicDetailsScreen";
+import { MyCoursesScreen } from "../screens/main/MyCoursesScreen";
+import { MyUploadsScreen } from "../screens/main/MyUploadsScreen";
+import { OfflineDownloadsScreen } from "../screens/main/OfflineDownloadsScreen";
+import { AppLanguageScreen } from "../screens/main/AppLanguageScreen";
+import { AppearanceSettingsScreen } from "../screens/main/AppearanceSettingsScreen";
+import { ChangePasswordScreen } from "../screens/main/ChangePasswordScreen";
+import { PrivacyDataScreen } from "../screens/main/PrivacyDataScreen";
+import { HelpSupportScreen } from "../screens/main/HelpSupportScreen";
+import { RateAkademiScreen } from "../screens/main/RateAkademiScreen";
+import { AchievementsScreen } from "../screens/main/AchievementsScreen";
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -77,6 +88,17 @@ export const MainStack = () => {
         name="NotificationsSettings"
         component={NotificationsSettingsScreen}
       />
+      <Stack.Screen name="EditAcademicDetails" component={EditAcademicDetailsScreen} />
+      <Stack.Screen name="MyCourses" component={MyCoursesScreen} />
+      <Stack.Screen name="MyUploads" component={MyUploadsScreen} />
+      <Stack.Screen name="OfflineDownloads" component={OfflineDownloadsScreen} />
+      <Stack.Screen name="AppLanguage" component={AppLanguageScreen} />
+      <Stack.Screen name="AppearanceSettings" component={AppearanceSettingsScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="PrivacyData" component={PrivacyDataScreen} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      <Stack.Screen name="RateAkademi" component={RateAkademiScreen} />
+      <Stack.Screen name="Achievements" component={AchievementsScreen} />
     </Stack.Navigator>
   );
 };
