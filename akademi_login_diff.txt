@@ -1,0 +1,24 @@
+<<<<<<< SEARCH
+import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
+
+export const LoginScreen: React.FC = () => {
+=======
+import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
+import { getErrorMessage } from "../../utils/error-handler";
+
+export const LoginScreen: React.FC = () => {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    } catch (err: any) {
+      console.error("Login failed", err);
+      const message = err.response?.data?.message || "Invalid email or password";
+      setError(message);
+    } finally {
+=======
+    } catch (err: any) {
+      const message = getErrorMessage(err);
+      setError(message);
+    } finally {
+>>>>>>> REPLACE

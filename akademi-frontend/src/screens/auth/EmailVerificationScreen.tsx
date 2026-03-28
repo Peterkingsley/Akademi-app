@@ -14,6 +14,7 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
 
 export const EmailVerificationScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -23,6 +24,7 @@ export const EmailVerificationScreen: React.FC = () => {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputs = useRef<TextInput[]>([]);
 
   useEffect(() => {
@@ -57,13 +59,12 @@ export const EmailVerificationScreen: React.FC = () => {
     if (otpCode.length !== 6) return;
 
     setLoading(true);
+    setError(null);
     try {
       await api.post("/auth/verify-email", { token: otpCode });
       navigation.navigate("SetupComplete");
-    } catch (error) {
-      console.error("Verification failed", error);
-      // For now, let's navigate anyway to allow the flow to be tested
-      navigation.navigate("SetupComplete");
+    } catch (err: any) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -86,6 +87,12 @@ export const EmailVerificationScreen: React.FC = () => {
         <Text style={styles.body}>
           We sent a 6-digit code to <Text style={{ color: colors.primary }}>{email}</Text>. Enter it below to verify your account.
         </Text>
+
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
         <View style={styles.otpContainer}>
           {code.map((digit, index) => (
@@ -231,5 +238,18 @@ const styles = StyleSheet.create({
     fontFamily: "SpaceMono-Regular",
     marginLeft: 8,
     letterSpacing: 0.5,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 24,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
   },
 });

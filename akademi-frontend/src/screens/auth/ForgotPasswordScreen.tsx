@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
+import { getErrorMessage } from "../../utils/error-handler";
 
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -22,18 +23,18 @@ export const ForgotPasswordScreen: React.FC = () => {
 
   const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   const handleReset = async () => {
     if (!email) return;
     setLoading(true);
+    setError(null);
     try {
       await api.post("/auth/forgot-password", { email });
       setSuccess(true);
-    } catch (error) {
-      console.error("Forgot password failed", error);
-      // For demo, show success anyway
-      setSuccess(true);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -75,6 +76,12 @@ export const ForgotPasswordScreen: React.FC = () => {
 
         <Text style={styles.headline}>Reset your password</Text>
         <Text style={styles.body}>Enter your email and we'll send you a reset link.</Text>
+
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
         <Input
           label="Email Address"
@@ -203,5 +210,18 @@ const styles = StyleSheet.create({
   linkText: {
     color: colors.primary,
     fontFamily: "Inter-Bold",
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 24,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 14,
+    fontFamily: "Inter-Medium",
   },
 });
