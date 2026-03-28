@@ -33,6 +33,26 @@ export const userService = {
     return response.data;
   },
 
+  updateAvatar: async (uri: string) => {
+    const formData = new FormData();
+    const filename = uri.split("/").pop();
+    const match = /\.(\w+)$/.exec(filename || "");
+    const type = match ? `image/${match[1]}` : `image`;
+
+    formData.append("photo", {
+      uri,
+      name: filename,
+      type,
+    } as any);
+
+    const response = await api.patch<UserProfile>("/users/me/photo", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
   deleteAccount: async () => {
     const response = await api.delete("/users/me");
     return response.data;

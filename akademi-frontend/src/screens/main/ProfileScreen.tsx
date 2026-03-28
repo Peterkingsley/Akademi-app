@@ -1,17 +1,19 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  Alert,
+  TouchableOpacity,
   ActivityIndicator,
+  Alert,
   RefreshControl,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { Screen } from "../../components/layout/Screen";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
+import { Avatar } from "../../components/ui/Avatar";
 import {
-  Settings,
   ChevronRight,
   GraduationCap,
   FileText,
@@ -27,41 +29,31 @@ import {
   Star,
   LogOut,
   Trash2,
-   BarChart2,
-  Sparkles
+  Sparkles,
+  BarChart2,
 } from "lucide-react-native";
-import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
-import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
-import { Avatar } from "../../components/ui/Avatar";
-import { userService, UserProfile, FeatureAccess } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useNavigation } from "@react-navigation/native";
+import { userService } from "../../services/user";
+import { LinearGradient } from "expo-linear-gradient";
+import * as ImagePicker from "expo-image-picker";
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [featureAccess, setFeatureAccess] = useState<FeatureAccess | null>(null);
+  const { clearAuth } = useAuthStore();
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const academicLabel = useMemo(() => {
-    if (!profile) return "";
-    return `${profile.level} LEVEL • ${profile.department?.toUpperCase()} • ${profile.university?.toUpperCase()}`;
-  }, [profile]);
+  const [featureAccess, setFeatureAccess] = useState<any>(null);
 
-  const fetchData = async () => {
+  const fetchProfile = async () => {
     try {
-      const [profileData, accessData] = await Promise.all([
-        userService.getProfile(),
-        userService.getFeatureAccess(),
-      ]);
-      setProfile(profileData);
-      setFeatureAccess(accessData);
+      const data = await userService.getProfile();
+      setProfile(data);
+      const access = await userService.getFeatureAccess();
+      setFeatureAccess(access);
     } catch (error) {
-      console.error("Failed to fetch profile data:", error);
+      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,12 +61,12 @@ export const ProfileScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchProfile();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchData();
+    fetchProfile();
   };
 
   const handlePickImage = async () => {
@@ -82,42 +74,48 @@ export const ProfileScreen: React.FC = () => {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.5,
     });
 
     if (!result.canceled) {
-      // In a real app, upload the image here
-      console.log("Selected image:", result.assets[0].uri);
+      try {
+        setLoading(true);
+        const updated = await userService.updateAvatar(result.assets[0].uri);
+        setProfile((prev: any) => ({ ...prev, avatar_url: updated.avatar_url }));
+      } catch (error) {
+        Alert.alert("Error", "Failed to update avatar");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
+  const academicLabel = profile
+    ? `${profile.university} • ${profile.department} • Level ${profile.level}`
+    : "";
+
   const handleLogout = () => {
-    Alert.alert(
-      "Log Out",
-      "Are you sure you want to log out of Akademi?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Log Out",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await userService.logout();
-            } catch (e) {
-              console.error("Logout error", e);
-            } finally {
-              clearAuth();
-            }
+    Alert.alert("Log Out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await userService.logout();
+            clearAuth();
+          } catch (e) {
+            clearAuth(); // Still clear local state even if server logout fails
           }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "This action is permanent and cannot be undone. All your data will be lost.",
+      "Are you sure? This action is permanent and cannot be undone. All your data will be lost.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -222,27 +220,75 @@ export const ProfileScreen: React.FC = () => {
 
         {/* Menu Sections */}
         <MenuSection label="ACADEMIC">
-          <MenuItem icon={<GraduationCap size={20} color={colors.primary} />} label="Edit Academic Details" onPress={() => {}} />
-          <MenuItem icon={<FileText size={20} color={colors.primary} />} label="My Courses" onPress={() => {}} />
+          <MenuItem
+            icon={<GraduationCap size={20} color={colors.primary} />}
+            label="Edit Academic Details"
+            onPress={() => navigation.navigate("EditAcademicDetails")}
+          />
+          <MenuItem
+            icon={<FileText size={20} color={colors.primary} />}
+            label="My Courses"
+            onPress={() => navigation.navigate("MyCourses")}
+          />
         </MenuSection>
 
         <MenuSection label="CONTENT">
-          <MenuItem icon={<Cloud size={20} color={colors.primary} />} label="My Uploads" onPress={() => {}} />
-          <MenuItem icon={<Clock size={20} color={colors.primary} />} label="Offline Downloads" onPress={() => {}} />
+          <MenuItem
+            icon={<Cloud size={20} color={colors.primary} />}
+            label="My Uploads"
+            onPress={() => navigation.navigate("MyUploads")}
+          />
+          <MenuItem
+            icon={<Clock size={20} color={colors.primary} />}
+            label="Offline Downloads"
+            onPress={() => navigation.navigate("OfflineDownloads")}
+          />
         </MenuSection>
 
         <MenuSection label="PREFERENCES">
-          <MenuItem icon={<Bell size={20} color={colors.primary} />} label="Notifications" onPress={() => navigation.navigate("NotificationsSettings")} />
-          <MenuItem icon={<Key size={20} color={colors.primary} />} label="Subscription" onPress={() => navigation.navigate("Subscription")} />
-          <MenuItem icon={<Globe size={20} color={colors.primary} />} label="App Language" onPress={() => {}} />
-          <MenuItem icon={<Palette size={20} color={colors.primary} />} label="Appearance" onPress={() => {}} />
+          <MenuItem
+            icon={<Bell size={20} color={colors.primary} />}
+            label="Notifications"
+            onPress={() => navigation.navigate("NotificationsSettings")}
+          />
+          <MenuItem
+            icon={<Key size={20} color={colors.primary} />}
+            label="Subscription"
+            onPress={() => navigation.navigate("Subscription")}
+          />
+          <MenuItem
+            icon={<Globe size={20} color={colors.primary} />}
+            label="App Language"
+            onPress={() => navigation.navigate("AppLanguage")}
+          />
+          <MenuItem
+            icon={<Palette size={20} color={colors.primary} />}
+            label="Appearance"
+            onPress={() => navigation.navigate("AppearanceSettings")}
+          />
         </MenuSection>
 
         <MenuSection label="ACCOUNT">
-          <MenuItem icon={<Lock size={20} color={colors.primary} />} label="Change Password" onPress={() => {}} />
-          <MenuItem icon={<Shield size={20} color={colors.primary} />} label="Privacy & Data" onPress={() => {}} />
-          <MenuItem icon={<HelpCircle size={20} color={colors.primary} />} label="Help & Support" onPress={() => {}} />
-          <MenuItem icon={<Star size={20} color={colors.primary} />} label="Rate Akademi" onPress={() => {}} />
+          <MenuItem
+            icon={<Lock size={20} color={colors.primary} />}
+            label="Change Password"
+            onPress={() => navigation.navigate("ChangePassword")}
+          />
+          <MenuItem
+            icon={<Shield size={20} color={colors.primary} />}
+            label="Privacy & Data"
+            onPress={() => navigation.navigate("PrivacyData")}
+          />
+          <MenuItem
+            icon={<HelpCircle size={20} color={colors.primary} />}
+            label="Help & Support"
+            onPress={() => navigation.navigate("HelpSupport")}
+          />
+          <MenuItem
+            icon={<Star size={20} color={colors.primary} />}
+            label="Rate Akademi"
+            onPress={() => navigation.navigate("RateAkademi")}
+          />
           <MenuItem
             icon={<LogOut size={20} color={colors.error} />}
             label="Log Out"
