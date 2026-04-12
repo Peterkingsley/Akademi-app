@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   container: {
-    padding: 24,
+    padding: 24, paddingBottom: 100,
     flex: 1,
   },
   iconContainer: {

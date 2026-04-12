@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 24,
-    paddingBottom: 100,
+    paddingBottom: 140,
     flexGrow: 1,
   },
   centerTop: {

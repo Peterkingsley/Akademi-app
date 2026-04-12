@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 24,
-    paddingBottom: 24, flexGrow: 1,
+    paddingBottom: 150, flexGrow: 1,
   },
   universityItem: {
     flexDirection: "row",

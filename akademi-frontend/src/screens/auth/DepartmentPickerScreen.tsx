@@ -330,6 +330,6 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     marginTop: 8,
-    marginBottom: 40,
+    marginBottom: 80,
   },
 });

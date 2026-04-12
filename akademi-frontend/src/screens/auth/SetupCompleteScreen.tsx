@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     fontFamily: "SpaceMono-Regular",
   },
   footer: {
-    marginBottom: 40,
+    marginBottom: 80,
     alignItems: "center",
   },
   footerMotto: {

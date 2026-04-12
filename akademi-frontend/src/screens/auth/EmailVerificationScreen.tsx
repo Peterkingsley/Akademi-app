@@ -139,7 +139,7 @@ export const EmailVerificationScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 24, paddingBottom: 100,
   },
   headline: {
     color: colors.textPrimary,
