@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 24,
-    paddingBottom: 100,
+    paddingBottom: 140,
     flex: 1,
   },
   headline: {

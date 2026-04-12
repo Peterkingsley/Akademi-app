@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   listContent: {
-    paddingBottom: 100, flexGrow: 1,
+    paddingBottom: 180, flexGrow: 1,
   },
   courseCard: {
     width: CARD_WIDTH,

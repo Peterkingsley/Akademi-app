@@ -32,13 +32,15 @@ export const useAuthStore = create<AuthState>()(
       hasSeenOnboarding: false,
       setAuth: (user, accessToken, refreshToken) =>
         set({ user, accessToken, refreshToken, isAuthenticated: true }),
-      clearAuth: () =>
+      clearAuth: () => {
+        AsyncStorage.multiRemove(["accessToken", "refreshToken"]);
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-        }),
+        });
+      },
       setOnboardingComplete: (complete) => set({ hasSeenOnboarding: complete }),
     }),
     {

@@ -10,10 +10,9 @@ import {
   NativeSyntheticEvent,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowRight, GraduationCap, Sparkles } from "lucide-react-native";
+import { ArrowRight, GraduationCap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 
 const { width, height } = Dimensions.get("window");
@@ -61,42 +60,47 @@ export const OnboardingScreen: React.FC = () => {
             <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
 
-          <View style={styles.illustrationArea}>
-            <View style={styles.illustrationCard}>
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.placeholderText}>[Nigerian Student Illustration]</Text>
-              </View>
-              <View style={styles.badgeChip}>
-                <Text style={styles.systemStatusLabel}>SYSTEM STATUS</Text>
-                <Text style={styles.systemStatusValue}>
-                  Personalized curriculum optimized for JAMB 2024.
-                </Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.slide1Content}
+          >
+            <View style={styles.illustrationArea}>
+              <View style={styles.illustrationCard}>
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.placeholderText}>[Nigerian Student Illustration]</Text>
+                </View>
+                <View style={styles.badgeChip}>
+                  <Text style={styles.systemStatusLabel}>SYSTEM STATUS</Text>
+                  <Text style={styles.systemStatusValue}>
+                    Personalized curriculum optimized for JAMB 2024.
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          <View style={styles.contentArea}>
-            <Text style={styles.headline}>
-              Built for <Text style={{ color: colors.primary }}>you</Text>
-            </Text>
-            <Text style={styles.body}>
-              Tailored learning paths that adapt to your pace, your goals, and
-              your dreams.
-            </Text>
-          </View>
-
-          <View style={styles.bottomArea}>
-            <View style={styles.progressDots}>
-              <View style={[styles.dot, styles.activeDot, styles.pillDot]} />
-              <View style={[styles.dot, styles.inactiveDot]} />
-              <View style={[styles.dot, styles.inactiveDot]} />
+            <View style={styles.contentArea}>
+              <Text style={styles.headline}>
+                Built for <Text style={{ color: colors.primary }}>you</Text>
+              </Text>
+              <Text style={styles.body}>
+                Tailored learning paths that adapt to your pace, your goals, and
+                your dreams.
+              </Text>
             </View>
-            <Button
-              label="Get Started"
-              onPress={nextSlide}
-              icon={<ArrowRight size={20} color={colors.textPrimary} />}
-            />
-          </View>
+
+            <View style={styles.bottomAreaInside}>
+              <View style={styles.progressDots}>
+                <View style={[styles.dot, styles.activeDot, styles.pillDot]} />
+                <View style={[styles.dot, styles.inactiveDot]} />
+                <View style={[styles.dot, styles.inactiveDot]} />
+              </View>
+              <Button
+                label="Get Started"
+                onPress={nextSlide}
+                icon={<ArrowRight size={20} color={colors.textPrimary} />}
+              />
+            </View>
+          </ScrollView>
         </View>
 
         {/* Slide 2 - Frame 38 */}
@@ -124,7 +128,7 @@ export const OnboardingScreen: React.FC = () => {
             />
           </View>
 
-          <ScrollView style={styles.slide2Content} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.slide2Content} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             <Text style={styles.slide2Headline}>
               The tutor you always needed.{"\n"}
               <Text style={{ color: colors.primary }}>Finally here.</Text>
@@ -164,6 +168,9 @@ const styles = StyleSheet.create({
     width: width,
     height: height,
     paddingHorizontal: 24,
+  },
+  slide1Content: {
+    paddingBottom: 80,
   },
   skipButton: {
     position: "absolute",
@@ -234,11 +241,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 16,
   },
-  bottomArea: {
-    position: "absolute",
-    bottom: 50,
-    left: 24,
-    right: 24,
+  bottomAreaInside: {
+    marginTop: 40,
   },
   progressDots: {
     flexDirection: "row",
