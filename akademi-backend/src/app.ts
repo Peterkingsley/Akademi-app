@@ -28,6 +28,7 @@ if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryD
 }
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Middleware
