@@ -111,4 +111,14 @@ export class AuthController {
       res.status(400).json({ message: error.message });
     }
   }
+
+  async changePassword(req: Request, res: Response) {
+    try {
+      await authService.changePassword(req.user!.userId, req.body);
+      res.status(200).json({ message: 'Password changed successfully.' });
+    } catch (error: any) {
+      console.error('Change password error:', error);
+      res.status(400).json({ message: error.message });
+    }
+  }
 }

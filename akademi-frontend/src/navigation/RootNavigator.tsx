@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createStackNavigator } from "@react-navigation/stack";
+import { createNavigationContainerRef } from "@react-navigation/native";
 import { RootStackParamList } from "./types";
 import { AuthStack } from "./AuthStack";
 import { MainStack } from "./MainStack";
@@ -7,6 +8,11 @@ import { SplashScreen } from "../screens/main/SplashScreen";
 import { useAuthStore } from "../store/useAuthStore";
 
 const Stack = createStackNavigator<RootStackParamList>();
+export const navigationRef = createNavigationContainerRef();
+
+if (typeof window !== 'undefined') {
+  (window as any).navigationRef = navigationRef;
+}
 
 export const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);

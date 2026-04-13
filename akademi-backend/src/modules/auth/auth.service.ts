@@ -5,7 +5,7 @@ import { Resend } from 'resend';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
-import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload } from './auth.types';
+import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest } from './auth.types';
 import { AuthProvider, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 
@@ -321,5 +321,23 @@ export class AuthService {
     } else if (this.isDummyResendKey()) {
       console.log(`Skipping resend verification email send. New verification token for ${user.email} is: ${verificationToken}`);
     }
+  }
+
+  async changePassword(userId: string, data: ChangePasswordRequest): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { id: userId, is_deleted: false } });
+    if (!user || !user.password_hash) {
+      throw new Error('User not found or password not set');
+    }
+
+    const isPasswordValid = await bcrypt.compare(data.oldPassword, user.password_hash);
+    if (!isPasswordValid) {
+      throw new Error('Invalid current password');
+    }
+
+    const newPasswordHash = await bcrypt.hash(data.newPassword, 12);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash: newPasswordHash },
+    });
   }
 }
