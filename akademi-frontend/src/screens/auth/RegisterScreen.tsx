@@ -54,7 +54,7 @@ export const RegisterScreen: React.FC = () => {
       });
       navigation.navigate("EmailVerification", { email: form.email });
     } catch (err: any) {
-      console.error("Registration failed", err);
+      console.log("Registration failed", err.response?.data?.message || err.message);
       const message = err.response?.data?.message || "Registration failed. Please try again.";
       setError(message);
       // For testing/demo purposes, navigate anyway if API fails

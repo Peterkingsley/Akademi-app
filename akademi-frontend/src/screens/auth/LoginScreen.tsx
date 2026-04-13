@@ -51,7 +51,7 @@ export const LoginScreen: React.FC = () => {
       setAuth(user, accessToken, refreshToken);
       // Navigation to MainStack will be handled by RootNavigator based on isAuthenticated
     } catch (err: any) {
-      console.error("Login failed", err);
+      console.log("Login failed", err.response?.data?.message || err.message);
       const message = err.response?.data?.message || "Invalid email or password";
       setError(message);
     } finally {
