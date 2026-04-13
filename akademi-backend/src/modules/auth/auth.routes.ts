@@ -23,5 +23,6 @@ router.post('/logout-all', authenticate, (req, res) => authController.logoutAll(
 router.post('/forgot-password', (req, res) => authController.forgotPassword(req, res));
 router.post('/reset-password', (req, res) => authController.resetPassword(req, res));
 router.post('/resend-verification', (req, res) => authController.resendVerification(req, res));
+router.post('/change-password', authenticate, (req, res) => authController.changePassword(req, res));
 
 export default router;

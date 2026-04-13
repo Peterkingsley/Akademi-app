@@ -1,3 +1,4 @@
+import { navigationRef } from './src/navigation/RootNavigator';
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import {
@@ -37,7 +38,7 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <StatusBar style="light" />
         <RootNavigator />
       </NavigationContainer>
