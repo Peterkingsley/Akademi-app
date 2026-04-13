@@ -4,6 +4,7 @@ import { createNavigationContainerRef } from "@react-navigation/native";
 import { RootStackParamList } from "./types";
 import { AuthStack } from "./AuthStack";
 import { MainStack } from "./MainStack";
+import { AdminStack } from "./AdminStack";
 import { SplashScreen } from "../screens/main/SplashScreen";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -34,7 +35,10 @@ export const RootNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <Stack.Screen name="Main" component={MainStack} />
+        <>
+          <Stack.Screen name="Main" component={MainStack} />
+          <Stack.Screen name="Admin" component={AdminStack} />
+        </>
       ) : (
         <Stack.Screen
           name="Auth"

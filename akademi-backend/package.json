@@ -7,11 +7,12 @@
     "dev": "ts-node-dev --respawn src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
-    "migrate": "prisma migrate deploy",
+    "migrate": "prisma migrate deploy && npm run seed:admin",
     "migrate:dev": "prisma migrate dev",
     "test": "jest --runInBand",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
+    "format": "prettier --write src/**/*.ts",
+    "seed:admin": "ts-node prisma/seed-admin.ts"
   },
   "keywords": [],
   "author": "",

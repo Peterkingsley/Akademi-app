@@ -31,6 +31,7 @@ import {
   Trash2,
   Sparkles,
   BarChart2,
+  ShieldCheck,
 } from "lucide-react-native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
@@ -40,7 +41,7 @@ import * as ImagePicker from "expo-image-picker";
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { clearAuth } = useAuthStore();
+  const { clearAuth, user } = useAuthStore();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -219,6 +220,15 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Menu Sections */}
+        {user?.admin_role && (
+          <MenuSection label="ADMINISTRATION">
+            <MenuItem
+              icon={<ShieldCheck size={20} color={colors.primary} />}
+              label="Admin Panel"
+              onPress={() => navigation.navigate("Admin")}
+            />
+          </MenuSection>
+        )}
         <MenuSection label="ACADEMIC">
           <MenuItem
             icon={<GraduationCap size={20} color={colors.primary} />}

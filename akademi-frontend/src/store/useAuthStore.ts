@@ -9,6 +9,7 @@ interface User {
   university?: string;
   department?: string;
   onboarding_complete?: boolean;
+  admin_role?: string | null;
 }
 
 interface AuthState {
