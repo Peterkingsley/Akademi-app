@@ -15,7 +15,7 @@ export const SessionsTabs = () => {
         headerShown: false,
       }}
     >
-      <Tab.Screen name="Sessions" component={SessionsScreen} />
+      <Tab.Screen name="SessionsMain" component={SessionsScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

@@ -30,8 +30,11 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       hasSeenOnboarding: false,
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      setAuth: (user, accessToken, refreshToken) => {
+        AsyncStorage.setItem("accessToken", accessToken);
+        AsyncStorage.setItem("refreshToken", refreshToken);
+        set({ user, accessToken, refreshToken, isAuthenticated: true });
+      },
       clearAuth: () => {
         AsyncStorage.multiRemove(["accessToken", "refreshToken"]);
         set({
