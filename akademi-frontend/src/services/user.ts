@@ -63,6 +63,16 @@ export const userService = {
     return response.data;
   },
 
+
+  getSessions: async () => {
+    const response = await api.get<any[]>("/users/me/sessions");
+    return response.data;
+  },
+
+  getUploads: async () => {
+    const response = await api.get<any[]>("/users/me/uploads");
+    return response.data;
+  },
   logout: async () => {
     const response = await api.post("/auth/logout");
     return response.data;
