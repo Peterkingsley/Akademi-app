@@ -14,17 +14,27 @@ export const adminAuthenticate = async (req: Request, res: Response, next: NextF
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as AdminJwtPayload;
+    const decoded = jwt.verify(token, config.jwtSecret) as any;
 
-    const admin = await prisma.admin.findUnique({
-      where: { id: decoded.adminId }
+    // Look up admin by ID if present, otherwise fallback to email (to support user-flow login)
+    const admin = await prisma.admin.findFirst({
+      where: {
+        OR: [
+          { id: decoded.adminId || undefined },
+          { email: decoded.email }
+        ]
+      }
     });
 
     if (!admin) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    req.admin = decoded;
+    req.admin = {
+      adminId: admin.id,
+      email: admin.email,
+      role: admin.role
+    };
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid or expired token' });
