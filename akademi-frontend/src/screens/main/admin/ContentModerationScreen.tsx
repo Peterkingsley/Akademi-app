@@ -56,14 +56,14 @@ export const ContentModerationScreen: React.FC = () => {
       </View>
       <View style={styles.actions}>
         <Button
-          title="Approve"
+          label="Approve"
           variant="primary"
           onPress={() => handleApprove(item.id)}
           style={styles.actionButton}
         />
         <Button
-          title="Takedown"
-          variant="outline"
+          label="Takedown"
+          variant="ghost"
           onPress={() => handleTakedown(item.id)}
           style={styles.actionButton}
         />

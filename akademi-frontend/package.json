@@ -25,6 +25,7 @@
     "expo-av": "~15.0.2",
     "expo-blur": "~14.0.3",
     "expo-camera": "~16.0.10",
+    "expo-dev-client": "^55.0.27",
     "expo-device": "~7.0.3",
     "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.4",

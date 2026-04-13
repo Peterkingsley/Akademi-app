@@ -39,9 +39,20 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (fontError) {
+      console.error("Font loading error:", fontError);
+    }
+
     if (fontsLoaded || fontError) {
       SplashScreenNative.hideAsync();
     }
+
+    // Safety timeout: hide splash screen after 10 seconds regardless of font state
+    const timeout = setTimeout(() => {
+      SplashScreenNative.hideAsync();
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {

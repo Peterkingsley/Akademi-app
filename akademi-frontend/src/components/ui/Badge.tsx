@@ -5,7 +5,7 @@ import { typography } from "../../theme/typography";
 
 interface BadgeProps {
   label: string;
-  variant: "verified" | "pending" | "course" | "ai" | "purple" | "blue" | "warning";
+  variant: "verified" | "pending" | "course" | "ai" | "purple" | "blue" | "warning" | "success" | "error";
   style?: ViewStyle;
 }
 
@@ -13,6 +13,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case "verified":
+      case "success":
         return styles.verified;
       case "pending":
       case "warning":
@@ -23,6 +24,8 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
       case "course":
       case "blue":
         return styles.course;
+      case "error":
+        return styles.error;
       default:
         return styles.course;
     }
@@ -74,6 +77,9 @@ const styles = StyleSheet.create({
   },
   course: {
     backgroundColor: colors.surfaceElevated,
+  },
+  error: {
+    backgroundColor: colors.error,
   },
   text: {
     fontSize: 8.25,

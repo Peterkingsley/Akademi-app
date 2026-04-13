@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Akademi",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "slug": "akademi",
     "version": "1.0.0",
     "platforms": [

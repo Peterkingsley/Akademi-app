@@ -64,7 +64,14 @@ export type MainStackParamList = {
   RateAkademi: undefined;
 };
 
+export type AdminStackParamList = {
+  AdminDashboard: undefined;
+  UserManagement: undefined;
+  ContentModeration: undefined;
+};
+
 export type RootStackParamList = {
+  Admin: NavigatorScreenParams<AdminStackParamList>;
   Splash: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainStackParamList>;

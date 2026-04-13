@@ -11,6 +11,7 @@ export const darkPalette = {
   textPrimary: "#FFFFFF",
   textSecondary: "#A1A1AA",
   textMuted: "#71717A",
+  text: "#FFFFFF",              // Added for compatibility with some admin screens
   border: "#27272A",
 };
 
@@ -27,6 +28,7 @@ export const lightPalette = {
   textPrimary: "#111827",
   textSecondary: "#4B5563",
   textMuted: "#9CA3AF",
+  text: "#111827",              // Added for compatibility with some admin screens
   border: "#E5E7EB",
 };
 
