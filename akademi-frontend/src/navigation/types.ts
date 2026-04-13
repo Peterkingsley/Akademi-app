@@ -47,6 +47,7 @@ export type MainStackParamList = {
   MockExam: { examId: string };
   MockExamResults: { examId: string };
   Sessions: undefined;
+  SessionDetail: { id: string };
   Progress: undefined;
   Achievements: undefined;
   Subscription: undefined;

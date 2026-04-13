@@ -1,4 +1,6 @@
 import api from "./api";
+import { sessionService } from "./session";
+import { materialService } from "./material";
 
 export interface UserProfile {
   id: string;
@@ -58,7 +60,7 @@ export const userService = {
     return response.data;
   },
 
-  changePassword: async (oldPassword, newPassword) => {
+  changePassword: async (oldPassword: string, newPassword: string) => {
     const response = await api.post('/auth/change-password', { oldPassword, newPassword });
     return response.data;
   },
@@ -80,5 +82,13 @@ export const userService = {
       plan,
     });
     return response.data;
+  },
+
+  getSessions: async () => {
+    return sessionService.getRecentSessions(100);
+  },
+
+  getUploads: async () => {
+    return materialService.getMyUploads();
   },
 };

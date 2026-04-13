@@ -6,7 +6,7 @@ import {
   ViewStyle,
   Platform,
 } from "react-native";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface SafeAreaProps {
   children: React.ReactNode;
@@ -14,9 +14,14 @@ interface SafeAreaProps {
 }
 
 export const SafeArea: React.FC<SafeAreaProps> = ({ children, style }) => {
+  const { colors, isDark } = useTheme();
+
   return (
-    <SafeAreaView style={[styles.container, style]}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }, style]}>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={colors.background}
+      />
       {children}
     </SafeAreaView>
   );
@@ -25,7 +30,6 @@ export const SafeArea: React.FC<SafeAreaProps> = ({ children, style }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
 });

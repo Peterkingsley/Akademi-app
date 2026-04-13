@@ -7,7 +7,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { ChevronLeft } from "lucide-react-native";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 
 interface HeaderProps {
@@ -25,8 +25,10 @@ export const Header: React.FC<HeaderProps> = ({
   rightAction,
   style,
 }) => {
+  const { colors } = useTheme();
+
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, { backgroundColor: colors.background }, style]}>
       <View style={styles.left}>
         {leftAction ? (
           leftAction
@@ -37,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
         ) : null}
       </View>
       <View style={styles.center}>
-        {title && <Text style={[styles.title, typography.h3]}>{title}</Text>}
+        {title && <Text style={[styles.title, typography.h3, { color: colors.textPrimary }]}>{title}</Text>}
       </View>
       <View style={styles.right}>{rightAction}</View>
     </View>
@@ -51,7 +53,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    backgroundColor: colors.background,
   },
   left: {
     minWidth: 40,
@@ -65,9 +66,7 @@ const styles = StyleSheet.create({
     minWidth: 40,
     alignItems: "flex-end",
   },
-  title: {
-    color: colors.textPrimary,
-  },
+  title: {},
   backButton: {
     padding: 4,
   },

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeArea } from "./SafeArea";
 import { Header } from "./Header";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -32,13 +32,14 @@ export const Screen: React.FC<ScreenProps> = ({
   style,
   hideHeader = false,
 }) => {
+  const { colors } = useTheme();
   const Content = scrollable ? ScrollView : View;
 
   return (
-    <SafeArea>
+    <SafeArea style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
         {!hideHeader && (
           <Header
@@ -49,7 +50,7 @@ export const Screen: React.FC<ScreenProps> = ({
           />
         )}
         <Content
-          style={[styles.content, style]}
+          style={[styles.content, { backgroundColor: colors.background }, style]}
           contentContainerStyle={scrollable ? styles.scrollContent : undefined}
           keyboardShouldPersistTaps="handled"
         >

@@ -10,7 +10,22 @@ const api = axios.create({
 
 // Request interceptor — attach token
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem("accessToken");
+  // Try to get token from AsyncStorage first
+  let token = await AsyncStorage.getItem("accessToken");
+
+  // If not in AsyncStorage, try to find it in the persisted auth-storage
+  if (!token) {
+    const authStorage = await AsyncStorage.getItem("auth-storage");
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        token = parsed.state?.accessToken;
+      } catch (e) {
+        console.error("Failed to parse auth-storage", e);
+      }
+    }
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,7 +41,16 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const refreshToken = await AsyncStorage.getItem("refreshToken");
+        let refreshToken = await AsyncStorage.getItem("refreshToken");
+
+        if (!refreshToken) {
+          const authStorage = await AsyncStorage.getItem("auth-storage");
+          if (authStorage) {
+            const parsed = JSON.parse(authStorage);
+            refreshToken = parsed.state?.refreshToken;
+          }
+        }
+
         if (!refreshToken) {
           return Promise.reject(error);
         }
@@ -37,6 +61,15 @@ api.interceptors.response.use(
 
         await AsyncStorage.setItem("accessToken", data.accessToken);
         await AsyncStorage.setItem("refreshToken", data.refreshToken);
+
+        // Update auth-storage too for consistency
+        const authStorage = await AsyncStorage.getItem("auth-storage");
+        if (authStorage) {
+          const parsed = JSON.parse(authStorage);
+          parsed.state.accessToken = data.accessToken;
+          parsed.state.refreshToken = data.refreshToken;
+          await AsyncStorage.setItem("auth-storage", JSON.stringify(parsed));
+        }
 
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(originalRequest);

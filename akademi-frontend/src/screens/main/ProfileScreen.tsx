@@ -71,7 +71,7 @@ export const ProfileScreen: React.FC = () => {
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
@@ -194,7 +194,7 @@ export const ProfileScreen: React.FC = () => {
           <View style={styles.heroButtons}>
             <TouchableOpacity
               style={styles.heroButton}
-              onPress={() => navigation.navigate("Sessions")}
+              onPress={() => navigation.navigate("Sessions", { screen: "SessionsMain" })}
               activeOpacity={0.7}
             >
               <Clock size={16} color={colors.primary} />
@@ -202,7 +202,7 @@ export const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.heroButton}
-              onPress={() => navigation.navigate("Progress")}
+              onPress={() => navigation.navigate("Sessions", { screen: "Progress" })}
               activeOpacity={0.7}
             >
               <BarChart2 size={16} color={colors.primary} />

@@ -20,7 +20,7 @@ export const MyCoursesScreen: React.FC = () => {
     try {
       const sessions = await userService.getSessions();
       // Extract unique course codes
-      const uniqueCourses = Array.from(new Set(sessions.map(s => s.course_code))).filter(Boolean);
+      const uniqueCourses = Array.from(new Set(sessions.map(s => s.courseCode))).filter(Boolean);
       setCourses(uniqueCourses);
     } catch (error) {
       console.error("Failed to fetch courses", error);

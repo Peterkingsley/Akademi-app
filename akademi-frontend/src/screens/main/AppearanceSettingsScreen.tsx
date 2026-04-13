@@ -1,73 +1,85 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from "react-native";
+import React from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Switch,
+} from "react-native";
 import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import { useNavigation } from "@react-navigation/native";
-import { Palette, Moon, Sun, Monitor } from "lucide-react-native";
+import { Monitor, Sun, Moon } from "lucide-react-native";
 
 export const AppearanceSettingsScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [themeMode, setThemeMode] = useState("dark"); // dark, light, system
+  const navigation = useNavigation();
+  const { themeMode, setThemeMode, colors, isDark } = useTheme();
 
   return (
-    <Screen style={{ flex: 1 }} title="Appearance" onBack={() => navigation.goBack()}>
+    <Screen
+      title="Appearance"
+      onBack={() => navigation.goBack()}
+      style={{ backgroundColor: colors.background }}
+    >
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Palette size={40} color={colors.primary} />
-          <Text style={styles.title}>Visual Settings</Text>
-          <Text style={styles.subtitle}>
+          <View style={[styles.darkPreview, { backgroundColor: isDark ? colors.surfaceElevated : "#E5E7EB" }]}>
+            <Sun size={32} color={isDark ? colors.textMuted : colors.primary} />
+          </View>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Choose your vibe</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Customize how Akademi looks on your device.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>THEME MODE</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>THEME</Text>
           <View style={styles.themeOptions}>
             <TouchableOpacity
               style={[styles.themeOption, themeMode === "light" && styles.activeOption]}
               onPress={() => setThemeMode("light")}
             >
-              <View style={[styles.themePreview, styles.lightPreview]}>
-                <Sun size={24} color="#666" />
+              <View style={[styles.themePreview, styles.lightPreview, themeMode === "light" && { borderColor: colors.primary }]}>
+                <Sun size={24} color={themeMode === "light" ? colors.primary : colors.textSecondary} />
               </View>
-              <Text style={styles.optionLabel}>Light</Text>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Light</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.themeOption, themeMode === "dark" && styles.activeOption]}
               onPress={() => setThemeMode("dark")}
             >
-              <View style={[styles.themePreview, styles.darkPreview]}>
-                <Moon size={24} color="#FFF" />
+              <View style={[styles.themePreview, styles.darkPreview, themeMode === "dark" && { borderColor: colors.primary }]}>
+                <Moon size={24} color={themeMode === "dark" ? colors.primary : colors.textSecondary} />
               </View>
-              <Text style={styles.optionLabel}>Dark</Text>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Dark</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.themeOption, themeMode === "system" && styles.activeOption]}
               onPress={() => setThemeMode("system")}
             >
-              <View style={[styles.themePreview, styles.systemPreview]}>
-                <Monitor size={24} color={colors.textSecondary} />
+              <View style={[styles.themePreview, styles.systemPreview, { backgroundColor: colors.surface, borderColor: themeMode === "system" ? colors.primary : colors.border }]}>
+                <Monitor size={24} color={themeMode === "system" ? colors.primary : colors.textSecondary} />
               </View>
-              <Text style={styles.optionLabel}>System</Text>
+              <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>System</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>GENERAL</Text>
-          <View style={styles.list}>
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>GENERAL</Text>
+          <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.listItem}>
               <View style={styles.listItemLeft}>
-                <Text style={styles.itemLabel}>OLED Dark Mode</Text>
-                <Text style={styles.itemSub}>Pure black background for battery saving</Text>
+                <Text style={[styles.itemLabel, { color: colors.textPrimary }]}>OLED Dark Mode</Text>
+                <Text style={[styles.itemSub, { color: colors.textMuted }]}>Pure black background for battery saving</Text>
               </View>
               <Switch
-                value={isDarkMode}
-                onValueChange={setIsDarkMode}
+                value={isDark}
+                disabled
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor="#FFFFFF"
               />
@@ -90,13 +102,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.textPrimary,
     marginTop: 16,
     marginBottom: 8,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
     textAlign: "center",
     fontSize: 13,
   },
@@ -106,7 +116,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 10,
     fontFamily: "SpaceMono-Regular",
-    color: colors.textMuted,
     marginBottom: 16,
     letterSpacing: 1,
   },
@@ -137,24 +146,18 @@ const styles = StyleSheet.create({
   },
   darkPreview: {
     backgroundColor: "#18181B",
-    borderColor: colors.primary,
   },
   systemPreview: {
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   optionLabel: {
     fontSize: 12,
-    color: colors.textPrimary,
     fontFamily: "Inter-Medium",
   },
   list: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.border,
   },
   listItem: {
     flexDirection: "row",
@@ -168,12 +171,10 @@ const styles = StyleSheet.create({
   },
   itemLabel: {
     ...typography.h3,
-    color: colors.textPrimary,
     fontSize: 14,
   },
   itemSub: {
     ...typography.body,
-    color: colors.textMuted,
     fontSize: 11,
     marginTop: 2,
   },

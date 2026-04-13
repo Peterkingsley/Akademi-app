@@ -1,5 +1,5 @@
 import { navigationRef } from './src/navigation/RootNavigator';
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import {
   useFonts,
@@ -13,9 +13,21 @@ import * as SplashScreenNative from "expo-splash-screen";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreenNative.preventAutoHideAsync();
+
+const AppContent = () => {
+  const { isDark } = useTheme();
+
+  return (
+    <NavigationContainer ref={navigationRef}>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <RootNavigator />
+    </NavigationContainer>
+  );
+};
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -38,10 +50,9 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer ref={navigationRef}>
-        <StatusBar style="light" />
-        <RootNavigator />
-      </NavigationContainer>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

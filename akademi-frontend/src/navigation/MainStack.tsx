@@ -34,6 +34,8 @@ import { PrivacyDataScreen } from "../screens/main/PrivacyDataScreen";
 import { HelpSupportScreen } from "../screens/main/HelpSupportScreen";
 import { RateAkademiScreen } from "../screens/main/RateAkademiScreen";
 import { AchievementsScreen } from "../screens/main/AchievementsScreen";
+import { SessionDetailScreen } from "../screens/main/SessionDetailScreen";
+import { ProgressScreen } from "../screens/main/ProgressScreen";
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -77,6 +79,8 @@ export const MainStack = () => {
       <Stack.Screen name="MockExam" component={MockExamScreen} />
       <Stack.Screen name="MockExamResults" component={MockExamResultsScreen} />
       <Stack.Screen name="Sessions" component={SessionsTabs} />
+      <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
+      <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen
         name="Subscription"
         component={SubscriptionScreen}
