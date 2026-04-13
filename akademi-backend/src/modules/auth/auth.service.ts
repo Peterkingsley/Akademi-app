@@ -157,8 +157,17 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, data.deviceInfo);
 
+    const admin = await prisma.admin.findUnique({
+      where: { email: user.email },
+      select: { role: true }
+    });
+
     const { password_hash, ...userWithoutPassword } = user;
-    return { accessToken, refreshToken, user: userWithoutPassword };
+    return {
+      accessToken,
+      refreshToken,
+      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+    };
   }
 
   async googleLogin(token: string, deviceInfo: { name: string; type: any }): Promise<AuthResponse> {
@@ -180,8 +189,17 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, deviceInfo);
 
+    const admin = await prisma.admin.findUnique({
+      where: { email: user.email },
+      select: { role: true }
+    });
+
     const { password_hash, ...userWithoutPassword } = user;
-    return { accessToken, refreshToken, user: userWithoutPassword };
+    return {
+      accessToken,
+      refreshToken,
+      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+    };
   }
 
   async refreshToken(token: string): Promise<AuthResponse> {
@@ -213,8 +231,17 @@ export class AuthService {
       type: refreshTokenRecord.device_type,
     });
 
+    const admin = await prisma.admin.findUnique({
+      where: { email: refreshTokenRecord.user.email },
+      select: { role: true }
+    });
+
     const { password_hash, ...userWithoutPassword } = refreshTokenRecord.user;
-    return { accessToken, refreshToken: newRefreshToken, user: userWithoutPassword };
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+    };
   }
 
   async logout(token: string): Promise<void> {

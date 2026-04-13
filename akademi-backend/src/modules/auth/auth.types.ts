@@ -8,7 +8,7 @@ export interface JwtPayload {
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
-  user: Partial<User>;
+  user: Partial<User> & { admin_role?: string | null };
 }
 
 export interface RegisterRequest {

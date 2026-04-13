@@ -34,7 +34,12 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    return user;
+    const admin = await prisma.admin.findUnique({
+      where: { email: user.email },
+      select: { role: true }
+    });
+
+    return { ...user, admin_role: admin?.role || null };
   }
 
   async updateProfile(userId: string, data: UpdateProfileRequest) {
