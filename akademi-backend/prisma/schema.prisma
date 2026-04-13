@@ -79,7 +79,9 @@ enum AccessType {
 
 enum AdminRole {
   SUPER_ADMIN
+  CONTENT_MANAGER
   MODERATOR
+  ANALYST
 }
 
 enum DeviceType {
@@ -105,6 +107,7 @@ model User {
   created_at                   DateTime       @default(now())
   updated_at                   DateTime       @updatedAt
   is_deleted                   Boolean        @default(false) // Required by AuthService
+  is_banned                    Boolean        @default(false)
 
   learning_profile  LearningProfile?
   sessions          Session[]
