@@ -3,6 +3,9 @@
     "axios": "^1.13.6",
     "date-fns": "^4.1.0"
   },
+  "scripts": {
+    "test": "cd akademi-backend && npm test"
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.2"
   }
