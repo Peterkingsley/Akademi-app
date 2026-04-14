@@ -24,7 +24,13 @@ A Dynamic Application Security Testing (DAST) was performed on the live Akademi 
     4.  **Result:** User B successfully retrieves User A's private session data.
 *   **Impact:** Unauthorized access to private academic conversations and session history.
 
-### 1.2 Persistent Cross-Site Scripting (XSS) in User Profiles
+### 1.2 Broken Access Control (IDOR) on Materials
+*   **Endpoint:** `GET /materials/:id`
+*   **Severity:** **High**
+*   **Description:** The `getMaterial` endpoint does not check the `verification_status` of the material.
+*   **Impact:** Unverified or private materials can be accessed by anyone knowing the ID, bypassing the moderation queue.
+
+### 1.3 Persistent Cross-Site Scripting (XSS) in User Profiles
 *   **Endpoint:** `PATCH /users/me`
 *   **Severity:** **High**
 *   **Description:** The `name` field (and potentially others) does not sanitize input. An attacker can inject a malicious script that will execute when an admin views their profile in the management dashboard or when other users interact with their shared content.
