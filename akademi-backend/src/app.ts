@@ -34,8 +34,8 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 // Rate Limiting
