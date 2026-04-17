@@ -59,7 +59,10 @@ export async function checkVerificationThresholdJob(materialId: string) {
   }
 }
 
-function calculateSimilarity(embeddings1: { embedding: any }[], embeddings2: { embedding: any }[]): number {
+function calculateSimilarity(
+  embeddings1: { embedding: any }[],
+  embeddings2: { embedding: any }[],
+): number {
   if (embeddings1.length === 0 || embeddings2.length === 0) return 0;
 
   // Simple average cosine similarity between all chunks as a heuristic
