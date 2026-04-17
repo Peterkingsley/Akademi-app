@@ -72,3 +72,44 @@ export interface AdminAuthResponse {
     role: AdminRole;
   };
 }
+
+// Pillar 4: Discipline Documents
+export interface DisciplineDocumentListFilter {
+  faculty?: string;
+  department?: string;
+  status?: 'active' | 'inactive';
+}
+
+export interface UploadDisciplineDocumentRequest {
+  faculty: string;
+  department: string;
+  course_code?: string;
+  document_ref: string;
+  version_notes: string;
+}
+
+export interface RollbackDocumentRequest {
+  version: number;
+}
+
+// Pillar 5: Analytics
+export interface AnalyticsFilter {
+  startDate?: string;
+  endDate?: string;
+  university?: string;
+  department?: string;
+  level?: number;
+}
+
+// Pillar 6: Finance
+export interface FinanceFilter {
+  startDate?: string;
+  endDate?: string;
+  feature?: string;
+  plan?: string;
+  status?: string;
+  university?: string;
+}
+
+// Pillar 7: Monitoring
+// (Already has SystemHealth)
