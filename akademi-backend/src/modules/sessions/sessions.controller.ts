@@ -24,7 +24,7 @@ export class SessionsController {
 
   async getOne(req: Request, res: Response) {
     try {
-      const session = await sessionsService.getSession(req.params.id, req.user!.userId);
+      const session = await sessionsService.getSession(req.params.id);
       res.status(200).json(session);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
@@ -33,7 +33,7 @@ export class SessionsController {
 
   async end(req: Request, res: Response) {
     try {
-      const session = await sessionsService.endSession(req.params.id, req.user!.userId);
+      const session = await sessionsService.endSession(req.params.id);
       res.status(200).json(session);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -42,7 +42,7 @@ export class SessionsController {
 
   async getMessages(req: Request, res: Response) {
     try {
-      const messages = await sessionsService.listMessages(req.params.id, req.user!.userId);
+      const messages = await sessionsService.listMessages(req.params.id);
       res.status(200).json(messages);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -60,7 +60,7 @@ export class SessionsController {
 
   async getSummary(req: Request, res: Response) {
     try {
-      const summary = await sessionsService.getSessionSummary(req.params.id, req.user!.userId);
+      const summary = await sessionsService.getSessionSummary(req.params.id);
       res.status(200).json(summary);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
