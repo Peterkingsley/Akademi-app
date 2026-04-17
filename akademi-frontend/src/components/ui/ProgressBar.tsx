@@ -5,7 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
 
 interface ProgressBarProps {
   progress: number; // 0-100
@@ -15,10 +15,9 @@ interface ProgressBarProps {
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   progress,
-  color,
+  color = colors.primary,
   style,
 }) => {
-  const { colors } = useTheme();
   const animatedWidth = useSharedValue(0);
 
   useEffect(() => {
@@ -30,13 +29,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   }));
 
   return (
-    <View style={[styles.track, { backgroundColor: colors.border }, style]}>
+    <View style={[styles.track, style]}>
       <Animated.View
-        style={[
-          styles.fill,
-          animatedStyle,
-          { backgroundColor: color || colors.primary }
-        ]}
+        style={[styles.fill, animatedStyle, { backgroundColor: color }]}
       />
     </View>
   );
@@ -46,6 +41,7 @@ const styles = StyleSheet.create({
   track: {
     height: 6,
     borderRadius: 3,
+    backgroundColor: colors.border,
     width: "100%",
     overflow: "hidden",
   },
