@@ -58,9 +58,9 @@ export class SessionsService {
     });
   }
 
-  async getSession(id: string) {
+  async getSession(id: string, userId: string) {
     const session = await prisma.session.findUnique({
-      where: { id },
+      where: { id, user_id: userId },
       include: {
         messages: {
           orderBy: { created_at: 'asc' },
@@ -72,9 +72,9 @@ export class SessionsService {
     return session;
   }
 
-  async endSession(id: string) {
+  async endSession(id: string, userId: string) {
     const session = await prisma.session.update({
-      where: { id },
+      where: { id, user_id: userId },
       data: { ended_at: new Date() },
     });
 
@@ -85,15 +85,15 @@ export class SessionsService {
     return session;
   }
 
-  async listMessages(sessionId: string) {
+  async listMessages(sessionId: string, userId: string) {
     return prisma.message.findMany({
-      where: { session_id: sessionId },
+      where: { session_id: sessionId, session: { user_id: userId } },
       orderBy: { created_at: 'asc' },
     });
   }
 
   async sendMessage(userId: string, sessionId: string, data: SendMessageRequest) {
-    const session = await this.getSession(sessionId);
+    const session = await this.getSession(sessionId, userId);
 
     if (session.ended_at) {
         throw new Error('Cannot send message to an ended session');
@@ -127,7 +127,7 @@ export class SessionsService {
     });
   }
 
-  async getSessionSummary(sessionId: string) {
+  async getSessionSummary(sessionId: string, userId: string) {
       // In a real scenario, this would probably pull from the generated session summary job's results
       // For now, we return a mock summary that follows the requirements
       return {

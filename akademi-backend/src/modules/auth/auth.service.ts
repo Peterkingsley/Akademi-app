@@ -1,3 +1,4 @@
+import xss from "xss";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
@@ -56,9 +57,7 @@ export class AuthService {
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existingUser) {
-      throw new Error('Email already registered');
-    }
+    if (existingUser) return;
 
     let passwordHash = null;
     if (data.password) {
@@ -71,7 +70,7 @@ export class AuthService {
 
     const user = await prisma.user.create({
       data: {
-        name: data.name,
+        name: xss(data.name),
         email: data.email,
         password_hash: passwordHash,
         university: data.university,

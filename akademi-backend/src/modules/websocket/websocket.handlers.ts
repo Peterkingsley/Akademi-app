@@ -77,8 +77,8 @@ export const registerHandlers = (
 
   socket.on('session:end', async ({ sessionId }) => {
     try {
-      await sessionsService.endSession(sessionId);
-      const summary = await sessionsService.getSessionSummary(sessionId);
+      await sessionsService.endSession(sessionId, userId);
+      const summary = await sessionsService.getSessionSummary(sessionId, userId);
       socket.emit('session:summary', { summary });
       socket.emit('session:ended');
       socket.leave(sessionId);
