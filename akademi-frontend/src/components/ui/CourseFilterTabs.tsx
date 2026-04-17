@@ -1,7 +1,8 @@
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from "react-native";
 import { Search } from "lucide-react-native";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface CourseFilterTabsProps {
   courses: string[];
@@ -16,8 +17,6 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
   onSelectCourse,
   onSearchPress,
 }) => {
-  const { colors, typography } = useTheme();
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -27,7 +26,7 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
       >
         <TouchableOpacity
           onPress={onSearchPress}
-          style={[styles.searchTab, { backgroundColor: colors.surfaceElevated }]}
+          style={styles.searchTab}
           activeOpacity={0.8}
         >
           <Search size={18} color={colors.textSecondary} />
@@ -41,17 +40,16 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
               onPress={() => onSelectCourse(course)}
               style={[
                 styles.tab,
-                { backgroundColor: isSelected ? colors.primary : colors.surfaceElevated },
+                isSelected ? styles.selectedTab : styles.unselectedTab,
               ]}
               activeOpacity={0.8}
             >
               <Text
                 style={[
+                  styles.tabText,
                   typography.caption,
-                  {
-                    color: isSelected ? "#FFFFFF" : colors.textSecondary,
-                    fontWeight: isSelected ? "700" : "400",
-                  },
+                  { color: isSelected ? "#FFFFFF" : colors.textSecondary },
+                  isSelected && { fontWeight: "700" },
                 ]}
               >
                 {course}
@@ -77,6 +75,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 4,
@@ -89,5 +88,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: 60,
     height: 40,
+  },
+  selectedTab: {
+    backgroundColor: colors.primary,
+  },
+  unselectedTab: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  tabText: {
+    fontSize: 9.75,
   },
 });

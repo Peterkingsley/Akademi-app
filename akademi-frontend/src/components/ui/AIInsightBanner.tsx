@@ -7,14 +7,14 @@ import Animated, {
   withTiming,
   withSequence,
 } from "react-native-reanimated";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface AIInsightBannerProps {
   text: string;
 }
 
 export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
-  const { colors, typography, isDark } = useTheme();
   const glowOpacity = useSharedValue(0.3);
 
   useEffect(() => {
@@ -33,43 +33,15 @@ export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
   }));
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: isDark ? "#0D1526" : "#F0F9FF",
-          borderLeftColor: colors.primary,
-        },
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.glowBorder,
-          glowStyle,
-          {
-            borderLeftColor: colors.primary,
-            shadowColor: colors.primary,
-          },
-        ]}
-      />
+    <View style={styles.container}>
+      <Animated.View style={[styles.glowBorder, glowStyle]} />
       <View style={styles.content}>
         <Text
-          style={[
-            styles.sparkle,
-            typography.h3,
-            { color: colors.primary }
-          ]}
+          style={[styles.sparkle, typography.h3, { color: colors.primary }]}
         >
           ✦
         </Text>
-        <Text
-          style={[
-            typography.mono,
-            { color: colors.textSecondary, flex: 1 }
-          ]}
-        >
-          {text}
-        </Text>
+        <Text style={[styles.text, typography.mono]}>{text}</Text>
       </View>
     </View>
   );
@@ -77,6 +49,7 @@ export const AIInsightBanner: React.FC<AIInsightBannerProps> = ({ text }) => {
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#0D1526",
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
@@ -84,10 +57,14 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     borderRadius: 8,
     borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
   },
   glowBorder: {
     ...StyleSheet.absoluteFillObject,
     borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    // Add glow effect using shadow on iOS/Android or just opacity modulation
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
@@ -99,5 +76,10 @@ const styles = StyleSheet.create({
   },
   sparkle: {
     marginRight: 10,
+    fontSize: 15,
+  },
+  text: {
+    color: colors.textSecondary,
+    flex: 1,
   },
 });

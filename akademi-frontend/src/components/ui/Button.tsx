@@ -13,7 +13,8 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
@@ -37,7 +38,6 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   style,
 }) => {
-  const { colors, typography } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -58,17 +58,22 @@ export const Button: React.FC<ButtonProps> = ({
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case "secondary":
-        return { backgroundColor: colors.surfaceElevated };
+        return styles.secondary;
       case "ghost":
-        return { backgroundColor: "transparent" };
+        return styles.ghost;
       case "primary":
       default:
-        return { backgroundColor: colors.primary };
+        return styles.primary;
     }
   };
 
   const getTextStyle = (): TextStyle => {
-    return { color: colors.textPrimary };
+    switch (variant) {
+      case "ghost":
+        return styles.ghostText;
+      default:
+        return styles.text;
+    }
   };
 
   return (
@@ -89,18 +94,14 @@ export const Button: React.FC<ButtonProps> = ({
     >
       <Animated.View style={[styles.content, animatedStyle]}>
         {loading ? (
-          <ActivityIndicator color={colors.textPrimary} size="small" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
           <>
             {icon && (
               <Animated.View style={styles.iconContainer}>{icon}</Animated.View>
             )}
             <Text
-              style={[
-                getTextStyle(),
-                typography.body,
-                { fontWeight: "600" }
-              ]}
+              style={[getTextStyle(), typography.body, { fontWeight: "600" }]}
             >
               {label}
             </Text>
@@ -119,10 +120,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
   },
+  primary: {
+    backgroundColor: colors.primary,
+  },
+  secondary: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  ghost: {
+    backgroundColor: "transparent",
+  },
   content: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+  },
+  text: {
+    color: colors.textPrimary,
+    fontSize: 12,
+  },
+  ghostText: {
+    color: colors.textPrimary,
+    fontSize: 12,
   },
   iconContainer: {
     marginRight: 8,

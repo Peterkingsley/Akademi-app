@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, ViewStyle } from "react-native";
+import { View, StyleSheet, ViewStyle, LayoutChangeEvent } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
 
 interface SkeletonProps {
   width?: number | string;
@@ -22,7 +22,6 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius = 4,
   style,
 }) => {
-  const { colors, isDark } = useTheme();
   const shimmerValue = useSharedValue(0);
 
   useEffect(() => {
@@ -57,13 +56,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
         style,
       ]}
     >
-      <Animated.View
-        style={[
-          styles.shimmer,
-          animatedStyle,
-          { backgroundColor: isDark ? "#252F42" : "#E5E7EB", opacity: 0.5 }
-        ]}
-      />
+      <Animated.View style={[styles.shimmer, animatedStyle]} />
     </View>
   );
 };
@@ -74,5 +67,7 @@ const styles = StyleSheet.create({
   },
   shimmer: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#252F42",
+    opacity: 0.5,
   },
 });

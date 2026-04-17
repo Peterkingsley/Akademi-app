@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
-import { useTheme } from "../../theme/ThemeContext";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 interface BadgeProps {
   label: string;
@@ -9,23 +10,21 @@ interface BadgeProps {
 }
 
 export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
-  const { colors, typography } = useTheme();
-
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case "verified":
-        return { backgroundColor: colors.success };
+        return styles.verified;
       case "pending":
       case "warning":
-        return { backgroundColor: colors.warning };
+        return styles.pending;
       case "ai":
       case "purple":
-        return { backgroundColor: colors.accentPurple };
+        return styles.ai;
       case "course":
       case "blue":
-        return { backgroundColor: colors.surfaceElevated };
+        return styles.course;
       default:
-        return { backgroundColor: colors.surfaceElevated };
+        return styles.course;
     }
   };
 
@@ -43,6 +42,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
     <View style={[styles.base, getVariantStyle(), style]}>
       <Text
         style={[
+          styles.text,
           typography.caption,
           getTextStyle(),
           { fontWeight: "700" },
@@ -62,5 +62,21 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     justifyContent: "center",
     alignItems: "center",
+  },
+  verified: {
+    backgroundColor: colors.success,
+  },
+  pending: {
+    backgroundColor: colors.warning,
+  },
+  ai: {
+    backgroundColor: colors.accentPurple,
+  },
+  course: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  text: {
+    fontSize: 8.25,
+    textTransform: "uppercase",
   },
 });
