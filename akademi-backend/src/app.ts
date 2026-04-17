@@ -18,7 +18,6 @@ import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
 import searchRoutes from './modules/search/search.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import { initWebSocket } from './modules/websocket/websocket.server';
-import { errorHandler } from './middleware/error.middleware';
 
 // Sentry Initialization — only runs if a real DSN is provided
 if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
@@ -70,9 +69,6 @@ app.get('/health', (req, res) => {
 if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
   Sentry.setupExpressErrorHandler(app);
 }
-
-// Global Error Handler
-app.use(errorHandler);
 
 // Start Server
 const startServer = async () => {

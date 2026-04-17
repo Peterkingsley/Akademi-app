@@ -2,7 +2,6 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { UpdateProfileRequest } from './users.types';
-import xss from 'xss';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -44,14 +43,9 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, data: UpdateProfileRequest) {
-    const sanitizedData = { ...data };
-    if (sanitizedData.name) {
-      sanitizedData.name = xss(sanitizedData.name);
-    }
-
     return prisma.user.update({
       where: { id: userId, is_deleted: false },
-      data: sanitizedData,
+      data,
       select: {
         id: true,
         name: true,

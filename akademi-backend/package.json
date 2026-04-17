@@ -41,8 +41,7 @@
     "resend": "^6.9.4",
     "socket.io": "^4.8.3",
     "typesense": "^3.0.3",
-    "uuid": "^10.0.0",
-    "xss": "^1.0.15"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
