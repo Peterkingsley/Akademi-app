@@ -12,7 +12,7 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   const status = err.status || 500;
 
   // Generic error message for production or if it's a Prisma/DB error
-  let message = err.message || 'Internal Server Error';
+  let message = (status >= 500) ? 'An unexpected error occurred. Please try again later.' : (err.message || 'Internal Server Error');
 
   if (err.name?.includes('Prisma') || err.code?.startsWith('P')) {
      message = 'A database error occurred. Please try again later.';
