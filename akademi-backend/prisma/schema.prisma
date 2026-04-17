@@ -120,6 +120,7 @@ model User {
   question_attempts QuestionAttempt[]
   exam_prep_plans   ExamPrepPlan[]
   mock_attempts     MockAttempt[]
+  transactions      Transaction[]
 
   @@index([email])
   @@index([university])
@@ -325,6 +326,7 @@ model DisciplineDocument {
   course_code      String?
   document_ref     String
   version          Int      @default(1)
+  version_notes    String?
   last_updated_by  String
   updated_at       DateTime @updatedAt
   is_active        Boolean  @default(true)
@@ -407,6 +409,33 @@ model MockAttempt {
   started_at     DateTime  @default(now())
   completed_at   DateTime?
   @@map("mock_attempts")
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id])
+  feature     Feature
+  plan        String
+  amount      Float
+  status      String
+  reference   String   @unique
+  university  String?
+  created_at  DateTime @default(now())
+
+  @@map("transactions")
+}
+
+model PaystackWebhookLog {
+  id            String   @id @default(uuid())
+  event_type    String
+  reference     String?
+  status        String
+  payload       Json
+  error_message String?
+  created_at    DateTime @default(now())
+
+  @@map("paystack_webhook_logs")
 }
 
 model QuestionAttempt {
