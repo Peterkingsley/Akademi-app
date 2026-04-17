@@ -7,15 +7,15 @@ import {
   ScrollView,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, RefreshCw, Info, Mail } from "lucide-react-native";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
+import { RefreshCw, Info, Mail } from "lucide-react-native";
+import { useTheme } from "../../theme/ThemeContext";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
 
 export const ForgotPasswordScreen: React.FC = () => {
+  const { colors, typography, isDark } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const initialEmail = route.params?.email || "";
@@ -43,11 +43,11 @@ export const ForgotPasswordScreen: React.FC = () => {
     return (
       <Screen style={{ flex: 1 }} onBack={() => navigation.goBack()} title="">
         <View style={styles.container}>
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, { backgroundColor: isDark ? "#0D1526" : "#F0F9FF" }]}>
             <Mail size={24} color={colors.primary} />
           </View>
-          <Text style={styles.headline}>Check your inbox</Text>
-          <Text style={styles.body}>
+          <Text style={[typography.h1, { color: colors.textPrimary }]}>Check your inbox</Text>
+          <Text style={[typography.body, { color: colors.textSecondary, marginTop: 12, marginBottom: 32, lineHeight: 24 }]}>
             We've sent a password reset link to <Text style={{ color: colors.primary }}>{email}</Text>.
           </Text>
           <Button
@@ -65,16 +65,18 @@ export const ForgotPasswordScreen: React.FC = () => {
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
+        <Text style={[typography.h4, { color: colors.primary }]}>Akademi</Text>
       }
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.iconContainer}>
+        <View style={[styles.iconContainer, { backgroundColor: isDark ? "#0D1526" : "#F0F9FF" }]}>
           <RefreshCw size={24} color={colors.primary} />
         </View>
 
-        <Text style={styles.headline}>Reset your password</Text>
-        <Text style={styles.body}>Enter your email and we'll send you a reset link.</Text>
+        <Text style={[typography.h1, { color: colors.textPrimary }]}>Reset your password</Text>
+        <Text style={[typography.body, { color: colors.textSecondary, marginTop: 12, marginBottom: 32, lineHeight: 24 }]}>
+          Enter your email and we'll send you a reset link.
+        </Text>
 
         <Input
           label="Email Address"
@@ -86,9 +88,9 @@ export const ForgotPasswordScreen: React.FC = () => {
           style={styles.input}
         />
 
-        <View style={styles.noticeBanner}>
+        <View style={[styles.noticeBanner, { backgroundColor: isDark ? "#0D1526" : "#F0F9FF" }]}>
           <Info size={20} color={colors.primary} />
-          <Text style={styles.noticeText}>
+          <Text style={[typography.mono, { color: colors.textSecondary, marginLeft: 12, flex: 1 }]}>
             SYSTEM_NOTICE: ENSURE ACCESS TO YOUR REGISTERED INSTITUTIONAL EMAIL FOR FASTER VERIFICATION.
           </Text>
         </View>
@@ -96,7 +98,7 @@ export const ForgotPasswordScreen: React.FC = () => {
         <View style={styles.spacer} />
 
         <View style={styles.techTextContainer}>
-          <Text style={styles.techText}>
+          <Text style={[typography.mono, { color: colors.border, textAlign: "center", fontSize: 7.5 }]}>
             010101 RECOVER_SEQ_INITIATED // AUTH_KEY_GENERATION // SYNC_LIBRARY_ACCESS // 010101
           </Text>
         </View>
@@ -113,8 +115,8 @@ export const ForgotPasswordScreen: React.FC = () => {
           onPress={() => navigation.navigate("Login")}
           style={styles.backLink}
         >
-          <Text style={styles.backLinkText}>
-            Remembered your password? <Text style={styles.linkText}>Sign In</Text>
+          <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+            Remembered your password? <Text style={{ color: colors.primary, fontWeight: "700" }}>Sign In</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -123,12 +125,6 @@ export const ForgotPasswordScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
   container: {
     padding: 24, paddingBottom: 100,
     flex: 1,
@@ -136,43 +132,20 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    backgroundColor: "#0D1526",
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
     marginTop: 20,
   },
-  headline: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
-  body: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    marginTop: 12,
-    marginBottom: 32,
-    lineHeight: 24,
-  },
   input: {
     marginBottom: 24,
   },
   noticeBanner: {
-    backgroundColor: "#0D1526",
     borderRadius: 10,
     padding: 14,
     flexDirection: "row",
     alignItems: "center",
-  },
-  noticeText: {
-    color: colors.textSecondary,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-    marginLeft: 12,
-    flex: 1,
   },
   spacer: {
     flex: 1,
@@ -182,26 +155,11 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: "center",
   },
-  techText: {
-    color: colors.border,
-    fontSize: 7.5,
-    fontFamily: "SpaceMono-Regular",
-    textAlign: "center",
-  },
   button: {
     marginBottom: 24,
   },
   backLink: {
     alignItems: "center",
     marginBottom: 40,
-  },
-  backLinkText: {
-    color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
-  },
-  linkText: {
-    color: colors.primary,
-    fontFamily: "Inter-Bold",
   },
 });

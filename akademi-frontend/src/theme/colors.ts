@@ -30,4 +30,4 @@ export const lightPalette = {
   border: "#E5E7EB",
 };
 
-export const colors = darkPalette; // Default to dark for backward compatibility if needed
+export const colors = darkPalette;

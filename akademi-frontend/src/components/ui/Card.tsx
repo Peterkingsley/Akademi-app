@@ -1,6 +1,6 @@
 import React from "react";
 import { TouchableOpacity, View, StyleSheet, ViewStyle } from "react-native";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface CardProps {
   children: React.ReactNode;
@@ -17,6 +17,7 @@ export const Card: React.FC<CardProps> = ({
   onPress,
   bordered = true,
 }) => {
+  const { colors } = useTheme();
   const Container = onPress ? TouchableOpacity : View;
 
   return (
@@ -25,7 +26,10 @@ export const Card: React.FC<CardProps> = ({
       activeOpacity={0.8}
       style={[
         styles.base,
-        elevated ? styles.elevated : styles.default,
+        {
+          backgroundColor: elevated ? colors.surfaceElevated : colors.surface,
+          borderColor: colors.border,
+        },
         bordered && styles.bordered,
         style,
       ]}
@@ -41,14 +45,7 @@ const styles = StyleSheet.create({
     padding: 16,
     overflow: "hidden",
   },
-  default: {
-    backgroundColor: colors.surface,
-  },
-  elevated: {
-    backgroundColor: colors.surfaceElevated,
-  },
   bordered: {
     borderWidth: 1,
-    borderColor: colors.border,
   },
 });

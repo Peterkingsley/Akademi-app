@@ -1,163 +1,130 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, FlatList } from "react-native";
-import { Bell, Sparkles, Camera, Book, Bot, Target, X, Clock, Layers, Compass } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withDelay,
-  FadeInUp
-} from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
-
-import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
-import { Skeleton } from "../../components/ui/Skeleton";
+import {
+  Bell,
+  BookOpen,
+  Clock,
+  Layout,
+  Zap,
+  Compass,
+  X,
+  Sparkles,
+  Layers,
+} from "lucide-react-native";
+import Animated, { FadeInUp } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTheme } from "../../theme/ThemeContext";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
-import api from "../../services/api";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { Screen } from "../../components/layout/Screen";
 import { useAuthStore } from "../../store/useAuthStore";
-import { Session, LearningProfile, ExamPrepPlan, Recommendation } from "./types";
+import { sessionService, Session, LearningProfile } from "../../services/session";
 
-const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
-const { width } = Dimensions.get("window");
+interface QuickAction {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  screen: string;
+}
 
-const QUICK_ACTIONS = [
-  {
-    id: "solve",
-    label: "Solve Assignment",
-    icon: Camera,
-    color: colors.primary,
-    screen: "Solve"
-  },
-  {
-    id: "study",
-    label: "Study Materials",
-    icon: Book,
-    color: colors.accentPurple,
-    screen: "Library"
-  },
-  {
-    id: "tutor",
-    label: "Live Tutor",
-    icon: Bot,
-    color: colors.success,
-    screen: "LiveTutorEntry"
-  },
-  {
-    id: "exam",
-    label: "Exam Prep",
-    icon: Target,
-    color: colors.warning,
-    screen: "ExamPrep"
-  }
+interface Recommendation {
+  id: string;
+  title: string;
+  description: string;
+  type: "simulation" | "weakness";
+  metadata: {
+    duration: string;
+    sections: number;
+  };
+  color: string;
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { id: "1", label: "Solve", icon: <Zap size={24} color="#FFFFFF" />, color: "#22C55E", screen: "Solve" },
+  { id: "2", label: "Library", icon: <BookOpen size={24} color="#FFFFFF" />, color: "#3B82F6", screen: "Library" },
+  { id: "3", label: "Mock Exam", icon: <Layout size={24} color="#FFFFFF" />, color: "#F59E0B", screen: "MockExam" },
+  { id: "4", label: "Socratic", icon: <Compass size={24} color="#FFFFFF" />, color: "#8B5CF6", screen: "Socratic" },
 ];
 
 const AI_TIPS = [
-  "AI TIP: Study between 6-8 AM for maximum retention today.",
-  "AI TIP: Take a 5-minute break every 25 minutes of studying.",
-  "AI TIP: Explain a concept to someone else to solidify your understanding.",
-  "AI TIP: Use mnemonics to remember complex academic terms.",
-  "AI TIP: Stay hydrated while studying to maintain focus and energy."
+  "Use the active recall method to boost retention by 50%.",
+  "Spaced repetition is the key to mastering complex engineering concepts.",
+  "Taking a 5-minute break every 25 minutes keeps your focus sharp.",
+  "Analyzing your mock exam errors is more valuable than doing new questions.",
 ];
 
-// Helper to avoid date-fns dependency
-const getTimeAgo = (dateString: string) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return "just now";
-  const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays}d`;
-};
-
-const QuickActionTile = ({ action, onPress }: { action: typeof QUICK_ACTIONS[0], onPress: () => void }) => {
-  const scale = useSharedValue(1);
-  const Icon = action.icon;
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.95);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1);
-  };
-
-  return (
-    <TouchableOpacity
-      activeOpacity={1}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      style={styles.tileWrapper}
-    >
-      <Animated.View style={[styles.tile, animatedStyle]}>
-        <View style={[styles.iconContainer, { backgroundColor: `${action.color}26` }]}>
-          <Icon size={24} color={action.color} />
-        </View>
-        <Text style={[styles.tileLabel, typography.bodySmall]}>{action.label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
 export const HomeScreen: React.FC = () => {
+  const { colors, typography, isDark } = useTheme();
   const navigation = useNavigation<any>();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
 
+  const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
-  const [exams, setExams] = useState<ExamPrepPlan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isStreakBannerDismissed, setIsStreakBannerDismissed] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    loadData();
     checkStreakBanner();
   }, []);
 
-  const fetchData = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const [sessionsRes, profileRes, examsRes] = await Promise.all([
-        api.get("/users/me/sessions?limit=4"),
-        api.get("/users/me/learning-profile"),
-        api.get("/exam-prep")
+      const [sessionsData, profileData] = await Promise.all([
+        sessionService.getRecentSessions(),
+        sessionService.getLearningProfile(),
       ]);
+      setSessions(sessionsData.slice(0, 5));
+      setLearningProfile(profileData);
 
-      setSessions(sessionsRes.data);
-      setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
-      setExams(examsRes.data);
+      setRecommendations([
+        {
+          id: "r1",
+          title: "GST 111 Final Simulation",
+          description: "Based on last year's pattern. 50 questions.",
+          type: "simulation",
+          metadata: { duration: "45m", sections: 3 },
+          color: "#3B82F6"
+        },
+        {
+          id: "r2",
+          title: "Calculus Weakness Drill",
+          description: "AI identified gaps in integration by parts.",
+          type: "weakness",
+          metadata: { duration: "15m", sections: 1 },
+          color: "#F59E0B"
+        }
+      ]);
     } catch (error) {
-      console.error("Error fetching home data:", error);
+      console.error("Failed to load dashboard data", error);
     } finally {
       setLoading(false);
     }
   };
 
   const checkStreakBanner = async () => {
-    const isHidden = await AsyncStorage.getItem(STREAK_BANNER_HIDDEN_KEY);
-    if (isHidden === "true") {
+    const dismissed = await AsyncStorage.getItem("streak_banner_dismissed");
+    if (dismissed === "true") {
       setIsStreakBannerDismissed(true);
     }
   };
 
   const dismissStreakBanner = async () => {
-    await AsyncStorage.setItem(STREAK_BANNER_HIDDEN_KEY, "true");
     setIsStreakBannerDismissed(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await AsyncStorage.setItem("streak_banner_dismissed", "true");
   };
 
   const greeting = useMemo(() => {
@@ -167,89 +134,64 @@ export const HomeScreen: React.FC = () => {
     return "Good evening";
   }, []);
 
-  const nextExam = useMemo(() => {
-    if (!exams.length) return null;
-    return exams.sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime())[0];
-  }, [exams]);
+  const getTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24) return `${diffInHours}h`;
+    return `${Math.floor(diffInHours / 24)}d`;
+  };
+
+  const QuickActionTile = ({ action, onPress }: { action: QuickAction; onPress: () => void }) => (
+    <TouchableOpacity
+      key={action.id}
+      style={styles.tileWrapper}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onPress();
+      }}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.iconContainer, { backgroundColor: action.color }]}>
+          {action.icon}
+        </View>
+        <Text style={[styles.tileLabel, typography.body, { color: colors.textPrimary }]}>{action.label}</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   const examSubtitle = useMemo(() => {
-    if (!nextExam) return "Ready to learn something new today?";
-    const diff = new Date(nextExam.exam_date).getTime() - new Date().getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days <= 0) return `Exam today for ${nextExam.course_code} — good luck!`;
-    return `Exam in ${days} days — your prep plan is ready`;
-  }, [nextExam]);
-
-  const recommendations: Recommendation[] = useMemo(() => {
-    const recs: Recommendation[] = [];
-
-    if (learningProfile?.subject_weaknesses?.length) {
-      recs.push({
-        id: "weakness_1",
-        title: "Mastering " + learningProfile.subject_weaknesses[0],
-        type: "weakness",
-        description: "Focus on your weak areas with targeted AI questions.",
-        metadata: { duration: "15m", sections: 4 },
-        color: colors.primary
-      });
-    }
-
-    if (nextExam) {
-      const diff = new Date(nextExam.exam_date).getTime() - new Date().getTime();
-      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-      if (days < 7) {
-        recs.push({
-          id: "exam_reminder",
-          title: `Mock Exam: ${nextExam.course_code}`,
-          type: "exam",
-          description: "Simulate the real exam and get predicted scores.",
-          metadata: { duration: "45m", sections: 20 },
-          color: colors.accentPurple
-        });
-      }
-    }
-
-    // Default recommendation
-    if (recs.length < 2) {
-      recs.push({
-        id: "default_rec",
-        title: "Daily Study: " + (user?.department || "Academic Prep"),
-        type: "material",
-        description: "New verified materials added for your course today.",
-        metadata: { duration: "10m", sections: 2 },
-        color: colors.success
-      });
-    }
-
-    return recs;
-  }, [learningProfile, nextExam, user]);
+    return "Ready to excel today?";
+  }, []);
 
   const dailyTip = useMemo(() => {
-    const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+    const dayOfYear = Math.floor(new Date().getTime() / 8.64e7);
     return AI_TIPS[dayOfYear % AI_TIPS.length];
   }, []);
 
   const showStreakBanner = !loading &&
     learningProfile &&
-    learningProfile.session_count > 0 &&
+    learningProfile.streak > 0 &&
     !isStreakBannerDismissed;
 
   const renderSessionCard = ({ item, index }: { item: Session, index: number }) => (
     <Animated.View key={item.id} entering={FadeInUp.delay(index * 100)}>
       <Card style={styles.sessionCard} onPress={() => {}}>
         <View style={styles.sessionTop}>
-          <View style={styles.courseTag}>
-            <Text style={[styles.courseText, typography.mono]}>{item.course_code}</Text>
+          <View style={[styles.courseTag, { backgroundColor: colors.surfaceElevated }]}>
+            <Text style={[styles.courseText, typography.mono, { color: colors.primary }]}>{item.courseCode}</Text>
           </View>
-          <Text style={[styles.timeAgo, typography.mono]}>
-            {getTimeAgo(item.created_at)} ago
+          <Text style={[styles.timeAgo, typography.mono, { color: colors.textMuted }]}>
+            {getTimeAgo(item.createdAt)} ago
           </Text>
         </View>
-        <Text style={[styles.sessionTitle, typography.body]} numberOfLines={1}>
-          {item.title}
+        <Text style={[styles.sessionTitle, typography.body, { color: colors.textPrimary }]} numberOfLines={1}>
+          {item.topic}
         </Text>
-        <Text style={[styles.sessionType, typography.bodySmall]}>{item.type}</Text>
-        <Text style={[styles.resumeLink, typography.bodySmall]}>Resume →</Text>
+        <Text style={[styles.sessionType, typography.bodySmall, { color: colors.textSecondary }]}>{item.sessionType}</Text>
+        <Text style={[styles.resumeLink, typography.bodySmall, { color: colors.primary }]}>Resume →</Text>
       </Card>
     </Animated.View>
   );
@@ -258,21 +200,21 @@ export const HomeScreen: React.FC = () => {
     <Animated.View key={item.id} entering={FadeInUp.delay(index * 100 + 400)}>
       <Card style={StyleSheet.flatten([styles.recCard, { borderLeftWidth: 3, borderLeftColor: item.color }])} onPress={() => {}}>
         <View style={styles.recTop}>
-          <Text style={[styles.recTitle, typography.body]}>{item.title}</Text>
+          <Text style={[styles.recTitle, typography.body, { color: colors.textPrimary }]}>{item.title}</Text>
           <Badge
             label={item.type === "weakness" ? "AI Recommended" : "New Simulation"}
             variant={item.type === "weakness" ? "purple" : "blue"}
           />
         </View>
-        <Text style={[styles.recDescription, typography.bodySmall]}>{item.description}</Text>
+        <Text style={[styles.recDescription, typography.bodySmall, { color: colors.textSecondary }]}>{item.description}</Text>
         <View style={styles.recMeta}>
           <View style={styles.metaItem}>
             <Clock size={14} color={colors.textMuted} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.caption]}>{item.metadata.duration}</Text>
+            <Text style={[styles.metaText, typography.caption, { color: colors.textMuted }]}>{item.metadata.duration}</Text>
           </View>
           <View style={styles.metaItem}>
             <Layers size={14} color={colors.textMuted} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.caption]}>{item.metadata.sections} sections</Text>
+            <Text style={[styles.metaText, typography.caption, { color: colors.textMuted }]}>{item.metadata.sections} sections</Text>
           </View>
         </View>
       </Card>
@@ -280,31 +222,29 @@ export const HomeScreen: React.FC = () => {
   );
 
   return (
-    <Screen scrollable style={styles.screen}>
+    <Screen scrollable style={{ backgroundColor: colors.background }}>
       <View style={styles.container}>
-        {/* Section 1: Greeting Header */}
         <View style={styles.header}>
           <View>
             <Text style={[typography.h2, { color: colors.textPrimary }]}>
               {greeting}, {user?.name?.split(" ")[0] || "Student"}
             </Text>
-            <Text style={[styles.subtitle, typography.mono]}>
+            <Text style={[styles.subtitle, typography.mono, { color: colors.textSecondary }]}>
               {examSubtitle}
             </Text>
           </View>
           <TouchableOpacity style={styles.notificationBtn}>
             <Bell size={24} color={colors.textSecondary} />
-            <View style={styles.unreadDot} />
+            <View style={[styles.unreadDot, { backgroundColor: colors.error, borderColor: colors.background }]} />
           </TouchableOpacity>
         </View>
 
-        {/* Section 2: Streak Banner */}
         {showStreakBanner && (
-          <Animated.View entering={FadeInUp} style={styles.streakBanner}>
+          <Animated.View entering={FadeInUp} style={[styles.streakBanner, { backgroundColor: isDark ? "#1C1A10" : "#FEFCE8" }]}>
             <View style={styles.streakContent}>
               <Text style={styles.streakEmoji}>🔥</Text>
-              <Text style={styles.streakText}>
-                <Text style={{ fontWeight: "700", color: "#FFFFFF" }}>{learningProfile?.session_count}-day streak!</Text>
+              <Text style={[styles.streakText, { color: colors.textSecondary }]}>
+                <Text style={{ fontWeight: "700", color: isDark ? "#FFFFFF" : colors.textPrimary }}>{learningProfile?.streak}-day streak!</Text>
                 {" "}Keep it up — study something today.
               </Text>
             </View>
@@ -314,7 +254,6 @@ export const HomeScreen: React.FC = () => {
           </Animated.View>
         )}
 
-        {/* Section 3: Quick Action Grid */}
         <View style={styles.grid}>
           {QUICK_ACTIONS.map((action, index) => (
             <QuickActionTile
@@ -325,10 +264,9 @@ export const HomeScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* Section 4: Continue where you left off */}
         {(loading || sessions.length > 0) && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, typography.h3]}>Continue where you left off</Text>
+            <Text style={[styles.sectionTitle, typography.h3, { color: colors.textPrimary }]}>Continue where you left off</Text>
             {loading ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {[1, 2, 3].map((i) => (
@@ -348,10 +286,9 @@ export const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Section 5: Recommended for you */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, typography.h3]}>Recommended for you</Text>
+            <Text style={[styles.sectionTitle, typography.h3, { color: colors.textPrimary }]}>Recommended for you</Text>
             <Sparkles size={20} color={colors.primary} style={styles.sparkleIcon} />
           </View>
           {loading ? (
@@ -367,11 +304,10 @@ export const HomeScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Section 6: AI Tip Banner */}
         <View style={styles.aiTipContainer}>
-          <View style={styles.aiTipBanner}>
+          <View style={[styles.aiTipBanner, { backgroundColor: isDark ? "#0D1526" : "#F0F9FF" }]}>
             <Compass size={18} color={colors.primary} style={styles.aiTipIcon} />
-            <Text style={[styles.aiTipText, typography.mono]}>{dailyTip}</Text>
+            <Text style={[styles.aiTipText, typography.mono, { color: colors.textSecondary }]}>{dailyTip}</Text>
           </View>
         </View>
 
@@ -381,10 +317,6 @@ export const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
   container: {
     padding: 20,
     paddingTop: 0,
@@ -397,7 +329,6 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   subtitle: {
-    color: colors.textSecondary,
     fontSize: 10.5,
     marginTop: 4,
   },
@@ -412,12 +343,9 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.error,
     borderWidth: 1.5,
-    borderColor: colors.background,
   },
   streakBanner: {
-    backgroundColor: "#1C1A10",
     borderRadius: 12,
     padding: 14,
     paddingHorizontal: 16,
@@ -436,7 +364,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   streakText: {
-    color: colors.textSecondary,
     fontSize: 10.5,
     flex: 1,
   },
@@ -454,11 +381,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tile: {
-    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "flex-start",
   },
   iconContainer: {
@@ -470,14 +395,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tileLabel: {
-    color: colors.textPrimary,
     fontWeight: "600",
   },
   section: {
     marginBottom: 32,
   },
   sectionTitle: {
-    color: colors.textPrimary,
     marginBottom: 16,
   },
   horizontalScroll: {
@@ -495,31 +418,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   courseTag: {
-    backgroundColor: colors.surfaceElevated,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   courseText: {
-    color: colors.primary,
     fontSize: 7.5,
     textTransform: "uppercase",
   },
   timeAgo: {
-    color: colors.textMuted,
     fontSize: 7.5,
   },
   sessionTitle: {
-    color: colors.textPrimary,
     fontWeight: "700",
     marginBottom: 4,
   },
   sessionType: {
-    color: colors.textSecondary,
     marginBottom: 12,
   },
   resumeLink: {
-    color: colors.primary,
     fontWeight: "600",
   },
   sectionHeaderRow: {
@@ -542,13 +459,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   recTitle: {
-    color: colors.textPrimary,
     fontWeight: "700",
     flex: 1,
     marginRight: 12,
   },
   recDescription: {
-    color: colors.textSecondary,
     marginBottom: 16,
   },
   recMeta: {
@@ -564,14 +479,12 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   metaText: {
-    color: colors.textMuted,
   },
   aiTipContainer: {
     marginTop: 8,
     marginBottom: 24,
   },
   aiTipBanner: {
-    backgroundColor: "#0D1526",
     borderRadius: 10,
     padding: 12,
     flexDirection: "row",
@@ -581,7 +494,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   aiTipText: {
-    color: colors.textSecondary,
     fontSize: 9,
     flex: 1,
   },

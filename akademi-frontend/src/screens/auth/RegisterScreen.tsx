@@ -4,27 +4,24 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Linking,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Apple, Eye, EyeOff, ChevronRight } from "lucide-react-native";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
+import { Apple } from "lucide-react-native";
+import { useTheme } from "../../theme/ThemeContext";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { TabSwitcher } from "../../components/ui/TabSwitcher";
 import api from "../../services/api";
 
 export const RegisterScreen: React.FC = () => {
+  const { colors, typography } = useTheme();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
 
-  const {
-    university = "University of Lagos",
-    faculty = "Engineering",
-    department = "Computer Science",
-    level = "300L"
-  } = route.params || {};
+  const { university, faculty, department, level } = route.params || {};
 
   const [form, setForm] = useState({
     name: "",
@@ -34,14 +31,12 @@ export const RegisterScreen: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleRegister = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Convert level string to number (e.g. "300L" -> 300)
-      const levelInt = parseInt(level.replace(/[^0-9]/g, ""), 10) || 100;
+      const levelInt = parseInt(level?.replace(/[^0-9]/g, "") || "100", 10);
 
       await api.post("/auth/register", {
         name: form.name,
@@ -54,11 +49,8 @@ export const RegisterScreen: React.FC = () => {
       });
       navigation.navigate("EmailVerification", { email: form.email });
     } catch (err: any) {
-      console.log("Registration failed", err.response?.data?.message || err.message);
-      const message = err.response?.data?.message || "Registration failed. Please try again.";
-      setError(message);
-      // For testing/demo purposes, navigate anyway if API fails
-      // In production we should show an error
+      console.error("Registration failed", err.response?.data?.message || err.message);
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -76,40 +68,55 @@ export const RegisterScreen: React.FC = () => {
   const strengthLabels = ["WEAK", "WEAK", "FAIR", "MEDIUM", "STRONG"];
   const strengthColors = [colors.error, colors.error, colors.warning, colors.warning, colors.success];
 
+  const tabs = [
+    {
+      label: "Sign In",
+      onPress: () => navigation.navigate("Login"),
+      isActive: false,
+    },
+    {
+      label: "Create Account",
+      onPress: () => {},
+      isActive: true,
+    },
+  ];
+
   return (
-    <Screen style={{ flex: 1 }}
-      onBack={() => navigation.goBack()}
+    <Screen
+      style={{ flex: 1 }}
       title=""
       rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
+        <Text style={[typography.h4, { color: colors.primary }]}>Akademi</Text>
       }
       scrollable
     >
       <View style={styles.container}>
-        <Text style={styles.headline}>Almost there!</Text>
-        <Text style={styles.subtext}>Create your account to save your progress</Text>
+        <Text style={[typography.h1, { color: colors.textPrimary }]}>Almost there!</Text>
+        <Text style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 8, marginBottom: 32 }]}>
+          Create your account to save your progress
+        </Text>
 
         {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBanner, { borderColor: colors.error }]}>
+            <Text style={[typography.bodySmall, { color: colors.error }]}>{error}</Text>
           </View>
         )}
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.googleButton}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleText}>Google</Text>
+            <Text style={[typography.body, { color: "#FFFFFF", fontWeight: "600", marginLeft: 8 }]}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.appleButton}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.appleText}>Apple</Text>
+            <Text style={[typography.body, { color: "#FFFFFF", fontWeight: "600", marginLeft: 8 }]}>Apple</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[typography.mono, { color: colors.textMuted, marginHorizontal: 16 }]}>OR CONTINUE WITH</Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <Input
@@ -121,7 +128,7 @@ export const RegisterScreen: React.FC = () => {
 
         <Input
           label="Email address"
-          placeholder="name@example.com"
+          placeholder="name@university.edu.ng"
           value={form.email}
           onChangeText={(text) => setForm({ ...form, email: text })}
           keyboardType="email-address"
@@ -133,7 +140,7 @@ export const RegisterScreen: React.FC = () => {
             placeholder="Min. 8 characters"
             value={form.password}
             onChangeText={(text) => setForm({ ...form, password: text })}
-            secureTextEntry={!showPassword}
+            secureTextEntry
             style={{ marginBottom: 8 }}
           />
           <View style={styles.strengthBarContainer}>
@@ -142,20 +149,21 @@ export const RegisterScreen: React.FC = () => {
                 key={i}
                 style={[
                   styles.strengthSegment,
+                  { backgroundColor: colors.border },
                   i <= strength && { backgroundColor: strengthColors[strength] }
                 ]}
               />
             ))}
           </View>
-          <Text style={[styles.strengthLabel, { color: colors.textSecondary }]}>
+          <Text style={[typography.mono, { color: colors.textSecondary }]}>
             PASSWORD STRENGTH: <Text style={{ color: strengthColors[strength] }}>{strengthLabels[strength]}</Text>
           </Text>
         </View>
 
         <View style={styles.phoneInputContainer}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>Phone number</Text>
-            <Text style={styles.optionalTag}>OPTIONAL</Text>
+            <Text style={[typography.label, { color: colors.textSecondary }]}>Phone number</Text>
+            <Text style={[typography.mono, { color: colors.textMuted }]}>OPTIONAL</Text>
           </View>
           <Input
             label=""
@@ -166,11 +174,11 @@ export const RegisterScreen: React.FC = () => {
           />
         </View>
 
-        <Text style={styles.termsText}>
+        <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 18 }]}>
           By continuing, you agree to our{" "}
-          <Text style={styles.linkText} onPress={() => Linking.openURL("#")}>Terms of Service</Text>
+          <Text style={{ color: colors.primary, fontWeight: "700" }} onPress={() => Linking.openURL("#")}>Terms of Service</Text>
           {" "}and{" "}
-          <Text style={styles.linkText} onPress={() => Linking.openURL("#")}>Privacy Policy</Text>
+          <Text style={{ color: colors.primary, fontWeight: "700" }} onPress={() => Linking.openURL("#")}>Privacy Policy</Text>
         </Text>
 
         <Button
@@ -181,96 +189,42 @@ export const RegisterScreen: React.FC = () => {
         />
 
         <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.signInLink}>
-          <Text style={styles.signInText}>
-            Already have an account? <Text style={styles.linkText}>Sign in instead</Text>
+          <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+            Already have an account? <Text style={{ color: colors.primary, fontWeight: "700" }}>Sign in instead</Text>
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabSwitcher}>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => navigation.navigate("Login")}
-        >
-          <Text style={styles.tabTextInactive}>Sign In</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]}>
-          <Text style={styles.tabTextActive}>Create Account</Text>
-          <View style={styles.tabIndicator} />
-        </TouchableOpacity>
-      </View>
+      <TabSwitcher tabs={tabs} />
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
   container: {
     padding: 24,
     paddingBottom: 140,
     flex: 1,
-  },
-  headline: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
-  subtext: {
-    color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
-    marginTop: 8,
-    marginBottom: 32,
   },
   socialRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 32,
   },
-  googleButton: {
+  socialButton: {
     flex: 1,
     height: 52,
-    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
+    marginHorizontal: 4,
+    borderWidth: 1,
   },
   googleIcon: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#4285F4",
-    marginRight: 8,
-  },
-  googleText: {
-    color: "#000000",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
-  },
-  appleButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: "#000000",
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
-  },
-  appleText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
-    marginLeft: 8,
   },
   dividerContainer: {
     flexDirection: "row",
@@ -280,13 +234,6 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-    marginHorizontal: 16,
   },
   passwordContainer: {
     marginBottom: 20,
@@ -299,13 +246,8 @@ const styles = StyleSheet.create({
   strengthSegment: {
     flex: 1,
     height: 4,
-    backgroundColor: colors.border,
     borderRadius: 2,
     marginHorizontal: 2,
-  },
-  strengthLabel: {
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
   },
   phoneInputContainer: {
     marginBottom: 20,
@@ -316,30 +258,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  inputLabel: {
-    color: colors.textSecondary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Regular",
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-  },
-  optionalTag: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-  },
-  termsText: {
-    color: colors.textSecondary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Regular",
-    lineHeight: 18,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  linkText: {
-    color: colors.primary,
-    fontFamily: "Inter-Bold",
-  },
   createButton: {
     marginBottom: 24,
   },
@@ -347,59 +265,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  signInText: {
-    color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
-  },
-  tabSwitcher: {
-    flexDirection: "row",
-    height: 60,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: colors.primary,
-  },
-  tabTextInactive: {
-    color: colors.textMuted,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
   errorBanner: {
     backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderWidth: 1,
-    borderColor: colors.error,
     borderRadius: 10,
     padding: 12,
     marginBottom: 24,
-  },
-  errorText: {
-    color: colors.error,
-    fontSize: 10.5,
-    fontFamily: "Inter-Medium",
-  },
-  tabIndicator: {
-    position: "absolute",
-    top: 0,
-    width: 40,
-    height: 2,
-    backgroundColor: colors.primary,
   },
 });

@@ -8,17 +8,18 @@ import {
   Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Apple, Eye, EyeOff } from "lucide-react-native";
+import { Apple } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { TabSwitcher } from "../../components/ui/TabSwitcher";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 
 export const LoginScreen: React.FC = () => {
+  const { colors, typography } = useTheme();
   const navigation = useNavigation<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -28,7 +29,6 @@ export const LoginScreen: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -49,62 +49,74 @@ export const LoginScreen: React.FC = () => {
       await AsyncStorage.setItem("refreshToken", refreshToken);
 
       setAuth(user, accessToken, refreshToken);
-      // Navigation to MainStack will be handled by RootNavigator based on isAuthenticated
     } catch (err: any) {
-      console.log("Login failed", err.response?.data?.message || err.message);
-      const message = err.response?.data?.message || "Invalid email or password";
-      setError(message);
+      console.error("Login failed", err.response?.data?.message || err.message);
+      setError(err.response?.data?.message || "Login failed. Check your credentials.");
     } finally {
       setLoading(false);
     }
   };
 
+  const tabs = [
+    {
+      label: "Sign In",
+      onPress: () => {},
+      isActive: true,
+    },
+    {
+      label: "Create Account",
+      onPress: () => navigation.navigate("Register"),
+      isActive: false,
+    },
+  ];
+
   return (
-    <Screen style={{ flex: 1 }}
-      onBack={() => navigation.goBack()}
+    <Screen
+      style={{ flex: 1 }}
       title=""
       rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
+        <Text style={[typography.h4, { color: colors.primary }]}>Akademi</Text>
       }
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.centerTop}>
-          <Text style={styles.wordmark}>Akademi</Text>
+          <Text style={[typography.h2, { color: colors.primary }]}>AKADEMI</Text>
+          <Text style={[typography.h1, { color: colors.textPrimary }]}>Welcome back</Text>
+          <Text style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 8 }]}>
+            Continue your academic journey with AI precision.
+          </Text>
         </View>
 
-        <Text style={styles.headline}>Welcome back 👋</Text>
-        <Text style={styles.subtext}>Sign in to continue learning</Text>
-
         {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorBanner, { borderColor: colors.error }]}>
+            <Text style={[typography.bodySmall, { color: colors.error, fontWeight: "500" }]}>
+              {error}
+            </Text>
           </View>
         )}
 
         <View style={styles.form}>
           <Input
-            label="EMAIL ADDRESS"
-            labelStyle={styles.spaceMonoLabel}
-            placeholder="name@example.com"
+            label="Institutional Email"
+            placeholder="name@university.edu.ng"
             value={form.email}
             onChangeText={(text) => setForm({ ...form, email: text })}
             keyboardType="email-address"
-            style={styles.input}
           />
 
           <View style={styles.passwordLabelRow}>
-            <Text style={[styles.label, styles.spaceMonoLabel]}>PASSWORD</Text>
             <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
+              <Text style={[typography.bodySmall, { color: colors.primary, fontWeight: "500" }]}>
+                Forgot Password?
+              </Text>
             </TouchableOpacity>
           </View>
           <Input
-            label=""
-            placeholder="••••••••"
+            label="Password"
+            placeholder="Enter your password"
             value={form.password}
             onChangeText={(text) => setForm({ ...form, password: text })}
-            secureTextEntry={!showPassword}
-            style={styles.input}
+            secureTextEntry
           />
 
           <Button
@@ -116,19 +128,21 @@ export const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+          <Text style={[typography.mono, { color: colors.textMuted, marginHorizontal: 16 }]}>
+            OR CONTINUE WITH
+          </Text>
+          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
         </View>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.socialButtonText}>Google</Text>
+            <Text style={[typography.body, { color: "#FFFFFF", fontWeight: "600", marginLeft: 8 }]}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={[styles.socialButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
             <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.socialButtonText}>Apple</Text>
+            <Text style={[typography.body, { color: "#FFFFFF", fontWeight: "600", marginLeft: 8 }]}>Apple</Text>
           </TouchableOpacity>
         </View>
 
@@ -136,35 +150,18 @@ export const LoginScreen: React.FC = () => {
           onPress={() => navigation.navigate("Register")}
           style={styles.signUpLink}
         >
-          <Text style={styles.signUpText}>
-            New to Akademi? <Text style={styles.linkText}>Create account</Text>
+          <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+            New to Akademi? <Text style={{ color: colors.primary, fontWeight: "700" }}>Create account</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <View style={styles.tabSwitcher}>
-        <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]}>
-          <Text style={styles.tabTextActive}>Sign In</Text>
-          <View style={styles.tabIndicator} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => navigation.navigate("Register")}
-        >
-          <Text style={styles.tabTextInactive}>Create Account</Text>
-        </TouchableOpacity>
-      </View>
+      <TabSwitcher tabs={tabs} />
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
   container: {
     padding: 24,
     paddingBottom: 140,
@@ -175,65 +172,21 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 40,
   },
-  wordmark: {
-    color: colors.primary,
-    fontSize: 18,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
-  headline: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
-  subtext: {
-    color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
-    marginTop: 8,
-    marginBottom: 32,
-  },
   errorBanner: {
     backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderWidth: 1,
-    borderColor: colors.error,
     borderRadius: 10,
     padding: 12,
     marginBottom: 24,
   },
-  errorText: {
-    color: colors.error,
-    fontSize: 10.5,
-    fontFamily: "Inter-Medium",
-  },
   form: {
     marginBottom: 32,
   },
-  label: {
-    color: colors.textSecondary,
-    fontSize: 8.25,
-    letterSpacing: 1,
-    marginBottom: 8,
-    textTransform: "uppercase",
-  },
-  spaceMonoLabel: {
-    fontFamily: "SpaceMono-Regular",
-  },
   passwordLabelRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
-    marginBottom: 0,
-  },
-  forgotText: {
-    color: colors.primary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Medium",
     marginBottom: 8,
-  },
-  input: {
-    marginBottom: 20,
   },
   signInButton: {
     marginTop: 8,
@@ -246,13 +199,6 @@ const styles = StyleSheet.create({
   dividerLine: {
     flexGrow: 1,
     height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-    marginHorizontal: 16,
   },
   socialRow: {
     flexDirection: "row",
@@ -262,76 +208,20 @@ const styles = StyleSheet.create({
   socialButton: {
     flexGrow: 1,
     height: 52,
-    backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: 6,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   googleIcon: {
     fontSize: 13.5,
     fontWeight: "700",
     color: "#FFFFFF",
-    marginRight: 8,
-  },
-  socialButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
-    marginLeft: 8,
   },
   signUpLink: {
     alignItems: "center",
     marginBottom: 20,
-  },
-  signUpText: {
-    color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
-  },
-  linkText: {
-    color: colors.primary,
-    fontFamily: "Inter-Bold",
-  },
-  tabSwitcher: {
-    flexDirection: "row",
-    height: 60,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  tabItem: {
-    flexGrow: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: colors.primary,
-  },
-  tabTextInactive: {
-    color: colors.textMuted,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabIndicator: {
-    position: "absolute",
-    top: 0,
-    width: 40,
-    height: 2,
-    backgroundColor: colors.primary,
   },
 });
