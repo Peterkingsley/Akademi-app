@@ -1,4 +1,7 @@
-import { addMaterialToIndex, addCourseToIndex } from '../shared/search/typesense.sync';
+import {
+  addMaterialToIndex,
+  addCourseToIndex,
+} from '../shared/search/typesense.sync';
 import prisma from '../config/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config/env';
@@ -83,7 +86,11 @@ export async function runAIReconciliationJob(materialId: string) {
 
     console.log(`Material ${materialId} VERIFIED with HIGH confidence.`);
     await addMaterialToIndex(materialId);
-    await addCourseToIndex(material.course_code, material.university, material.department);
+    await addCourseToIndex(
+      material.course_code,
+      material.university,
+      material.department,
+    );
     await notifyContributorsJob(materialId);
     await generateQuestionsJob(materialId);
   } else {

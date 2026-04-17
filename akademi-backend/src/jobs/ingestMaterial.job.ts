@@ -21,7 +21,7 @@ let visionClient: vision.ImageAnnotatorClient | null = null;
 const getVisionClient = () => {
   if (!visionClient) {
     visionClient = new vision.ImageAnnotatorClient(
-      config.googleVisionApiKey ? { apiKey: config.googleVisionApiKey } : {}
+      config.googleVisionApiKey ? { apiKey: config.googleVisionApiKey } : {},
     );
   }
   return visionClient;
