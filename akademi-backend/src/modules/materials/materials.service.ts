@@ -125,7 +125,7 @@ export class MaterialsService {
   }
 
   async confirmUpload(id: string, userId: string) {
-    const material = await prisma.material.findFirst({
+    const material = await prisma.material.findUnique({
       where: { id, uploaded_by: userId },
       include: { upload_chunks: true }
     });

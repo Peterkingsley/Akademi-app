@@ -1,4 +1,3 @@
-import xss from 'xss';
 import prisma from '../../config/db';
 import { StartSessionRequest, SendMessageRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature } from '@prisma/client';
@@ -60,7 +59,7 @@ export class SessionsService {
   }
 
   async getSession(id: string, userId: string) {
-    const session = await prisma.session.findFirst({
+    const session = await prisma.session.findUnique({
       where: { id, user_id: userId },
       include: {
         messages: {
@@ -74,13 +73,8 @@ export class SessionsService {
   }
 
   async endSession(id: string, userId: string) {
-    const existingSession = await prisma.session.findFirst({
-      where: { id, user_id: userId }
-    });
-    if (!existingSession) throw new Error('Session not found');
-
     const session = await prisma.session.update({
-      where: { id },
+      where: { id, user_id: userId },
       data: { ended_at: new Date() },
     });
 
@@ -113,7 +107,7 @@ export class SessionsService {
         session_id: sessionId,
         user_id: userId,
         role: MessageRole.STUDENT,
-        content: xss(data.content),
+        content: data.content,
         reply_mode: replyMode,
       },
     });
