@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ViewStyle } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { Card } from "../../../components/ui/Card";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, AdminDashboardStats, AdminDashboardActivity, AdminSystemHealth } from "../../../services/adminService";
-import { Users, FileText, AlertTriangle, Cpu, DollarSign, ChevronRight } from "lucide-react-native";
+import { Users, FileText, AlertTriangle, Cpu, DollarSign, ChevronRight, Activity, Database, Server, Globe, MessageSquare, HardDrive, Clock } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
+import { Skeleton } from "../../../components/ui/Skeleton";
+import { Avatar } from "../../../components/ui/Avatar";
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 48) / 2;
 
 export const AdminDashboardScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
@@ -35,107 +40,153 @@ export const AdminDashboardScreen: React.FC = () => {
     } catch (error) {
       console.error("Failed to fetch dashboard data", error);
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 500);
     }
   };
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
-    <Card style={styles.statCard}>
-      <View style={[styles.iconContainer, { backgroundColor: color + "20" }]}>
+    <Card style={StyleSheet.flatten([styles.statCard, { width: CARD_WIDTH, borderColor: colors.border }])}>
+      <View style={[styles.iconContainer, { backgroundColor: color + "15" }]}>
         <Icon size={20} color={color} />
       </View>
       <Text style={[typography.label, { color: colors.textSecondary, marginTop: spacing.sm }]}>{title}</Text>
-      <Text style={[typography.h3, { color: colors.text, marginTop: spacing.xs }]}>{value}</Text>
+      <Text style={[typography.h3, { color: colors.textPrimary, marginTop: spacing.xs, fontWeight: "700" }]}>{value ?? 0}</Text>
     </Card>
   );
 
-  if (loading) {
-    return (
-      <Screen title="Admin Dashboard">
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+  const StatSkeleton = () => (
+    <View style={styles.statsGrid}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <View key={i} style={[styles.statCard, { width: CARD_WIDTH, height: 120, backgroundColor: colors.surface, borderRadius: 12, padding: 16 }]}>
+          <Skeleton width={36} height={36} borderRadius={8} />
+          <Skeleton width="60%" height={14} style={{ marginTop: 16 }} />
+          <Skeleton width="40%" height={24} style={{ marginTop: 8 }} />
         </View>
-      </Screen>
+      ))}
+    </View>
+  );
+
+  const HealthItem = ({ name, status }: { name: string, status: 'online' | 'offline' }) => {
+    return (
+      <View style={styles.healthItem}>
+        <View style={[styles.statusDot, { backgroundColor: status === "online" ? "#22C55E" : "#EF4444" }]} />
+        <Text style={[typography.bodySmall, { textTransform: "capitalize", color: colors.textPrimary }]} numberOfLines={1}>{name}</Text>
+      </View>
     );
-  }
+  };
+
+  const ActivityRow = ({ user, type, time }: any) => (
+    <TouchableOpacity
+      style={[styles.activityItem, { borderBottomColor: colors.border }]}
+      onPress={() => navigation.navigate("UserManagement")}
+    >
+      <View style={styles.activityIcon}>
+        <Avatar name={user.name} size={32} />
+      </View>
+      <View style={styles.activityContent}>
+        <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
+          {type}: {user.name}
+        </Text>
+        <div style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+          <Clock size={12} color={colors.textSecondary} />
+          <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>{time}</Text>
+        </div>
+      </View>
+      <ChevronRight size={16} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
 
   return (
-    <Screen title="Admin Dashboard" scrollable>
+    <Screen title="Command Center" scrollable>
       <View style={styles.section}>
-        <Text style={[typography.h4, { marginBottom: spacing.md }]}>Platform Stats</Text>
-        <View style={styles.statsGrid}>
-          <StatCard title="Active Users" value={stats?.activeUsersToday} icon={Users} color={colors.primary} />
-          <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#10B981" />
-          <StatCard title="Revenue (N)" value={stats?.revenueToday} icon={DollarSign} color="#F59E0B" />
-          <StatCard title="Pending" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
-          <StatCard title="Flagged" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />
-          <StatCard title="AI Requests" value={stats?.aiRequestsToday} icon={Cpu} color="#8B5CF6" />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={typography.h4}>Recent Registrations</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("UserManagement")}>
-            <Text style={{ color: colors.primary }}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        {activity?.recentRegistrations.map((user: any, index: number) => (
-          <TouchableOpacity key={index} style={[styles.activityItem, { borderBottomWidth: index === 4 ? 0 : 1, borderBottomColor: colors.border }]}>
-            <View>
-              <Text style={[typography.body, { fontWeight: "600" }]}>{user.name}</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>{user.university} - {user.department}</Text>
-            </View>
-            <ChevronRight size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={typography.h4}>Flagged Materials</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("ContentModeration")}>
-            <Text style={{ color: colors.primary }}>Review Queue</Text>
-          </TouchableOpacity>
-        </View>
-        {activity?.recentFlagged.length === 0 ? (
-          <Text style={[typography.body, { color: colors.textSecondary, marginTop: spacing.sm }]}>No flagged materials.</Text>
+        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>LIVE PLATFORM STATS</Text>
+        {loading ? (
+          <StatSkeleton />
         ) : (
-          activity?.recentFlagged.map((item: any, index: number) => (
-            <TouchableOpacity key={index} style={[styles.activityItem, { borderBottomWidth: index === activity.recentFlagged.length - 1 ? 0 : 1, borderBottomColor: colors.border }]}>
-              <View>
-                <Text style={[typography.body, { fontWeight: "600" }]}>{item.title}</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.course_code}</Text>
-              </View>
-              <ChevronRight size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
-          ))
+          <View style={styles.statsGrid}>
+            <StatCard title="Active Users" value={stats?.activeUsersToday} icon={Users} color={colors.primary} />
+            <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#10B981" />
+            <StatCard title="Revenue" value={`₦${stats?.revenueToday?.toLocaleString()}`} icon={DollarSign} color="#F59E0B" />
+            <StatCard title="Pending Review" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
+            <StatCard title="Flagged Content" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />
+            <StatCard title="AI Requests" value={stats?.aiRequestsToday} icon={Cpu} color="#8B5CF6" />
+          </View>
         )}
       </View>
 
-      <View style={[styles.section, { marginBottom: spacing.xl }]}>
-        <Text style={[typography.h4, { marginBottom: spacing.md }]}>System Health</Text>
-        <View style={styles.healthGrid}>
-          {health && Object.entries(health).map(([service, status]) => (
-            <View key={service} style={styles.healthItem}>
-              <View style={[styles.statusDot, { backgroundColor: status === "online" ? "#10B981" : "#EF4444" }]} />
-              <Text style={[typography.body, { textTransform: "capitalize" }]}>{service}</Text>
+      <View style={styles.section}>
+        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>SYSTEM HEALTH</Text>
+        <Card style={styles.healthCard}>
+          {loading ? (
+            <View style={styles.healthGrid}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={styles.healthItem}>
+                   <Skeleton width={8} height={8} borderRadius={4} style={{ marginRight: 8 }} />
+                   <Skeleton width={50} height={12} />
+                </View>
+              ))}
             </View>
-          ))}
+          ) : (
+            <View style={styles.healthGrid}>
+              {health && Object.entries(health).map(([service, status]) => (
+                <HealthItem key={service} name={service} status={status as any} />
+              ))}
+            </View>
+          )}
+        </Card>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={[typography.label, { color: colors.textMuted }]}>RECENT ACTIVITY</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("UserManagement")} style={styles.viewAllButton}>
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: "600" }]}>VIEW ALL</Text>
+          </TouchableOpacity>
         </View>
+        <Card style={styles.activityCard}>
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <View key={i} style={[styles.activityItem, { borderBottomWidth: i === 3 ? 0 : 1, borderBottomColor: colors.border }]}>
+                <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Skeleton width="70%" height={14} />
+                  <Skeleton width="40%" height={10} style={{ marginTop: 6 }} />
+                </View>
+              </View>
+            ))
+          ) : (
+            activity?.recentRegistrations.slice(0, 5).map((user: any, index: number) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.activityItem, { borderBottomColor: colors.border }]}
+                onPress={() => navigation.navigate("UserManagement")}
+              >
+                <View style={styles.activityIcon}>
+                  <Avatar name={user.name} size={32} />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
+                    New signup: {user.name}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                    <Clock size={12} color={colors.textSecondary} />
+                    <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>Just now</Text>
+                  </View>
+                </View>
+                <ChevronRight size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            ))
+          )}
+        </Card>
       </View>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   section: {
     padding: 16,
+    paddingBottom: 8,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -149,9 +200,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statCard: {
-    width: "48%",
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   iconContainer: {
     width: 36,
@@ -160,11 +213,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  activityItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
+  healthCard: {
+    padding: 16,
+    elevation: 0,
+    shadowOpacity: 0,
+    borderWidth: 1,
   },
   healthGrid: {
     flexDirection: "row",
@@ -173,8 +226,9 @@ const styles = StyleSheet.create({
   healthItem: {
     flexDirection: "row",
     alignItems: "center",
-    width: "33%",
-    marginBottom: 12,
+    width: "33.3%",
+    marginBottom: 16,
+    minHeight: 44, // Accessibility
   },
   statusDot: {
     width: 8,
@@ -182,4 +236,29 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginRight: 8,
   },
+  activityCard: {
+    padding: 0,
+    overflow: "hidden",
+    elevation: 0,
+    shadowOpacity: 0,
+    borderWidth: 1,
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    minHeight: 60,
+  },
+  activityIcon: {
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  viewAllButton: {
+    padding: 4,
+    minHeight: 44,
+    justifyContent: "center",
+  }
 });

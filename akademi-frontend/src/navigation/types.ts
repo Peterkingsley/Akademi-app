@@ -29,6 +29,19 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+export type AdminStackParamList = {
+  AdminDashboard: undefined;
+  UserManagement: undefined;
+  ContentModeration: undefined;
+  DisciplineDocuments: undefined;
+  DocumentDetail: { id: string };
+  UploadDocument: undefined;
+  PlatformAnalytics: undefined;
+  FinancialManagement: undefined;
+  SystemMonitoring: undefined;
+  CoverageMap: undefined;
+};
+
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   AssignmentResult: { assignmentId: string };
@@ -68,4 +81,5 @@ export type RootStackParamList = {
   Splash: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainStackParamList>;
+  Admin: NavigatorScreenParams<AdminStackParamList>;
 };
