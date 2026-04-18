@@ -187,4 +187,233 @@ export class AdminController {
       res.status(500).json({ message: error.message });
     }
   }
+
+  // Pillar 4: Discipline Documents
+  async listDisciplineDocuments(req: Request, res: Response) {
+    try {
+      const docs = await adminService.listDisciplineDocuments(req.query as any);
+      res.json(docs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getDisciplineDocument(req: Request, res: Response) {
+    try {
+      const doc = await adminService.getDisciplineDocument(req.params.id);
+      res.json(doc);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async uploadDisciplineDocument(req: Request, res: Response) {
+    try {
+      const result = await adminService.uploadDisciplineDocument(req.body, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async rollbackDisciplineDocument(req: Request, res: Response) {
+    try {
+      const result = await adminService.rollbackDisciplineDocument(req.params.id, req.body.version, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async deactivateDisciplineDocument(req: Request, res: Response) {
+    try {
+      const result = await adminService.deactivateDisciplineDocument(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getDepartmentCoverage(req: Request, res: Response) {
+    try {
+      const coverage = await adminService.getDepartmentCoverage();
+      res.json(coverage);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  // Pillar 5: Platform Analytics
+  async getOverviewAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getOverviewAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getGrowthAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getGrowthAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getFeatureUsageAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getFeatureUsageAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getRetentionAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getRetentionAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getContentAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getContentAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getConversionAnalytics(req: Request, res: Response) {
+    try {
+      const analytics = await adminService.getConversionAnalytics(req.query as any);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  // Pillar 6: Financial Management
+  async getFinanceOverview(req: Request, res: Response) {
+    try {
+      const overview = await adminService.getFinanceOverview();
+      res.json(overview);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getFinanceBreakdown(req: Request, res: Response) {
+    try {
+      const breakdown = await adminService.getFinanceBreakdown(req.query as any);
+      res.json(breakdown);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getTransactions(req: Request, res: Response) {
+    try {
+      const transactions = await adminService.getTransactions(req.query as any);
+      res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getFailedPayments(req: Request, res: Response) {
+    try {
+      const failed = await adminService.getFailedPayments();
+      res.json(failed);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getFinanceProjections(req: Request, res: Response) {
+    try {
+      const projections = await adminService.getFinanceProjections();
+      res.json(projections);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getPaystackWebhookLogs(req: Request, res: Response) {
+    try {
+      const logs = await adminService.getPaystackWebhookLogs();
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  // Pillar 7: AI & System Monitoring
+  async getAIMonitoring(req: Request, res: Response) {
+    try {
+      const monitoring = await adminService.getAIMonitoring();
+      res.json(monitoring);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getHealthMonitoring(req: Request, res: Response) {
+    try {
+      const health = await adminService.getHealthMonitoring();
+      res.json(health);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getErrorMonitoring(req: Request, res: Response) {
+    try {
+      const errors = await adminService.getErrorMonitoring();
+      res.json(errors);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getWebSocketMonitoring(req: Request, res: Response) {
+    try {
+      const monitoring = await adminService.getWebSocketMonitoring();
+      res.json(monitoring);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getCacheMonitoring(req: Request, res: Response) {
+    try {
+      const monitoring = await adminService.getCacheMonitoring();
+      res.json(monitoring);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getJobsMonitoring(req: Request, res: Response) {
+    try {
+      const jobs = await adminService.getJobsMonitoring();
+      res.json(jobs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async retryJob(req: Request, res: Response) {
+    try {
+      const result = await adminService.retryJob(req.params.name);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 }

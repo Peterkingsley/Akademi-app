@@ -38,6 +38,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Logging failed requests for diagnostics
+    console.error(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, {
+      status: error.response?.status,
+      data: error.response?.data
+    });
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
