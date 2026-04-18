@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import {
@@ -14,13 +14,16 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
-import { PermissionGuard } from "../../../components/auth/PermissionGuard";
+import { useAuthStore } from "../../../store/useAuthStore";
 
 type NavigationProp = StackNavigationProp<AdminStackParamList, "AdminMore">;
 
 export const AdminMoreScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useAuthStore();
+
+  const isSuperAdmin = user?.admin_role === 'SUPER_ADMIN';
 
   const MenuItem = ({ icon: Icon, label, onPress, color = colors.primary, description }: any) => (
     <TouchableOpacity
@@ -51,24 +54,28 @@ export const AdminMoreScreen: React.FC = () => {
               description="User growth, retention and feature usage"
               onPress={() => navigation.navigate("PlatformAnalytics")}
             />
-            <MenuItem
-              icon={DollarSign}
-              label="Financial Management"
-              description="Revenue, transactions and projections"
-              onPress={() => navigation.navigate("FinancialManagement")}
-              color="#F59E0B"
-            />
-            <MenuItem
-              icon={Activity}
-              label="System Monitoring"
-              description="Service health, AI usage and logs"
-              onPress={() => navigation.navigate("SystemMonitoring")}
-              color="#8B5CF6"
-            />
+            {isSuperAdmin && (
+              <>
+                <MenuItem
+                  icon={DollarSign}
+                  label="Financial Management"
+                  description="Revenue, transactions and projections"
+                  onPress={() => navigation.navigate("FinancialManagement")}
+                  color="#F59E0B"
+                />
+                <MenuItem
+                  icon={Activity}
+                  label="System Monitoring"
+                  description="Service health, AI usage and logs"
+                  onPress={() => navigation.navigate("SystemMonitoring")}
+                  color="#8B5CF6"
+                />
+              </>
+            )}
           </View>
         </View>
 
-        <PermissionGuard requiredRole="SUPER_ADMIN">
+        {isSuperAdmin && (
           <View style={styles.section}>
             <View style={styles.securityHeader}>
                 <ShieldAlert size={16} color="#EF4444" />
@@ -98,7 +105,7 @@ export const AdminMoreScreen: React.FC = () => {
               />
             </View>
           </View>
-        </PermissionGuard>
+        )}
       </View>
     </Screen>
   );

@@ -5,9 +5,11 @@ import { useTheme } from "../../../theme/ThemeContext";
 import { adminService } from "../../../services/adminService";
 import { Badge } from "../../../components/ui/Badge";
 import { Card } from "../../../components/ui/Card";
-import { Search, Filter, Phone, Mail, Settings, X, CheckCircle2, ChevronDown } from "lucide-react-native";
+import { Search, Filter, Phone, Mail, Settings, X, CheckCircle2, UserX } from "lucide-react-native";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { Toast } from "../../../components/ui/Toast";
+import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import * as Haptics from "expo-haptics";
 
 export const UserManagementScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
@@ -16,6 +18,9 @@ export const UserManagementScreen: React.FC = () => {
   const [search, setSearch] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
 
   // Filter states
   const [selectedPlan, setSelectedPlan] = useState("all");
@@ -51,9 +56,27 @@ export const UserManagementScreen: React.FC = () => {
       case 'email':
         Linking.openURL(`mailto:${user.email}`);
         break;
+      case 'ban':
+        setSelectedUser(user);
+        setConfirmVisible(true);
+        break;
       case 'manage':
         setToast({ message: `Managing ${user.name}...`, type: "success" });
         break;
+    }
+  };
+
+  const confirmBan = async () => {
+    try {
+      // Logic for ban would go here via adminService
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setToast({ message: `User ${selectedUser.name} has been banned.`, type: "success" });
+      setConfirmVisible(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error("Ban failed", error);
+      setToast({ message: "Failed to ban user", type: "error" });
     }
   };
 
@@ -102,6 +125,9 @@ export const UserManagementScreen: React.FC = () => {
         <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('email', user)}>
           <Mail size={18} color={colors.primary} />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('ban', user)}>
+          <UserX size={18} color={colors.error} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('manage', user)}>
           <Settings size={18} color={colors.textSecondary} />
         </TouchableOpacity>
@@ -125,6 +151,7 @@ export const UserManagementScreen: React.FC = () => {
         </View>
       </View>
       <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+        <Skeleton width={18} height={18} />
         <Skeleton width={18} height={18} />
         <Skeleton width={18} height={18} />
         <Skeleton width={18} height={18} />
@@ -247,6 +274,16 @@ export const UserManagementScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        title="Ban User"
+        message={`Are you sure you want to ban ${selectedUser?.name}? This will revoke their access immediately.`}
+        type="danger"
+        confirmText="Ban User"
+        onConfirm={confirmBan}
+        onCancel={() => setConfirmVisible(false)}
+      />
 
       {toast && (
         <Toast

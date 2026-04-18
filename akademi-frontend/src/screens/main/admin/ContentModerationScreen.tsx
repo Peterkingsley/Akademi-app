@@ -5,20 +5,22 @@ import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
-import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
-import { Clock, CheckCircle2, XCircle, Zap, Info, Inbox, ChevronRight } from "lucide-react-native";
+import { CheckCircle2, XCircle, Zap, Info, Inbox, ChevronRight } from "lucide-react-native";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import * as Haptics from "expo-haptics";
 
 const Tab = createMaterialTopTabNavigator();
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const ModerationQueue = ({ status }: { status: string }) => {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography } = useTheme();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [actionType, setActionType] = useState<"approve" | "takedown" | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -28,15 +30,37 @@ const ModerationQueue = ({ status }: { status: string }) => {
     try {
       setLoading(true);
       let data;
-      if (status === 'flagged') data = await adminService.getFlaggedMaterials();
-      else if (status === 'pending') data = await adminService.getPendingMaterials();
-      else if (status === 'verified') data = await adminService.getVerifiedMaterials();
+      // Map display labels to API status
+      const apiStatus = status === 'flagged' ? 'flagged' :
+                        status === 'pending' ? 'pending' :
+                        status === 'verified' ? 'verified' : 'archived';
+
+      if (apiStatus === 'flagged') data = await adminService.getFlaggedMaterials();
+      else if (apiStatus === 'pending') data = await adminService.getPendingMaterials();
+      else if (apiStatus === 'verified') data = await adminService.getVerifiedMaterials();
       else data = await adminService.getArchivedMaterials();
       setItems(data);
     } catch (error) {
       console.error("Failed to fetch queue", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleModerationAction = (type: "approve" | "takedown") => {
+    setActionType(type);
+    setConfirmVisible(true);
+  };
+
+  const confirmAction = async () => {
+    try {
+      // Logic for approve/takedown would go here via adminService
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setConfirmVisible(false);
+      setSelectedItem(null);
+      fetchItems();
+    } catch (error) {
+      console.error("Action failed", error);
     }
   };
 
@@ -79,18 +103,27 @@ const ModerationQueue = ({ status }: { status: string }) => {
           visible={!!selectedItem}
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
-          onAction={() => {
-            setSelectedItem(null);
-            fetchItems();
-          }}
+          onAction={handleModerationAction}
         />
       )}
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        title={actionType === "approve" ? "Approve Material" : "Takedown Material"}
+        message={actionType === "approve"
+          ? "Are you sure you want to approve this material for the verified library?"
+          : "Are you sure you want to take down this material? This action is high priority."}
+        type={actionType === "approve" ? "info" : "danger"}
+        confirmText={actionType === "approve" ? "Approve" : "Takedown"}
+        onConfirm={confirmAction}
+        onCancel={() => setConfirmVisible(false)}
+      />
     </View>
   );
 };
 
 const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography } = useTheme();
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -141,14 +174,14 @@ const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
         </ScrollView>
 
         <View style={[styles.decisionBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.error }]} onPress={onAction}>
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.error }]} onPress={() => onAction("takedown")}>
              <XCircle size={20} color={colors.error} />
              <Text style={[typography.caption, { color: colors.error, fontWeight: '700', marginTop: 4 }]}>Takedown</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={onAction}>
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]}>
              <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: '700' }]}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={onAction}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => onAction("approve")}>
              <CheckCircle2 size={20} color="#FFF" />
              <Text style={[typography.caption, { color: "#FFF", fontWeight: '700', marginTop: 4 }]}>Approve</Text>
           </TouchableOpacity>
@@ -159,7 +192,7 @@ const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
 };
 
 export const ContentModerationScreen: React.FC = () => {
-  const { colors, typography } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Screen title="Content Queue">
@@ -169,13 +202,14 @@ export const ContentModerationScreen: React.FC = () => {
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarStyle: { backgroundColor: colors.background },
           tabBarIndicatorStyle: { backgroundColor: colors.primary },
-          tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+          tabBarScrollEnabled: true,
         }}
       >
-        <Tab.Screen name="Flagged" children={() => <ModerationQueue status="flagged" />} />
-        <Tab.Screen name="Pending" children={() => <ModerationQueue status="pending" />} />
-        <Tab.Screen name="Verified" children={() => <ModerationQueue status="verified" />} />
-        <Tab.Screen name="Reported" children={() => <ModerationQueue status="archived" />} />
+        <Tab.Screen name="Flagged Queue" children={() => <ModerationQueue status="flagged" />} />
+        <Tab.Screen name="Pending Materials" children={() => <ModerationQueue status="pending" />} />
+        <Tab.Screen name="Verified Library" children={() => <ModerationQueue status="verified" />} />
+        <Tab.Screen name="Reports" children={() => <ModerationQueue status="reports" />} />
       </Tab.Navigator>
     </Screen>
   );

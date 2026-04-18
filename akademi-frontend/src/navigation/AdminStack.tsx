@@ -16,7 +16,7 @@ import { AdminTeamScreen } from "../screens/main/admin/AdminTeamScreen";
 import { AuditTrailScreen } from "../screens/main/admin/AuditTrailScreen";
 import { SecuritySettingsScreen } from "../screens/main/admin/SecuritySettingsScreen";
 
-import { LayoutDashboard, Users, FileText, BookOpen, MoreHorizontal } from "lucide-react-native";
+import { LayoutDashboard, Users, Shield, Brain, Settings } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { PermissionGuard } from "../components/auth/PermissionGuard";
 
@@ -115,24 +115,24 @@ export const AdminStack = () => {
         }}
       />
       <Tab.Screen
-        name="Content"
+        name="Moderation"
         component={ContentModerationScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <FileText size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Shield size={size} color={color} />,
         }}
       />
       <Tab.Screen
-        name="Docs"
+        name="Documents"
         component={DocumentsStack}
         options={{
-          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Brain size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="More"
         component={MoreStack}
         options={{
-          tabBarIcon: ({ color, size }) => <MoreHorizontal size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
         }}
       />
     </Tab.Navigator>
