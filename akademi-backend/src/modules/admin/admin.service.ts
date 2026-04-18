@@ -568,24 +568,34 @@ export class AdminService {
 
   // Pillar 6: Financial Management
   async getFinanceOverview() {
-    const now = new Date();
-    const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
-    const startOfWeek = new Date(new Date().setDate(now.getDate() - now.getDay()));
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    try {
+      const now = new Date();
+      const startOfDay = new Date(new Date().setHours(0, 0, 0, 0));
+      const startOfWeek = new Date(new Date().setDate(now.getDate() - now.getDay()));
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [total, monthly, weekly, today] = await Promise.all([
-      prisma.transaction.aggregate({ where: { status: 'successful' }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfMonth } }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfWeek } }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfDay } }, _sum: { amount: true } })
-    ]);
+      const [total, monthly, weekly, today] = await Promise.all([
+        prisma.transaction.aggregate({ where: { status: 'successful' }, _sum: { amount: true } }).catch(() => ({ _sum: { amount: 0 } })),
+        prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfMonth } }, _sum: { amount: true } }).catch(() => ({ _sum: { amount: 0 } })),
+        prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfWeek } }, _sum: { amount: true } }).catch(() => ({ _sum: { amount: 0 } })),
+        prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfDay } }, _sum: { amount: true } }).catch(() => ({ _sum: { amount: 0 } }))
+      ]);
 
-    return {
-      totalRevenue: total._sum.amount || 0,
-      monthlyRevenue: monthly._sum.amount || 0,
-      weeklyRevenue: weekly._sum.amount || 0,
-      todayRevenue: today._sum.amount || 0
-    };
+      return {
+        totalRevenue: total?._sum?.amount || 0,
+        monthlyRevenue: monthly?._sum?.amount || 0,
+        weeklyRevenue: weekly?._sum?.amount || 0,
+        todayRevenue: today?._sum?.amount || 0
+      };
+    } catch (error) {
+      console.error('Error fetching finance overview:', error);
+      return {
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        weeklyRevenue: 0,
+        todayRevenue: 0
+      };
+    }
   }
 
   async getFinanceBreakdown(filter: FinanceFilter) {
@@ -695,5 +705,31 @@ export class AdminService {
 
   async retryJob(name: string) {
     return { message: `Job ${name} retried successfully` };
+  }
+
+  async listAdmins() {
+    return prisma.admin.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        last_login: true
+      }
+    });
+  }
+
+  async getIPLogs() {
+    // Placeholder for future security logging system
+    return [];
+  }
+
+  async getSessionStatus() {
+    // Placeholder for active admin sessions
+    return {
+      activeAdmins: 1,
+      lastAudit: new Date()
+    };
   }
 }

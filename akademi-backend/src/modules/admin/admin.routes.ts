@@ -70,4 +70,11 @@ router.get('/system/cache', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) =>
 router.get('/system/jobs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getJobsMonitoring(req, res));
 router.post('/system/jobs/:name/retry', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.retryJob(req, res));
 
+
+// Pillar 8: Team & Security (Resolving 404s)
+router.get('/team', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.listAdmins(req, res));
+router.get('/security/ip-logs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getIPLogs(req, res));
+router.get('/security/session-status', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getSessionStatus(req, res));
+router.get('/finance/admins', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.listAdmins(req, res));
+
 export default router;
