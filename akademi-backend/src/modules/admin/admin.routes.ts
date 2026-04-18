@@ -37,4 +37,37 @@ router.patch('/materials/:id/takedown', (req, res) => adminController.takedownMa
 router.patch('/materials/:id/restore', (req, res) => adminController.restoreMaterial(req, res));
 router.post('/materials/:id/force-verify', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.forceVerify(req, res));
 
+// Pillar 4: Discipline Documents
+router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));
+router.get('/documents/coverage', (req, res) => adminController.getDepartmentCoverage(req, res));
+router.get('/documents/:id', (req, res) => adminController.getDisciplineDocument(req, res));
+router.post('/documents', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadDisciplineDocument(req, res));
+router.post('/documents/:id/rollback', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.rollbackDisciplineDocument(req, res));
+router.patch('/documents/:id/deactivate', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.deactivateDisciplineDocument(req, res));
+
+// Pillar 5: Platform Analytics
+router.get('/analytics/overview', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getOverviewAnalytics(req, res));
+router.get('/analytics/growth', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getGrowthAnalytics(req, res));
+router.get('/analytics/feature-usage', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getFeatureUsageAnalytics(req, res));
+router.get('/analytics/retention', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getRetentionAnalytics(req, res));
+router.get('/analytics/content', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getContentAnalytics(req, res));
+router.get('/analytics/conversion', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getConversionAnalytics(req, res));
+
+// Pillar 6: Financial Management
+router.get('/finance/overview', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFinanceOverview(req, res));
+router.get('/finance/breakdown', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFinanceBreakdown(req, res));
+router.get('/finance/transactions', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getTransactions(req, res));
+router.get('/finance/failed-payments', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFailedPayments(req, res));
+router.get('/finance/projections', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFinanceProjections(req, res));
+router.get('/finance/webhooks', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getPaystackWebhookLogs(req, res));
+
+// Pillar 7: AI & System Monitoring
+router.get('/system/ai', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getAIMonitoring(req, res));
+router.get('/system/health', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getHealthMonitoring(req, res));
+router.get('/system/errors', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getErrorMonitoring(req, res));
+router.get('/system/websocket', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getWebSocketMonitoring(req, res));
+router.get('/system/cache', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getCacheMonitoring(req, res));
+router.get('/system/jobs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getJobsMonitoring(req, res));
+router.post('/system/jobs/:name/retry', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.retryJob(req, res));
+
 export default router;

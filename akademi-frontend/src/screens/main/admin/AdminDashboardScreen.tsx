@@ -87,10 +87,10 @@ export const AdminDashboardScreen: React.FC = () => {
         <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
           {type}: {user.name}
         </Text>
-        <div style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
           <Clock size={12} color={colors.textSecondary} />
           <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>{time}</Text>
-        </div>
+        </View>
       </View>
       <ChevronRight size={16} color={colors.textMuted} />
     </TouchableOpacity>

@@ -31,7 +31,30 @@ export interface AdminSystemHealth {
   r2: 'online' | 'offline';
 }
 
+export interface DisciplineDocument {
+  id: string;
+  faculty: string;
+  department: string;
+  course_code: string | null;
+  document_ref: string;
+  version: number;
+  version_notes: string | null;
+  is_active: boolean;
+  updated_at: string;
+  history?: DisciplineDocument[];
+}
+
+export interface DepartmentCoverage {
+  id: string;
+  name: string;
+  university: string;
+  faculty: string;
+  status: 'active' | 'outdated' | 'missing';
+  lastUpdated?: string;
+}
+
 export const adminService = {
+  // Pillar 1: Dashboard
   getStats: async (): Promise<AdminDashboardStats> => {
     const { data } = await api.get("/admin/dashboard/stats");
     return data;
@@ -52,6 +75,7 @@ export const adminService = {
     return data;
   },
 
+  // Pillar 2: User Management
   listUsers: async (params: any) => {
     const { data } = await api.get("/admin/users", { params });
     return data;
@@ -87,6 +111,7 @@ export const adminService = {
     return data;
   },
 
+  // Pillar 3: Content Moderation
   getFlaggedMaterials: async () => {
     const { data } = await api.get("/admin/materials/flagged");
     return data;
@@ -124,6 +149,135 @@ export const adminService = {
 
   forceVerify: async (id: string) => {
     const { data } = await api.post(`/admin/materials/${id}/force-verify`);
+    return data;
+  },
+
+  // Pillar 4: Discipline Documents
+  listDisciplineDocuments: async (params?: any) => {
+    const { data } = await api.get("/admin/documents", { params });
+    return data;
+  },
+
+  getDisciplineDocument: async (id: string): Promise<DisciplineDocument> => {
+    const { data } = await api.get(`/admin/documents/${id}`);
+    return data;
+  },
+
+  uploadDisciplineDocument: async (docData: any) => {
+    const { data } = await api.post("/admin/documents", docData);
+    return data;
+  },
+
+  rollbackDisciplineDocument: async (id: string, version: number) => {
+    const { data } = await api.post(`/admin/documents/${id}/rollback`, { version });
+    return data;
+  },
+
+  deactivateDisciplineDocument: async (id: string) => {
+    const { data } = await api.patch(`/admin/documents/${id}/deactivate`);
+    return data;
+  },
+
+  getDepartmentCoverage: async (): Promise<DepartmentCoverage[]> => {
+    const { data } = await api.get("/admin/documents/coverage");
+    return data;
+  },
+
+  // Pillar 5: Platform Analytics
+  getOverviewAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/overview", { params });
+    return data;
+  },
+
+  getGrowthAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/growth", { params });
+    return data;
+  },
+
+  getFeatureUsageAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/feature-usage", { params });
+    return data;
+  },
+
+  getRetentionAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/retention", { params });
+    return data;
+  },
+
+  getContentAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/content", { params });
+    return data;
+  },
+
+  getConversionAnalytics: async (params?: any) => {
+    const { data } = await api.get("/admin/analytics/conversion", { params });
+    return data;
+  },
+
+  // Pillar 6: Financial Management
+  getFinanceOverview: async () => {
+    const { data } = await api.get("/admin/finance/overview");
+    return data;
+  },
+
+  getFinanceBreakdown: async (params?: any) => {
+    const { data } = await api.get("/admin/finance/breakdown", { params });
+    return data;
+  },
+
+  getTransactions: async (params?: any) => {
+    const { data } = await api.get("/admin/finance/transactions", { params });
+    return data;
+  },
+
+  getFailedPayments: async () => {
+    const { data } = await api.get("/admin/finance/failed-payments");
+    return data;
+  },
+
+  getFinanceProjections: async () => {
+    const { data } = await api.get("/admin/finance/projections");
+    return data;
+  },
+
+  getPaystackWebhookLogs: async () => {
+    const { data } = await api.get("/admin/finance/webhooks");
+    return data;
+  },
+
+  // Pillar 7: AI & System Monitoring
+  getAIMonitoring: async () => {
+    const { data } = await api.get("/admin/system/ai");
+    return data;
+  },
+
+  getHealthMonitoring: async () => {
+    const { data } = await api.get("/admin/system/health");
+    return data;
+  },
+
+  getErrorMonitoring: async () => {
+    const { data } = await api.get("/admin/system/errors");
+    return data;
+  },
+
+  getWebSocketMonitoring: async () => {
+    const { data } = await api.get("/admin/system/websocket");
+    return data;
+  },
+
+  getCacheMonitoring: async () => {
+    const { data } = await api.get("/admin/system/cache");
+    return data;
+  },
+
+  getJobsMonitoring: async () => {
+    const { data } = await api.get("/admin/system/jobs");
+    return data;
+  },
+
+  retryJob: async (name: string) => {
+    const { data } = await api.post(`/admin/system/jobs/${name}/retry`);
     return data;
   },
 };
