@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  View,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -20,9 +21,10 @@ const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
 
 interface ButtonProps {
-  label: string;
+  label?: string; // Made optional for title/label consistency
+  title?: string; // Added title for backward compatibility
   onPress: () => void;
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "outline";
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
@@ -31,6 +33,7 @@ interface ButtonProps {
 
 export const Button: React.FC<ButtonProps> = ({
   label,
+  title,
   onPress,
   variant = "primary",
   loading = false,
@@ -38,6 +41,7 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   style,
 }) => {
+  const displayLabel = label || title || "";
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -61,6 +65,8 @@ export const Button: React.FC<ButtonProps> = ({
         return styles.secondary;
       case "ghost":
         return styles.ghost;
+      case "outline":
+        return styles.outline;
       case "primary":
       default:
         return styles.primary;
@@ -71,6 +77,8 @@ export const Button: React.FC<ButtonProps> = ({
     switch (variant) {
       case "ghost":
         return styles.ghostText;
+      case "outline":
+        return styles.outlineText;
       default:
         return styles.text;
     }
@@ -90,24 +98,24 @@ export const Button: React.FC<ButtonProps> = ({
         (disabled || loading) && styles.disabled,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={displayLabel}
     >
-      <Animated.View style={[styles.content, animatedStyle]}>
+      <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={variant === "outline" ? colors.primary : "#FFFFFF"} size="small" />
         ) : (
-          <>
+          <Animated.View style={[styles.innerContent, animatedStyle]}>
             {icon && (
-              <Animated.View style={styles.iconContainer}>{icon}</Animated.View>
+              <View style={styles.iconContainer}>{icon}</View>
             )}
             <Text
               style={[getTextStyle(), typography.body, { fontWeight: "600" }]}
             >
-              {label}
+              {displayLabel}
             </Text>
-          </>
+          </Animated.View>
         )}
-      </Animated.View>
+      </View>
     </AnimatedTouchableOpacity>
   );
 };
@@ -129,17 +137,32 @@ const styles = StyleSheet.create({
   ghost: {
     backgroundColor: "transparent",
   },
+  outline: {
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
   content: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  innerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
   },
   text: {
-    color: colors.textPrimary,
+    color: "#FFFFFF",
     fontSize: 12,
   },
   ghostText: {
     color: colors.textPrimary,
+    fontSize: 12,
+  },
+  outlineText: {
+    color: colors.primary,
     fontSize: 12,
   },
   iconContainer: {
