@@ -416,31 +416,4 @@ export class AdminController {
       res.status(500).json({ message: error.message });
     }
   }
-
-  async listAdmins(req: Request, res: Response) {
-    try {
-      const admins = await adminService.listAdmins();
-      res.json(admins);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-
-  async getIPLogs(req: Request, res: Response) {
-    try {
-      const logs = await adminService.getIPLogs();
-      res.json(logs);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-
-  async getSessionStatus(req: Request, res: Response) {
-    try {
-      const status = await adminService.getSessionStatus();
-      res.json(status);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  }
 }
