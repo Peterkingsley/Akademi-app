@@ -348,6 +348,11 @@ export const adminService = {
     return data;
   },
 
+  getMaterialDownloadUrl: async (id: string): Promise<{ url: string }> => {
+    const { data } = await api.get("/materials/" + id + "/download");
+    return data;
+  },
+
   getSessionStatus: async () => {
     const { data } = await api.get("/admin/security/session-status");
     return data;
