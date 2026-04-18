@@ -217,7 +217,7 @@ export const AdminTeamScreen: React.FC = () => {
             />
           </View>
         ) : null}
-      </FlatList>
+      />
 
       {/* Invite Modal */}
       <Modal visible={inviteModalVisible} animationType="slide" transparent>
