@@ -19,6 +19,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [actionType, setActionType] = useState<"approve" | "takedown" | null>(null);
 
@@ -47,11 +48,13 @@ const ModerationQueue = ({ status }: { status: string }) => {
     }
   };
 
-    const handleModerationAction = async (type: "approve" | "takedown" | "view") => {
+    const handleModerationAction = async (type: "approve" | "takedown" | "view", item?: any) => {
+    const targetItem = item || selectedItem;
+    if (!targetItem) return;
+
     if (type === "view") {
-      if (!selectedItem) return;
       try {
-        const { url } = await adminService.getMaterialDownloadUrl(selectedItem.id);
+        const { url } = await adminService.getMaterialDownloadUrl(targetItem.id);
         if (url) {
           Linking.openURL(url);
         }
@@ -60,6 +63,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
       }
       return;
     }
+    setSelectedItem(targetItem);
     setActionType(type);
     setConfirmVisible(true);
   };
@@ -98,10 +102,13 @@ const ModerationQueue = ({ status }: { status: string }) => {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.itemRow, { borderBottomColor: colors.border }]}
-            onPress={() => setSelectedItem(item)}
+            onPress={() => {
+              setSelectedItem(item);
+              setModalVisible(true);
+            }}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.body, { fontWeight: '600', color: colors.textPrimary }]}>{item.title}</Text>
+            <View style={{ flex: 1, marginRight: 16 }}>
+              <Text style={[typography.body, { fontWeight: '600', color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.university} • {item.course_code}</Text>
               {status === 'pending' && (
                 <View style={{ marginTop: 8 }}>
@@ -110,17 +117,43 @@ const ModerationQueue = ({ status }: { status: string }) => {
                 </View>
               )}
             </View>
-            <ChevronRight size={18} color={colors.textMuted} />
+
+            <View style={styles.actionGroup}>
+              <TouchableOpacity
+                style={[styles.iconButton, { backgroundColor: colors.surfaceElevated }]}
+                onPress={() => handleModerationAction("view", item)}
+              >
+                <Eye size={18} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.iconButton, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}
+                onPress={() => handleModerationAction("approve", item)}
+              >
+                <CheckCircle2 size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.iconButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
+                onPress={() => handleModerationAction("takedown", item)}
+              >
+                <XCircle size={18} color={colors.error} />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
         )}
       />
 
       {selectedItem && (
         <ComparisonModal
-          visible={!!selectedItem}
+          visible={modalVisible}
           item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-          onAction={handleModerationAction}
+          onClose={() => {
+            setModalVisible(false);
+            setSelectedItem(null);
+          }}
+          onAction={(type: any) => {
+            setModalVisible(false);
+            handleModerationAction(type);
+          }}
         />
       )}
 
@@ -238,7 +271,20 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderBottomWidth: 1,
+  },
+  actionGroup: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyState: {
     flex: 1,
