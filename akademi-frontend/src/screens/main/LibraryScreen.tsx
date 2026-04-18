@@ -19,6 +19,7 @@ import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Skeleton } from "../../components/ui/Skeleton";
+import * as DocumentPicker from "expo-document-picker";
 import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
@@ -42,6 +43,7 @@ export const LibraryScreen: React.FC = () => {
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCourseCode, setUploadCourseCode] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
 
   const fetchMaterials = async () => {
     try {
@@ -82,24 +84,63 @@ export const LibraryScreen: React.FC = () => {
     return uniqueCourses.sort();
   }, [materials]);
 
-  const handleUpload = async () => {
-    if (!uploadTitle || !uploadCourseCode) return;
+
+  const handleSelectFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/*", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      });
+
+      if (!result.canceled) {
+        setSelectedFile(result);
+        if (!uploadTitle) {
+          setUploadTitle(result.assets[0].name.split(".")[0]);
+        }
+      }
+    } catch (error) {
+      console.error("Error picking document:", error);
+    }
+  };
+
+    const handleUpload = async () => {
+    if (!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled) return;
 
     setUploading(true);
     try {
-      await materialService.uploadMaterial({
+      const file = selectedFile.assets[0];
+      const fileExtension = file.name.split(".").pop()?.toUpperCase();
+      const fileType = fileExtension === "PDF" ? "PDF" : (["JPG", "JPEG", "PNG"].includes(fileExtension || "") ? "IMAGE" : "DOC");
+
+      // 1. Create upload entry and get presigned URL
+      const { materialId, presignedUrl } = await materialService.uploadMaterial({
         title: uploadTitle,
         course_code: uploadCourseCode,
         university: user?.university || "",
-        faculty: "Science",
+        faculty: "Science", // Ideally this should be dynamic or from user profile
         department: user?.department || "",
-        level: 300,
-        file_type: "PDF",
+        level: 300, // Ideally dynamic
+        file_type: fileType,
       });
+
+      // 2. Upload to S2/R2
+      const response = await fetch(file.uri);
+      const blob = await response.blob();
+
+      await fetch(presignedUrl, {
+        method: "PUT",
+        body: blob,
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+      });
+
+      // 3. Confirm upload
+      await materialService.confirmUpload(materialId);
 
       bottomSheetRef.current?.close();
       setUploadTitle("");
       setUploadCourseCode("");
+      setSelectedFile(null);
       fetchMaterials();
     } catch (error) {
       console.error("Upload failed:", error);
@@ -218,10 +259,10 @@ export const LibraryScreen: React.FC = () => {
         <BottomSheetView style={styles.bottomSheetContent}>
           <Text style={[styles.sheetTitle, typography.h2]}>Upload Material</Text>
 
-          <Button
-            label="Select File"
+                    <Button
+            label={selectedFile && !selectedFile.canceled ? selectedFile.assets[0].name : "Select File"}
             variant="secondary"
-            onPress={() => {}}
+            onPress={handleSelectFile}
             icon={<Upload size={20} color="#FFFFFF" />}
             style={styles.sheetBtn}
           />

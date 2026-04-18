@@ -55,6 +55,11 @@ export const materialService = {
     return data;
   },
 
+  confirmUpload: async (id: string) => {
+    const { data } = await api.post(`/materials/${id}/confirm`);
+    return data;
+  },
+
   getMaterialDetails: async (id: string) => {
     const { data } = await api.get<Material>(`/materials/${id}`);
     return data;
