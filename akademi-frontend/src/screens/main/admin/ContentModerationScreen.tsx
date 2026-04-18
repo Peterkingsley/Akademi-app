@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Dimensions, Linking } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
-import { CheckCircle2, XCircle, Zap, Info, Inbox, ChevronRight } from "lucide-react-native";
+import { CheckCircle2, XCircle, Zap, Info, Inbox, ChevronRight, Eye } from "lucide-react-native";
 import { ProgressBar } from "../../../components/ui/ProgressBar";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
@@ -47,14 +47,31 @@ const ModerationQueue = ({ status }: { status: string }) => {
     }
   };
 
-  const handleModerationAction = (type: "approve" | "takedown") => {
+    const handleModerationAction = async (type: "approve" | "takedown" | "view") => {
+    if (type === "view") {
+      if (!selectedItem) return;
+      try {
+        const { url } = await adminService.getMaterialDownloadUrl(selectedItem.id);
+        if (url) {
+          Linking.openURL(url);
+        }
+      } catch (error) {
+        console.error("Failed to get download URL", error);
+      }
+      return;
+    }
     setActionType(type);
     setConfirmVisible(true);
   };
 
   const confirmAction = async () => {
+    if (!selectedItem || !actionType) return;
     try {
-      // Logic for approve/takedown would go here via adminService
+      if (actionType === "approve") {
+        await adminService.approveMaterial(selectedItem.id);
+      } else {
+        await adminService.takedownMaterial(selectedItem.id);
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmVisible(false);
       setSelectedItem(null);
@@ -176,10 +193,11 @@ const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
         <View style={[styles.decisionBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
           <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.error }]} onPress={() => onAction("takedown")}>
              <XCircle size={20} color={colors.error} />
-             <Text style={[typography.caption, { color: colors.error, fontWeight: '700', marginTop: 4 }]}>Takedown</Text>
+             <Text style={[typography.caption, { color: colors.error, fontWeight: '700', marginTop: 4 }]}>Reject</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]}>
-             <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: '700' }]}>Edit</Text>
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]} onPress={() => onAction("view")}>
+             <Eye size={20} color={colors.textPrimary} />
+             <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: '700', marginTop: 4 }]}>View Content</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => onAction("approve")}>
              <CheckCircle2 size={20} color="#FFF" />
