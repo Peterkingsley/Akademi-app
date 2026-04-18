@@ -63,7 +63,6 @@ export class AdminController {
   async getUserProfile(req: Request, res: Response) {
     try {
       const user = await adminService.getUserProfile(req.params.id);
-      if (!user) return res.status(404).json({ message: 'User not found' });
       res.json(user);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -72,7 +71,7 @@ export class AdminController {
 
   async banUser(req: Request, res: Response) {
     try {
-      const result = await adminService.banUser(req.params.id);
+      const result = await adminService.banUser(req.params.id, req.admin!.adminId);
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -81,7 +80,7 @@ export class AdminController {
 
   async unbanUser(req: Request, res: Response) {
     try {
-      const result = await adminService.unbanUser(req.params.id);
+      const result = await adminService.unbanUser(req.params.id, req.admin!.adminId);
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -90,7 +89,7 @@ export class AdminController {
 
   async verifyUser(req: Request, res: Response) {
     try {
-      const result = await adminService.verifyUser(req.params.id);
+      const result = await adminService.verifyUser(req.params.id, req.admin!.adminId);
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -99,8 +98,8 @@ export class AdminController {
 
   async deleteUser(req: Request, res: Response) {
     try {
-      await adminService.deleteUser(req.params.id);
-      res.json({ message: 'User soft-deleted successfully' });
+      const result = await adminService.deleteUser(req.params.id, req.admin!.adminId);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -439,6 +438,48 @@ export class AdminController {
     try {
       const status = await adminService.getSessionStatus();
       res.json(status);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getActivityLogs(req: Request, res: Response) {
+    try {
+      const logs = await adminService.getActivityLogs(req.query as any);
+      res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+  async inviteAdmin(req: Request, res: Response) {
+    try {
+      const admin = await adminService.inviteAdmin(req.body);
+      res.json(admin);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+  async suspendAdmin(req: Request, res: Response) {
+    try {
+      const admin = await adminService.suspendAdmin(req.params.id, req.admin!.adminId);
+      res.json(admin);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async unsuspendAdmin(req: Request, res: Response) {
+    try {
+      const admin = await adminService.unsuspendAdmin(req.params.id, req.admin!.adminId);
+      res.json(admin);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+  async deleteAdminAccount(req: Request, res: Response) {
+    try {
+      const result = await adminService.deleteAdminAccount(req.params.id, req.admin!.adminId);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

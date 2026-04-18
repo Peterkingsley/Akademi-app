@@ -19,9 +19,21 @@ import {
 } from './admin.types';
 import redisClient from '../../config/redis';
 import { typesenseService } from '../../shared/search/typesense.service';
-import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 
 export class AdminService {
+  private async createLog(adminId: string, action: string, target: string, type: 'standard' | 'destructive' | 'system' = 'standard') {
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    await (prisma as any).adminActivityLog.create({
+      data: {
+        admin_id: adminId,
+        admin_name: admin?.name || 'Unknown',
+        action_verb: action,
+        target,
+        type
+      }
+    });
+  }
+
   async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
     const admin = await prisma.admin.findUnique({ where: { email: data.email } });
     if (!admin) {
@@ -67,7 +79,8 @@ export class AdminService {
       newRegistrations,
       materialsPending,
       flaggedContent,
-      aiRequestsToday
+      aiRequestsToday,
+      revenueToday
     ] = await Promise.all([
       prisma.learningProfile.count({
         where: { last_active: { gte: today } }
@@ -86,13 +99,17 @@ export class AdminService {
           created_at: { gte: today },
           role: MessageRole.AI
         }
-      })
+      }),
+      prisma.transaction.aggregate({
+        where: { status: 'successful', created_at: { gte: today } },
+        _sum: { amount: true }
+      }).then(res => res._sum.amount || 0)
     ]);
 
     return {
       activeUsersToday,
       newRegistrations,
-      revenueToday: 0, // Placeholder
+      revenueToday,
       materialsPending,
       flaggedContent,
       aiRequestsToday
@@ -214,32 +231,40 @@ export class AdminService {
     });
   }
 
-  async banUser(id: string) {
-    return prisma.user.update({
+  async banUser(id: string, adminId: string) {
+    const user = await prisma.user.update({
       where: { id },
       data: { is_banned: true }
     });
+    await this.createLog(adminId, 'banned user', user.email, 'destructive');
+    return user;
   }
 
-  async unbanUser(id: string) {
-    return prisma.user.update({
+  async unbanUser(id: string, adminId: string) {
+    const user = await prisma.user.update({
       where: { id },
       data: { is_banned: false }
     });
+    await this.createLog(adminId, 'unbanned user', user.email);
+    return user;
   }
 
-  async verifyUser(id: string) {
-    return prisma.user.update({
+  async verifyUser(id: string, adminId: string) {
+    const user = await prisma.user.update({
       where: { id },
       data: { is_verified: true, verification_token: null, verification_token_expires_at: null }
     });
+    await this.createLog(adminId, 'verified user', user.email);
+    return user;
   }
 
-  async deleteUser(id: string) {
-    return prisma.user.update({
+  async deleteUser(id: string, adminId: string) {
+    const user = await prisma.user.update({
       where: { id },
       data: { is_deleted: true }
     });
+    await this.createLog(adminId, 'deleted user', user.email, 'destructive');
+    return user;
   }
 
   async grantAccess(userId: string, data: GrantAccessRequest) {
@@ -249,8 +274,7 @@ export class AdminService {
         feature: data.feature,
         access_type: data.accessType,
         expires_at: data.expiresAt,
-        uses_remaining: data.usesRemaining,
-        payment_ref: 'ADMIN_GRANTED'
+        uses_remaining: data.usesRemaining
       }
     });
   }
@@ -259,28 +283,32 @@ export class AdminService {
   async getFlaggedMaterials() {
     return prisma.material.findMany({
       where: { verification_status: VerificationStatus.FLAGGED },
-      include: { user: { select: { name: true } } }
+      include: { user: { select: { name: true } } },
+      orderBy: { created_at: 'desc' }
     });
   }
 
   async getPendingMaterials() {
     return prisma.material.findMany({
       where: { verification_status: VerificationStatus.PENDING },
-      include: { user: { select: { name: true } } }
+      include: { user: { select: { name: true } } },
+      orderBy: { created_at: 'desc' }
     });
   }
 
   async getVerifiedMaterials() {
     return prisma.material.findMany({
       where: { verification_status: VerificationStatus.VERIFIED },
-      include: { user: { select: { name: true } } }
+      include: { user: { select: { name: true } } },
+      orderBy: { created_at: 'desc' }
     });
   }
 
   async getArchivedMaterials() {
     return prisma.material.findMany({
       where: { verification_status: VerificationStatus.TAKEN_DOWN },
-      include: { user: { select: { name: true } } }
+      include: { user: { select: { name: true } } },
+      orderBy: { created_at: 'desc' }
     });
   }
 
@@ -289,18 +317,17 @@ export class AdminService {
       where: { id },
       data: {
         verification_status: VerificationStatus.VERIFIED,
-        verified_at: new Date(),
         admin_reviewed_by: adminId,
-        admin_reviewed_at: new Date()
+        admin_reviewed_at: new Date(),
+        verified_at: new Date()
       }
     });
-
-    generateQuestionsJob(id).catch(console.error);
+    await this.createLog(adminId, 'approved material', material.title);
     return material;
   }
 
   async takedownMaterial(id: string, adminId: string) {
-    return prisma.material.update({
+    const material = await prisma.material.update({
       where: { id },
       data: {
         verification_status: VerificationStatus.TAKEN_DOWN,
@@ -308,17 +335,21 @@ export class AdminService {
         admin_reviewed_at: new Date()
       }
     });
+    await this.createLog(adminId, 'took down material', material.title, 'destructive');
+    return material;
   }
 
   async restoreMaterial(id: string, adminId: string) {
-    return prisma.material.update({
+    const material = await prisma.material.update({
       where: { id },
       data: {
-        verification_status: VerificationStatus.VERIFIED,
+        verification_status: VerificationStatus.PENDING,
         admin_reviewed_by: adminId,
         admin_reviewed_at: new Date()
       }
     });
+    await this.createLog(adminId, 'restored material', material.title);
+    return material;
   }
 
   async forceVerify(id: string, adminId: string) {
@@ -339,37 +370,20 @@ export class AdminService {
   }
 
   async getDisciplineDocument(id: string) {
-    const document = await prisma.disciplineDocument.findUnique({
-      where: { id }
-    });
-
-    if (!document) return null;
+    const doc = await prisma.disciplineDocument.findUnique({ where: { id } });
+    if (!doc) return null;
 
     const history = await prisma.disciplineDocument.findMany({
       where: {
-        faculty: document.faculty,
-        department: document.department,
-        course_code: document.course_code
+        faculty: doc.faculty,
+        department: doc.department,
+        course_code: doc.course_code,
+        id: { not: doc.id }
       },
       orderBy: { version: 'desc' }
     });
 
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const aiRequests = await prisma.message.count({
-      where: {
-        role: MessageRole.AI,
-        created_at: { gte: startOfMonth },
-        session: {
-          department: document.department,
-          course_code: document.course_code || undefined
-        }
-      }
-    });
-
-    return { ...document, history, aiRequests };
+    return { ...doc, history };
   }
 
   async uploadDisciplineDocument(data: UploadDisciplineDocumentRequest, adminId: string) {
@@ -405,6 +419,8 @@ export class AdminService {
         is_active: true
       }
     });
+
+    await this.createLog(adminId, 'uploaded discipline document', `${data.department} - ${data.course_code || 'All'}`);
 
     const cacheKeyPattern = `ai:context:${data.department}:*`;
     const keys = await redisClient.keys(cacheKeyPattern);
@@ -443,6 +459,8 @@ export class AdminService {
       where: { id: rollbackTo.id },
       data: { is_active: true }
     });
+
+    await this.createLog(adminId, 'rolled back discipline document', `${target.department} to v${version}`);
 
     const cacheKeyPattern = `ai:context:${target.department}:*`;
     const keys = await redisClient.keys(cacheKeyPattern);
@@ -714,22 +732,84 @@ export class AdminService {
         name: true,
         email: true,
         role: true,
+        status: true,
         created_at: true,
         last_login: true
       }
     });
   }
 
+  async inviteAdmin(data: { name: string, email: string, role: string }) {
+    const passwordHash = await bcrypt.hash('temporary_password', 10);
+    const admin = await prisma.admin.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        role: data.role as AdminRole,
+        password_hash: passwordHash,
+        status: 'active'
+      }
+    });
+    return admin;
+  }
+
   async getIPLogs() {
-    // Placeholder for future security logging system
     return [];
   }
 
   async getSessionStatus() {
-    // Placeholder for active admin sessions
     return {
       activeAdmins: 1,
       lastAudit: new Date()
     };
+  }
+
+  async getActivityLogs(filter: any) {
+    const where: any = {};
+    if (filter.filter === 'destructive') where.type = 'destructive';
+    if (filter.filter === 'security') where.type = 'security';
+    if (filter.filter === 'system') where.type = 'system';
+
+    const limit = 50;
+    const page = Number(filter.page) || 1;
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      (prisma as any).adminActivityLog.findMany({
+        where,
+        take: limit,
+        skip,
+        orderBy: { timestamp: 'desc' }
+      }),
+      (prisma as any).adminActivityLog.count({ where })
+    ]);
+
+    return { logs, hasMore: total > skip + limit };
+  }
+
+  async deleteAdminAccount(id: string, adminId: string) {
+    const admin = await prisma.admin.findUnique({ where: { id } });
+    if (admin) {
+      await this.createLog(adminId, 'deleted admin', admin.email, 'destructive');
+    }
+    return prisma.admin.delete({ where: { id } });
+  }
+
+  async suspendAdmin(id: string, adminId: string) {
+    const admin = await prisma.admin.update({
+      where: { id },
+      data: { status: 'suspended' }
+    });
+    await this.createLog(adminId, 'suspended admin', admin.email, 'destructive');
+    return admin;
+  }
+
+  async unsuspendAdmin(id: string, adminId: string) {
+    const admin = await prisma.admin.update({
+      where: { id },
+      data: { status: 'active' }
+    });
+    await this.createLog(adminId, 'unsuspended admin', admin.email);
+    return admin;
   }
 }

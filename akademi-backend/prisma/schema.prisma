@@ -297,6 +297,7 @@ model Admin {
   email         String    @unique
   password_hash String
   role          AdminRole @default(MODERATOR)
+  status        String    @default("active")
   created_at    DateTime  @default(now())
   last_login    DateTime?
   @@map("admins")
@@ -449,4 +450,18 @@ model QuestionAttempt {
   feedback    String?
   created_at  DateTime @default(now())
   @@map("question_attempts")
+}
+
+model AdminActivityLog {
+  id          String   @id @default(uuid())
+  admin_id    String
+  admin_name  String
+  action_verb String
+  target      String
+  type        String   @default("standard") // standard, destructive, system
+  timestamp   DateTime @default(now())
+
+  @@index([admin_id])
+  @@index([timestamp])
+  @@map("admin_activity_logs")
 }
