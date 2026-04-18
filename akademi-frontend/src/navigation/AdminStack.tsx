@@ -11,6 +11,11 @@ import { CoverageMapScreen } from "../screens/main/admin/CoverageMapScreen";
 import { PlatformAnalyticsScreen } from "../screens/main/admin/PlatformAnalyticsScreen";
 import { FinancialManagementScreen } from "../screens/main/admin/FinancialManagementScreen";
 import { SystemMonitoringScreen } from "../screens/main/admin/SystemMonitoringScreen";
+import { AdminMoreScreen } from "../screens/main/admin/AdminMoreScreen";
+import { AdminTeamScreen } from "../screens/main/admin/AdminTeamScreen";
+import { AuditTrailScreen } from "../screens/main/admin/AuditTrailScreen";
+import { SecuritySettingsScreen } from "../screens/main/admin/SecuritySettingsScreen";
+
 import { LayoutDashboard, Users, FileText, BookOpen, MoreHorizontal } from "lucide-react-native";
 import { useTheme } from "../theme/ThemeContext";
 import { PermissionGuard } from "../components/auth/PermissionGuard";
@@ -21,6 +26,7 @@ const Tab = createBottomTabNavigator();
 const MoreStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AdminMore" component={AdminMoreScreen} />
       <Stack.Screen name="PlatformAnalytics">
         {(props) => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
@@ -39,6 +45,27 @@ const MoreStack = () => {
         {(props) => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
             <SystemMonitoringScreen {...props} />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AdminTeam">
+        {(props) => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AdminTeamScreen {...props} />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AuditTrail">
+        {(props) => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AuditTrailScreen {...props} />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="SecuritySettings">
+        {(props) => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <SecuritySettingsScreen {...props} />
           </PermissionGuard>
         )}
       </Stack.Screen>

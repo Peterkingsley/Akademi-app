@@ -31,6 +31,10 @@ export type MainTabParamList = {
 
 export type AdminStackParamList = {
   AdminDashboard: undefined;
+  AdminMore: undefined;
+  AdminTeam: undefined;
+  AuditTrail: undefined;
+  SecuritySettings: undefined;
   UserManagement: undefined;
   ContentModeration: undefined;
   DisciplineDocuments: undefined;

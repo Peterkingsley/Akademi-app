@@ -53,6 +53,32 @@ export interface DepartmentCoverage {
   lastUpdated?: string;
 }
 
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: 'SUPER_ADMIN' | 'CONTENT_MANAGER' | 'MODERATOR' | 'ANALYST';
+  status: 'active' | 'suspended';
+  created_at: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  admin_name: string;
+  action_verb: string;
+  target: string;
+  type: 'destructive' | 'system' | 'standard';
+}
+
+export interface IPLog {
+  id: string;
+  ip_address: string;
+  location: string;
+  timestamp: string;
+  is_current: boolean;
+}
+
 export const adminService = {
   // Pillar 1: Dashboard
   getStats: async (): Promise<AdminDashboardStats> => {
@@ -280,4 +306,50 @@ export const adminService = {
     const { data } = await api.post(`/admin/system/jobs/${name}/retry`);
     return data;
   },
+
+  // Pillar 8: Admin Team & Security
+  listAdmins: async (): Promise<AdminAccount[]> => {
+    const { data } = await api.get("/admin/team");
+    return data;
+  },
+
+  inviteAdmin: async (adminData: { name: string, email: string, role: string }) => {
+    const { data } = await api.post("/admin/team/invite", adminData);
+    return data;
+  },
+
+  suspendAdmin: async (id: string) => {
+    const { data } = await api.patch(`/admin/team/${id}/suspend`);
+    return data;
+  },
+
+  unsuspendAdmin: async (id: string) => {
+    const { data } = await api.patch(`/admin/team/${id}/unsuspend`);
+    return data;
+  },
+
+  deleteAdmin: async (id: string) => {
+    const { data } = await api.delete(`/admin/team/${id}`);
+    return data;
+  },
+
+  getActivityLogs: async (params?: any): Promise<{ logs: ActivityLog[], hasMore: boolean }> => {
+    const { data } = await api.get("/admin/team/activity-log", { params });
+    return data;
+  },
+
+  getIPLogs: async (): Promise<IPLog[]> => {
+    const { data } = await api.get("/admin/security/ip-logs");
+    return data;
+  },
+
+  toggle2FA: async (enabled: boolean) => {
+    const { data } = await api.patch("/admin/security/2fa", { enabled });
+    return data;
+  },
+
+  getSessionStatus: async () => {
+    const { data } = await api.get("/admin/security/session-status");
+    return data;
+  }
 };
