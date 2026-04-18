@@ -82,7 +82,7 @@ export const FinancialManagementScreen: React.FC = () => {
                   >
                     <View style={{ flex: 1 }}>
                       <View style={styles.logTitleRow}>
-                        <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: '700', fontFamily: 'SpaceMono_400Regular' }]}>
+                        <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: '700', fontFamily: 'SpaceMono-Regular' }]}>
                           {log.event_type}
                         </Text>
                         <Badge
@@ -102,7 +102,7 @@ export const FinancialManagementScreen: React.FC = () => {
                   {expandedLog === log.id && (
                     <View style={[styles.logPayload, { backgroundColor: colors.surface }]}>
                       <Text style={[styles.payloadText, { color: colors.textPrimary }]}>
-                        {JSON.stringify(JSON.parse(log.payload), null, 2)}
+                        {JSON.stringify(typeof log.payload === "string" ? JSON.parse(log.payload) : log.payload, null, 2)}
                       </Text>
                     </View>
                   )}
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   payloadText: {
-    fontFamily: 'SpaceMono_400Regular',
+    fontFamily: 'SpaceMono-Regular',
     fontSize: 10,
     lineHeight: 16,
   }
