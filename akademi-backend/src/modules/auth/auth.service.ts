@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { Resend } from 'resend';
+import { Rsened } from 'resend';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
@@ -98,7 +98,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <onboarding@resend.dev>',
+          from: 'Akademi <noreply@opengigs.pro>',
           to: user.email,
           subject: 'Verify your email',
           html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
