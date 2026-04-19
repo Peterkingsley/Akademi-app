@@ -15,13 +15,9 @@
       }
     },
     "production": {
-      "autoIncrement": true
-    }
-  },
-  "submit": {
-    "production": {
+      "distribution": "internal",
       "android": {
-        "serviceAccountKeyPath": "GOOGLE_SERVICE_ACCOUNT_KEY_PATH"
+        "buildType": "apk"
       }
     }
   }
