@@ -3,6 +3,7 @@
     "name": "Akademi",
     "newArchEnabled": true,
     "slug": "akademi",
+    "scheme": "akademi",
     "version": "1.0.0",
     "platforms": [
       "ios",
