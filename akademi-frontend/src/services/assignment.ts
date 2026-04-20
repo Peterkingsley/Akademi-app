@@ -2,16 +2,16 @@ import api from "./api";
 
 export interface SessionResponse {
   id: string;
-  sessionType: string;
-  replyMode: string;
-  courseCode: string;
+  session_type: string;
+  reply_mode: string;
+  course_code: string;
 }
 
-export const createAssignmentSession = async (replyMode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY", courseCode: string) => {
+export const createAssignmentSession = async (reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY", course_code: string) => {
   const { data } = await api.post<SessionResponse>("/sessions", {
-    sessionType: "ASSIGNMENT",
-    replyMode,
-    courseCode,
+    session_type: "ASSIGNMENT",
+    reply_mode,
+    course_code,
   });
   return data;
 };

@@ -161,7 +161,7 @@ export const PrepPlanScreen: React.FC = () => {
   return (
     <SafeArea style={styles.safeArea}>
       <Header
-        title={`${plan?.courseCode || ""} Prep Plan`}
+        title={`${plan?.course_code || ""} Prep Plan`}
         onBack={() => navigation.goBack()}
         rightAction={
           <TouchableOpacity>

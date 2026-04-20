@@ -73,7 +73,7 @@ export const ExamPrepScreen: React.FC = () => {
   );
 
   const renderUrgentBanner = () => {
-    const urgentPlan = plans.find((p) => p.daysLeft <= 5);
+    const urgentPlan = plans.find((p) => p.days_left <= 5);
     if (!urgentPlan) return null;
 
     return (
@@ -81,7 +81,7 @@ export const ExamPrepScreen: React.FC = () => {
         <View style={styles.urgentContent}>
           <Flame size={20} color={colors.warning} style={styles.urgentIcon} />
           <Text style={[styles.urgentText, typography.bodySmall]}>
-            {urgentPlan.courseCode} Exam in {urgentPlan.daysLeft} days!
+            {urgentPlan.course_code} Exam in {urgentPlan.days_left} days!
           </Text>
         </View>
         <TouchableOpacity
@@ -108,11 +108,11 @@ export const ExamPrepScreen: React.FC = () => {
 
         <View style={styles.cardBody}>
           <Text style={[styles.examTitle, typography.h2]}>
-            {plan.courseCode} FINAL
+            {plan.course_code} FINAL
           </Text>
           <View style={styles.examMeta}>
             <Text style={[styles.examDate, typography.caption]}>
-              Exam Date: {new Date(plan.examDate).toLocaleDateString()}
+              Exam Date: {new Date(plan.exam_date).toLocaleDateString()}
             </Text>
             <View style={styles.dot} />
             <View style={styles.daysLeftContainer}>
@@ -174,7 +174,7 @@ export const ExamPrepScreen: React.FC = () => {
         </Text>
       </View>
       <Text style={[styles.secondaryTitle, typography.h3]}>
-        {plan.courseCode}
+        {plan.course_code}
       </Text>
       <Text style={[styles.secondaryDays, typography.bodySmall]}>
         {plan.daysLeft} days left

@@ -17,15 +17,15 @@ export interface DailyTaskGroup {
 
 export interface ExamPrepPlan {
   id: string;
-  courseCode: string;
-  courseName: string;
-  examDate: string;
+  course_code: string;
+  course_name: string;
+  exam_date: string;
   progress: number;
-  readinessScore: number;
-  readinessGrade: string;
+  readiness_score: number;
+  readiness_grade: string;
   subject: string;
-  daysLeft: number;
-  dailyTasks?: DailyTaskGroup[];
+  days_left: number;
+  daily_tasks?: DailyTaskGroup[];
 }
 
 export interface ReadinessResponse {
@@ -83,10 +83,10 @@ const examPrepService = {
     return data;
   },
 
-  createPlan: async (courseCode: string, examDate: string) => {
+  createPlan: async (course_code: string, exam_date: string) => {
     const { data } = await api.post<ExamPrepPlan>("/exam-prep", {
-      courseCode,
-      examDate,
+      course_code,
+      exam_date,
     });
     return data;
   },

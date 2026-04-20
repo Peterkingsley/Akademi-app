@@ -76,10 +76,10 @@ export const SessionsScreen: React.FC = () => {
 
       const mapped: SessionUI[] = data.map((s: any) => {
           let type: SessionUI["type"] = "STUDY";
-          if (s.sessionType === "TUTOR") type = "TUTOR";
-          else if (s.sessionType === "SOLVE" || s.sessionType === "SOCRATIC") type = "SOLVE ASSIGNMENT";
+          if (s.session_type === "TUTOR") type = "TUTOR";
+          else if (s.session_type === "ASSIGNMENT" || s.session_type === "SOCRATIC") type = "SOLVE ASSIGNMENT";
 
-          const date = new Date(s.createdAt);
+          const date = new Date(s.created_at);
           const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
           const durationMins = s.duration || 0;
@@ -89,7 +89,7 @@ export const SessionsScreen: React.FC = () => {
 
           return {
               id: s.id,
-              course: s.courseCode,
+              course: s.course_code,
               type,
               title: s.topic,
               date: formattedDate,

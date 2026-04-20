@@ -78,8 +78,8 @@ export const userService = {
   purchaseSubscription: async (plan: "monthly" | "yearly") => {
     const response = await api.post<{ paymentUrl: string }>("/feature-access/purchase", {
       feature: "ALL",
-      accessType: "TIME_WINDOW",
-      plan,
+      access_type: "TIME_WINDOW",
+      amount: plan === "monthly" ? 2000 : 20000,
     });
     return response.data;
   },
