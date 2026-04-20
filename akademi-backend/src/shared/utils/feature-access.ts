@@ -1,7 +1,12 @@
 import { Feature } from '@prisma/client';
 import prisma from '../../config/db';
+import { config } from '../../config/env';
 
 export async function checkFeatureAccess(userId: string, feature: Feature): Promise<boolean> {
+  if (config.unlockAllFeatures) {
+    return true;
+  }
+
   const access = await prisma.featureAccess.findFirst({
     where: {
       user_id: userId,

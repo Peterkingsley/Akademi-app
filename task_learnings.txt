@@ -1,0 +1,1 @@
+LEARNING: Implemented a global feature bypass using a config toggle (unlockAllFeatures) driven by an environment variable (UNLOCK_ALL_FEATURES). This allows testers to access all Pro features without real payments.

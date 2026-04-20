@@ -5,6 +5,19 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class FeatureAccessService {
   async getActiveUnlocks(userId: string) {
+    if (config.unlockAllFeatures) {
+      return Object.values(Feature).map((feature) => ({
+        id: 'bypassed',
+        user_id: userId,
+        feature,
+        access_type: AccessType.TIME_WINDOW,
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        uses_remaining: null,
+        purchased_at: new Date(),
+        payment_ref: 'BYPASS',
+      }));
+    }
+
     return prisma.featureAccess.findMany({
       where: {
         user_id: userId,
@@ -27,6 +40,14 @@ export class FeatureAccessService {
   }
 
   async checkAccess(userId: string, feature: Feature) {
+    if (config.unlockAllFeatures) {
+      return {
+        hasAccess: true,
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        usesRemaining: null,
+      };
+    }
+
     const access = await prisma.featureAccess.findFirst({
       where: {
         user_id: userId,

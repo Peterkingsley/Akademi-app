@@ -29,4 +29,5 @@ export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   serviceType: process.env.SERVICE_TYPE || 'api',
+  unlockAllFeatures: process.env.UNLOCK_ALL_FEATURES === 'true',
 };

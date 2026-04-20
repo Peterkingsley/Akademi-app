@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { UpdateProfileRequest } from './users.types';
+import { Feature, AccessType } from '@prisma/client';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -153,6 +154,19 @@ export class UsersService {
   }
 
   async getFeatureAccess(userId: string) {
+    if (config.unlockAllFeatures) {
+      return Object.values(Feature).map((feature) => ({
+        id: 'bypassed',
+        user_id: userId,
+        feature,
+        access_type: AccessType.TIME_WINDOW,
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        uses_remaining: null,
+        purchased_at: new Date(),
+        payment_ref: 'BYPASS',
+      }));
+    }
+
     return prisma.featureAccess.findMany({
       where: { user_id: userId },
     });
