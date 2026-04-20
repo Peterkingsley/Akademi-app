@@ -12,6 +12,9 @@ jest.mock('../src/config/db', () => ({
     update: jest.fn(),
     findFirst: jest.fn(),
   },
+  admin: {
+    findUnique: jest.fn(),
+  },
   refreshToken: {
     findMany: jest.fn(),
     updateMany: jest.fn(),
@@ -37,6 +40,9 @@ jest.mock('../src/config/db', () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
       findFirst: jest.fn(),
+    },
+    admin: {
+      findUnique: jest.fn(),
     },
     refreshToken: {
       findMany: jest.fn(),
@@ -68,7 +74,8 @@ describe('Users Module', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: userId, is_deleted: false });
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: userId, email: 'john@example.com', is_deleted: false });
+    (prisma.admin.findUnique as jest.Mock).mockResolvedValue(null);
   });
 
   it('should get current user profile', async () => {
@@ -78,6 +85,7 @@ describe('Users Module', () => {
       email: 'john@example.com',
       is_deleted: false
     });
+    (prisma.admin.findUnique as jest.Mock).mockResolvedValue(null);
 
     const res = await request(app)
       .get('/users/me')
