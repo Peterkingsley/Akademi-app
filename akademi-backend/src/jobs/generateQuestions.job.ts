@@ -1,10 +1,7 @@
 import { addQuestionsToIndex } from '../shared/search/typesense.sync';
 import prisma from '../config/db';
-import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../config/env';
 import { Difficulty } from '@prisma/client';
-
-const anthropic = new Anthropic({ apiKey: config.claudeApiKey });
+import { aiProvider } from '../modules/ai/ai.provider';
 
 export async function generateQuestionsJob(materialId: string) {
   const material = await prisma.material.findUnique({
@@ -26,15 +23,12 @@ export async function generateQuestionsJob(materialId: string) {
   Distribution: 30% EASY, 40% MEDIUM, 30% HARD.
   Format as JSON: { questions: [{ question_text: string, approach_guide: string, difficulty: 'EASY'|'MEDIUM'|'HARD' }] }`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
-    system: 'You are an expert academic assistant.',
-    messages: [{ role: 'user', content: prompt }],
+  const aiOutput = await aiProvider.generateResponse(prompt, {
+    systemPrompt: 'You are an expert academic assistant. Return ONLY valid JSON.',
+    maxTokens: 2000,
   });
 
-  const content = (response.content[0] as any).text;
-  const { questions } = JSON.parse(content);
+  const { questions } = JSON.parse(aiOutput);
 
   for (const q of questions) {
     // Check for duplicates
