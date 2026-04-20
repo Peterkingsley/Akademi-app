@@ -13,6 +13,7 @@ import { EmailVerificationScreen } from "../screens/auth/EmailVerificationScreen
 import { SetupCompleteScreen } from "../screens/auth/SetupCompleteScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { ForgotPasswordScreen } from "../screens/auth/ForgotPasswordScreen";
+import { PrivacyDataScreen } from "../screens/main/PrivacyDataScreen";
 
 const Stack = createStackNavigator<AuthStackParamList>();
 
@@ -28,6 +29,7 @@ export const AuthStack = () => {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="PrivacyData" component={PrivacyDataScreen} />
       <Stack.Screen
         name="UniversityPicker"
         component={UniversityPickerScreen}

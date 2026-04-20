@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Search, CheckCircle2, PlusCircle } from "lucide-react-native";
@@ -14,6 +15,7 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import api from "../../services/api";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48 - 12) / 2;
@@ -24,30 +26,58 @@ interface Course {
   name: string;
 }
 
-const COURSES: Course[] = [
-  { id: "1", code: "EEE 301", name: "Network Analysis" },
-  { id: "2", code: "MTH 201", name: "Linear Algebra" },
-  { id: "3", code: "CSC 312", name: "Operating Systems" },
-  { id: "4", code: "EEE 305", name: "Electromagnetics" },
-  { id: "5", code: "GST 111", name: "Use of English" },
-  { id: "6", code: "PHY 101", name: "General Physics I" },
-];
-
 export const CoursePickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { university, faculty, department, level } = route.params || {};
 
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
 
-  const toggleCourse = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      // Use the Search API to fetch courses for this university/department
+      const response = await api.get("/search", {
+        params: {
+          type: "course",
+          university,
+          department,
+          q: "*",
+        },
+      });
+
+      const hits = response.data.courses?.hits || [];
+      const mappedCourses = hits.map((h: any) => ({
+        id: h.document.id,
+        code: h.document.course_code,
+        name: h.document.name || h.document.course_code,
+      }));
+
+      setCourses(mappedCourses);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch courses", err);
+      setError("Could not load courses. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleCourse = (code: string) => {
+    setSelectedCodes((prev) =>
+      prev.includes(code) ? prev.filter((i) => i !== code) : [...prev, code]
     );
   };
 
-  const filteredCourses = COURSES.filter(
+  const filteredCourses = courses.filter(
     (c) =>
       c.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -59,15 +89,16 @@ export const CoursePickerScreen: React.FC = () => {
       faculty,
       department,
       level,
+      selectedCourses: selectedCodes,
     });
   };
 
   const renderItem = ({ item }: { item: Course }) => {
-    const isSelected = selectedIds.includes(item.id);
+    const isSelected = selectedCodes.includes(item.code);
     return (
       <TouchableOpacity
         style={[styles.courseCard, isSelected && styles.selectedCourseCard]}
-        onPress={() => toggleCourse(item.id)}
+        onPress={() => toggleCourse(item.code)}
         activeOpacity={0.8}
       >
         <View style={styles.cardHeader}>
@@ -76,7 +107,7 @@ export const CoursePickerScreen: React.FC = () => {
             <CheckCircle2 size={16} color={colors.primary} />
           )}
         </View>
-        <Text style={styles.courseName}>{item.name}</Text>
+        <Text style={styles.courseName} numberOfLines={2}>{item.name}</Text>
       </TouchableOpacity>
     );
   };
@@ -111,32 +142,47 @@ export const CoursePickerScreen: React.FC = () => {
           leftIcon={<Search size={20} color={colors.textMuted} />}
         />
 
-        <FlatList
-          data={filteredCourses}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          contentContainerStyle={styles.listContent}
-          ListFooterComponent={
-            <TouchableOpacity style={styles.addManual}>
-              <Text style={styles.addManualText}>Don't see your course listed?</Text>
-              <View style={styles.addManualLink}>
-                <PlusCircle size={16} color={colors.primary} />
-                <Text style={styles.addManualLinkText}>Add course manually</Text>
-              </View>
-            </TouchableOpacity>
-          }
-        />
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Searching courses...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button label="Retry" onPress={fetchCourses} style={{ marginTop: 16 }} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredCourses}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No courses found for your department yet.</Text>
+            }
+            ListFooterComponent={
+              <TouchableOpacity style={styles.addManual}>
+                <Text style={styles.addManualText}>Don't see your course listed?</Text>
+                <View style={styles.addManualLink}>
+                  <PlusCircle size={16} color={colors.primary} />
+                  <Text style={styles.addManualLinkText}>Add course manually</Text>
+                </View>
+              </TouchableOpacity>
+            }
+          />
+        )}
 
         <View style={styles.bottomBar}>
           <View style={styles.countPill}>
-            <Text style={styles.countText}>{selectedIds.length} COURSES ADDED</Text>
+            <Text style={styles.countText}>{selectedCodes.length} COURSES ADDED</Text>
           </View>
           <Button
             label="Done >"
             onPress={handleDone}
-            disabled={selectedIds.length === 0}
+            disabled={selectedCodes.length === 0 || loading}
             style={styles.doneButton}
           />
         </View>
@@ -149,6 +195,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  center: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    color: colors.textSecondary,
+    fontFamily: "Inter-Regular",
+    fontSize: 12,
+  },
+  errorText: {
+    color: colors.error,
+    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontFamily: "Inter-Regular",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 40,
   },
   progressDots: {
     flexDirection: "row",
@@ -201,7 +270,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    height: 90,
+    height: 100,
     justifyContent: "space-between",
   },
   selectedCourseCard: {

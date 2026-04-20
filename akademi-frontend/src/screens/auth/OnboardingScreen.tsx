@@ -56,9 +56,7 @@ export const OnboardingScreen: React.FC = () => {
       >
         {/* Slide 1 - Frame 3 */}
         <View style={styles.slide}>
-          <TouchableOpacity style={styles.skipButton} onPress={skipOnboarding}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
+
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -172,17 +170,7 @@ const styles = StyleSheet.create({
   slide1Content: {
     paddingBottom: 80,
   },
-  skipButton: {
-    position: "absolute",
-    top: 60,
-    right: 24,
-    zIndex: 10,
-  },
-  skipText: {
-    color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
-  },
+
   illustrationArea: {
     height: height * 0.45,
     marginTop: 100,

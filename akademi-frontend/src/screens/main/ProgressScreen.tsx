@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import {
   Settings,
@@ -20,6 +21,8 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Avatar } from "../../components/ui/Avatar";
 import { useNavigation } from "@react-navigation/native";
+import { userService, UserProfile } from "../../services/user";
+import { useAuthStore } from "../../store/useAuthStore";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,52 +45,9 @@ interface Badge {
   unlocked: boolean;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const WEEK_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const WEEK_STATUS = [true, true, true, true, "today", false, false] as const;
-
-const BAR_DATA = [
-  { day: "M", value: 0.75 },
-  { day: "T", value: 1.0 },
-  { day: "W", value: 0.55 },
-  { day: "T", value: 0.65 },
-  { day: "F", value: 0.35 },
-  { day: "S", value: 0.1 },
-  { day: "S", value: 0.05 },
-];
-
-// 30-day consistency grid (5 rows x 6 cols = 30 cells)
-const CONSISTENCY_GRID = Array.from({ length: 30 }, (_, i) => {
-  if (i < 7) return 0.9;
-  if (i < 14) return 0.4;
-  if (i < 18) return 0.7;
-  if (i < 22) return 0.2;
-  return 0.6;
-});
-
-const COURSES: CoursePerformance[] = [
-  {
-    id: "1",
-    code: "EEE 301",
-    name: "Circuit Analysis II",
-    solved: 12,
-    sessions: 4,
-    mocks: 1,
-    strongest: "Faraday's Law",
-    needsWork: "Maxwell's Equations",
-  },
-  {
-    id: "2",
-    code: "MAT 202",
-    name: "Advanced Calculus",
-    solved: 45,
-    sessions: 12,
-    mocks: 3,
-    strongest: "Integration",
-    needsWork: "Series Convergence",
-  },
-];
 
 const SOLVER_BADGES: Badge[] = [
   { id: "1", emoji: "🎯", title: "Problem Pro", description: "Solved 10 assignments", unlocked: true },
@@ -98,248 +58,333 @@ const SOLVER_BADGES: Badge[] = [
 
 const SCHOLAR_BADGES: Badge[] = [
   { id: "5", emoji: "📖", title: "Bookworm", description: "Read 20 chapters", unlocked: true },
-  { id: "6", emoji: "🦉", title: "Night Owl", description: "Study after midnight", unlocked: false },
+  { id: "6", emoji: "✍️", title: "Note Taker", description: "Created 15 study sets", unlocked: false },
+  { id: "7", emoji: "🧠", title: "Scholar", description: "Maintain 7-day streak", unlocked: false },
+  { id: "8", emoji: "🌟", title: "Top 1%", description: "Rank high in department", unlocked: false },
 ];
-
-const ACHIEVEMENTS = [
-  { id: "1", emoji: "✨", label: "Fast Learner", color: "#6366F1" },
-  { id: "2", emoji: "🏅", label: "Top Streak", color: "#D97706" },
-  { id: "3", emoji: "🎓", label: "Finalist", color: colors.surface },
-];
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const StreakCard: React.FC = () => (
-  <View style={styles.streakCard}>
-    <Text style={styles.streakTitle}>🔥 7-day streak!</Text>
-    <Text style={styles.streakSubtext}>
-      You've studied every day this week. Don't break the chain.
-    </Text>
-    <View style={styles.weekRow}>
-      {WEEK_DAYS.map((day, i) => {
-        const status = WEEK_STATUS[i];
-        const isDone = status === true;
-        const isToday = status === "today";
-        return (
-          <View key={day} style={styles.dayCol}>
-            <View
-              style={[
-                styles.dayCircle,
-                isDone && styles.dayCircleDone,
-                isToday && styles.dayCircleToday,
-              ]}
-            >
-              {isDone && <Text style={styles.checkMark}>✓</Text>}
-              {isToday && <View style={styles.todayDot} />}
-            </View>
-            <Text style={[styles.dayLabel, isToday && styles.dayLabelActive]}>
-              {day}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  </View>
-);
-
-const WeeklyActivityCard: React.FC = () => (
-  <View style={styles.sectionCard}>
-    <View style={styles.activityHeader}>
-      <View>
-        <Text style={styles.sectionTitle}>Weekly Activity</Text>
-        <Text style={styles.activitySubtext}>This week's average: 32 mins/day</Text>
-      </View>
-      <View style={styles.minsBadge}>
-        <View style={styles.minsDot} />
-        <Text style={styles.minsText}>MINS</Text>
-      </View>
-    </View>
-    <View style={styles.barChart}>
-      {BAR_DATA.map((item, i) => (
-        <View key={i} style={styles.barCol}>
-          <View style={styles.barTrack}>
-            <View
-              style={[
-                styles.bar,
-                {
-                  height: `${item.value * 100}%`,
-                  backgroundColor: item.value >= 0.6 ? colors.primary : colors.primary + "55",
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.barLabel}>{item.day}</Text>
-        </View>
-      ))}
-    </View>
-  </View>
-);
-
-const CourseCard: React.FC<{ course: CoursePerformance }> = ({ course }) => {
-  const [expanded, setExpanded] = useState(course.id === "1");
-  return (
-    <View style={styles.courseCard}>
-      <TouchableOpacity
-        style={styles.courseHeader}
-        onPress={() => setExpanded(!expanded)}
-        activeOpacity={0.7}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.courseTitle}>
-            {course.code} – {course.name}
-          </Text>
-          <Text style={styles.courseMeta}>
-            Solved: {course.solved} questions | Sessions: {course.sessions} | Mocks:{" "}
-            {course.mocks}
-          </Text>
-        </View>
-        {expanded ? (
-          <ChevronUp size={20} color={colors.textMuted} />
-        ) : (
-          <ChevronDown size={20} color={colors.textMuted} />
-        )}
-      </TouchableOpacity>
-      {expanded && (
-        <View style={styles.courseExpanded}>
-          <View style={styles.performancePill}>
-            <ShieldCheck size={16} color="#22C55E" />
-            <View style={styles.performanceTexts}>
-              <Text style={styles.performanceLabel}>STRONGEST</Text>
-              <Text style={styles.performanceValue}>{course.strongest}</Text>
-            </View>
-          </View>
-          <View style={styles.performancePill}>
-            <AlertTriangle size={16} color="#F59E0B" />
-            <View style={styles.performanceTexts}>
-              <Text style={styles.performanceLabel}>NEEDS WORK</Text>
-              <Text style={styles.performanceValue}>{course.needsWork}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const BadgeCard: React.FC<{ badge: Badge }> = ({ badge }) => (
-  <View style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
-    {!badge.unlocked && (
-      <View style={styles.lockOverlay}>
-        <Lock size={14} color={colors.textMuted} />
-      </View>
-    )}
-    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-    <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTitleLocked]}>
-      {badge.title}
-    </Text>
-    <Text style={[styles.badgeDesc, !badge.unlocked && styles.badgeDescLocked]}>
-      {badge.description}
-    </Text>
-  </View>
-);
-
-const StreakDetailCard: React.FC = () => (
-  <View style={styles.streakDetailCard}>
-    <Text style={styles.streakDetailBig}>🔥 7 days</Text>
-    <View style={styles.bestBadge}>
-      <Text style={styles.bestBadgeText}>BEST: 14 DAYS</Text>
-    </View>
-    <View style={styles.consistencyHeader}>
-      <View>
-        <Text style={styles.consistencyLabel}>STUDY CONSISTENCY</Text>
-        <Text style={styles.consistencyLabel}>(LAST 30 DAYS)</Text>
-      </View>
-      <View>
-        <Text style={styles.consistencyAvgLabel}>Avg:</Text>
-        <Text style={styles.consistencyAvg}>42m/day</Text>
-      </View>
-    </View>
-    <View style={styles.consistencyGrid}>
-      {CONSISTENCY_GRID.map((val, i) => (
-        <View
-          key={i}
-          style={[
-            styles.consistencyCell,
-            { backgroundColor: `rgba(99,102,241,${val})` },
-          ]}
-        />
-      ))}
-    </View>
-  </View>
-);
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [showDetail, setShowDetail] = useState(false);
+  const { user: authUser } = useAuthStore();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [userProfile, userSessions] = await Promise.all([
+        userService.getProfile(),
+        userService.getSessions(),
+      ]);
+      setProfile(userProfile);
+      setSessions(userSessions);
+    } catch (error) {
+      console.error("Failed to fetch progress data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Logic ───────────────────────────────────────────────────────────────────
+
+  const getStreakData = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const weekStatus: (boolean | "today")[] = [false, false, false, false, false, false, false];
+
+    // Get days of current week (Mon-Sun)
+    const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday
+    const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - diffToMonday);
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + i);
+
+      const hasSession = sessions.some(s => {
+        const sDate = new Date(s.createdAt);
+        return sDate.toDateString() === dayDate.toDateString();
+      });
+
+      if (dayDate.toDateString() === today.toDateString()) {
+        weekStatus[i] = hasSession ? true : "today";
+      } else {
+        weekStatus[i] = hasSession;
+      }
+    }
+
+    return weekStatus;
+  };
+
+  const getBarData = () => {
+    const today = new Date();
+    const bars = [];
+    const labels = ["M", "T", "W", "T", "F", "S", "S"];
+
+    const currentDay = today.getDay();
+    const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - diffToMonday);
+
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(monday);
+      dayDate.setDate(monday.getDate() + i);
+
+      const daySessions = sessions.filter(s => {
+        const sDate = new Date(s.createdAt);
+        return sDate.toDateString() === dayDate.toDateString();
+      });
+
+      // Mock value based on session count for visualization
+      const value = Math.min(daySessions.length / 5, 1.0);
+      bars.push({ day: labels[i], value });
+    }
+    return bars;
+  };
+
+  const getCoursePerformance = (): CoursePerformance[] => {
+    // Group sessions by course code
+    const grouped = sessions.reduce((acc: any, s) => {
+      if (!acc[s.courseCode]) acc[s.courseCode] = { solved: 0, sessions: 0, mocks: 0 };
+      acc[s.courseCode].sessions++;
+      return acc;
+    }, {});
+
+    return Object.keys(grouped).map(code => ({
+      id: code,
+      code,
+      name: "Course Overview",
+      solved: grouped[code].solved,
+      sessions: grouped[code].sessions,
+      mocks: grouped[code].mocks,
+      strongest: "General Concepts",
+      needsWork: "Advanced Application",
+    }));
+  };
+
+  const calculateStreak = () => {
+    if (sessions.length === 0) return 0;
+
+    const sorted = [...sessions].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    let streak = 0;
+    let lastDate = new Date();
+    lastDate.setHours(0,0,0,0);
+
+    // If no session today, check if there was one yesterday
+    const todaySession = sorted.find(s => new Date(s.createdAt).toDateString() === lastDate.toDateString());
+
+    if (!todaySession) {
+        lastDate.setDate(lastDate.getDate() - 1);
+        const yesterdaySession = sorted.find(s => new Date(s.createdAt).toDateString() === lastDate.toDateString());
+        if (!yesterdaySession) return 0;
+    }
+
+    const uniqueDates = Array.from(new Set(sorted.map(s => new Date(s.createdAt).toDateString())));
+
+    let checkDate = new Date(lastDate);
+    for (const dateStr of uniqueDates) {
+        if (dateStr === checkDate.toDateString()) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+            break;
+        }
+    }
+
+    return streak;
+  };
+
+  const weekStatus = getStreakData();
+  const barData = getBarData();
+  const courses = getCoursePerformance();
+  const currentStreak = calculateStreak();
+
+  // ─── Components ───────────────────────────────────────────────────────────────
+
+  const BadgeCard = ({ badge }: { badge: Badge }) => (
+    <View style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
+      {!badge.unlocked && (
+        <View style={styles.lockOverlay}>
+          <Lock size={12} color={colors.textMuted} />
+        </View>
+      )}
+      <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+      <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTitleLocked]}>
+        {badge.title}
+      </Text>
+      <Text style={[styles.badgeDesc, !badge.unlocked && styles.badgeDescLocked]}>
+        {badge.description}
+      </Text>
+    </View>
+  );
 
   return (
-    <Screen hideHeader style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+    <Screen style={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Avatar name="User" size={36} style={styles.avatar} />
+            <Avatar
+              size={36}
+              source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+              style={styles.avatar}
+            />
             <Text style={styles.headerBrand}>Akademi</Text>
           </View>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Settings size={22} color={colors.textPrimary} />
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate("AppearanceSettings")}>
+            <Settings size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        {/* Page Title */}
-        <View style={styles.pageTitleRow}>
-          <Text style={styles.pageTitle}>Progress</Text>
-          <Text style={styles.pageSubtitle}>March 2026 · Week 3 of 14</Text>
-        </View>
-
-        {/* Streak Card */}
-        <StreakCard />
-
-        {/* Weekly Activity */}
-        <WeeklyActivityCard />
-
-        {/* Course Performance */}
-        <Text style={styles.sectionHeading}>Course Performance</Text>
-        {COURSES.map((course) => (
-          <CourseCard key={course.id} course={course} />
-        ))}
-
-        {/* Achievements */}
-        <View style={styles.achievementsHeader}>
-          <Text style={styles.sectionHeading}>Achievements</Text>
-          <TouchableOpacity onPress={() => setShowDetail(!showDetail)}>
-            <Text style={styles.seeAll}>See all →</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.achievementsRow}>
-          {ACHIEVEMENTS.map((a) => (
-            <View key={a.id} style={styles.achievementItem}>
-              <View
-                style={[
-                  styles.achievementCircle,
-                  { borderColor: a.color, backgroundColor: a.color + "22" },
-                ]}
-              >
-                <Text style={styles.achievementEmoji}>{a.emoji}</Text>
-              </View>
-              <Text style={styles.achievementLabel}>{a.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Detail View (See All) */}
-        {showDetail && (
+        {loading ? (
+          <View style={[styles.center, { marginTop: 100 }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : (
           <>
-            <StreakDetailCard />
+            {/* Page Title */}
+            <View style={styles.pageTitleRow}>
+              <Text style={styles.pageTitle}>Progress</Text>
+              <Text style={styles.pageSubtitle}>
+                {profile?.university?.toUpperCase() || "ACADEMIC OVERVIEW"}
+              </Text>
+            </View>
+
+            {/* Streak Card */}
+            <View style={styles.streakCard}>
+              <Text style={styles.streakTitle}>{currentStreak} Day Streak!</Text>
+              <Text style={styles.streakSubtext}>
+                {currentStreak > 0
+                  ? "Great job! You have an active streak. Keep it going!"
+                  : "You don't have an active streak. Study today to start it up!"}
+              </Text>
+              <View style={styles.weekRow}>
+                {WEEK_DAYS.map((day, idx) => (
+                  <View key={day} style={styles.dayCol}>
+                    <View
+                      style={[
+                        styles.dayCircle,
+                        weekStatus[idx] === true && styles.dayCircleDone,
+                        weekStatus[idx] === "today" && styles.dayCircleToday,
+                      ]}
+                    >
+                      {weekStatus[idx] === true ? (
+                        <Text style={styles.checkMark}>✓</Text>
+                      ) : weekStatus[idx] === "today" ? (
+                        <View style={styles.todayDot} />
+                      ) : null}
+                    </View>
+                    <Text
+                      style={[
+                        styles.dayLabel,
+                        weekStatus[idx] && styles.dayLabelActive,
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Weekly Activity */}
+            <View style={styles.sectionCard}>
+              <View style={styles.activityHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Weekly Activity</Text>
+                  <Text style={styles.activitySubtext}>Based on your sessions</Text>
+                </View>
+                <View style={styles.minsBadge}>
+                  <View style={styles.minsDot} />
+                  <Text style={styles.minsText}>{sessions.length} SESSIONS</Text>
+                </View>
+              </View>
+
+              <View style={styles.barChart}>
+                {barData.map((d, i) => (
+                  <View key={i} style={styles.barCol}>
+                    <View style={[styles.barTrack, { backgroundColor: colors.surfaceElevated }]}>
+                      <View
+                        style={[
+                          styles.bar,
+                          {
+                            height: `${d.value * 100}%`,
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.barLabel}>{d.day}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Course Breakdown */}
+            <Text style={styles.sectionHeading}>Course Breakdown</Text>
+            {courses.length > 0 ? (
+                courses.map((course) => (
+                    <TouchableOpacity
+                      key={course.id}
+                      style={styles.courseCard}
+                      onPress={() =>
+                        setExpandedCourse(expandedCourse === course.id ? null : course.id)
+                      }
+                      activeOpacity={0.9}
+                    >
+                      <View style={styles.courseHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.courseTitle}>{course.code}</Text>
+                          <Text style={styles.courseMeta}>
+                            {course.sessions} sessions • {course.solved} problems solved
+                          </Text>
+                        </View>
+                        {expandedCourse === course.id ? (
+                          <ChevronUp size={20} color={colors.textMuted} />
+                        ) : (
+                          <ChevronDown size={20} color={colors.textMuted} />
+                        )}
+                      </View>
+
+                      {expandedCourse === course.id && (
+                        <View style={styles.courseExpanded}>
+                          <View style={styles.performancePill}>
+                            <ShieldCheck size={16} color={colors.success} />
+                            <View style={styles.performanceTexts}>
+                              <Text style={styles.performanceLabel}>STRONGEST AREA</Text>
+                              <Text style={styles.performanceValue}>{course.strongest}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.performancePill}>
+                            <AlertTriangle size={16} color={colors.warning} />
+                            <View style={styles.performanceTexts}>
+                              <Text style={styles.performanceLabel}>NEEDS WORK</Text>
+                              <Text style={styles.performanceValue}>{course.needsWork}</Text>
+                            </View>
+                          </View>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))
+            ) : (
+                <View style={[styles.courseCard, { alignItems: "center", paddingVertical: 32 }]}>
+                    <Text style={styles.courseMeta}>No course data available yet.</Text>
+                </View>
+            )}
 
             {/* Solver Badges */}
-            <View style={styles.badgeSectionHeader}>
+            <View style={[styles.badgeSectionHeader, { marginTop: 24 }]}>
               <Text style={styles.badgeSectionIcon}>🎯</Text>
               <Text style={styles.badgeSectionTitle}>Solver Badges</Text>
             </View>
@@ -389,6 +434,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
   },
 
   // Header
@@ -637,110 +687,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter-SemiBold",
     color: colors.textPrimary,
-  },
-
-  // Achievements
-  achievementsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  seeAll: {
-    fontSize: 13,
-    fontFamily: "Inter-Medium",
-    color: colors.primary,
-  },
-  achievementsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-    paddingHorizontal: 20,
-    marginBottom: 28,
-  },
-  achievementItem: {
-    alignItems: "center",
-    gap: 8,
-  },
-  achievementCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  achievementEmoji: {
-    fontSize: 24,
-  },
-  achievementLabel: {
-    fontSize: 11,
-    fontFamily: "Inter-Medium",
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-
-  // Streak Detail Card
-  streakDetailCard: {
-    marginHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 28,
-  },
-  streakDetailBig: {
-    fontSize: 36,
-    fontFamily: "Inter-Bold",
-    color: colors.textPrimary,
-    marginBottom: 10,
-  },
-  bestBadge: {
-    backgroundColor: colors.surfaceElevated,
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  bestBadgeText: {
-    fontSize: 9,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.textSecondary,
-  },
-  consistencyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  consistencyLabel: {
-    fontSize: 9,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.textMuted,
-  },
-  consistencyAvgLabel: {
-    fontSize: 9,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.textMuted,
-    textAlign: "right",
-  },
-  consistencyAvg: {
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    color: colors.textPrimary,
-    textAlign: "right",
-  },
-  consistencyGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  consistencyCell: {
-    width: 18,
-    height: 18,
-    borderRadius: 3,
   },
 
   // Badge Section

@@ -186,6 +186,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
+    textAlign: "center",
   },
   subtext: {
     color: colors.textSecondary,
@@ -193,6 +194,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 32,
+    textAlign: "center",
   },
   errorBanner: {
     backgroundColor: "rgba(239, 68, 68, 0.1)",

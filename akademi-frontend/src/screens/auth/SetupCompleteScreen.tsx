@@ -68,13 +68,13 @@ export const SetupCompleteScreen: React.FC = () => {
           </Animated.View>
 
           <Animated.View style={[styles.celebrationPill, contentStyle]}>
-            <Text style={styles.celebrationText}>You're all set! 🎉</Text>
+            <Text style={styles.celebrationText}>Account Verified! 🎉</Text>
           </Animated.View>
 
           <Animated.View style={[styles.textContainer, contentStyle]}>
-            <Text style={styles.headline}>Your Akademi is ready</Text>
+            <Text style={styles.headline}>Setup Complete</Text>
             <Text style={styles.body}>
-              We've personalised everything based on your courses. Let's get you learning.
+              Your personalized learning dashboard is ready. Time to smash those goals.
             </Text>
           </Animated.View>
 

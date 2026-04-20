@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Search, Sparkles, CheckCircle2 } from "lucide-react-native";
@@ -13,39 +14,64 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import api from "../../services/api";
 
 interface University {
   id: string;
   name: string;
-  city: string;
-  stateCode: string;
+  location?: string;
+  city?: string;
+  stateCode?: string;
 }
-
-const UNIVERSITIES: University[] = [
-  { id: "1", name: "University of Lagos", city: "LAGOS", stateCode: "LA" },
-  { id: "2", name: "Covenant University", city: "OTA", stateCode: "OG" },
-  { id: "3", name: "University of Ibadan", city: "IBADAN", stateCode: "OY" },
-  { id: "4", name: "Obafemi Awolowo University", city: "ILE-IFE", stateCode: "OS" },
-];
 
 export const UniversityPickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [universities, setUniversities] = useState<University[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredUniversities = UNIVERSITIES.filter((u) =>
+  useEffect(() => {
+    fetchUniversities();
+  }, []);
+
+  const fetchUniversities = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/universities");
+      // Handle both direct array and search result format
+      const data = Array.isArray(response.data) ? response.data : response.data.hits?.map((h: any) => h.document) || [];
+      setUniversities(data);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch universities", err);
+      setError("Could not load universities. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUniversities = universities.filter((u) =>
     u.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleContinue = () => {
-    const selectedUni = UNIVERSITIES.find(u => u.id === selectedId);
+    const selectedUni = universities.find(u => u.id === selectedId);
     if (selectedUni) {
-      navigation.navigate("DepartmentPicker", { university: selectedUni.name });
+      navigation.navigate("DepartmentPicker", {
+        universityId: selectedUni.id,
+        universityName: selectedUni.name
+      });
     }
   };
 
   const renderItem = ({ item }: { item: University }) => {
     const isSelected = selectedId === item.id;
+    const locationParts = item.location?.split(",") || [];
+    const city = item.city || locationParts[0]?.trim() || "Nigeria";
+    const stateCode = item.stateCode || locationParts[1]?.trim() || "";
+
     return (
       <TouchableOpacity
         style={[
@@ -61,7 +87,7 @@ export const UniversityPickerScreen: React.FC = () => {
         <View style={styles.universityInfo}>
           <Text style={styles.universityName}>{item.name}</Text>
           <Text style={styles.universityLocation}>
-            {item.city}, {item.stateCode}
+            {city}{stateCode ? `, ${stateCode}` : ""}
           </Text>
         </View>
         {isSelected && <CheckCircle2 size={20} color={colors.primary} />}
@@ -83,47 +109,59 @@ export const UniversityPickerScreen: React.FC = () => {
       }
     >
       <View style={styles.container}>
-        <FlatList
-          data={filteredUniversities}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <Text style={styles.headline}>Which university do you attend?</Text>
-              <Text style={styles.subtext}>
-                We'll personalise your experience based on your school
-              </Text>
-              <Input
-                label=""
-                placeholder="Search for your university..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                leftIcon={<Search size={20} color={colors.textMuted} />}
-              />
-            </View>
-          }
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          ListFooterComponent={
-            <View style={styles.aiBanner}>
-              <View style={styles.aiHeader}>
-                <Sparkles size={14} color={colors.primary} />
-                <Text style={styles.aiLabel}>AI RECOMMENDATION</Text>
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Fetching universities...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button label="Retry" onPress={fetchUniversities} style={{ marginTop: 16 }} />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredUniversities}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            ListHeaderComponent={
+              <View style={styles.header}>
+                <Text style={styles.headline}>Which university do you attend?</Text>
+                <Text style={styles.subtext}>
+                  We'll personalise your experience based on your school
+                </Text>
+                <Input
+                  label=""
+                  placeholder="Search for your university..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  leftIcon={<Search size={20} color={colors.textMuted} />}
+                />
               </View>
-              <Text style={styles.aiText}>
-                Selecting your university unlocks school-specific course
-                materials and past examination papers curated by top scholars
-                from your faculty.
-              </Text>
-            </View>
-          }
-        />
+            }
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            ListFooterComponent={
+              <View style={styles.aiBanner}>
+                <View style={styles.aiHeader}>
+                  <Sparkles size={14} color={colors.primary} />
+                  <Text style={styles.aiLabel}>AI RECOMMENDATION</Text>
+                </View>
+                <Text style={styles.aiText}>
+                  Selecting your university unlocks school-specific course
+                  materials and past examination papers curated by top scholars
+                  from your faculty.
+                </Text>
+              </View>
+            }
+          />
+        )}
 
         <View style={styles.footer}>
           <Button
             label="Continue"
             onPress={handleContinue}
-            disabled={!selectedId}
+            disabled={!selectedId || loading}
             style={styles.continueButton}
           />
           <TouchableOpacity style={styles.ghostLink}>
@@ -138,6 +176,24 @@ export const UniversityPickerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: colors.textSecondary,
+    fontFamily: "Inter-Regular",
+    fontSize: 12,
+  },
+  errorText: {
+    color: colors.error,
+    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    textAlign: "center",
   },
   header: {
     paddingTop: 20,

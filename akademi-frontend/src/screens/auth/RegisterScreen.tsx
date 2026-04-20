@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Linking,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Apple, Eye, EyeOff, ChevronRight } from "lucide-react-native";
+import { Apple, Eye, EyeOff } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
@@ -18,13 +19,7 @@ import api from "../../services/api";
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-
-  const {
-    university = "University of Lagos",
-    faculty = "Engineering",
-    department = "Computer Science",
-    level = "300L"
-  } = route.params || {};
+  const { university, faculty, department, level, selectedCourses } = route.params || {};
 
   const [form, setForm] = useState({
     name: "",
@@ -36,7 +31,19 @@ export const RegisterScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  useEffect(() => {
+    // Basic enforcement: if academic data is missing, redirect back
+    if (!university || !department) {
+       setError("Missing academic profile. Please go back and complete the selection.");
+    }
+  }, [university, department]);
+
   const handleRegister = async () => {
+    if (!university || !department) {
+      setError("Please complete the onboarding flow correctly.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -51,14 +58,13 @@ export const RegisterScreen: React.FC = () => {
         faculty,
         department,
         level: levelInt,
+        courses: selectedCourses,
       });
       navigation.navigate("EmailVerification", { email: form.email });
     } catch (err: any) {
       console.log("Registration failed", err.response?.data?.message || err.message);
       const message = err.response?.data?.message || "Registration failed. Please try again.";
       setError(message);
-      // For testing/demo purposes, navigate anyway if API fails
-      // In production we should show an error
     } finally {
       setLoading(false);
     }
@@ -168,15 +174,16 @@ export const RegisterScreen: React.FC = () => {
 
         <Text style={styles.termsText}>
           By continuing, you agree to our{" "}
-          <Text style={styles.linkText} onPress={() => Linking.openURL("#")}>Terms of Service</Text>
+          <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Terms of Service</Text>
           {" "}and{" "}
-          <Text style={styles.linkText} onPress={() => Linking.openURL("#")}>Privacy Policy</Text>
+          <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Privacy Policy</Text>
         </Text>
 
         <Button
           label="Create Account"
           onPress={handleRegister}
           loading={loading}
+          disabled={!university || !department || !form.email || !form.password || !form.name}
           style={styles.createButton}
         />
 
