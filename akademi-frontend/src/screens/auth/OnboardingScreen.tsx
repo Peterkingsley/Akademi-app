@@ -8,6 +8,7 @@ import {
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { ArrowRight, GraduationCap } from "lucide-react-native";
@@ -16,6 +17,9 @@ import { colors } from "../../theme/colors";
 import { Button } from "../../components/ui/Button";
 
 const { width, height } = Dimensions.get("window");
+
+const onboardingFemale = require("../../../assets/images/onboarding-female.jpg");
+const onboardingMale = require("../../../assets/images/onboarding-male.jpg");
 
 export const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -64,9 +68,11 @@ export const OnboardingScreen: React.FC = () => {
           >
             <View style={styles.illustrationArea}>
               <View style={styles.illustrationCard}>
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.placeholderText}>[Nigerian Student Illustration]</Text>
-                </View>
+                <Image
+                  source={onboardingFemale}
+                  style={styles.illustrationImage}
+                  resizeMode="cover"
+                />
                 <View style={styles.badgeChip}>
                   <Text style={styles.systemStatusLabel}>SYSTEM STATUS</Text>
                   <Text style={styles.systemStatusValue}>
@@ -117,9 +123,11 @@ export const OnboardingScreen: React.FC = () => {
           </View>
 
           <View style={styles.heroImageContainer}>
-            <View style={styles.heroImagePlaceholder}>
-              <Text style={styles.placeholderText}>[Nigerian Student Photo]</Text>
-            </View>
+            <Image
+              source={onboardingMale}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
             <LinearGradient
               colors={["transparent", colors.background]}
               style={styles.imageOverlay}
@@ -183,11 +191,10 @@ const styles = StyleSheet.create({
     height: 300,
     position: "relative",
   },
-  avatarPlaceholder: {
+  illustrationImage: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colors.surface,
+    width: "100%",
+    height: "100%",
     borderRadius: 12,
   },
   badgeChip: {
@@ -291,11 +298,9 @@ const styles = StyleSheet.create({
     right: 0,
     height: height * 0.55,
   },
-  heroImagePlaceholder: {
-    flex: 1,
-    backgroundColor: colors.surfaceElevated,
-    justifyContent: "center",
-    alignItems: "center",
+  heroImage: {
+    width: "100%",
+    height: "100%",
   },
   imageOverlay: {
     position: "absolute",
