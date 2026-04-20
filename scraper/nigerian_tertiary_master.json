@@ -1,0 +1,632 @@
+[
+  {
+    "institution": "A.D Rufa'i College for Legal and Islamic Studies (AFFL TO BAYERO UNI. KANO)",
+    "type": "Institution",
+    "faculties": [
+      {
+        "faculty_name": "Arts & Humanities",
+        "courses": [
+          {
+            "course_name": "Arabic Studies",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Islamic Studies",
+            "course_code": "N/A"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "institution": "Abia State University",
+    "type": "Institution",
+    "faculties": [
+      {
+        "faculty_name": "Administration",
+        "courses": [
+          {
+            "course_name": "Accountancy / Accounting",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Banking and Finance",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Business Administration",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Economics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Management",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Marketing",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Agriculture",
+        "courses": [
+          {
+            "course_name": "Agricultural Economics and Extension",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Animal Science and Fisheries",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Crop Production And Protection",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Food Science and Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Plant Science and Biotechnology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Soil Science",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Education",
+        "courses": [
+          {
+            "course_name": "Agricultural Science and Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Business Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education / Fine Art",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education Accounting",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Biology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Chemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Government",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Integrated Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Mathematics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Physics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Political Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Social Studies",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Educational Management and Planning",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Guidance and Counseling",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Home Economics and Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Library and Information Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Library Science",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Medical, Pharmaceutical & Health Sciences",
+        "courses": [
+          {
+            "course_name": "Anatomy",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Medical Laboratory Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Medicine and Surgery",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Nursing / Nursing Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Optometry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Pharmacy",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Physiology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Public Health",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Engineering, Environment & Technology",
+        "courses": [
+          {
+            "course_name": "Architecture",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Building Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Civil Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Computer Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Electrical / Electronics Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Environmental Resources Management",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Estate Management",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Fine / Applied Art",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mechanical Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Surveying and Geo-Informatics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Urban and Regional Planning",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Information And Communication Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Fine and Applied Arts",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Sciences",
+        "courses": [
+          {
+            "course_name": "Biochemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Botany",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Chemistry and Industrial Chemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Computer Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Geography and Planning",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mathematics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Microbiology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Pure And Industrial Physics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Statistics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Zoology",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Arts & Humanities",
+        "courses": [
+          {
+            "course_name": "English Language and Literature",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Environmental Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "French",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "History and International Studies",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Igbo",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Religious Studies",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Language and Literature",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Linguistics and Communication Studies",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Social & Management Sciences",
+        "courses": [
+          {
+            "course_name": "Geography",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Geography and Planning",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Government And Public Administration",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mass Communication",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Political Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Sociology",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Law",
+        "courses": [
+          {
+            "course_name": "Law",
+            "course_code": "N/A"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "institution": "Abubakar Tafawa Balewa University",
+    "type": "Institution",
+    "faculties": [
+      {
+        "faculty_name": "Education",
+        "courses": [
+          {
+            "course_name": "Agricultural Science and Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Automobile Technology Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Business Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Biology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Chemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Computer Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Integrated Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Mathematics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Physics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Education and Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Electrical / Electronics Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Library and Information Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Secretarial Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Woodwork / Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Metalwork Technology Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Woodwork Technology Education",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Building Technology Education",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Agriculture",
+        "courses": [
+          {
+            "course_name": "Agriculture",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Animal Production",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Crop Production",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Sciences",
+        "courses": [
+          {
+            "course_name": "Applied Botany",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Applied Ecology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Applied Geology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Applied Zoology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Biochemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Chemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Computer Science",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Ecology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Geophysics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Industrial Chemistry",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mathematics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Microbiology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Physics and Applied Physics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Statistics",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Engineering, Environment & Technology",
+        "courses": [
+          {
+            "course_name": "Architecture",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Automobile Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Building Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Chemical Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Civil Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Computer And Communication Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Electrical / Electronics Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Environmental Management Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Estate Management",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Industrial Design",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Information Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Management Technology",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mechanical and Production Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mechanical Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Mechatronics And System Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Petroleum Engineering",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Quantity Surveying",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Surveying and Geo-Informatics",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Urban and Regional Planning",
+            "course_code": "N/A"
+          },
+          {
+            "course_name": "Petrochemical Engineering",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Administration",
+        "courses": [
+          {
+            "course_name": "Banking and Finance",
+            "course_code": "N/A"
+          }
+        ]
+      },
+      {
+        "faculty_name": "Medical, Pharmaceutical & Health Sciences",
+        "courses": [
+          {
+            "course_name": "Medicine and Surgery",
+            "course_code": "N/A"
+          }
+        ]
+      }
+    ]
+  }
+]
