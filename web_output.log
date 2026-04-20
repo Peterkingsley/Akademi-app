@@ -1,5 +1,6 @@
-npm error Missing script: "web"
-npm error
-npm error To see a list of scripts, run:
-npm error   npm run
-npm error A complete log of this run can be found in: /home/jules/.npm/_logs/2026-04-18T15_42_01_735Z-debug-0.log
+env: load .env
+env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_WEBSOCKET_URL
+Starting project at /app/akademi-frontend
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.

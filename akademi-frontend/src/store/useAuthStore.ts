@@ -8,6 +8,7 @@ interface User {
   name: string;
   university?: string;
   department?: string;
+  avatar_url?: string | null;
   onboarding_complete?: boolean;
   admin_role?: string | null;
 }
@@ -19,6 +20,7 @@ interface AuthState {
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
   setOnboardingComplete: (complete: boolean) => void;
 }
@@ -35,6 +37,11 @@ export const useAuthStore = create<AuthState>()(
         AsyncStorage.setItem("accessToken", accessToken);
         AsyncStorage.setItem("refreshToken", refreshToken);
         set({ user, accessToken, refreshToken, isAuthenticated: true });
+      },
+      updateUser: (updatedUser) => {
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updatedUser } : null,
+        }));
       },
       clearAuth: () => {
         AsyncStorage.multiRemove(["accessToken", "refreshToken"]);

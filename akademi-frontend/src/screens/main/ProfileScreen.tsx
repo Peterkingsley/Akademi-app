@@ -41,9 +41,9 @@ import * as ImagePicker from "expo-image-picker";
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { clearAuth, user } = useAuthStore();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { clearAuth, user, updateUser } = useAuthStore();
+  const [profile, setProfile] = useState<any>(user);
+  const [loading, setLoading] = useState(!user);
   const [refreshing, setRefreshing] = useState(false);
   const [featureAccess, setFeatureAccess] = useState<any>(null);
 
@@ -51,6 +51,7 @@ export const ProfileScreen: React.FC = () => {
     try {
       const data = await userService.getProfile();
       setProfile(data);
+      updateUser(data);
       const access = await userService.getFeatureAccess();
       setFeatureAccess(access);
     } catch (error) {
@@ -83,6 +84,7 @@ export const ProfileScreen: React.FC = () => {
         setLoading(true);
         const updated = await userService.updateAvatar(result.assets[0].uri);
         setProfile((prev: any) => ({ ...prev, avatar_url: updated.avatar_url }));
+        updateUser({ avatar_url: updated.avatar_url });
       } catch (error) {
         Alert.alert("Error", "Failed to update avatar");
       } finally {
@@ -105,8 +107,8 @@ export const ProfileScreen: React.FC = () => {
           try {
             await userService.logout();
             clearAuth();
-          } catch (e) {
-            clearAuth(); // Still clear local state even if server logout fails
+          } catch (error) {
+            clearAuth();
           }
         },
       },
@@ -116,47 +118,39 @@ export const ProfileScreen: React.FC = () => {
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
-      "Are you sure? This action is permanent and cannot be undone. All your data will be lost.",
+      "This action is permanent and cannot be undone. All your data will be deleted.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Delete My Account",
           style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Final Confirmation",
-              "Are you absolutely sure? This is your last chance to turn back.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete Forever",
-                  style: "destructive",
-                  onPress: async () => {
-                    try {
-                      await userService.deleteAccount();
-                      clearAuth();
-                    } catch (e) {
-                      Alert.alert("Error", "Failed to delete account. Please try again later.");
-                    }
-                  }
-                }
-              ]
-            );
-          }
+          onPress: async () => {
+            try {
+              await userService.deleteAccount();
+              clearAuth();
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete account");
+            }
+          },
         },
       ]
     );
   };
 
-  if (loading && !refreshing) {
+  if (loading && !profile) {
     return (
-      <Screen hideHeader style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </Screen>
+      </View>
     );
   }
+
   return (
-    <Screen hideHeader scrollable style={{ flex: 1 }}>
+    <Screen
+      title="Profile"
+      hideHeader
+      style={{ flex: 1 }}
+    >
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -278,6 +272,8 @@ export const ProfileScreen: React.FC = () => {
           />
         </MenuSection>
 
+        <SectionDivider />
+
         <MenuSection label="ACCOUNT">
           <MenuItem
             icon={<Lock size={20} color={colors.primary} />}
@@ -332,6 +328,10 @@ const MenuSection: React.FC<{ label: string; children: React.ReactNode }> = ({ l
       {children}
     </View>
   </View>
+);
+
+const SectionDivider: React.FC = () => (
+    <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, marginHorizontal: 20 }} />
 );
 
 const MenuItem: React.FC<{

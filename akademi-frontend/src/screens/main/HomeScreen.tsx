@@ -6,7 +6,6 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withDelay,
   FadeInUp
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -18,12 +17,12 @@ import { typography } from "../../theme/typography";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
+import { Avatar } from "../../components/ui/Avatar";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Session, LearningProfile, ExamPrepPlan, Recommendation } from "./types";
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
-const { width } = Dimensions.get("window");
 
 const QUICK_ACTIONS = [
   {
@@ -148,16 +147,13 @@ export const HomeScreen: React.FC = () => {
   };
 
   const checkStreakBanner = async () => {
-    const isHidden = await AsyncStorage.getItem(STREAK_BANNER_HIDDEN_KEY);
-    if (isHidden === "true") {
-      setIsStreakBannerDismissed(true);
-    }
+    const hidden = await AsyncStorage.getItem(STREAK_BANNER_HIDDEN_KEY);
+    if (hidden === "true") setIsStreakBannerDismissed(true);
   };
 
   const dismissStreakBanner = async () => {
-    await AsyncStorage.setItem(STREAK_BANNER_HIDDEN_KEY, "true");
     setIsStreakBannerDismissed(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await AsyncStorage.setItem(STREAK_BANNER_HIDDEN_KEY, "true");
   };
 
   const greeting = useMemo(() => {
@@ -167,62 +163,36 @@ export const HomeScreen: React.FC = () => {
     return "Good evening";
   }, []);
 
-  const nextExam = useMemo(() => {
-    if (!exams.length) return null;
-    return exams.sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime())[0];
-  }, [exams]);
-
   const examSubtitle = useMemo(() => {
-    if (!nextExam) return "Ready to learn something new today?";
-    const diff = new Date(nextExam.exam_date).getTime() - new Date().getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    if (days <= 0) return `Exam today for ${nextExam.course_code} — good luck!`;
-    return `Exam in ${days} days — your prep plan is ready`;
-  }, [nextExam]);
+    if (exams.length === 0) return "Ready to ace your semester?";
+    const nextExam = exams[0];
+    const daysLeft = Math.ceil((new Date(nextExam.exam_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+    return `${nextExam.course_code} exam in ${daysLeft} days`;
+  }, [exams]);
 
   const recommendations: Recommendation[] = useMemo(() => {
     const recs: Recommendation[] = [];
-
-    if (learningProfile?.subject_weaknesses?.length) {
+    if (learningProfile?.subject_weaknesses && learningProfile.subject_weaknesses.length > 0) {
+      const weakness = learningProfile.subject_weaknesses[0] as any;
       recs.push({
-        id: "weakness_1",
-        title: "Mastering " + learningProfile.subject_weaknesses[0],
+        id: "rec1",
+        title: `Strengthen ${weakness.subject}`,
+        description: `AI suggests focusing on ${weakness.topic} based on your recent performance.`,
         type: "weakness",
-        description: "Focus on your weak areas with targeted AI questions.",
-        metadata: { duration: "15m", sections: 4 },
-        color: colors.primary
+        color: colors.accentPurple,
+        metadata: { duration: "25m", sections: 3 }
       });
     }
-
-    if (nextExam) {
-      const diff = new Date(nextExam.exam_date).getTime() - new Date().getTime();
-      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-      if (days < 7) {
-        recs.push({
-          id: "exam_reminder",
-          title: `Mock Exam: ${nextExam.course_code}`,
-          type: "exam",
-          description: "Simulate the real exam and get predicted scores.",
-          metadata: { duration: "45m", sections: 20 },
-          color: colors.accentPurple
-        });
-      }
-    }
-
-    // Default recommendation
-    if (recs.length < 2) {
-      recs.push({
-        id: "default_rec",
-        title: "Daily Study: " + (user?.department || "Academic Prep"),
-        type: "material",
-        description: "New verified materials added for your course today.",
-        metadata: { duration: "10m", sections: 2 },
-        color: colors.success
-      });
-    }
-
+    recs.push({
+        id: "rec2",
+        title: "Simulation: EEE 301 Mock Exam",
+        description: "Standard past-questions simulated with timing and difficulty variations.",
+        type: "exam",
+        color: colors.primary,
+        metadata: { duration: "60m", sections: 4 }
+    });
     return recs;
-  }, [learningProfile, nextExam, user]);
+  }, [learningProfile]);
 
   const dailyTip = useMemo(() => {
     const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
@@ -284,15 +254,28 @@ export const HomeScreen: React.FC = () => {
       <View style={styles.container}>
         {/* Section 1: Greeting Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={[typography.h2, { color: colors.textPrimary }]}>
-              {greeting}, {user?.name?.split(" ")[0] || "Student"}
-            </Text>
-            <Text style={[styles.subtitle, typography.mono]}>
-              {examSubtitle}
-            </Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.7}>
+                <Avatar
+                    name={user?.name || "Student"}
+                    uri={user?.avatar_url || undefined}
+                    size={44}
+                    style={styles.headerAvatar}
+                />
+            </TouchableOpacity>
+            <View style={styles.headerText}>
+                <Text style={[typography.h2, { color: colors.textPrimary }]}>
+                {greeting}, {user?.name?.split(" ")[0] || "Student"}
+                </Text>
+                <Text style={[styles.subtitle, typography.mono]}>
+                {examSubtitle}
+                </Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.notificationBtn}>
+          <TouchableOpacity
+            style={styles.notificationBtn}
+            onPress={() => navigation.navigate("Notifications")}
+          >
             <Bell size={24} color={colors.textSecondary} />
             <View style={styles.unreadDot} />
           </TouchableOpacity>
@@ -393,13 +376,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 24,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headerAvatar: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  headerText: {
+    justifyContent: "center",
   },
   subtitle: {
     color: colors.textSecondary,
     fontSize: 10.5,
-    marginTop: 4,
+    marginTop: 2,
   },
   notificationBtn: {
     position: "relative",
