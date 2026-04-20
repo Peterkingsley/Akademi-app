@@ -1,1 +1,3 @@
-LEARNING: Implemented a global feature bypass using a config toggle (unlockAllFeatures) driven by an environment variable (UNLOCK_ALL_FEATURES). This allows testers to access all Pro features without real payments.
+- Implemented optionalAuthenticate middleware to support public discovery while maintaining personalized results for logged-in users.
+- Enforced granular access control at the controller level for the /search endpoint to distinguish between public (courses, universities) and private (materials, questions) data.
+- Streamlined onboarding by making university and department list endpoints public, resolving 401 errors for new users.
