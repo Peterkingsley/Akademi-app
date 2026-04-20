@@ -110,7 +110,7 @@ export const ProgressScreen: React.FC = () => {
       dayDate.setDate(monday.getDate() + i);
 
       const hasSession = sessions.some(s => {
-        const sDate = new Date(s.createdAt);
+        const sDate = new Date(s.created_at);
         return sDate.toDateString() === dayDate.toDateString();
       });
 
@@ -139,7 +139,7 @@ export const ProgressScreen: React.FC = () => {
       dayDate.setDate(monday.getDate() + i);
 
       const daySessions = sessions.filter(s => {
-        const sDate = new Date(s.createdAt);
+        const sDate = new Date(s.created_at);
         return sDate.toDateString() === dayDate.toDateString();
       });
 
@@ -153,8 +153,8 @@ export const ProgressScreen: React.FC = () => {
   const getCoursePerformance = (): CoursePerformance[] => {
     // Group sessions by course code
     const grouped = sessions.reduce((acc: any, s) => {
-      if (!acc[s.courseCode]) acc[s.courseCode] = { solved: 0, sessions: 0, mocks: 0 };
-      acc[s.courseCode].sessions++;
+      if (!acc[s.course_code]) acc[s.course_code] = { solved: 0, sessions: 0, mocks: 0 };
+      acc[s.course_code].sessions++;
       return acc;
     }, {});
 
@@ -174,7 +174,7 @@ export const ProgressScreen: React.FC = () => {
     if (sessions.length === 0) return 0;
 
     const sorted = [...sessions].sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
     let streak = 0;
@@ -182,15 +182,15 @@ export const ProgressScreen: React.FC = () => {
     lastDate.setHours(0,0,0,0);
 
     // If no session today, check if there was one yesterday
-    const todaySession = sorted.find(s => new Date(s.createdAt).toDateString() === lastDate.toDateString());
+    const todaySession = sorted.find(s => new Date(s.created_at).toDateString() === lastDate.toDateString());
 
     if (!todaySession) {
         lastDate.setDate(lastDate.getDate() - 1);
-        const yesterdaySession = sorted.find(s => new Date(s.createdAt).toDateString() === lastDate.toDateString());
+        const yesterdaySession = sorted.find(s => new Date(s.created_at).toDateString() === lastDate.toDateString());
         if (!yesterdaySession) return 0;
     }
 
-    const uniqueDates = Array.from(new Set(sorted.map(s => new Date(s.createdAt).toDateString())));
+    const uniqueDates = Array.from(new Set(sorted.map(s => new Date(s.created_at).toDateString())));
 
     let checkDate = new Date(lastDate);
     for (const dateStr of uniqueDates) {

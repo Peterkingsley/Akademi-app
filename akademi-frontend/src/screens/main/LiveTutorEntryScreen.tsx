@@ -60,8 +60,8 @@ export const LiveTutorEntryScreen: React.FC = () => {
     if (!topic || selectedCourse === "Select Course") return;
     try {
       const session = await sessionService.createSession({
-        sessionType: "TUTOR",
-        courseCode: selectedCourse,
+        session_type: "TUTOR",
+        course_code: selectedCourse,
         topic,
         duration: selectedDuration === "Open-ended" ? undefined : parseInt(selectedDuration),
       });
@@ -122,11 +122,11 @@ export const LiveTutorEntryScreen: React.FC = () => {
           >
             <View style={styles.recentLeft}>
               <View style={[styles.courseCodePill, { backgroundColor: colors.surfaceElevated }]}>
-                <Text style={[styles.courseCodeText, typography.mono]}>{session.courseCode}</Text>
+                <Text style={[styles.courseCodeText, typography.mono]}>{session.course_code}</Text>
               </View>
               <View style={styles.recentMeta}>
                 <Text style={[styles.recentTopic, typography.bodySmall]} numberOfLines={1}>{session.topic}</Text>
-                <Text style={[styles.recentDate, typography.caption]}>{new Date(session.createdAt).toLocaleDateString()}</Text>
+                <Text style={[styles.recentDate, typography.caption]}>{new Date(session.created_at).toLocaleDateString()}</Text>
               </View>
             </View>
             <View style={styles.recentRight}>

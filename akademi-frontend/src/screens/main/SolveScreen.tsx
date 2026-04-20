@@ -45,9 +45,9 @@ export const SolveScreen: React.FC = () => {
     setLoading(true);
     try {
       const { data: session } = await api.post("/sessions", {
-        sessionType: "ASSIGNMENT",
-        replyMode: answerMode,
-        courseCode: course,
+        session_type: "ASSIGNMENT",
+        reply_mode: answerMode,
+        course_code: course,
         metadata: {
           cause: selectedCause,
           type: selectedType,
@@ -61,7 +61,7 @@ export const SolveScreen: React.FC = () => {
       navigation.navigate("AIProcessing", {
         type: "assignment",
         sessionId: session.id,
-        replyMode: answerMode,
+        reply_mode: answerMode,
       });
     } catch (error) {
       console.error("Failed to start session:", error);

@@ -30,9 +30,9 @@ export const CropConfirmScreen: React.FC = () => {
     try {
       // Simulate session creation and OCR
       const { data: session } = await api.post("/sessions", {
-        sessionType: "ASSIGNMENT",
-        replyMode: strategy === "quick" ? "DIRECT" : "STUDY",
-        courseCode: "EEE 301",
+        session_type: "ASSIGNMENT",
+        reply_mode: strategy === "quick" ? "DIRECT" : "STUDY",
+        course_code: "EEE 301",
       });
 
       // In a real app, we'd upload the image here
@@ -40,7 +40,7 @@ export const CropConfirmScreen: React.FC = () => {
       navigation.navigate("AIProcessing", {
         type: "assignment",
         sessionId: session.id,
-        replyMode: strategy === "quick" ? "DIRECT" : "STUDY",
+        reply_mode: strategy === "quick" ? "DIRECT" : "STUDY",
         imageUri: imageUri
       });
     } catch (error) {

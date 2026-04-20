@@ -20,7 +20,7 @@ export const MyCoursesScreen: React.FC = () => {
     try {
       const sessions = await userService.getSessions();
       // Extract unique course codes
-      const uniqueCourses = Array.from(new Set(sessions.map(s => s.courseCode))).filter(Boolean);
+      const uniqueCourses = Array.from(new Set(sessions.map(s => s.course_code))).filter(Boolean);
       setCourses(uniqueCourses);
     } catch (error) {
       console.error("Failed to fetch courses", error);
@@ -35,7 +35,7 @@ export const MyCoursesScreen: React.FC = () => {
         <Book size={20} color={colors.primary} />
       </View>
       <View style={styles.courseInfo}>
-        <Text style={styles.courseCode}>{item}</Text>
+        <Text style={styles.course_code}>{item}</Text>
         <Text style={styles.courseStatus}>Active Session History</Text>
       </View>
       <ChevronRight size={20} color={colors.textMuted} />

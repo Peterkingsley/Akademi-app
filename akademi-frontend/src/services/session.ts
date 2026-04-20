@@ -2,21 +2,24 @@ import api from "./api";
 
 export interface Session {
   id: string;
-  sessionType: "TUTOR" | "SOLVE" | "SOCRATIC";
-  courseCode: string;
-  topic: string;
+  user_id: string;
+  session_type: "ASSIGNMENT" | "STUDY" | "TUTOR" | "EXAM_PREP";
+  reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
+  course_code: string;
+  university: string;
+  department: string;
+  started_at: string;
+  ended_at: string | null;
+  created_at: string;
+  topic?: string;
   duration?: number;
-  createdAt: string;
-  status: "ACTIVE" | "COMPLETED";
 }
 
 export interface SessionSummary {
   id: string;
-  topicsCovered: string[];
-  conceptsMastered: { name: string; mastery: number }[];
-  areasToRevisit: { name: string; reason: string }[];
-  bestQuestion?: string;
-  aiInsight?: string;
+  summary: string;
+  key_points: string[];
+  next_steps: string[];
   rating?: number;
   feedback?: string;
 }
@@ -30,10 +33,12 @@ export interface LearningProfile {
 
 export const sessionService = {
   createSession: async (data: {
-    sessionType: string;
-    courseCode: string;
-    topic: string;
+    session_type: string;
+    course_code: string;
+    reply_mode?: string;
+    topic?: string;
     duration?: number;
+    metadata?: any;
   }) => {
     const response = await api.post<Session>("/sessions", data);
     return response.data;

@@ -217,7 +217,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
         <View style={styles.contextPill}>
           <GraduationCap size={16} color={colors.primary} />
           <Text style={[styles.contextText, typography.mono]}>
-            {sessionData?.courseCode || "EEE 301"} • {sessionData?.topic?.toUpperCase() || "THEVENIN'S THEOREM"}
+            {sessionData?.course_code || "EEE 301"} • {sessionData?.topic?.toUpperCase() || "THEVENIN'S THEOREM"}
           </Text>
         </View>
 
