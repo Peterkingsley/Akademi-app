@@ -90,7 +90,7 @@ export const RegisterScreen: React.FC = () => {
 
   return (
     <Screen style={{ flex: 1 }}
-      onBack={() => navigation.goBack()}
+      onBack={() => navigation.navigate("Onboarding")}
       title=""
       rightAction={
         <Text style={styles.headerTitle}>Akademi</Text>
@@ -108,7 +108,7 @@ export const RegisterScreen: React.FC = () => {
               {error.includes("academic profile") && (
                 <TouchableOpacity
                   style={styles.errorAction}
-                  onPress={() => navigation.navigate("UniversityPicker")}
+                  onPress={() => navigation.navigate("Onboarding")}
                 >
                   <Text style={styles.errorActionText}>Go back</Text>
                 </TouchableOpacity>
