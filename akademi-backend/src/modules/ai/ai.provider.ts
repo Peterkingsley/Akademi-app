@@ -8,6 +8,20 @@ export interface AIRequestOptions {
   systemPrompt?: string;
 }
 
+const PLACEHOLDER_KEYWORDS = [
+  'your_',
+  'replace_me',
+  'api_key',
+  'dummy',
+  'sk-placeholder',
+];
+
+function isPlaceholder(key: string | undefined | null): boolean {
+  if (!key) return true;
+  const lowerKey = key.toLowerCase();
+  return PLACEHOLDER_KEYWORDS.some(keyword => lowerKey.includes(keyword));
+}
+
 export class AIProvider {
   private anthropic: Anthropic | null = null;
   private lastClaudeKey: string | null = null;
@@ -15,10 +29,11 @@ export class AIProvider {
   private lastGeminiKey: string | null = null;
 
   private getAnthropic() {
-    if (config.claudeApiKey && config.claudeApiKey !== this.lastClaudeKey) {
-      this.anthropic = new Anthropic({ apiKey: config.claudeApiKey });
-      this.lastClaudeKey = config.claudeApiKey;
-    } else if (!config.claudeApiKey) {
+    const key = config.claudeApiKey;
+    if (key && !isPlaceholder(key) && key !== this.lastClaudeKey) {
+      this.anthropic = new Anthropic({ apiKey: key });
+      this.lastClaudeKey = key;
+    } else if (!key || isPlaceholder(key)) {
       this.anthropic = null;
       this.lastClaudeKey = null;
     }
@@ -26,10 +41,11 @@ export class AIProvider {
   }
 
   private getGemini() {
-    if (config.geminiApiKey && config.geminiApiKey !== this.lastGeminiKey) {
-      this.gemini = new GoogleGenerativeAI(config.geminiApiKey);
-      this.lastGeminiKey = config.geminiApiKey;
-    } else if (!config.geminiApiKey) {
+    const key = config.geminiApiKey;
+    if (key && !isPlaceholder(key) && key !== this.lastGeminiKey) {
+      this.gemini = new GoogleGenerativeAI(key);
+      this.lastGeminiKey = key;
+    } else if (!key || isPlaceholder(key)) {
       this.gemini = null;
       this.lastGeminiKey = null;
     }
@@ -46,6 +62,9 @@ export class AIProvider {
       systemPrompt,
     } = options;
 
+    let claudeError: string | null = null;
+    let geminiError: string | null = null;
+
     const anthropicClient = this.getAnthropic();
 
     // 1. Try Claude if API key is present
@@ -58,18 +77,20 @@ export class AIProvider {
           messages: [{ role: 'user', content: prompt }],
         });
         return (response.content[0] as any).text;
-      } catch (error) {
+      } catch (error: any) {
+        claudeError = error.message || 'Unknown Claude error';
         console.error('Claude API error, falling back to Gemini:', error);
       }
     } else {
-      console.warn('Claude API key missing, using Gemini fallback');
+      claudeError = 'Claude API key is missing or invalid';
+      console.warn('Claude API key missing or placeholder, using Gemini fallback');
     }
 
     // 2. Fallback to Gemini
     const geminiClient = this.getGemini();
     if (geminiClient) {
       try {
-        const geminiModel = geminiClient.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const geminiModel = geminiClient.getGenerativeModel({ model: config.geminiModel });
 
         const combinedPrompt = systemPrompt
           ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
@@ -84,13 +105,16 @@ export class AIProvider {
         }
 
         return text;
-      } catch (error) {
+      } catch (error: any) {
+        geminiError = error.message || 'Unknown Gemini error';
         console.error('Gemini API error:', error);
-        throw new Error('Both AI providers failed or are unavailable');
+        throw new Error(`AI providers failed: [Claude: ${claudeError}] [Gemini: ${geminiError}]`);
       }
+    } else {
+      geminiError = 'Gemini API key is missing or invalid';
     }
 
-    throw new Error('No AI provider configured or available');
+    throw new Error(`No AI provider configured or available. [Claude: ${claudeError}] [Gemini: ${geminiError}]`);
   }
 }
 
