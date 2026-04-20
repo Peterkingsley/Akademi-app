@@ -1,9 +1,6 @@
 import prisma from '../config/db';
-import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../config/env';
 import { VocabularyLevel, ReplyMode } from '@prisma/client';
-
-const anthropic = new Anthropic({ apiKey: config.claudeApiKey });
+import { aiProvider } from '../modules/ai/ai.provider';
 
 export async function updateLearningProfileJob(sessionId: string) {
   const session = await prisma.session.findUnique({
@@ -21,14 +18,12 @@ export async function updateLearningProfileJob(sessionId: string) {
   Current Profile: ${JSON.stringify(learningProfile)}
   Output JSON format: { subject_strengths: any, subject_weaknesses: any, vocabulary_level: 'BASIC'|'INTERMEDIATE'|'ADVANCED', preferred_reply_mode: 'DIRECT'|'STUDY'|'QUESTION'|'WRONGLY', question_patterns: any, community_pattern: any }`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1000,
-    system: 'Analyze student learning patterns.',
-    messages: [{ role: 'user', content: prompt }],
+  const aiOutput = await aiProvider.generateResponse(prompt, {
+    systemPrompt: 'Analyze student learning patterns. Return ONLY valid JSON.',
+    maxTokens: 1000,
   });
 
-  const analysis = JSON.parse((response.content[0] as any).text);
+  const analysis = JSON.parse(aiOutput);
 
   // Update learning profile
   await prisma.learningProfile.update({
@@ -46,15 +41,17 @@ export async function updateLearningProfileJob(sessionId: string) {
 
   // Update community patterns
   if (analysis.community_pattern) {
+    // In real app, hash the pattern to find existing. Using simplified logic here.
+    const patternKey = `${session.university}-${session.department}-${session.course_code}`;
     await prisma.communityPattern.upsert({
       where: {
-        id: 'some-unique-id-logic', // In real app, hash the pattern to find existing
-        // For simplicity using create if not exists logic below
+        id: patternKey,
       },
       update: { frequency: { increment: 1 } },
       create: {
+        id: patternKey,
         university: session.university,
-        faculty: 'Unknown', // Should fetch from user
+        faculty: 'Unknown',
         department: session.department,
         course_code: session.course_code,
         question_pattern: analysis.community_pattern,

@@ -1,13 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { config } from '../../config/env';
 import { assembleSystemPrompt } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
-
-const anthropic = new Anthropic({
-  apiKey: config.claudeApiKey,
-});
+import { aiProvider } from './ai.provider';
 
 export class AIService {
   async getOrchestratedResponse(
@@ -65,15 +60,11 @@ export class AIService {
       replyMode
     );
 
-    // 5. Call Claude API
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514', // Note: Ticket says 20250514, which might be in the future, using as specified
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: studentMessage }]
+    // 5. Call AI Provider (Claude with Gemini fallback)
+    const aiResponseText = await aiProvider.generateResponse(studentMessage, {
+      systemPrompt,
+      maxTokens: 1000,
     });
-
-    const aiResponseText = (response.content[0] as any).text;
 
     // 6. Cache response
     await setCachedAIResponse(cacheKey, aiResponseText);

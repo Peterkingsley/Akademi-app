@@ -3,14 +3,13 @@ import {
   addCourseToIndex,
 } from '../shared/search/typesense.sync';
 import prisma from '../config/db';
-import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config/env';
 import { VerificationStatus } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { notifyContributorsJob } from './notifyContributors.job';
 import { generateQuestionsJob } from './generateQuestions.job';
+import { aiProvider } from '../modules/ai/ai.provider';
 
-const anthropic = new Anthropic({ apiKey: config.claudeApiKey });
 const s3Client = new S3Client({
   region: 'auto',
   endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
@@ -53,14 +52,11 @@ export async function runAIReconciliationJob(materialId: string) {
   ---
   [Verified Content]`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
-    system: 'You are an expert academic material verifier.',
-    messages: [{ role: 'user', content: prompt }],
+  const aiOutput = await aiProvider.generateResponse(prompt, {
+    systemPrompt: 'You are an expert academic material verifier.',
+    maxTokens: 4000,
   });
 
-  const aiOutput = (response.content[0] as any).text;
   const confidence = aiOutput.includes('CONFIDENCE: HIGH') ? 'HIGH' : 'LOW';
   const contentStart = aiOutput.indexOf('---', aiOutput.indexOf('---') + 3) + 3;
   const verifiedContent = aiOutput.substring(contentStart).trim();

@@ -1,8 +1,5 @@
 import prisma from '../config/db';
-import Anthropic from '@anthropic-ai/sdk';
-import { config } from '../config/env';
-
-const anthropic = new Anthropic({ apiKey: config.claudeApiKey });
+import { aiProvider } from '../modules/ai/ai.provider';
 
 export async function generateSessionSummaryJob(sessionId: string) {
   const session = await prisma.session.findUnique({
@@ -15,14 +12,12 @@ export async function generateSessionSummaryJob(sessionId: string) {
   Messages: ${JSON.stringify(session.messages)}
   Output JSON format: { summary: string, key_points: string[], next_steps: string[] }`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 500,
-    system: 'Generate academic session summaries.',
-    messages: [{ role: 'user', content: prompt }],
+  const aiOutput = await aiProvider.generateResponse(prompt, {
+    systemPrompt: 'Generate academic session summaries. Return ONLY valid JSON.',
+    maxTokens: 500,
   });
 
-  const summary = JSON.parse((response.content[0] as any).text);
+  const summary = JSON.parse(aiOutput);
 
   // Store summary (maybe in a new SessionSummary table or a field in Session)
   // For now, let's assume we update the session or log it.

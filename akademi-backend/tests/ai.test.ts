@@ -3,18 +3,12 @@ import { ReplyMode, VocabularyLevel } from '@prisma/client';
 import prisma from '../src/config/db';
 import redisClient from '../src/config/redis';
 
-// Mock Anthropic
-jest.mock('@anthropic-ai/sdk', () => {
-  return jest.fn().mockImplementation(() => {
-    return {
-      messages: {
-        create: jest.fn().mockResolvedValue({
-          content: [{ text: 'Mocked AI response' }],
-        }),
-      },
-    };
-  });
-});
+// Mock AI Provider
+jest.mock('../src/modules/ai/ai.provider', () => ({
+  aiProvider: {
+    generateResponse: jest.fn().mockResolvedValue('Mocked AI response'),
+  },
+}));
 
 // Mock redis
 jest.mock('../src/config/redis', () => ({
@@ -54,7 +48,7 @@ describe('AIService', () => {
     (prisma.disciplineDocument.findFirst as jest.Mock) = jest.fn().mockResolvedValue(null);
   });
 
-  it('should return a response from Claude and cache it', async () => {
+  it('should return a response from AI Provider and cache it', async () => {
     (redisClient.get as jest.Mock).mockResolvedValue(null);
     (redisClient.incr as jest.Mock).mockResolvedValue(1);
 
