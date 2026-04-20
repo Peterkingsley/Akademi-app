@@ -23,6 +23,7 @@ import { MockExamScreen } from "../screens/main/MockExamScreen";
 import { MockExamResultsScreen } from "../screens/main/MockExamResultsScreen";
 import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
 import { NotificationsSettingsScreen } from "../screens/main/NotificationsSettingsScreen";
+import { NotificationsScreen } from "../screens/main/NotificationsScreen";
 import { EditAcademicDetailsScreen } from "../screens/main/EditAcademicDetailsScreen";
 import { MyCoursesScreen } from "../screens/main/MyCoursesScreen";
 import { MyUploadsScreen } from "../screens/main/MyUploadsScreen";
@@ -92,6 +93,7 @@ export const MainStack = () => {
         name="NotificationsSettings"
         component={NotificationsSettingsScreen}
       />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="EditAcademicDetails" component={EditAcademicDetailsScreen} />
       <Stack.Screen name="MyCourses" component={MyCoursesScreen} />
       <Stack.Screen name="MyUploads" component={MyUploadsScreen} />

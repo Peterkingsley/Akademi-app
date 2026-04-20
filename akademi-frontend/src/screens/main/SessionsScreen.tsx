@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -21,10 +23,11 @@ import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation } from "@react-navigation/native";
+import { sessionService } from "../../services/session";
 
 type FilterTab = "All" | "Assignments" | "Tutor" | "Study Mode";
 
-interface Session {
+interface SessionUI {
   id: string;
   course: string;
   type: "SOLVE ASSIGNMENT" | "TUTOR" | "STUDY";
@@ -34,58 +37,13 @@ interface Session {
   bookmarked?: boolean;
 }
 
-const MOCK_SESSIONS: Session[] = [
-  {
-    id: "1",
-    course: "EEE 301",
-    type: "SOLVE ASSIGNMENT",
-    title: "Calculation of Electromagnetic Field...",
-    date: "Oct 24",
-    duration: "45m duration",
-    bookmarked: true,
-  },
-  {
-    id: "2",
-    course: "MTH 202",
-    type: "TUTOR",
-    title: "One-on-one session with Dr. Arinze: Advanced Linea...",
-    date: "Oct 22",
-    duration: "1h 15m duration",
-  },
-  {
-    id: "3",
-    course: "PHY 101",
-    type: "STUDY",
-    title: "Deep Focus: Fundamentals of Newtonian Mechanics & ...",
-    date: "Oct 20",
-    duration: "2h 30m duration",
-    bookmarked: true,
-  },
-  {
-    id: "4",
-    course: "CSC 405",
-    type: "SOLVE ASSIGNMENT",
-    title: "Debugging Memory Leaks in Multi-threaded C++...",
-    date: "Oct 18",
-    duration: "1h 05m duration",
-  },
-  {
-    id: "5",
-    course: "CHM 101",
-    type: "STUDY",
-    title: "Thermodynamics: Understanding Gibbs Free...",
-    date: "Oct 15",
-    duration: "55m duration",
-  },
-];
-
-const TYPE_COLORS: Record<Session["type"], string> = {
+const TYPE_COLORS: Record<SessionUI["type"], string> = {
   "SOLVE ASSIGNMENT": "#6366F1",
   TUTOR: "#7C3AED",
   STUDY: "#D97706",
 };
 
-const SessionIcon: React.FC<{ type: Session["type"] }> = ({ type }) => {
+const SessionIcon: React.FC<{ type: SessionUI["type"] }> = ({ type }) => {
   const bg = TYPE_COLORS[type];
   return (
     <View style={[styles.sessionIcon, { backgroundColor: bg + "22" }]}>
@@ -96,10 +54,10 @@ const SessionIcon: React.FC<{ type: Session["type"] }> = ({ type }) => {
   );
 };
 
-const TypeBadge: React.FC<{ type: Session["type"]; course: string }> = ({ type, course }) => (
+const TypeBadge: React.FC<{ type: SessionUI["type"]; course: string }> = ({ type, course }) => (
   <View style={styles.badgeRow}>
-    <View style={[styles.courseBadge, { backgroundColor: TYPE_COLORS[type] + "22" }]}>
-      <Text style={[styles.courseText, { color: TYPE_COLORS[type] }]}>{course}</Text>
+    <View style={[styles.courseBadge, { backgroundColor: colors.surfaceElevated }]}>
+      <Text style={[styles.courseText, { color: colors.primary }]}>{course}</Text>
     </View>
     <Text style={styles.typeText}>{type}</Text>
   </View>
@@ -108,18 +66,59 @@ const TypeBadge: React.FC<{ type: Session["type"]; course: string }> = ({ type, 
 export const SessionsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
+  const [sessions, setSessions] = useState<SessionUI[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Hide the bottom tab bar on this screen
+  const fetchSessions = async () => {
+    try {
+      const data = await sessionService.getRecentSessions(100);
+
+      const mapped: SessionUI[] = data.map((s: any) => {
+          let type: SessionUI["type"] = "STUDY";
+          if (s.sessionType === "TUTOR") type = "TUTOR";
+          else if (s.sessionType === "SOLVE" || s.sessionType === "SOCRATIC") type = "SOLVE ASSIGNMENT";
+
+          const date = new Date(s.createdAt);
+          const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+          const durationMins = s.duration || 0;
+          const formattedDuration = durationMins > 60
+            ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m duration`
+            : `${durationMins}m duration`;
+
+          return {
+              id: s.id,
+              course: s.courseCode,
+              type,
+              title: s.topic,
+              date: formattedDate,
+              duration: formattedDuration,
+              bookmarked: false
+          };
+      });
+
+      setSessions(mapped);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useFocusEffect(
-    React.useCallback(() => {
-      navigation.getParent()?.setOptions({ tabBarStyle: { display: "none" } });
-      return () => {
-        navigation.getParent()?.setOptions({ tabBarStyle: undefined });
-      };
-    }, [navigation])
+    useCallback(() => {
+      fetchSessions();
+    }, [])
   );
 
-  const filteredSessions = MOCK_SESSIONS.filter((s) => {
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSessions();
+  };
+
+  const filteredSessions = sessions.filter((s) => {
     if (activeTab === "All") return true;
     if (activeTab === "Assignments") return s.type === "SOLVE ASSIGNMENT";
     if (activeTab === "Tutor") return s.type === "TUTOR";
@@ -127,7 +126,7 @@ export const SessionsScreen: React.FC = () => {
     return true;
   });
 
-  const isEmpty = filteredSessions.length === 0;
+  const isEmpty = filteredSessions.length === 0 && !loading;
 
   return (
     <Screen hideHeader style={{ flex: 1, backgroundColor: colors.background }}>
@@ -135,6 +134,9 @@ export const SessionsScreen: React.FC = () => {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -166,8 +168,11 @@ export const SessionsScreen: React.FC = () => {
 
         <View style={styles.divider} />
 
-        {/* Empty State */}
-        {isEmpty ? (
+        {loading && !refreshing ? (
+          <View style={{ paddingTop: 100 }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : isEmpty ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIllustration}>
               <View style={styles.emptyDoc}>

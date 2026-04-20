@@ -69,6 +69,7 @@ export type MainStackParamList = {
   Achievements: undefined;
   Subscription: undefined;
   NotificationsSettings: undefined;
+  Notifications: undefined;
   EditAcademicDetails: undefined;
   MyCourses: undefined;
   MyUploads: undefined;
