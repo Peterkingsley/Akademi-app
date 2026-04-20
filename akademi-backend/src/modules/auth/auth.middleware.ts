@@ -31,3 +31,30 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
+
+export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
+
+    // Check if user is deleted
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { is_deleted: true }
+    });
+
+    if (user && !user.is_deleted) {
+      req.user = decoded;
+    }
+    next();
+  } catch (error) {
+    // For optional authentication, we don't return 401 on error
+    next();
+  }
+};
