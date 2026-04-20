@@ -15,6 +15,7 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { Toast } from "../../components/ui/Toast";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 
@@ -28,7 +29,12 @@ export const LoginScreen: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  const handleSocialComingSoon = () => {
+    setToast({ message: "Coming soon...", type: "warning" });
+  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -122,11 +128,11 @@ export const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={styles.socialButton} onPress={handleSocialComingSoon}>
             <Text style={styles.googleIcon}>G</Text>
             <Text style={styles.socialButtonText}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity style={styles.socialButton} onPress={handleSocialComingSoon}>
             <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
             <Text style={styles.socialButtonText}>Apple</Text>
           </TouchableOpacity>
@@ -154,6 +160,13 @@ export const LoginScreen: React.FC = () => {
           <Text style={styles.tabTextInactive}>Create Account</Text>
         </TouchableOpacity>
       </View>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onHide={() => setToast(null)}
+        />
+      )}
     </Screen>
   );
 };
