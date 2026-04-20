@@ -14,6 +14,7 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { Toast } from "../../components/ui/Toast";
 import api from "../../services/api";
 
 export const RegisterScreen: React.FC = () => {
@@ -29,6 +30,7 @@ export const RegisterScreen: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
@@ -80,6 +82,10 @@ export const RegisterScreen: React.FC = () => {
 
   const strength = getPasswordStrength();
   const strengthLabels = ["WEAK", "WEAK", "FAIR", "MEDIUM", "STRONG"];
+
+  const handleSocialComingSoon = () => {
+    setToast({ message: "Coming soon...", type: "warning" });
+  };
   const strengthColors = [colors.error, colors.error, colors.warning, colors.warning, colors.success];
 
   return (
@@ -97,16 +103,26 @@ export const RegisterScreen: React.FC = () => {
 
         {error && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.errorHeader}>
+              <Text style={styles.errorText}>{error}</Text>
+              {error.includes("academic profile") && (
+                <TouchableOpacity
+                  style={styles.errorAction}
+                  onPress={() => navigation.navigate("UniversityPicker")}
+                >
+                  <Text style={styles.errorActionText}>Go back</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 
         <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.googleButton}>
+          <TouchableOpacity style={styles.googleButton} onPress={handleSocialComingSoon}>
             <Text style={styles.googleIcon}>G</Text>
             <Text style={styles.googleText}>Google</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.appleButton}>
+          <TouchableOpacity style={styles.appleButton} onPress={handleSocialComingSoon}>
             <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
             <Text style={styles.appleText}>Apple</Text>
           </TouchableOpacity>
@@ -206,6 +222,13 @@ export const RegisterScreen: React.FC = () => {
           <View style={styles.tabIndicator} />
         </TouchableOpacity>
       </View>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onHide={() => setToast(null)}
+        />
+      )}
     </Screen>
   );
 };
@@ -401,6 +424,24 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontSize: 10.5,
     fontFamily: "Inter-Medium",
+    flex: 1,
+  },
+  errorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  errorAction: {
+    backgroundColor: colors.error,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 12,
+  },
+  errorActionText: {
+    color: "#FFFFFF",
+    fontSize: 10.5,
+    fontFamily: "Inter-Bold",
   },
   tabIndicator: {
     position: "absolute",
