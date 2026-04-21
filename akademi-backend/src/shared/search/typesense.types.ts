@@ -1,7 +1,7 @@
 export interface MaterialDocument {
   id: string;
   title: string;
-  course_code: string;
+  course_code?: string | null;
   university: string;
   faculty: string;
   department: string;
@@ -13,7 +13,7 @@ export interface MaterialDocument {
 export interface QuestionDocument {
   id: string;
   question_text: string;
-  course_code: string;
+  course_code?: string | null;
   department: string;
   difficulty: string;
   level: number;
@@ -21,7 +21,7 @@ export interface QuestionDocument {
 
 export interface CourseDocument {
   id: string;
-  course_code: string;
+  course_code?: string | null;
   department: string;
   university: string;
 }

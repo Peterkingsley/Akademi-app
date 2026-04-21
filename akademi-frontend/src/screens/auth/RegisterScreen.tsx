@@ -20,7 +20,7 @@ import api from "../../services/api";
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { university, faculty, department, level, selectedCourses } = route.params || {};
+  const { university, faculty, department, level, selectedCourses = [] } = route.params || {};
 
   const [form, setForm] = useState({
     name: "",

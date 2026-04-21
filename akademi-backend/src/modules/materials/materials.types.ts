@@ -4,13 +4,13 @@ export interface MaterialFilter {
   university?: string;
   faculty?: string;
   department?: string;
-  course_code?: string;
+  course_code?: string | null;
   level?: number;
 }
 
 export interface UploadMaterialRequest {
   title: string;
-  course_code: string;
+  course_code?: string | null;
   university: string;
   faculty: string;
   department: string;
