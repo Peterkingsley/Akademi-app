@@ -2,6 +2,6 @@ env: load .env
 env: export EXPO_PUBLIC_API_URL EXPO_PUBLIC_WEBSOCKET_URL
 Starting project at /app/akademi-frontend
 Starting Metro Bundler
-Waiting on http://localhost:8081
+Waiting on http://localhost:8083
 Logs for your project will appear below.
-Web Bundled 22956ms index.ts (2951 modules)
+Web Bundled 24969ms index.ts (2951 modules)
