@@ -10,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import {
-  History,
+  History, Calendar,
   Zap,
   Shield,
   PlusCircle,
@@ -68,7 +68,9 @@ export const ExamPrepScreen: React.FC = () => {
         <ChevronLeft size={24} color={colors.textPrimary} />
       </TouchableOpacity>
       <Text style={[styles.headerTitle, typography.h3]}>Exam Prep</Text>
-      <View style={{ width: 24 }} />
+      <TouchableOpacity onPress={() => navigation.navigate("AcademicTimeline")} style={styles.timelineBtn}>
+        <Calendar size={24} color={colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -99,426 +101,309 @@ export const ExamPrepScreen: React.FC = () => {
     const mockActive = plan.progress >= 70;
 
     return (
-      <Card key={plan.id} style={styles.primaryCard}>
-        <View style={styles.cardHeader}>
-          <Text style={[styles.subjectTag, typography.caption]}>
-            {plan.subject}
-          </Text>
-        </View>
-
-        <View style={styles.cardBody}>
-          <Text style={[styles.examTitle, typography.h2]}>
-            {plan.course_code} FINAL
-          </Text>
-          <View style={styles.examMeta}>
-            <Text style={[styles.examDate, typography.caption]}>
-              Exam Date: {new Date(plan.exam_date).toLocaleDateString()}
-            </Text>
-            <View style={styles.dot} />
-            <View style={styles.daysLeftContainer}>
-              <Flame size={14} color={colors.warning} style={styles.flameIcon} />
-              <Text style={[styles.daysLeftText, typography.caption]}>
-                {plan.daysLeft} days left
+      <Animated.View key={plan.id} entering={FadeInUp.delay(100)}>
+        <Card style={styles.examCard}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={[styles.courseCode, typography.h3]}>
+                {plan.course_code}
               </Text>
+              <Text style={[styles.examDate, typography.caption]}>
+                EXAM ON {new Date(plan.exam_date).toLocaleDateString()}
+              </Text>
+            </View>
+            <Badge label={`${plan.days_left}D LEFT`} variant="orange" />
+          </View>
+
+          <View style={styles.progressSection}>
+            <View style={styles.progressLabels}>
+              <Text style={[styles.progressLabel, typography.caption]}>
+                Mastery Level
+              </Text>
+              <Text style={[styles.progressValue, typography.bodySmall]}>
+                {plan.progress}%
+              </Text>
+            </View>
+            <ProgressBar progress={plan.progress} color={colors.primary} />
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <Text style={[styles.statValue, typography.body]}>
+                {plan.readiness_grade}
+              </Text>
+              <Text style={[styles.statLabel, typography.caption]}>GRADE</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.stat}>
+              <Text style={[styles.statValue, typography.body]}>
+                {plan.readiness_score}/100
+              </Text>
+              <Text style={[styles.statLabel, typography.caption]}>SCORE</Text>
             </View>
           </View>
 
-          <View style={styles.progressHeader}>
-            <Text style={[styles.progressLabel, typography.mono]}>
-              PREPARATION PROGRESS
-            </Text>
-            <Text style={[styles.progressPercentage, typography.mono]}>
-              {plan.progress}%
-            </Text>
-          </View>
-          <ProgressBar progress={plan.progress} style={styles.progressBar} />
-
-          <View style={styles.cardActions}>
+          <View style={styles.actionRow}>
             <Button
-              label="Continue Prep"
-              onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
+              label="Study Now"
               style={styles.actionBtn}
+              onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
             />
             <Button
               label="Mock Exam"
-              variant="secondary"
+              variant="outline"
+              style={styles.actionBtn}
               disabled={!mockActive}
-              onPress={() =>
-                navigation.navigate("MockExam", { examId: plan.id })
-              }
-              style={StyleSheet.flatten([
-                styles.actionBtn,
-                !mockActive ? styles.disabledBtn : undefined,
-              ])}
+              onPress={() => navigation.navigate("MockExam", { examId: plan.id })}
             />
           </View>
-
-          <AIInsightBanner text="Based on last 3 mocks, focus 40% more on Alkanes nomenclature." />
-        </View>
-      </Card>
+          {!mockActive && (
+            <Text style={[styles.lockText, typography.caption]}>
+              *Reach 70% Mastery to unlock Mock Exam
+            </Text>
+          )}
+        </Card>
+      </Animated.View>
     );
   };
 
-  const renderSecondaryExamCard = (plan: ExamPrepPlan) => (
-    <Card
-      key={plan.id}
-      style={styles.secondaryCard}
-      onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
-    >
-      <View style={styles.secondaryHeader}>
-        <Text style={[styles.subjectTag, typography.caption]}>
-          {plan.subject}
-        </Text>
-        <Text style={[styles.secondaryPercentage, typography.mono]}>
-          {plan.progress}%
-        </Text>
-      </View>
-      <Text style={[styles.secondaryTitle, typography.h3]}>
-        {plan.course_code}
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <History size={48} color={colors.textMuted} style={styles.emptyIcon} />
+      <Text style={[styles.emptyTitle, typography.h3]}>No Active Plans</Text>
+      <Text style={[styles.emptySubtitle, typography.body]}>
+        Add your upcoming exams to start your AI-powered preparation journey.
       </Text>
-      <Text style={[styles.secondaryDays, typography.bodySmall]}>
-        {plan.daysLeft} days left
-      </Text>
-      <ProgressBar
-        progress={plan.progress}
-        style={styles.secondaryProgressBar}
-      />
       <Button
-        label="Resume Study"
-        variant="secondary"
-        onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
-        style={styles.secondaryBtn}
+        label="Add Exam"
+        icon={<PlusCircle size={20} color="white" />}
+        onPress={() => navigation.navigate("AddExam")}
+        style={styles.addBtnLarge}
       />
-    </Card>
+    </View>
   );
 
-  const renderStats = () => {
-    const stats = [
-      {
-        id: "mock",
-        label: "Mock History",
-        value: "14 Completed",
-        icon: History,
-        color: colors.primary,
-      },
-      {
-        id: "score",
-        label: "Average Score",
-        value: "78.4%",
-        icon: Zap,
-        color: colors.warning,
-      },
-      {
-        id: "confidence",
-        label: "Confidence Level",
-        value: "High",
-        icon: Shield,
-        color: colors.success,
-      },
-    ];
-
-    return (
-      <View style={styles.statsGrid}>
-        {stats.map((stat) => (
-          <View key={stat.id} style={styles.statTile}>
-            <View
-              style={[
-                styles.statIconContainer,
-                { backgroundColor: stat.color + "20" },
-              ]}
-            >
-              <stat.icon size={18} color={stat.color} />
-            </View>
-            <Text style={[styles.statValue, typography.bodySmall]}>
-              {stat.value}
-            </Text>
-            <Text style={[styles.statLabel, typography.caption]}>
-              {stat.label}
-            </Text>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
   return (
-    <SafeArea style={styles.safeArea}>
-      {renderHeader()}
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {loading && !refreshing ? (
-          <View style={styles.loadingContainer}>
-            <Skeleton
-              height={60}
-              borderRadius={10}
-              style={{ marginBottom: 16 }}
-            />
-            <Skeleton
-              height={200}
-              borderRadius={12}
-              style={{ marginBottom: 16 }}
-            />
-            <Skeleton
-              height={100}
-              borderRadius={12}
-              style={{ marginBottom: 16 }}
-            />
-          </View>
-        ) : (
-          <View>
-            {renderUrgentBanner()}
+    <SafeArea style={styles.container}>
+      <Screen hideHeader>
+        {renderHeader()}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+        >
+          {loading ? (
+            <View style={styles.skeletonContainer}>
+              <Skeleton height={200} width="100%" borderRadius={16} style={{ marginBottom: 16 }} />
+              <Skeleton height={200} width="100%" borderRadius={16} />
+            </View>
+          ) : plans.length > 0 ? (
+            <>
+              {renderUrgentBanner()}
+              <AIInsightBanner
+                message="Focus on 'Thevenin's Theorem' for EEE 301. It covers 35% of the exam."
+                style={styles.insight}
+              />
+              <Text style={[styles.sectionTitle, typography.mono]}>
+                ACTIVE PREP PLANS
+              </Text>
+              {plans.map(renderPrimaryExamCard)}
 
-            {plans.length > 0 ? (
-              <View>
-                {renderPrimaryExamCard(plans[0])}
-                {plans.slice(1).map(renderSecondaryExamCard)}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <BookOpen size={48} color={colors.textMuted} />
-                <Text style={[styles.emptyText, typography.body]}>
-                  No active exams yet.
+              <TouchableOpacity
+                style={styles.addNewCard}
+                onPress={() => navigation.navigate("AddExam")}
+              >
+                <PlusCircle size={24} color={colors.primary} />
+                <Text style={[styles.addNewText, typography.bodySmall]}>
+                    Plan for another exam
                 </Text>
-              </View>
-            )}
-
-            {renderStats()}
-
-            <TouchableOpacity
-              style={styles.addExamLink}
-              onPress={() => navigation.navigate("AddExam")}
-            >
-              <PlusCircle size={20} color={colors.primary} />
-              <Text style={[styles.addExamText, typography.body]}>Add Exam</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+              </TouchableOpacity>
+            </>
+          ) : (
+            renderEmptyState()
+          )}
+        </ScrollView>
+      </Screen>
     </SafeArea>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   header: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
-    height: 56,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 20,
+  },
+  backBtn: {
+    padding: 4,
+  },
+  timelineBtn: {
+    padding: 4,
   },
   headerTitle: {
     color: colors.textPrimary,
     fontWeight: "700",
   },
-  backBtn: {
-    padding: 4,
-  },
-  container: {
-    flex: 1,
-  },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  loadingContainer: {
-    marginTop: 20,
-  },
   urgentBanner: {
-    backgroundColor: "#1C1A10",
-    borderRadius: 10,
+    backgroundColor: "#2D1D16",
+    borderRadius: 12,
     padding: 12,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    borderLeftWidth: 3,
-    borderLeftColor: colors.warning,
-    marginBottom: 24,
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.warning + "40",
   },
   urgentContent: {
     flexDirection: "row",
     alignItems: "center",
   },
   urgentIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   urgentText: {
     color: colors.warning,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   viewPlanLink: {
-    color: colors.textPrimary,
-    fontWeight: "600",
+    color: colors.warning,
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
-  primaryCard: {
+  insight: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    color: colors.textMuted,
+    fontSize: 9,
+    marginBottom: 16,
+    letterSpacing: 1,
+  },
+  examCard: {
     padding: 20,
+    backgroundColor: colors.surface,
     marginBottom: 16,
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 8,
-  },
-  subjectTag: {
-    color: colors.textSecondary,
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    textTransform: "uppercase",
-  },
-  cardBody: {},
-  examTitle: {
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  examMeta: {
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 20,
+  },
+  courseCode: {
+    color: colors.textPrimary,
+    fontWeight: "700",
   },
   examDate: {
     color: colors.textSecondary,
+    marginTop: 4,
   },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.textMuted,
-    marginHorizontal: 8,
+  progressSection: {
+    marginBottom: 20,
   },
-  daysLeftContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  flameIcon: {
-    marginRight: 4,
-  },
-  daysLeftText: {
-    color: colors.warning,
-    fontWeight: "600",
-  },
-  progressHeader: {
+  progressLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 8,
   },
   progressLabel: {
     color: colors.textSecondary,
-    fontSize: 7.5,
   },
-  progressPercentage: {
+  progressValue: {
     color: colors.primary,
-    fontSize: 9,
     fontWeight: "700",
   },
-  progressBar: {
-    marginBottom: 24,
-  },
-  cardActions: {
+  statsRow: {
     flexDirection: "row",
-    gap: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 20,
   },
-  actionBtn: {
+  stat: {
     flex: 1,
-  },
-  disabledBtn: {
-    opacity: 0.5,
-  },
-  secondaryCard: {
-    padding: 16,
-    marginBottom: 16,
-  },
-  secondaryHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
-  },
-  secondaryPercentage: {
-    color: colors.primary,
-    fontSize: 9,
-    fontWeight: "700",
-  },
-  secondaryTitle: {
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  secondaryDays: {
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  secondaryProgressBar: {
-    marginBottom: 16,
-    height: 4,
-  },
-  secondaryBtn: {
-    alignSelf: "flex-start",
-  },
-  statsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  statTile: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    width: (width - 64) / 3,
-    alignItems: "center",
-  },
-  statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
   },
   statValue: {
     color: colors.textPrimary,
     fontWeight: "700",
-    marginBottom: 2,
   },
   statLabel: {
-    color: colors.textSecondary,
-    textAlign: "center",
+    color: colors.textMuted,
+    marginTop: 4,
   },
-  addExamLink: {
+  divider: {
+    width: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: 16,
+  },
+  actionRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
+    gap: 12,
   },
-  addExamText: {
-    color: colors.primary,
-    fontWeight: "600",
-    marginLeft: 8,
+  actionBtn: {
+    flex: 1,
+    height: 44,
+  },
+  lockText: {
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: 12,
+    fontStyle: "italic",
   },
   emptyState: {
     alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
+    paddingTop: 60,
   },
-  emptyText: {
-    color: colors.textMuted,
-    marginTop: 12,
+  emptyIcon: {
+    marginBottom: 24,
+    opacity: 0.5,
   },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: 40,
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  addBtnLarge: {
+    paddingHorizontal: 32,
+  },
+  skeletonContainer: {
+    gap: 16,
+  },
+  addNewCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.border,
+      marginTop: 8,
+      gap: 12
+  },
+  addNewText: {
+      color: colors.textSecondary,
+      fontWeight: '600'
+  }
 });

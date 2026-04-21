@@ -78,7 +78,7 @@ const startServer = async () => {
     await connectRedis();
 
     if (config.serviceType === 'api') {
-      await typesenseService.initCollections();
+      // await typesenseService.initCollections();
       server.listen(config.port, () => {
         console.log(`API Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });
@@ -94,7 +94,7 @@ const startServer = async () => {
       });
     } else {
       console.warn(`Unknown service type: ${config.serviceType}. Starting all components.`);
-      await typesenseService.initCollections();
+      // await typesenseService.initCollections();
       initWebSocket(server);
       server.listen(config.port, () => {
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
