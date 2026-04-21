@@ -3,7 +3,7 @@ import { SessionType, ReplyMode, MessageRole } from '@prisma/client';
 export interface StartSessionRequest {
   session_type: SessionType;
   reply_mode?: ReplyMode;
-  course_code: string;
+  course_code?: string | null;
 }
 
 export interface SendMessageRequest {
@@ -15,7 +15,7 @@ export interface SessionResponse {
   id: string;
   session_type: SessionType;
   reply_mode: ReplyMode | null;
-  course_code: string;
+  course_code?: string | null;
   university: string;
   department: string;
   started_at: Date;

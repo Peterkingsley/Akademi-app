@@ -41,8 +41,10 @@ export async function updateLearningProfileJob(sessionId: string) {
 
   // Update community patterns
   if (analysis.community_pattern) {
-    // In real app, hash the pattern to find existing. Using simplified logic here.
-    const patternKey = `${session.university}-${session.department}-${session.course_code}`;
+    // Handle optional course code in pattern key
+    const courseCode = session.course_code || 'GENERAL';
+    const patternKey = `${session.university}-${session.department}-${courseCode}`;
+
     await prisma.communityPattern.upsert({
       where: {
         id: patternKey,
@@ -53,7 +55,7 @@ export async function updateLearningProfileJob(sessionId: string) {
         university: session.university,
         faculty: 'Unknown',
         department: session.department,
-        course_code: session.course_code,
+        course_code: session.course_code || 'GENERAL',
         question_pattern: analysis.community_pattern,
       },
     });

@@ -13,7 +13,9 @@ export async function syncAllToTypesense() {
   const materials = await prisma.material.findMany();
   for (const m of materials) {
     await addMaterialToIndex(m.id);
-    await addCourseToIndex(m.course_code, m.university, m.department);
+    if (m.course_code) {
+      await addCourseToIndex(m.course_code, m.university, m.department);
+    }
   }
 
   console.log('Syncing questions...');

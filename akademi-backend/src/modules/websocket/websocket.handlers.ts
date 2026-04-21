@@ -17,11 +17,12 @@ export const registerHandlers = (
     try {
       // Check for active session first for reconnection support
       const sessions = await sessionsService.listSessions(userId);
-      let session = sessions.find(s => !s.ended_at && s.course_code === courseCode);
+      // Handle optional course code when finding active session
+      let session = sessions.find(s => !s.ended_at && s.course_code === (courseCode || null));
 
       if (!session) {
         session = await sessionsService.startSession(userId, {
-          course_code: courseCode,
+          course_code: courseCode || null,
           session_type: sessionType || SessionType.TUTOR,
           reply_mode: replyMode,
         });

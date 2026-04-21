@@ -28,14 +28,14 @@ export class AIService {
     const communityPatterns = await prisma.communityPattern.findMany({
       where: {
         department: session.department,
-        course_code: session.course_code,
+        course_code: session.course_code || undefined,
       },
     });
 
     const disciplineDocument = await prisma.disciplineDocument.findFirst({
       where: {
         department: session.department,
-        course_code: session.course_code,
+        course_code: session.course_code || undefined,
         is_active: true,
       },
       orderBy: { version: 'desc' },
@@ -43,7 +43,7 @@ export class AIService {
 
     // 3. Cache check
     const cacheKey = getAICacheKey(
-      session.course_code,
+      session.course_code || 'GENERAL',
       studentMessage,
       replyMode,
       disciplineDocument?.version || 1

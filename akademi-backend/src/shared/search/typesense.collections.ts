@@ -5,7 +5,7 @@ export const materialSchema: CollectionCreateSchema = {
   fields: [
     { name: 'id', type: 'string' },
     { name: 'title', type: 'string' },
-    { name: 'course_code', type: 'string', facet: true },
+    { name: 'course_code', type: 'string', facet: true, optional: true },
     { name: 'university', type: 'string', facet: true },
     { name: 'faculty', type: 'string', facet: true },
     { name: 'department', type: 'string', facet: true },
@@ -21,7 +21,7 @@ export const questionSchema: CollectionCreateSchema = {
   fields: [
     { name: 'id', type: 'string' },
     { name: 'question_text', type: 'string' },
-    { name: 'course_code', type: 'string', facet: true },
+    { name: 'course_code', type: 'string', facet: true, optional: true },
     { name: 'department', type: 'string', facet: true },
     { name: 'difficulty', type: 'string', facet: true },
     { name: 'level', type: 'int32', facet: true }

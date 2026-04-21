@@ -42,7 +42,8 @@ export async function runAIReconciliationJob(materialId: string) {
     m.embeddings.map((e) => e.chunk_text).join('\n'),
   );
 
-  const prompt = `As a subject matter expert, reconcile these 10 different versions of course material for ${material.course_code}.
+  const courseCode = material.course_code || 'General Subject';
+  const prompt = `As a subject matter expert, reconcile these 10 different versions of course material for ${courseCode}.
   Produce a single, accurate, and comprehensive verified document.
   Versions: ${JSON.stringify(materialVersions)}
   Context: ${JSON.stringify(departmentContext)}
@@ -82,11 +83,13 @@ export async function runAIReconciliationJob(materialId: string) {
 
     console.log(`Material ${materialId} VERIFIED with HIGH confidence.`);
     await addMaterialToIndex(materialId);
-    await addCourseToIndex(
-      material.course_code,
-      material.university,
-      material.department,
-    );
+    if (material.course_code) {
+      await addCourseToIndex(
+        material.course_code,
+        material.university,
+        material.department,
+      );
+    }
     await notifyContributorsJob(materialId);
     await generateQuestionsJob(materialId);
   } else {
