@@ -5,7 +5,7 @@ import { typography } from "../../theme/typography";
 
 interface AvatarProps {
   uri?: string;
-  name: string;
+  name?: string;
   size?: number;
   style?: ViewStyle;
 }
@@ -16,12 +16,21 @@ export const Avatar: React.FC<AvatarProps> = ({
   size = 40,
   style,
 }) => {
-  const initials = name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
+  const getInitials = () => {
+    if (!name || !name.trim()) return "??";
+
+    const initials = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase();
+
+    return initials.length > 2 ? initials.substring(0, 2) : initials;
+  };
+
+  const initials = getInitials();
 
   return (
     <View
