@@ -245,6 +245,7 @@ export class AuthService {
   }
 
   async logout(token: string): Promise<void> {
+    if (!token) throw new Error("Refresh token is required");
     const tokenHash = this.hashToken(token);
     await prisma.refreshToken.updateMany({
       where: { token_hash: tokenHash },

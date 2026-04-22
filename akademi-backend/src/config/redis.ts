@@ -16,7 +16,7 @@ export const connectRedis = async () => {
     return;
   }
   if (!redisClient.isOpen) {
-    // await redisClient.connect();
+    await redisClient.connect();
     console.log('Connected to Redis');
   }
 };
