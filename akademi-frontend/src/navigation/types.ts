@@ -48,13 +48,13 @@ export type AdminStackParamList = {
 
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
-  AssignmentResult: { assignmentId: string };
-  StudyMode: { materialId: string };
+  AssignmentResult: { sessionId: string };
+  StudyMode: { sessionId?: string; materialId?: string };
   Socratic: { sessionId: string };
   ChallengeResult: { sessionId: string };
   Camera: undefined;
   CropConfirm: { imageUri: string };
-  AIProcessing: { type: "assignment" | "tutor" };
+  AIProcessing: { type: "assignment" | "tutor"; sessionId?: string; reply_mode?: string };
   LiveTutorEntry: undefined;
   LiveTutorSession: { sessionId: string };
   TutorSessionSummary: { sessionId: string };

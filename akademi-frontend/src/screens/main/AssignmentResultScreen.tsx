@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Share,
 } from "react-native";
 import { ArrowLeft, Share2, Bookmark, RefreshCw, Book } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -14,10 +16,59 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { sessionService, Message } from "../../services/session";
 
 export const AssignmentResultScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { sessionId } = route.params || {};
+  const [loading, setLoading] = useState(true);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!sessionId) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const messages = await sessionService.listMessages(sessionId);
+        const studentMsg = messages.find((m: Message) => m.role === "STUDENT");
+        const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
+
+        if (studentMsg) setQuestion(studentMsg.content);
+        if (aiMsg) setAnswer(aiMsg.content);
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, [sessionId]);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Akademi AI Answer:\n\nQuestion: ${question}\n\nAnswer: ${answer}`,
+      });
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Screen style={styles.screen}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen style={styles.screen}>
@@ -35,7 +86,7 @@ export const AssignmentResultScreen: React.FC = () => {
         <Card style={styles.inquiryCard}>
           <Text style={[styles.monoLabel, typography.mono]}>YOUR INQUIRY</Text>
           <Text style={[styles.questionText, typography.bodySmall]}>
-            Calculate the total impedance of a circuit with a 50Ω resistor and a 100mH inductor at 60Hz.
+            {question || "No question found."}
           </Text>
         </Card>
 
@@ -50,47 +101,16 @@ export const AssignmentResultScreen: React.FC = () => {
             </View>
           </View>
 
-          <Text style={[styles.headline, typography.h2]}>Total Impedance: 62.6Ω at 37.0°</Text>
-
-          <Text style={[styles.explanation, typography.bodySmall]}>
-            To find the total impedance (Z) in an RL circuit, we must first calculate the inductive reactance (X_L) and then combine it with the resistance (R) using phasor addition.
-          </Text>
-
-          <View style={styles.step}>
-            <Text style={[styles.stepNumber, typography.mono]}>01.</Text>
-            <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, typography.bodySmall, { fontWeight: "700" }]}>Calculate Inductive Reactance</Text>
-              <View style={styles.codeBlock}>
-                <Text style={[styles.codeText, typography.mono]}>X_L = 2 * π * f * L</Text>
-                <Text style={[styles.codeText, typography.mono]}>X_L = 2 * 3.14159 * 60 * 0.1</Text>
-                <Text style={[styles.codeText, typography.mono]}>X_L ≈ 37.7Ω</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.step}>
-            <Text style={[styles.stepNumber, typography.mono]}>02.</Text>
-            <View style={styles.stepContent}>
-              <Text style={[styles.stepTitle, typography.bodySmall, { fontWeight: "700" }]}>Calculate Total Impedance Magnitude</Text>
-              <View style={styles.codeBlock}>
-                <Text style={[styles.codeText, typography.mono]}>Z| = sqrt(R^2 + X_L^2)</Text>
-                <Text style={[styles.codeText, typography.mono]}>Z| = sqrt(50^2 + 37.7^2)</Text>
-                <Text style={[styles.codeText, typography.mono]}>Z| ≈ 62.6Ω</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.conceptInsight}>
-            <Text style={[styles.monoLabel, typography.mono, { color: colors.accentPurple }]}>CONCEPT INSIGHT</Text>
-            <Text style={[styles.insightText, typography.bodySmall]}>
-              Impedance is a vector quantity. The resistor contributes to the real part, while the inductor contributes to the imaginary part (reactance).
+          <View style={styles.answerContainer}>
+            <Text style={[styles.explanation, typography.bodySmall]}>
+              {answer || "Thinking..."}
             </Text>
           </View>
         </Card>
 
         <TouchableOpacity
           style={styles.studyModeBanner}
-          onPress={() => navigation.navigate("StudyMode")}
+          onPress={() => navigation.navigate("StudyMode", { sessionId })}
         >
           <View style={styles.bannerLeft}>
             <Book size={24} color={colors.warning} />
@@ -103,7 +123,7 @@ export const AssignmentResultScreen: React.FC = () => {
         </TouchableOpacity>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
             <Share2 size={20} color={colors.textSecondary} />
             <Text style={[styles.actionLabel, typography.caption]}>SHARE</Text>
           </TouchableOpacity>
@@ -127,6 +147,11 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",
@@ -189,52 +214,12 @@ const styles = StyleSheet.create({
   aiModel: {
     color: colors.textMuted,
   },
-  headline: {
-    color: colors.primary,
-    marginBottom: 16,
+  answerContainer: {
+    marginTop: 8,
   },
   explanation: {
     color: "#FFFFFF",
     lineHeight: 24,
-    marginBottom: 24,
-  },
-  step: {
-    flexDirection: "row",
-    marginBottom: 20,
-  },
-  stepNumber: {
-    color: colors.textMuted,
-    marginRight: 12,
-    marginTop: 4,
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    color: "#FFFFFF",
-    marginBottom: 12,
-  },
-  codeBlock: {
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 8,
-  },
-  codeText: {
-    color: "#FFFFFF",
-    fontSize: 9,
-    lineHeight: 20,
-  },
-  conceptInsight: {
-    backgroundColor: "#0D1526",
-    padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accentPurple,
-    marginTop: 8,
-  },
-  insightText: {
-    color: "#FFFFFF",
-    lineHeight: 20,
   },
   studyModeBanner: {
     backgroundColor: colors.surface,
