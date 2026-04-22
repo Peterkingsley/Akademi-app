@@ -15,6 +15,16 @@ export interface Session {
   duration?: number;
 }
 
+export interface Message {
+  id: string;
+  session_id: string;
+  user_id: string;
+  role: "STUDENT" | "AI";
+  content: string;
+  reply_mode?: string;
+  created_at: string;
+}
+
 export interface SessionSummary {
   id: string;
   summary: string;
@@ -69,6 +79,11 @@ export const sessionService = {
       rating,
       feedback,
     });
+    return response.data;
+  },
+
+  listMessages: async (sessionId: string) => {
+    const response = await api.get<Message[]>(`/sessions/${sessionId}/messages`);
     return response.data;
   },
 };

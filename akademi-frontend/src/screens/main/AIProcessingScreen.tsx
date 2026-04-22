@@ -23,7 +23,7 @@ const STATUS_TEXTS = [
 export const AIProcessingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { type, sessionId, replyMode } = route.params || {};
+  const { type, sessionId, reply_mode } = route.params || {};
 
   const [statusIndex, setStatusIndex] = useState(0);
   const glowAnim = useRef(new Animated.Value(0.3)).current;
@@ -66,7 +66,7 @@ export const AIProcessingScreen: React.FC = () => {
     // Simulate completion and navigation after 5 seconds
     const timeout = setTimeout(() => {
       if (type === "assignment") {
-        if (replyMode === "STUDY") {
+        if (reply_mode === "STUDY") {
           navigation.navigate("StudyMode", { sessionId });
         } else {
           navigation.navigate("AssignmentResult", { sessionId });

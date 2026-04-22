@@ -3,13 +3,13 @@ import { ReplyMode } from '@prisma/client';
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer. Be concise.
   Frame everything within the student's department and course context.
-  Do not over-explain.`,
+  Do not over-explain. Put the final answer in a clear, easy-to-read format at the end.`,
 
   STUDY: `Do not give the answer immediately. Teach the topic behind this
   question from the ground up. Use analogies appropriate for a Nigerian
   university student at this level. Adapt explanation depth based on the
   student's vocabulary level and subject strength. Arrive at the answer
-  only after building understanding.`,
+  only after building understanding. Break your response into logical steps or sections.`,
 
   QUESTION: `Do not answer the question. Reframe it and ask the student to
   attempt it first. Evaluate their response when they reply. Guide them to
