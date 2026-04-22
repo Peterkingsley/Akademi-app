@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import os
+
+content = """import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -179,3 +181,7 @@ const styles = StyleSheet.create({
   finishBtn: {
   },
 });
+\"\"\"
+
+with open("akademi-frontend/src/screens/main/StudyModeScreen.tsx", "w") as f:
+    f.write(content)
