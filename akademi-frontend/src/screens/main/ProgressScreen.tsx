@@ -237,7 +237,8 @@ export const ProgressScreen: React.FC = () => {
           <View style={styles.headerLeft}>
             <Avatar
               size={36}
-              source={profile?.avatar_url ? { uri: profile.avatar_url } : undefined}
+              name={authUser?.name || 'Student'}
+              uri={authUser?.avatar_url || undefined}
               style={styles.avatar}
             />
             <Text style={styles.headerBrand}>Akademi</Text>
