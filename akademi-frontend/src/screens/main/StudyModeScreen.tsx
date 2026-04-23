@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { X, Book, CheckCircle2 } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -17,6 +17,9 @@ import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
+import { materialService, Material } from "../../services/material";
+import { SelectableText } from "../../components/ui/SelectableText";
+import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 
 export const StudyModeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -24,27 +27,36 @@ export const StudyModeScreen: React.FC = () => {
   const { sessionId, materialId } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
+  const [material, setMaterial] = useState<Material | null>(null);
+  const [isAskModalVisible, setIsAskModalVisible] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
 
   useEffect(() => {
     const fetchContent = async () => {
-      // Prioritize sessionId (AI discussion), fallback to materialId (static content)
-      if (sessionId) {
-        try {
+      try {
+        if (sessionId) {
           const messages = await sessionService.listMessages(sessionId);
           const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
           if (aiMsg) setContent(aiMsg.content);
-        } catch (error) {
-          console.error("Failed to fetch messages:", error);
+        } else if (materialId) {
+          const data = await materialService.getMaterialDetails(materialId);
+          setMaterial(data);
+          setContent(data.content || "No text content available for this material.");
         }
-      } else if (materialId) {
-        // Mock static content for materials if no sessionId is provided
-        setContent("Static material content for ID: " + materialId);
+      } catch (error) {
+        console.error("Failed to fetch content:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchContent();
   }, [sessionId, materialId]);
+
+  const handleAskAkademi = (text: string) => {
+    setSelectedText(text);
+    setIsAskModalVisible(true);
+  };
 
   if (loading) {
     return (
@@ -62,21 +74,36 @@ export const StudyModeScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.headerBtn}>
           <X size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, typography.h3]}>Study Mode</Text>
-        <Badge label="Study Reply" variant="purple" />
+        <Text style={[styles.headerTitle, typography.h3]}>
+          {material ? "Reading Material" : "Study Mode"}
+        </Text>
+        <Badge label={material ? "Material" : "Study Reply"} variant="purple" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Card style={styles.studyCard}>
-          <View style={styles.aiHeader}>
-            <Avatar size={32} name="Scholar" />
-            <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 12 }]}>
-              Akademi AI Tutor
+        {material && (
+          <View style={styles.materialHeader}>
+            <Text style={[styles.materialTitle, typography.h2]}>{material.title}</Text>
+            <Text style={[styles.materialMeta, typography.caption]}>
+              {material.course_code} • {material.university}
             </Text>
           </View>
-          <Text style={[styles.studyText, typography.bodySmall]}>
-            {content || "No explanation available."}
-          </Text>
+        )}
+
+        <Card style={styles.studyCard}>
+          {!material && (
+            <View style={styles.aiHeader}>
+              <Avatar size={32} name="Scholar" />
+              <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 12 }]}>
+                Akademi AI Tutor
+              </Text>
+            </View>
+          )}
+
+          <SelectableText
+            content={content || "No content available."}
+            onAskAkademi={handleAskAkademi}
+          />
         </Card>
 
         <TouchableOpacity style={styles.tutorBanner} onPress={() => navigation.navigate("LiveTutorEntry")}>
@@ -103,6 +130,13 @@ export const StudyModeScreen: React.FC = () => {
           />
         </View>
       </ScrollView>
+
+      <AskAkademiModal
+        visible={isAskModalVisible}
+        onClose={() => setIsAskModalVisible(false)}
+        contextText={selectedText}
+        courseCode={material?.course_code}
+      />
     </Screen>
   );
 };
@@ -122,7 +156,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 32,
+    marginBottom: 20,
   },
   headerBtn: {
     padding: 8,
@@ -135,10 +169,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  materialHeader: {
+    marginBottom: 20,
+  },
+  materialTitle: {
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  materialMeta: {
+    color: colors.textSecondary,
+  },
   studyCard: {
     backgroundColor: colors.surface,
     padding: 20,
     marginBottom: 24,
+    borderRadius: 16,
   },
   aiHeader: {
     flexDirection: "row",
@@ -147,10 +192,6 @@ const styles = StyleSheet.create({
   },
   aiName: {
     color: "#FFFFFF",
-  },
-  studyText: {
-    color: "#FFFFFF",
-    lineHeight: 24,
   },
   tutorBanner: {
     flexDirection: "row",

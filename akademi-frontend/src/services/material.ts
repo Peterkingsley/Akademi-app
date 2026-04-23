@@ -11,10 +11,10 @@ export interface Material {
   file_type: "PDF" | "IMAGE" | "DOC";
   verification_status: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   file_ref: string;
+  content?: string;
   updated_at: string;
   rating?: number;
   isBookmarked?: boolean;
-  content?: string;
 }
 
 export interface PracticeQuestion {

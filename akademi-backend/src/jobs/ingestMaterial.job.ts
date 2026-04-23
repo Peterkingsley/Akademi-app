@@ -65,6 +65,12 @@ export async function ingestMaterialJob(materialId: string) {
     throw new Error('No text extracted from material');
   }
 
+  // Save extracted text to material content
+  await prisma.material.update({
+    where: { id: materialId },
+    data: { content: extractedText }
+  });
+
   // Chunk text (~500 tokens, roughly 2000 characters for estimation)
   const chunks = chunkText(extractedText, 2000);
 

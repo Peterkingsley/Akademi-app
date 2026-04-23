@@ -16,6 +16,8 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
+import { SelectableText } from "../../components/ui/SelectableText";
+import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
 
@@ -26,6 +28,8 @@ export const AssignmentResultScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [isAskModalVisible, setIsAskModalVisible] = useState(false);
+  const [selectedText, setSelectedText] = useState("");
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -66,7 +70,12 @@ export const AssignmentResultScreen: React.FC = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      </Screen>
+        <AskAkademiModal
+        visible={isAskModalVisible}
+        onClose={() => setIsAskModalVisible(false)}
+        contextText={selectedText}
+      />
+    </Screen>
     );
   }
 
@@ -85,9 +94,10 @@ export const AssignmentResultScreen: React.FC = () => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Card style={styles.inquiryCard}>
           <Text style={[styles.monoLabel, typography.mono]}>YOUR INQUIRY</Text>
-          <Text style={[styles.questionText, typography.bodySmall]}>
-            {question || "No question found."}
-          </Text>
+          <SelectableText
+            content={question || "No question found."}
+            onAskAkademi={(text) => { setSelectedText(text); setIsAskModalVisible(true); }}
+          />
         </Card>
 
         <Card style={styles.aiResponseCard}>
@@ -102,9 +112,10 @@ export const AssignmentResultScreen: React.FC = () => {
           </View>
 
           <View style={styles.answerContainer}>
-            <Text style={[styles.explanation, typography.bodySmall]}>
-              {answer || "Thinking..."}
-            </Text>
+            <SelectableText
+              content={answer || "Thinking..."}
+              onAskAkademi={(text) => { setSelectedText(text); setIsAskModalVisible(true); }}
+            />
           </View>
         </Card>
 
@@ -139,6 +150,11 @@ export const AssignmentResultScreen: React.FC = () => {
           />
         </View>
       </ScrollView>
+      <AskAkademiModal
+        visible={isAskModalVisible}
+        onClose={() => setIsAskModalVisible(false)}
+        contextText={selectedText}
+      />
     </Screen>
   );
 };
