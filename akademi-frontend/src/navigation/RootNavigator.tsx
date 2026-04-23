@@ -7,6 +7,7 @@ import { MainStack } from "./MainStack";
 import { AdminStack } from "./AdminStack";
 import { SplashScreen } from "../screens/main/SplashScreen";
 import { useAuthStore } from "../store/useAuthStore";
+import { userService } from "../services/user";
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef();
@@ -20,13 +21,30 @@ export const RootNavigator = () => {
   const { isAuthenticated, hasSeenOnboarding } = useAuthStore();
 
   useEffect(() => {
-    // 5. After 2.5 seconds total: navigate to OnboardingScreen
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2500);
+    const initializeAuth = async () => {
+      const startTime = Date.now();
 
-    return () => clearTimeout(timer);
-  }, []);
+      if (isAuthenticated) {
+        try {
+          // Verify session validity on startup
+          await userService.getProfile();
+        } catch (error) {
+          // If profile fetch fails, the API interceptor will have called clearAuth()
+          console.error("Auth verification failed on startup:", error);
+        }
+      }
+
+      // Ensure splash shows for at least 2.5s
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 2500 - elapsed);
+
+      setTimeout(() => {
+        setIsLoading(false);
+      }, remaining);
+    };
+
+    initializeAuth();
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return <SplashScreen />;
