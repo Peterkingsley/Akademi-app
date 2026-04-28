@@ -241,8 +241,8 @@ export const SolveScreen: React.FC = () => {
           loading={loading}
           disabled={!question.trim() || !selectedCause || !selectedType}
           style={styles.solveButton}
+        </View>
         />
-      </View>
       </BottomSheet>
     </Screen>
   );
@@ -251,14 +251,12 @@ export const SolveScreen: React.FC = () => {
 const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 8,
   },
   screen: {
     backgroundColor: "transparent",
     flex: 1,
   },
   header: {
-    paddingTop: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -407,7 +405,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   solveButton: {
-    paddingBottom: 8,
     marginTop: 8,
     marginBottom: 16,
   },
