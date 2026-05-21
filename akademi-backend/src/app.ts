@@ -17,6 +17,7 @@ import featureAccessRoutes from './modules/feature-access/feature-access.routes'
 import examPrepRoutes from './modules/exam-prep/exam-prep.routes';
 import searchRoutes from './modules/search/search.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import notificationRoutes from "./modules/notifications/notifications.routes";
 import { initWebSocket } from './modules/websocket/websocket.server';
 
 // Sentry Initialization — only runs if a real DSN is provided
@@ -55,6 +56,7 @@ app.use('/feature-access', featureAccessRoutes);
 app.use('/exam-prep', examPrepRoutes);
 app.use('/search', searchRoutes);
 app.use('/admin', adminRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

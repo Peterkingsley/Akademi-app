@@ -6,8 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { X } from "lucide-react-native";
+import { X, Download, CheckCircle2 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -17,7 +18,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
-import { materialService, Material } from "../../services/material";
+import { materialService, Material, offlineService } from "../../services/material";
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 
@@ -30,6 +31,8 @@ export const StudyModeScreen: React.FC = () => {
   const [material, setMaterial] = useState<Material | null>(null);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [downloading, setDownloading] = useState(false);
+  const [isDownloaded, setIsDownloaded] = useState(false);
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -42,6 +45,8 @@ export const StudyModeScreen: React.FC = () => {
           const data = await materialService.getMaterialDetails(materialId);
           setMaterial(data);
           setContent(data.content || "No text content available for this material.");
+          const downloaded = await offlineService.isDownloaded(materialId);
+          setIsDownloaded(downloaded);
         }
       } catch (error) {
         console.error("Failed to fetch content:", error);
@@ -56,6 +61,21 @@ export const StudyModeScreen: React.FC = () => {
   const handleAskAkademi = (text: string) => {
     setSelectedText(text);
     setIsAskModalVisible(true);
+  };
+
+  const handleDownload = async () => {
+    if (!material) return;
+    setDownloading(true);
+    try {
+      await offlineService.downloadMaterial(material);
+      setIsDownloaded(true);
+      Alert.alert("Success", "Material downloaded for offline use.");
+    } catch (error) {
+      console.error("Download failed:", error);
+      Alert.alert("Error", "Failed to download material.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (loading) {
@@ -80,7 +100,24 @@ export const StudyModeScreen: React.FC = () => {
         <Text style={[styles.headerTitle, typography.h3]}>
           {material ? "Reading Material" : "Study Mode"}
         </Text>
-        <Badge label={material ? "Material" : "Study Reply"} variant="purple" />
+        <View style={styles.headerRight}>
+          {material && (
+            <TouchableOpacity
+              onPress={handleDownload}
+              disabled={downloading || isDownloaded}
+              style={styles.headerIconBtn}
+            >
+              {downloading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : isDownloaded ? (
+                <CheckCircle2 size={20} color={colors.success} />
+              ) : (
+                <Download size={20} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          )}
+          <Badge label={material ? "Material" : "Study Reply"} variant="purple" />
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -161,6 +198,14 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: "#FFFFFF",
     fontWeight: "600",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerIconBtn: {
+    padding: 8,
   },
   scrollContent: {
     paddingHorizontal: 20,
