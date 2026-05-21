@@ -4,6 +4,8 @@ export interface UpdateProfileRequest {
   faculty?: string;
   department?: string;
   level?: number;
+  push_token?: string;
+  courses?: string[];
 }
 
 export interface UserProfileResponse {

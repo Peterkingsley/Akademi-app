@@ -23,6 +23,7 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
 import { sessionService, Session, LearningProfile } from "../../services/session";
+import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 
 const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
@@ -31,8 +32,9 @@ export const LiveTutorEntryScreen: React.FC = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [topic, setTopic] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("Select Course");
+  const [selectedCourse, setSelectedCourse] = useState((user as any)?.courses?.[0] || "Select Course");
   const [selectedDuration, setSelectedDuration] = useState("30 min");
+  const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
 
@@ -152,7 +154,10 @@ export const LiveTutorEntryScreen: React.FC = () => {
           <View>
             <Text style={[styles.label, typography.bodySmall]}>What do you want to learn?</Text>
 
-            <TouchableOpacity style={styles.courseSelector} onPress={() => {}}>
+            <TouchableOpacity
+              style={styles.courseSelector}
+              onPress={() => setIsCoursePickerVisible(true)}
+            >
               <View style={styles.courseSelectorLeft}>
                 <GraduationCap size={20} color={colors.primary} />
                 <Text style={[styles.courseText, typography.body]}>{selectedCourse}</Text>
@@ -205,6 +210,13 @@ export const LiveTutorEntryScreen: React.FC = () => {
         {renderSuggestedTopics()}
         {renderRecentSessions()}
       </View>
+
+      <CoursePickerModal
+        visible={isCoursePickerVisible}
+        onClose={() => setIsCoursePickerVisible(false)}
+        onSelect={setSelectedCourse}
+        selectedCourse={selectedCourse}
+      />
     </Screen>
   );
 };

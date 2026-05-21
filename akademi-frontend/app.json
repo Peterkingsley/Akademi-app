@@ -25,7 +25,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.akademi.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Used to capture assignment questions"
       }
     },
     "android": {

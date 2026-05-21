@@ -91,4 +91,9 @@ export const userService = {
   getUploads: async () => {
     return materialService.getMyUploads();
   },
+
+  updatePushToken: async (pushToken: string) => {
+    const response = await api.patch("/users/me", { push_token: pushToken });
+    return response.data;
+  },
 };
