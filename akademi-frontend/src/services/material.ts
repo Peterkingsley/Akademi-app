@@ -70,3 +70,45 @@ export const materialService = {
     return data;
   },
 };
+
+import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const OFFLINE_KEY = 'akademi_offline_materials';
+
+export const offlineService = {
+  getOfflineMaterials: async (): Promise<Material[]> => {
+    const stored = await AsyncStorage.getItem(OFFLINE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  downloadMaterial: async (material: Material) => {
+    const { data } = await api.get(`/materials/${material.id}/download`);
+    const fileUri = FileSystem.documentDirectory + material.id + (material.file_type === 'PDF' ? '.pdf' : material.file_type === 'IMAGE' ? '.jpg' : '.doc');
+
+    const downloadRes = await FileSystem.downloadAsync(data.url, fileUri);
+
+    if (downloadRes.status === 200) {
+      const offline = await offlineService.getOfflineMaterials();
+      const updated = [...offline.filter(m => m.id !== material.id), { ...material, file_ref: fileUri }];
+      await AsyncStorage.setItem(OFFLINE_KEY, JSON.stringify(updated));
+      return fileUri;
+    }
+    throw new Error('Download failed');
+  },
+
+  deleteOfflineMaterial: async (id: string) => {
+    const offline = await offlineService.getOfflineMaterials();
+    const material = offline.find(m => m.id === id);
+    if (material && material.file_ref.startsWith('file://')) {
+      await FileSystem.deleteAsync(material.file_ref, { idempotent: true });
+    }
+    const updated = offline.filter(m => m.id !== id);
+    await AsyncStorage.setItem(OFFLINE_KEY, JSON.stringify(updated));
+  },
+
+  isDownloaded: async (id: string) => {
+    const offline = await offlineService.getOfflineMaterials();
+    return offline.some(m => m.id === id);
+  }
+};

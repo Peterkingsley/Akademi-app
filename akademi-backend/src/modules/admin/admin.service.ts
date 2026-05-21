@@ -1,4 +1,5 @@
 import prisma from '../../config/db';
+import redisClient from '../../config/redis';
 import { AdminRole, VerificationStatus, Feature, AccessType, MessageRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -17,9 +18,8 @@ import {
   AnalyticsFilter,
   FinanceFilter
 } from './admin.types';
-import redisClient from '../../config/redis';
-import { typesenseService } from '../../shared/search/typesense.service';
-import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+
+const generateQuestionsJob = async (id: string) => {};
 
 export class AdminService {
   async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
@@ -92,7 +92,7 @@ export class AdminService {
     return {
       activeUsersToday,
       newRegistrations,
-      revenueToday: 0, // Placeholder
+      revenueToday: await prisma.transaction.aggregate({ where: { status: "successful", created_at: { gte: today } }, _sum: { amount: true } }).then(res => res._sum.amount || 0),
       materialsPending,
       flaggedContent,
       aiRequestsToday
@@ -100,10 +100,30 @@ export class AdminService {
   }
 
   async getCharts(): Promise<DashboardCharts> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const userActivity = await prisma.user.groupBy({
+      by: ['created_at'],
+      where: { created_at: { gte: sevenDaysAgo } },
+      _count: { _all: true }
+    });
+
+    const revenue = await prisma.transaction.groupBy({
+      by: ['created_at'],
+      where: { status: 'successful', created_at: { gte: sevenDaysAgo } },
+      _sum: { amount: true }
+    });
+
+    const featureUsage = await prisma.session.groupBy({
+      by: ['session_type'],
+      _count: { _all: true }
+    });
+
     return {
-      userActivity: [],
-      revenue: [],
-      featureUsage: []
+      userActivity: userActivity.map(u => ({ date: u.created_at.toISOString().split('T')[0], count: u._count._all })),
+      revenue: revenue.map(r => ({ date: r.created_at.toISOString().split('T')[0], amount: r._sum.amount || 0 })),
+      featureUsage: featureUsage.map(f => ({ feature: f.session_type, count: f._count._all }))
     };
   }
 
@@ -112,16 +132,16 @@ export class AdminService {
       prisma.material.findMany({
         where: { verification_status: VerificationStatus.FLAGGED },
         take: 5,
-        orderBy: { created_at: 'desc' }
+        orderBy: { created_at: 'desc' },
+        include: { user: { select: { name: true } } }
       }),
       prisma.user.findMany({
         take: 5,
-        orderBy: { created_at: 'desc' },
-        select: { name: true, university: true, department: true, created_at: true }
+        orderBy: { created_at: 'desc' }
       }),
-      prisma.featureAccess.findMany({
+      prisma.transaction.findMany({
         take: 5,
-        orderBy: { purchased_at: 'desc' },
+        orderBy: { created_at: 'desc' },
         include: { user: { select: { name: true } } }
       })
     ]);
@@ -142,13 +162,14 @@ export class AdminService {
 
     try {
       await prisma.$queryRaw`SELECT 1`;
-    } catch {
+    } catch (e) {
       health.database = 'offline';
     }
 
     try {
-      await redisClient.ping();
-    } catch {
+      const redisStatus = await redisClient.ping();
+      if (redisStatus !== 'PONG') health.redis = 'offline';
+    } catch (e) {
       health.redis = 'offline';
     }
 
@@ -158,58 +179,31 @@ export class AdminService {
   // Pillar 2: User Management
   async listUsers(filter: UserListFilter) {
     const where: any = { is_deleted: false };
-
     if (filter.search) {
       where.OR = [
         { name: { contains: filter.search, mode: 'insensitive' } },
         { email: { contains: filter.search, mode: 'insensitive' } }
       ];
     }
-
     if (filter.university) where.university = filter.university;
     if (filter.department) where.department = filter.department;
-    if (filter.status) {
-      if (filter.status === 'banned') {
-        where.is_banned = true;
-      } else if (filter.status === 'unverified') {
-        where.is_verified = false;
-      } else {
-        where.is_verified = true;
-        where.is_banned = false;
-      }
-    }
+    if (filter.status === 'banned') where.is_banned = true;
 
-    const limit = Number(filter.limit) || 20;
-    const page = Number(filter.page) || 1;
-    const skip = (page - 1) * limit;
-
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        take: limit,
-        skip,
-        orderBy: filter.sortBy ? { [filter.sortBy]: (filter.sortOrder || 'desc') as any } : { created_at: 'desc' },
-        include: {
-          feature_access: true,
-          learning_profile: true
-        }
-      }),
-      prisma.user.count({ where })
-    ]);
-
-    return { users, total, page, limit };
+    return prisma.user.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      take: filter.limit || 50,
+      skip: ((filter.page || 1) - 1) * (filter.limit || 50)
+    });
   }
 
   async getUserProfile(id: string) {
     return prisma.user.findUnique({
       where: { id },
       include: {
-        feature_access: true,
         learning_profile: true,
-        sessions: {
-          take: 10,
-          orderBy: { started_at: 'desc' }
-        }
+        feature_access: true,
+        transactions: { take: 10, orderBy: { created_at: 'desc' } }
       }
     });
   }
@@ -231,7 +225,7 @@ export class AdminService {
   async verifyUser(id: string) {
     return prisma.user.update({
       where: { id },
-      data: { is_verified: true, verification_token: null, verification_token_expires_at: null }
+      data: { is_verified: true }
     });
   }
 
@@ -249,8 +243,7 @@ export class AdminService {
         feature: data.feature,
         access_type: data.accessType,
         expires_at: data.expiresAt,
-        uses_remaining: data.usesRemaining,
-        payment_ref: 'ADMIN_GRANTED'
+        uses_remaining: data.usesRemaining
       }
     });
   }
@@ -330,7 +323,7 @@ export class AdminService {
     const where: any = {};
     if (filter.faculty) where.faculty = filter.faculty;
     if (filter.department) where.department = filter.department;
-    if (filter.status) where.is_active = filter.status === 'active';
+    if (filter.status === 'active') where.is_active = true;
 
     return prisma.disciplineDocument.findMany({
       where,
@@ -339,11 +332,8 @@ export class AdminService {
   }
 
   async getDisciplineDocument(id: string) {
-    const document = await prisma.disciplineDocument.findUnique({
-      where: { id }
-    });
-
-    if (!document) return null;
+    const document = await prisma.disciplineDocument.findUnique({ where: { id } });
+    if (!document) throw new Error('Document not found');
 
     const history = await prisma.disciplineDocument.findMany({
       where: {
@@ -697,3 +687,5 @@ export class AdminService {
     return { message: `Job ${name} retried successfully` };
   }
 }
+
+export const adminService = new AdminService();

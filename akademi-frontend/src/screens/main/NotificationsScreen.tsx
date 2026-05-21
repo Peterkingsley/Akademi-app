@@ -14,58 +14,12 @@ import {
   Bell,
   CheckCircle2,
   AlertCircle,
-  BookOpen,
-  Clock,
   Sparkles
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Badge } from "../../components/ui/Badge";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "success" | "warning" | "ai";
-  timestamp: string;
-  read: boolean;
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    title: "Upload Verified",
-    message: "Your material 'EEE 301 Study Guide' has been verified and is now live in the library.",
-    type: "success",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    read: false,
-  },
-  {
-    id: "2",
-    title: "AI Study Insight",
-    message: "You've mastered 80% of 'Digital Electronics'. Ready for a mock exam?",
-    type: "ai",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    read: false,
-  },
-  {
-    id: "3",
-    title: "Streak at Risk!",
-    message: "Don't lose your 5-day streak. Complete a session before midnight.",
-    type: "warning",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    read: true,
-  },
-  {
-    id: "4",
-    title: "New Material Available",
-    message: "A new past question paper for MTH 201 has been added to your university library.",
-    type: "info",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    read: true,
-  },
-];
+import { notificationService, Notification } from "../../services/notificationService";
 
 const getTimeAgo = (dateString: string) => {
   const date = new Date(dateString);
@@ -105,12 +59,15 @@ export const NotificationsScreen: React.FC = () => {
   }, []);
 
   const fetchNotifications = async () => {
-    // Simulating API call
-    setTimeout(() => {
-      setNotifications(MOCK_NOTIFICATIONS);
+    try {
+      const data = await notificationService.list();
+      setNotifications(data);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    } finally {
       setLoading(false);
       setRefreshing(false);
-    }, 1000);
+    }
   };
 
   const onRefresh = () => {
@@ -118,14 +75,29 @@ export const NotificationsScreen: React.FC = () => {
     fetchNotifications();
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const handleMarkRead = async (id: string) => {
+    try {
+      await notificationService.markRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await notificationService.markAllRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+    }
   };
 
   const renderItem = ({ item }: { item: Notification }) => (
     <TouchableOpacity
       style={[styles.notificationCard, !item.read && styles.unreadCard]}
       activeOpacity={0.7}
+      onPress={() => !item.read && handleMarkRead(item.id)}
     >
       <View style={styles.iconWrapper}>
         <NotificationIcon type={item.type} />
