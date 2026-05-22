@@ -4,6 +4,9 @@ import { AdminRole, VerificationStatus, Feature, AccessType, MessageRole } from 
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
+import { systemQueue, JOB_NAMES } from '../../config/queue';
+import { NotFoundException } from '../../shared/exceptions';
+import { SessionType } from '@prisma/client';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -19,7 +22,7 @@ import {
   FinanceFilter
 } from './admin.types';
 
-const generateQuestionsJob = async (id: string) => {};
+
 
 export class AdminService {
   async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
@@ -288,7 +291,7 @@ export class AdminService {
       }
     });
 
-    generateQuestionsJob(id).catch(console.error);
+    systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id }).catch(console.error);
     return material;
   }
 
@@ -483,20 +486,47 @@ export class AdminService {
 
   // Pillar 5: Platform Analytics
   async getOverviewAnalytics(filter: AnalyticsFilter) {
-    const [totalStudents, mau, wau, dau] = await Promise.all([
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfToday = new Date(now.setHours(0, 0, 0, 0));
+
+    const [totalStudents, mau, wau, dau, thirtyDaySignups] = await Promise.all([
       prisma.user.count({ where: { is_deleted: false } }),
       prisma.learningProfile.count({
-        where: { last_active: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }
+        where: { last_active: { gte: thirtyDaysAgo } }
       }),
       prisma.learningProfile.count({
-        where: { last_active: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }
+        where: { last_active: { gte: sevenDaysAgo } }
       }),
       prisma.learningProfile.count({
-        where: { last_active: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
+        where: { last_active: { gte: startOfToday } }
+      }),
+      prisma.user.count({
+        where: { created_at: { gte: thirtyDaysAgo }, is_deleted: false }
       })
     ]);
 
-    return { totalStudents, mau, wau, dau };
+    const firstSignup = await prisma.user.findFirst({
+      where: { is_deleted: false },
+      orderBy: { created_at: 'asc' },
+      select: { created_at: true }
+    });
+
+    const daysSinceFirstSignup = firstSignup ? (now.getTime() - firstSignup.created_at.getTime()) / (1000 * 60 * 60 * 24) : 0;
+    const insufficient_data = daysSinceFirstSignup < 7 || thirtyDaySignups < 7;
+
+    const dailySignupRate = thirtyDaySignups / 30;
+    const projectedGrowthNext30Days = Math.round(dailySignupRate * 30);
+
+    return {
+      totalStudents,
+      mau,
+      wau,
+      dau,
+      userGrowthProjection: insufficient_data ? null : projectedGrowthNext30Days,
+      insufficient_data_for_projection: insufficient_data
+    };
   }
 
   async getGrowthAnalytics(filter: AnalyticsFilter) {
@@ -529,11 +559,83 @@ export class AdminService {
   }
 
   async getRetentionAnalytics(filter: AnalyticsFilter) {
+    const now = new Date();
+    const startOfToday = new Date(now.setHours(0, 0, 0, 0));
+
+    const cohortSignupStart = new Date(startOfToday.getTime() - 21 * 24 * 60 * 60 * 1000);
+    const cohortSignupEnd = new Date(startOfToday.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const qualifyingUsers = await prisma.user.findMany({
+      where: {
+        created_at: { gte: cohortSignupStart, lte: cohortSignupEnd },
+        is_deleted: false,
+      },
+      select: { id: true, created_at: true }
+    });
+
+    if (qualifyingUsers.length < 10) {
+      return { insufficient_data: true, note: "fewer than 10 qualifying users" };
+    }
+
+    let retainedCount = 0;
+    const sessionWhere: any = {};
+    if (filter.session_type) sessionWhere.session_type = filter.session_type;
+
+    for (const user of qualifyingUsers) {
+      const week1Start = user.created_at;
+      const week1End = new Date(user.created_at.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const week2End = new Date(user.created_at.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const [week1Session, week2Session] = await Promise.all([
+        prisma.session.findFirst({
+          where: { ...sessionWhere, user_id: user.id, started_at: { gte: week1Start, lte: week1End } }
+        }),
+        prisma.session.findFirst({
+          where: { ...sessionWhere, user_id: user.id, started_at: { gte: week1End, lte: week2End } }
+        })
+      ]);
+
+      if (week1Session && week2Session) {
+        retainedCount++;
+      }
+    }
+
+    const week1to2RetentionRate = Number(((retainedCount / qualifyingUsers.length) * 100).toFixed(1));
+
+    const calculateWindowRetention = async (days: number) => {
+        const signupWindowStart = new Date(startOfToday.getTime() - (days + 1) * 24 * 60 * 60 * 1000);
+        const signupWindowEnd = new Date(startOfToday.getTime() - days * 24 * 60 * 60 * 1000);
+
+        const users = await prisma.user.findMany({
+            where: { created_at: { gte: signupWindowStart, lte: signupWindowEnd }, is_deleted: false },
+            select: { id: true }
+        });
+
+        if (users.length === 0) return 0;
+
+        const returnedCount = await prisma.session.count({
+            where: {
+                ...sessionWhere,
+                user_id: { in: users.map(u => u.id) },
+                started_at: { gte: startOfToday }
+            }
+        });
+
+        return Number(((returnedCount / users.length) * 100).toFixed(1));
+    };
+
+    const [d1, d7, d30] = await Promise.all([
+        calculateWindowRetention(1),
+        calculateWindowRetention(7),
+        calculateWindowRetention(30)
+    ]);
+
     return {
-      day1: 0.45,
-      day3: 0.30,
-      day7: 0.20,
-      day30: 0.10
+      day1: d1 / 100,
+      day7: d7 / 100,
+      day30: d30 / 100,
+      week1to2RetentionRate,
+      insufficient_data: false
     };
   }
 
@@ -617,10 +719,38 @@ export class AdminService {
   }
 
   async getFinanceProjections() {
-    return {
-      currentMonthRunRate: 1500000,
-      nextMonthEstimate: 1800000,
-      trend: 'up'
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [currentMonthTransactions, last30DaysTransactions] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: { status: 'successful', created_at: { gte: startOfMonth } },
+        _sum: { amount: true },
+        _count: { _all: true }
+      }),
+      prisma.transaction.aggregate({
+        where: { status: 'successful', created_at: { gte: thirtyDaysAgo } },
+        _sum: { amount: true },
+        _count: { _all: true }
+      })
+    ]);
+
+    const currentMonthRevenue = currentMonthTransactions._sum.amount || 0;
+    const daysPassedInMonth = now.getDate();
+    const currentMonthRunRate = (currentMonthRevenue / daysPassedInMonth) * 30;
+
+    const last30DaysRevenue = last30DaysTransactions._sum.amount || 0;
+    const dailyRevenueRate = last30DaysRevenue / 30;
+    const nextMonthEstimate = dailyRevenueRate * 30;
+
+    const insufficient_data = (last30DaysTransactions._count._all || 0) < 5;
+
+    return insufficient_data ? { insufficient_data: true } : {
+      currentMonthRunRate: Math.round(currentMonthRunRate),
+      nextMonthEstimate: Math.round(nextMonthEstimate),
+      trend: nextMonthEstimate >= currentMonthRunRate ? 'up' : 'down',
+      insufficient_data: false
     };
   }
 
@@ -677,14 +807,49 @@ export class AdminService {
   }
 
   async getJobsMonitoring() {
-    return [
-      { name: 'ingestMaterial', lastRun: new Date(), status: 'success', duration: '4.2s' },
-      { name: 'generateQuestions', lastRun: new Date(), status: 'success', duration: '23s' }
-    ];
+    const [waiting, active, completed, failed, delayed] = await Promise.all([
+      systemQueue.getWaiting(),
+      systemQueue.getActive(),
+      systemQueue.getCompleted(),
+      systemQueue.getFailed(),
+      systemQueue.getDelayed(),
+    ]);
+
+    const allJobs = [...waiting, ...active, ...completed, ...failed, ...delayed];
+
+    return allJobs.map(job => {
+      const duration = job.finishedOn && job.processedOn
+        ? ((job.finishedOn - job.processedOn) / 1000).toFixed(1) + 's'
+        : 'N/A';
+
+      return {
+        id: job.id,
+        name: job.name,
+        lastRun: new Date(job.timestamp),
+        status: (job as any)._progress === 100 || job.finishedOn ? 'success' : (job.failedReason ? 'failed' : 'active'),
+        duration
+      };
+    }).sort((a, b) => (b.lastRun.getTime() || 0) - (a.lastRun.getTime() || 0)).slice(0, 50);
   }
 
-  async retryJob(name: string) {
-    return { message: `Job ${name} retried successfully` };
+  async retryJob(jobId: string) {
+    const job = await systemQueue.getJob(jobId);
+    if (!job) {
+      throw new NotFoundException(`Job ${jobId} not found`);
+    }
+
+    try {
+      await job.retry();
+      const state = await job.getState();
+      return {
+        id: job.id,
+        status: state,
+        message: `Job ${jobId} retried successfully`
+      };
+    } catch (error: any) {
+      console.error(`Failed to retry job ${jobId}:`, error);
+      throw new Error(`Failed to retry job ${jobId}: ${error.message}`);
+    }
   }
 }
 
