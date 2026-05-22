@@ -3,8 +3,7 @@ import { StartSessionRequest, SendMessageRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
-import { updateLearningProfileJob } from '../../jobs/updateLearningProfile.job';
-import { generateSessionSummaryJob } from '../../jobs/generateSessionSummary.job';
+import { systemQueue, JOB_NAMES } from '../../config/queue';
 
 export class SessionsService {
   private mapSessionTypeToFeature(type: SessionType): Feature {
@@ -79,8 +78,8 @@ export class SessionsService {
     });
 
     // Trigger background jobs
-    updateLearningProfileJob(id).catch(console.error);
-    generateSessionSummaryJob(id).catch(console.error);
+    systemQueue.add(JOB_NAMES.UPDATE_LEARNING_PROFILE, { sessionId: id }).catch(console.error);
+    systemQueue.add(JOB_NAMES.GENERATE_SESSION_SUMMARY, { sessionId: id }).catch(console.error);
 
     return session;
   }

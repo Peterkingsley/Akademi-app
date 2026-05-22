@@ -4,9 +4,7 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
 import { VerificationStatus } from '@prisma/client';
-import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
-import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
-import { assembleChunksJob } from '../../jobs/assembleChunks.job';
+import { systemQueue, JOB_NAMES } from '../../config/queue';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -138,10 +136,10 @@ export class MaterialsService {
 
     // If chunks exist, trigger assembly
     if (material.upload_chunks.length > 0) {
-      assembleChunksJob(id).catch(console.error);
+      systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id }).catch(console.error);
     } else {
       // Direct upload, trigger ingestion
-      ingestMaterialJob(id).catch(console.error);
+      systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id }).catch(console.error);
     }
 
     return prisma.material.update({
@@ -163,7 +161,7 @@ export class MaterialsService {
     });
 
     // Trigger question generation job
-    generateQuestionsJob(id).catch(console.error);
+    systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id }).catch(console.error);
 
     return material;
   }
