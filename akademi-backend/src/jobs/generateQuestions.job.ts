@@ -17,11 +17,22 @@ export async function generateQuestionsJob(materialId: string) {
     orderBy: { version: 'desc' },
   });
 
-  const prompt = `Generate 10 questions from the following material based on the disciplinary context.
+  const prompt = `Generate 10 multiple-choice questions from the following material based on the disciplinary context.
   Material: ${materialContent}
   Context: ${JSON.stringify(disciplineDocument)}
   Distribution: 30% EASY, 40% MEDIUM, 30% HARD.
-  Format as JSON: { questions: [{ question_text: string, approach_guide: string, difficulty: 'EASY'|'MEDIUM'|'HARD' }] }`;
+
+  Each question MUST have 4 options (A, B, C, D).
+  Format as JSON: {
+    questions: [{
+      question_text: string,
+      options: string[], // ["A. ...", "B. ...", "C. ...", "D. ..."]
+      correct_answer: string, // "A", "B", "C", or "D"
+      explanation: string,
+      approach_guide: string,
+      difficulty: 'EASY'|'MEDIUM'|'HARD'
+    }]
+  }`;
 
   const aiOutput = await aiProvider.generateResponse(prompt, {
     systemPrompt: 'You are an expert academic assistant. Return ONLY valid JSON.',
@@ -48,6 +59,9 @@ export async function generateQuestionsJob(materialId: string) {
           department: material.department,
           level: material.level,
           question_text: q.question_text,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
           approach_guide: q.approach_guide,
           difficulty: q.difficulty as Difficulty,
         },

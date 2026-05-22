@@ -264,6 +264,9 @@ model Question {
   department     String
   level          Int
   question_text  String
+  options        Json?      // Stores ["A. ...", "B. ...", "C. ...", "D. ..."]
+  correct_answer String?    // Stores "A", "B", "C", or "D"
+  explanation    String?    // Why that answer is correct
   approach_guide String
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
