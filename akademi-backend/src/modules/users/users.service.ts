@@ -28,6 +28,8 @@ export class UsersService {
         profile_photo_url: true,
         created_at: true,
         updated_at: true,
+        push_token: true,
+        courses: true,
       },
     });
 
@@ -58,6 +60,8 @@ export class UsersService {
         profile_photo_url: true,
         created_at: true,
         updated_at: true,
+        push_token: true,
+        courses: true,
       },
     });
   }

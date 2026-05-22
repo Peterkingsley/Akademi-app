@@ -14,8 +14,12 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { BottomSheet } from "../../components/ui/BottomSheet";
+import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 import { useNavigation } from "@react-navigation/native";
 import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
+import { useRoute } from "@react-navigation/native";
+import { useEffect } from "react";
 
 type InputMode = "Type" | "Photo" | "Voice";
 type AnswerMode = "DIRECT" | "STUDY";
@@ -28,16 +32,29 @@ const NAV_BAR_HEIGHT = 80;
 
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { photoUri } = route.params || {};
+  const { user } = useAuthStore();
+  const userCourses = (user as any)?.courses || [];
+
   const [inputMode, setInputMode] = useState<InputMode>("Type");
   const [answerMode, setAnswerMode] = useState<AnswerMode>("DIRECT");
   const [question, setQuestion] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
-  const [course, setCourse] = useState("EEE 301");
+  const [course, setCourse] = useState(userCourses[0] || "Select Course");
   const [selectedCause, setSelectedCause] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
 
   const [bottomSheetIndex, setBottomSheetIndex] = useState(2);
+
+  useEffect(() => {
+    if (photoUri) {
+      // In a real app, we'd handle the photo here
+      console.log("Received photoUri:", photoUri);
+    }
+  }, [photoUri]);
 
   const handleSolve = async () => {
     if (!question.trim() || !selectedCause || !selectedType) return;
@@ -141,7 +158,10 @@ export const SolveScreen: React.FC = () => {
         {/* Course Selector */}
         <View style={styles.courseSelector}>
           <Text style={[styles.label, typography.caption]}>Solving for:</Text>
-          <TouchableOpacity style={styles.coursePill}>
+          <TouchableOpacity
+            style={styles.coursePill}
+            onPress={() => setIsCoursePickerVisible(true)}
+          >
             <View style={styles.dot} />
             <Text style={[styles.courseText, typography.bodySmall]}>{course}</Text>
             <ChevronDown size={16} color={colors.textSecondary} />
@@ -239,11 +259,18 @@ export const SolveScreen: React.FC = () => {
           label="Solve →"
           onPress={handleSolve}
           loading={loading}
-          disabled={!question.trim() || !selectedCause || !selectedType}
+          disabled={!question.trim() || !selectedCause || !selectedType || course === "Select Course"}
           style={styles.solveButton}
         />
       </View>
       </BottomSheet>
+
+      <CoursePickerModal
+        visible={isCoursePickerVisible}
+        onClose={() => setIsCoursePickerVisible(false)}
+        onSelect={setCourse}
+        selectedCourse={course}
+      />
     </Screen>
   );
 };

@@ -108,6 +108,8 @@ model User {
   updated_at                   DateTime       @updatedAt
   is_deleted                   Boolean        @default(false) // Required by AuthService
   is_banned                    Boolean        @default(false)
+  push_token                   String?
+  courses                      String[]       @default([])
 
   learning_profile  LearningProfile?
   sessions          Session[]

@@ -1,5 +1,6 @@
 import prisma from '../config/db';
 import { aiProvider } from '../modules/ai/ai.provider';
+import { notificationsService } from '../modules/notifications/notifications.service';
 
 export async function generateSessionSummaryJob(sessionId: string) {
   const session = await prisma.session.findUnique({
@@ -22,4 +23,12 @@ export async function generateSessionSummaryJob(sessionId: string) {
   // Store summary (maybe in a new SessionSummary table or a field in Session)
   // For now, let's assume we update the session or log it.
   console.log('Session Summary generated:', summary);
+
+  // Send notification to user
+  await notificationsService.createNotification({
+    user_id: session.user_id,
+    title: 'Session Summary Ready',
+    message: `Your summary for course ${session.course_code} is ready to view.`,
+    type: 'success',
+  });
 }

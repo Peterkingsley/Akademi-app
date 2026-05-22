@@ -1,0 +1,40 @@
+<<<<<<< SEARCH
+import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
+
+type InputMode = "Type" | "Photo" | "Voice";
+=======
+import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
+import { useRoute } from "@react-navigation/native";
+import { useEffect } from "react";
+
+type InputMode = "Type" | "Photo" | "Voice";
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+export const SolveScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
+  const { user } = useAuthStore();
+=======
+export const SolveScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { photoUri } = route.params || {};
+  const { user } = useAuthStore();
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  const [bottomSheetIndex, setBottomSheetIndex] = useState(2);
+
+  const handleSolve = async () => {
+=======
+  const [bottomSheetIndex, setBottomSheetIndex] = useState(2);
+
+  useEffect(() => {
+    if (photoUri) {
+      // In a real app, we'd handle the photo here
+      console.log("Received photoUri:", photoUri);
+    }
+  }, [photoUri]);
+
+  const handleSolve = async () => {
+>>>>>>> REPLACE
