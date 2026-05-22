@@ -27,12 +27,21 @@ export class QuestionsService {
 
     const question = await this.getQuestion(questionId);
 
-    // AI feedback (using ai-orchestrator as a template)
-    // In a real implementation, this would call a specific function for evaluation
-    const feedback = await orchestrateAIResponse(userId, '', `Evaluating answer: ${answer} for question: ${question.question_text}`, null);
+    let isCorrect = false;
+    let feedback = '';
 
-    // Mocking evaluation logic
-    const isCorrect = Math.random() > 0.5;
+    if (question.correct_answer) {
+      // Direct scoring if correct_answer exists
+      isCorrect = answer.trim().toUpperCase() === question.correct_answer.trim().toUpperCase();
+      feedback = isCorrect
+        ? `Correct! ${question.explanation || ''}`
+        : `Incorrect. The correct answer is ${question.correct_answer}. ${question.explanation || ''}`;
+    } else {
+      // Fallback to AI feedback if no correct_answer is stored (legacy or open-ended questions)
+      feedback = await orchestrateAIResponse(userId, '', `Evaluating answer: ${answer} for question: ${question.question_text}`, null);
+      // In a real implementation, the AI would also return a boolean for isCorrect
+      isCorrect = feedback.toLowerCase().includes('correct') && !feedback.toLowerCase().includes('incorrect');
+    }
 
     const attempt = await prisma.questionAttempt.create({
       data: {
