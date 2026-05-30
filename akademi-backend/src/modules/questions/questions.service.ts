@@ -3,6 +3,10 @@ import prisma from '../../config/db';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 
+function normalizeAnswer(answer: string) {
+  return answer.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 export class QuestionsService {
   async getQuestions(filter: any) {
     return prisma.question.findMany({
@@ -28,19 +32,21 @@ export class QuestionsService {
     const question = await this.getQuestion(questionId);
 
     let isCorrect = false;
-    let feedback = '';
+    let feedback = question.explanation || question.approach_guide;
 
     if (question.correct_answer) {
-      // Direct scoring if correct_answer exists
-      isCorrect = answer.trim().toUpperCase() === question.correct_answer.trim().toUpperCase();
+      isCorrect = normalizeAnswer(answer) === normalizeAnswer(question.correct_answer);
       feedback = isCorrect
-        ? `Correct! ${question.explanation || ''}`
-        : `Incorrect. The correct answer is ${question.correct_answer}. ${question.explanation || ''}`;
+        ? 'Correct. Nice work.'
+        : question.explanation || question.approach_guide;
     } else {
-      // Fallback to AI feedback if no correct_answer is stored (legacy or open-ended questions)
-      feedback = await orchestrateAIResponse(userId, '', `Evaluating answer: ${answer} for question: ${question.question_text}`, null);
-      // In a real implementation, the AI would also return a boolean for isCorrect
-      isCorrect = feedback.toLowerCase().includes('correct') && !feedback.toLowerCase().includes('incorrect');
+      // Legacy/open-ended question: fall back to AI feedback (no strict scoring)
+      feedback = await orchestrateAIResponse(
+        userId,
+        '',
+        `Evaluate the student's answer and give feedback.\n\nQuestion: ${question.question_text}\nAnswer: ${answer}`,
+        null
+      );
     }
 
     const attempt = await prisma.questionAttempt.create({

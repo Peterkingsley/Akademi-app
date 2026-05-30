@@ -3,43 +3,101 @@ import prisma from '../config/db';
 import { Difficulty } from '@prisma/client';
 import { aiProvider } from '../modules/ai/ai.provider';
 
+type GeneratedQuestion = {
+  question_text: string;
+  options: string[];
+  correct_answer: string;
+  approach_guide: string;
+  explanation?: string;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+};
+
+function parseJsonObject(text: string) {
+  const cleaned = text
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+    throw new Error('AI did not return valid JSON');
+  }
+}
+
+function normalizeQuestion(raw: any): GeneratedQuestion | null {
+  const options = Array.isArray(raw.options)
+    ? raw.options.map((option: any) => String(option).trim()).filter(Boolean).slice(0, 4)
+    : [];
+  const correctAnswer = String(raw.correct_answer || raw.answer || '').trim();
+  const difficulty = String(raw.difficulty || '').toUpperCase();
+
+  if (!raw.question_text || !raw.approach_guide || options.length < 2 || !correctAnswer) {
+    return null;
+  }
+
+  const matchingOption = options.find((option: string) => option.toLowerCase() === correctAnswer.toLowerCase());
+  if (!matchingOption) {
+    options[0] = correctAnswer;
+  }
+
+  return {
+    question_text: String(raw.question_text).trim(),
+    options,
+    correct_answer: matchingOption || correctAnswer,
+    approach_guide: String(raw.approach_guide).trim(),
+    explanation: raw.explanation ? String(raw.explanation).trim() : String(raw.approach_guide).trim(),
+    difficulty: ['EASY', 'MEDIUM', 'HARD'].includes(difficulty) ? difficulty as GeneratedQuestion['difficulty'] : 'MEDIUM',
+  };
+}
+
 export async function generateQuestionsJob(materialId: string) {
   const material = await prisma.material.findUnique({
     where: { id: materialId },
   });
   if (!material) throw new Error('Material not found');
 
-  // In real implementation, fetch content from R2. Mocking it here.
-  const materialContent = `Mocked content from R2 for material ${material.title}`;
+  const materialContent = material.content?.trim();
+  if (!materialContent) {
+    throw new Error('Cannot generate questions before material content is ingested');
+  }
 
   const disciplineDocument = await prisma.disciplineDocument.findFirst({
     where: { department: material.department, is_active: true },
     orderBy: { version: 'desc' },
   });
 
-  const prompt = `Generate 10 multiple-choice questions from the following material based on the disciplinary context.
-  Material: ${materialContent}
+  const prompt = `Generate 10 exam-prep multiple-choice questions from the following material based on the disciplinary context.
+  Material title: ${material.title}
+  Course code: ${material.course_code || 'General'}
+  Material content:
+  ${materialContent.slice(0, 24000)}
+
   Context: ${JSON.stringify(disciplineDocument)}
   Distribution: 30% EASY, 40% MEDIUM, 30% HARD.
-
-  Each question MUST have 4 options (A, B, C, D).
-  Format as JSON: {
-    questions: [{
-      question_text: string,
-      options: string[], // ["A. ...", "B. ...", "C. ...", "D. ..."]
-      correct_answer: string, // "A", "B", "C", or "D"
-      explanation: string,
-      approach_guide: string,
-      difficulty: 'EASY'|'MEDIUM'|'HARD'
-    }]
-  }`;
+  Each question must have exactly 4 concise options. The correct_answer must exactly match one option.
+  Format as JSON: { "questions": [{ "question_text": string, "options": string[], "correct_answer": string, "approach_guide": string, "explanation": string, "difficulty": "EASY"|"MEDIUM"|"HARD" }] }`;
 
   const aiOutput = await aiProvider.generateResponse(prompt, {
     systemPrompt: 'You are an expert academic assistant. Return ONLY valid JSON.',
     maxTokens: 2000,
   });
 
-  const { questions } = JSON.parse(aiOutput);
+  const parsed = parseJsonObject(aiOutput);
+  const questions = (parsed.questions || [])
+    .map(normalizeQuestion)
+    .filter(Boolean) as GeneratedQuestion[];
+
+  if (questions.length === 0) {
+    throw new Error('AI returned no usable questions');
+  }
 
   for (const q of questions) {
     // Check for duplicates
@@ -59,10 +117,10 @@ export async function generateQuestionsJob(materialId: string) {
           department: material.department,
           level: material.level,
           question_text: q.question_text,
+          approach_guide: q.approach_guide,
           options: q.options,
           correct_answer: q.correct_answer,
           explanation: q.explanation,
-          approach_guide: q.approach_guide,
           difficulty: q.difficulty as Difficulty,
         },
       });

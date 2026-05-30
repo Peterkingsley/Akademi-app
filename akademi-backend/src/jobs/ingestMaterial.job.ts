@@ -5,6 +5,7 @@ import { FileType } from '@prisma/client';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 
 const s3Client = new S3Client({
@@ -17,6 +18,7 @@ const s3Client = new S3Client({
 });
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
+let geminiClient: GoogleGenerativeAI | null = null;
 
 const getVisionClient = () => {
   if (!visionClient) {
@@ -26,6 +28,61 @@ const getVisionClient = () => {
   }
   return visionClient;
 };
+
+const PLACEHOLDER_KEYWORDS = ['your_', 'replace_me', 'api_key', 'dummy'];
+
+function hasUsableGeminiKey() {
+  const key = config.geminiApiKey;
+  return !!key && !PLACEHOLDER_KEYWORDS.some(keyword => key.toLowerCase().includes(keyword));
+}
+
+function getGeminiClient() {
+  if (!hasUsableGeminiKey()) return null;
+  if (!geminiClient) {
+    geminiClient = new GoogleGenerativeAI(config.geminiApiKey);
+  }
+  return geminiClient;
+}
+
+function normalizeVector(values: number[]) {
+  const magnitude = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
+  if (!magnitude) return values;
+  return values.map(value => Number((value / magnitude).toFixed(6)));
+}
+
+function hashTextEmbedding(text: string, dimensions = 256) {
+  const vector = new Array(dimensions).fill(0);
+  const tokens = text.toLowerCase().match(/[a-z0-9]+/g) || [];
+
+  for (const token of tokens) {
+    let hash = 2166136261;
+    for (let i = 0; i < token.length; i++) {
+      hash ^= token.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    const index = Math.abs(hash) % dimensions;
+    vector[index] += 1;
+  }
+
+  return normalizeVector(vector);
+}
+
+async function generateEmbedding(text: string) {
+  const client = getGeminiClient();
+
+  if (client) {
+    try {
+      const model = client.getGenerativeModel({ model: 'embedding-001' });
+      const result = await model.embedContent(text.slice(0, 8000));
+      const values = result.embedding.values;
+      if (values?.length) return values;
+    } catch (error) {
+      console.error('Gemini embedding failed, using deterministic fallback:', error);
+    }
+  }
+
+  return hashTextEmbedding(text);
+}
 
 export async function ingestMaterialJob(materialId: string) {
   const material = await prisma.material.findUnique({
@@ -74,18 +131,20 @@ export async function ingestMaterialJob(materialId: string) {
   // Chunk text (~500 tokens, roughly 2000 characters for estimation)
   const chunks = chunkText(extractedText, 2000);
 
+  await prisma.materialEmbedding.deleteMany({
+    where: { material_id: materialId },
+  });
+
   for (let i = 0; i < chunks.length; i++) {
     const chunkText = chunks[i];
-
-    // Generate embedding (Mocking with Anthropic or OpenAI logic if available)
-    const mockEmbedding = Array.from({ length: 1536 }, () => Math.random());
+    const embedding = await generateEmbedding(chunkText);
 
     await prisma.materialEmbedding.create({
       data: {
         material_id: materialId,
         chunk_index: i,
         chunk_text: chunkText,
-        embedding: mockEmbedding as any,
+        embedding: embedding as any,
       },
     });
   }

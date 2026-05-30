@@ -270,6 +270,9 @@ model Question {
   correct_answer String?    // Stores "A", "B", "C", or "D"
   explanation    String?    // Why that answer is correct
   approach_guide String
+  options        Json       @default("[]")
+  correct_answer String?
+  explanation    String?
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
 
