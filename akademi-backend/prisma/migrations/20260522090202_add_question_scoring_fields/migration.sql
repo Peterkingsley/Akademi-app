@@ -1,4 +1,5 @@
 -- AlterTable
-ALTER TABLE "questions" ADD COLUMN "options" JSONB,
-ADD COLUMN "correct_answer" TEXT,
-ADD COLUMN "explanation" TEXT;
+ALTER TABLE "questions"
+  ADD COLUMN IF NOT EXISTS "options" JSONB,
+  ADD COLUMN IF NOT EXISTS "correct_answer" TEXT,
+  ADD COLUMN IF NOT EXISTS "explanation" TEXT;
