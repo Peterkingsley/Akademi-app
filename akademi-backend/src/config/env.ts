@@ -5,6 +5,7 @@ dotenv.config();
 export const config = {
   databaseUrl: process.env.DATABASE_URL || '',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  enableRedis: process.env.ENABLE_REDIS === 'true',
   jwtSecret: process.env.JWT_SECRET || 'your_jwt_secret',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'your_refresh_secret',
   claudeApiKey: process.env.CLAUDE_API_KEY || '',
@@ -24,6 +25,7 @@ export const config = {
   typesensePort: parseInt(process.env.TYPESENSE_PORT || '8108', 10),
   typesenseApiKey: process.env.TYPESENSE_API_KEY || '',
   typesenseProtocol: process.env.TYPESENSE_PROTOCOL || 'https',
+  typesenseAutoSync: process.env.TYPESENSE_AUTO_SYNC === 'true',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
   sentryDsn: process.env.SENTRY_DSN || null,

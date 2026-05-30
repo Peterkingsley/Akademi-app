@@ -19,7 +19,7 @@ export const initWebSocket = (server: http.Server) => {
   });
 
   // Redis Adapter Setup
-  if (config.nodeEnv !== 'test') {
+  if (config.nodeEnv !== 'test' && config.enableRedis) {
       const pubClient = redisClient;
       const subClient = pubClient.duplicate();
       subClient.connect().then(() => {
