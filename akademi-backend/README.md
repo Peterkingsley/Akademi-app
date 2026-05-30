@@ -65,3 +65,7 @@ Akademi is an AI-powered personalized academic companion app built specifically 
 - `prisma/`: Database schema and migrations
 - `tests/`: Test files
 - `docker/`: Docker-related files
+
+## Manual Migration Resolution
+A manual database fix script (`fix-db.js`) has been added to resolve a Prisma migration conflict.
+This script cleans up failed migration records in the `_prisma_migrations` table to allow `prisma migrate deploy` to proceed.
