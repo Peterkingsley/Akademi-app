@@ -1,4 +1,5 @@
 import { AdminRole, VerificationStatus, Feature, AccessType } from '@prisma/client';
+import { SessionType } from '@prisma/client';
 
 export interface AdminJwtPayload {
   adminId: string;
@@ -99,6 +100,7 @@ export interface AnalyticsFilter {
   university?: string;
   department?: string;
   level?: number;
+  session_type?: SessionType;
 }
 
 // Pillar 6: Finance
