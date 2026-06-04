@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, Headphones } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -148,7 +148,9 @@ export const StudyModeScreen: React.FC = () => {
         </Card>
 
         <TouchableOpacity style={styles.tutorBanner} onPress={() => navigation.navigate("LiveTutorEntry")}>
-          <Avatar size={32} name="Scholar" />
+          <View style={styles.tutorIcon}>
+            <Headphones size={18} color={colors.primary} />
+          </View>
           <View style={styles.tutorTextContainer}>
             <Text style={[styles.tutorText, typography.bodySmall]}>
               Still confused? Our scholars are online to help you 1-on-1.
@@ -247,14 +249,25 @@ const styles = StyleSheet.create({
   tutorBanner: {
     flexDirection: "row",
     backgroundColor: colors.surfaceElevated,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 40,
   },
+  tutorIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary + "18",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 2,
+  },
   tutorTextContainer: {
-    marginLeft: 16,
     flex: 1,
+    marginLeft: 12,
+    minWidth: 0,
   },
   tutorText: {
     color: "#FFFFFF",
