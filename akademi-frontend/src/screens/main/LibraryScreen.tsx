@@ -44,6 +44,10 @@ export const LibraryScreen: React.FC = () => {
   const [uploadCourseCode, setUploadCourseCode] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
+  const userCourses = useMemo(() => user?.courses || [], [user?.courses]);
+  const defaultCourseCode = userCourses[0] || "";
+  const userLevel = typeof user?.level === "number" ? user.level : 100;
+  const hasAcademicProfile = Boolean(user?.university && user?.faculty && user?.department && user?.level);
 
   const fetchMaterials = async () => {
     try {
@@ -65,6 +69,12 @@ export const LibraryScreen: React.FC = () => {
     fetchMaterials();
   }, []);
 
+  useEffect(() => {
+    if (!uploadCourseCode && defaultCourseCode) {
+      setUploadCourseCode(defaultCourseCode);
+    }
+  }, [defaultCourseCode, uploadCourseCode]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchMaterials();
@@ -81,9 +91,10 @@ export const LibraryScreen: React.FC = () => {
   }, [materials, selectedCourse, searchQuery]);
 
   const courses = useMemo(() => {
-    const uniqueCourses = Array.from(new Set(materials.map(m => m.course_code || "General")));
+    const materialCourses = materials.map(m => m.course_code || "General");
+    const uniqueCourses = Array.from(new Set([...userCourses, ...materialCourses]));
     return uniqueCourses.sort();
-  }, [materials]);
+  }, [materials, userCourses]);
 
 
   const handleSelectFile = async () => {
@@ -104,7 +115,7 @@ export const LibraryScreen: React.FC = () => {
   };
 
     const handleUpload = async () => {
-    if (!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled) return;
+    if (!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile) return;
 
     setUploading(true);
     try {
@@ -115,11 +126,11 @@ export const LibraryScreen: React.FC = () => {
       // 1. Create upload entry and get presigned URL
       const { materialId, presignedUrl } = await materialService.uploadMaterial({
         title: uploadTitle,
-        course_code: uploadCourseCode,
+        course_code: uploadCourseCode.trim().toUpperCase(),
         university: user?.university || "",
-        faculty: "Science", // Ideally this should be dynamic or from user profile
+        faculty: user?.faculty || "",
         department: user?.department || "",
-        level: 300, // Ideally dynamic
+        level: userLevel,
         file_type: fileType,
       });
 
@@ -140,7 +151,7 @@ export const LibraryScreen: React.FC = () => {
 
       bottomSheetRef.current?.close();
       setUploadTitle("");
-      setUploadCourseCode("");
+      setUploadCourseCode(defaultCourseCode);
       setSelectedFile(null);
       fetchMaterials();
     } catch (error) {
@@ -287,14 +298,23 @@ export const LibraryScreen: React.FC = () => {
             <Text style={[styles.infoValue, typography.caption]}>{user?.university || "Not set"}</Text>
           </View>
           <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, typography.caption]}>Faculty:</Text>
+            <Text style={[styles.infoValue, typography.caption]}>{user?.faculty || "Not set"}</Text>
+          </View>
+          <View style={styles.infoRow}>
             <Text style={[styles.infoLabel, typography.caption]}>Department:</Text>
             <Text style={[styles.infoValue, typography.caption]}>{user?.department || "Not set"}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={[styles.infoLabel, typography.caption]}>Level:</Text>
+            <Text style={[styles.infoValue, typography.caption]}>{user?.level ? `${user.level}L` : "Not set"}</Text>
           </View>
 
           <Button
             label="Upload"
             onPress={handleUpload}
             loading={uploading}
+            disabled={!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile}
             style={styles.uploadBtn}
           />
         </BottomSheetView>
