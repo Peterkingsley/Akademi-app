@@ -131,7 +131,12 @@ export async function generateQuestionsJob(materialId: string) {
           difficulty: q.difficulty as Difficulty,
         },
       });
-      await addQuestionsToIndex([createdQuestion.id]);
+
+      try {
+        await addQuestionsToIndex([createdQuestion.id]);
+      } catch (error) {
+        console.error('Question saved, but Typesense indexing failed:', error);
+      }
     }
   }
 }
