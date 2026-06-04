@@ -291,7 +291,7 @@ export class AdminService {
       }
     });
 
-    systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id }).catch(console.error);
+    await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
     return material;
   }
 
