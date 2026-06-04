@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Dimensions, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { CheckCircle2, XCircle, Zap, Info, Inbox, ChevronRight, Eye } from "lucide-react-native";
-import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { CheckCircle2, XCircle, Zap, Info, Inbox, Eye } from "lucide-react-native";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import * as Haptics from "expo-haptics";
@@ -85,6 +83,18 @@ const ModerationQueue = ({ status }: { status: string }) => {
     }
   };
 
+  const getMaterialReadiness = (item: any) => {
+    const hasExtractedText = Boolean(item.content && item.content.trim().length > 0);
+    const questionCount = Array.isArray(item.questions) ? item.questions.length : Number(item.question_count || 0);
+
+    return {
+      extractionLabel: hasExtractedText ? "Text extracted" : "Extraction pending",
+      extractionColor: hasExtractedText ? colors.primary : colors.warning,
+      cbtLabel: questionCount > 0 ? `${questionCount} CBT questions ready` : "CBT questions pending",
+      cbtColor: questionCount > 0 ? colors.primary : colors.warning,
+    };
+  };
+
   if (loading) return <View style={{ padding: 16 }}>{[1,2,3].map(i => <Skeleton key={i} width="100%" height={100} borderRadius={12} style={{ marginBottom: 12 }} />)}</View>;
 
   if (items.length === 0) return (
@@ -109,11 +119,19 @@ const ModerationQueue = ({ status }: { status: string }) => {
           >
             <View style={{ flex: 1, marginRight: 16 }}>
               <Text style={[typography.body, { fontWeight: '600', color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.university} • {item.course_code}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.university} - {item.course_code || "General"}</Text>
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>{item.faculty} - {item.department} - {item.level}L</Text>
               {status === 'pending' && (
-                <View style={{ marginTop: 8 }}>
-                   <Text style={[typography.caption, { color: colors.textMuted, marginBottom: 4 }]}>Processing: 4/10 uploads</Text>
-                   <ProgressBar progress={0.4} color={colors.primary} />
+                <View style={{ marginTop: 8, gap: 6 }}>
+                  <View style={styles.readinessRow}>
+                    <View style={[styles.readinessPill, { borderColor: getMaterialReadiness(item).extractionColor }]}>
+                      <Text style={[styles.readinessText, { color: getMaterialReadiness(item).extractionColor }]}>{getMaterialReadiness(item).extractionLabel}</Text>
+                    </View>
+                    <View style={[styles.readinessPill, { borderColor: getMaterialReadiness(item).cbtColor }]}>
+                      <Text style={[styles.readinessText, { color: getMaterialReadiness(item).cbtColor }]}>{getMaterialReadiness(item).cbtLabel}</Text>
+                    </View>
+                  </View>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>Review the upload before publishing. Pending files are visible only to the uploader.</Text>
                 </View>
               )}
             </View>
@@ -174,6 +192,8 @@ const ModerationQueue = ({ status }: { status: string }) => {
 
 const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
   const { colors, typography } = useTheme();
+  const hasExtractedText = Boolean(item.content && item.content.trim().length > 0);
+  const questionCount = Array.isArray(item.questions) ? item.questions.length : Number(item.question_count || 0);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -195,12 +215,14 @@ const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
             <Card style={styles.contentCard}>
               <Text style={[typography.h4, { color: colors.textPrimary, marginBottom: 12 }]}>{item.title}</Text>
               <Text style={[typography.body, { color: colors.textSecondary, lineHeight: 22 }]}>
-                {item.description || "No description provided for this material."}
+                {hasExtractedText ? item.content.slice(0, 1200) : "No extracted text is available yet. Admins can still inspect the uploaded file before approving or rejecting."}
               </Text>
               <View style={[styles.aiReason, { backgroundColor: colors.surface }]}>
                 <Info size={16} color={colors.primary} />
                 <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 8, flex: 1 }]}>
-                  AI detected multiple low-confidence fragments. Reconciled based on course curriculum context.
+                  {questionCount > 0
+                    ? `${questionCount} CBT questions are already attached to this material.`
+                    : "CBT questions will be generated after approval when enough text is available."}
                 </Text>
               </View>
             </Card>
@@ -355,5 +377,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  readinessRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  readinessPill: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  readinessText: {
+    fontSize: 8,
+    fontFamily: 'Inter-Bold',
+    fontWeight: '700',
   }
 });
+
