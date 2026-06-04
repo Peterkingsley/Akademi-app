@@ -121,7 +121,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
     socket.on("session:resumed", () => setIsPaused(false));
 
     socket.on("session:summary", (data: any) => {
-      navigation.navigate("TutorSessionSummary", { sessionId, summary: data });
+      navigation.navigate("TutorSessionSummary", { sessionId, summary: data?.summary || data });
     });
 
     socket.on("session:ended", () => {

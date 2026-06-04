@@ -21,6 +21,13 @@ export const TutorSessionSummaryScreen: React.FC = () => {
   const [loading, setLoading] = useState(!initialSummary);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const normalizedSummary = {
+    topicsCovered: (summary as any)?.topicsCovered || summary?.key_points || [],
+    conceptsMastered: (summary as any)?.conceptsMastered || [],
+    areasToRevisit: (summary as any)?.areasToRevisit || summary?.next_steps?.map((step) => ({ name: step })) || [],
+    bestQuestion: (summary as any)?.bestQuestion || null,
+    aiInsight: (summary as any)?.aiInsight || summary?.summary || "",
+  };
 
   useEffect(() => {
     if (!initialSummary) {
@@ -42,10 +49,13 @@ export const TutorSessionSummaryScreen: React.FC = () => {
 
   const handleSaveToSessions = async () => {
     try {
-      await sessionService.rateSession(sessionId, rating, feedback);
-      navigation.navigate("MainTabs", { screen: "Home" });
+      if (rating || feedback.trim()) {
+        await sessionService.rateSession(sessionId, rating, feedback);
+      }
     } catch (error) {
-      console.error("Error saving session rating:", error);
+      console.warn("Session rating could not be saved yet:", error);
+    } finally {
+      navigation.navigate("MainTabs", { screen: "Home" });
     }
   };
 
@@ -82,7 +92,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
           <View style={styles.bannerText}>
             <Text style={[styles.completionTitle, typography.h2]}>Complete! 🎉</Text>
             <Text style={[styles.completionSubtitle, typography.bodySmall]}>
-              You've covered {summary?.topicsCovered.length || 0} key topics in this session.
+              You've covered {normalizedSummary.topicsCovered.length || 1} key topic in this session.
             </Text>
           </View>
           <BookOpen size={48} color={colors.primary} style={styles.bannerIcon} />
@@ -94,27 +104,34 @@ export const TutorSessionSummaryScreen: React.FC = () => {
             <Text style={[styles.cardTitle, typography.h3]}>What you covered</Text>
           </View>
           <View style={styles.bulletList}>
-            {summary?.topicsCovered.map((topic, index) => (
+            {normalizedSummary.topicsCovered.map((topic, index) => (
               <View key={index} style={styles.bulletItem}>
                 <View style={styles.bullet} />
                 <Text style={[styles.bulletText, typography.bodySmall]}>{topic}</Text>
               </View>
             ))}
+            {normalizedSummary.topicsCovered.length === 0 && (
+              <Text style={[styles.bulletText, typography.bodySmall]}>
+                {summary?.summary || "This tutoring session has been saved."}
+              </Text>
+            )}
           </View>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <CheckCircle size={20} color={colors.success} />
-            <Text style={[styles.cardTitle, typography.h3]}>Concepts mastered</Text>
-          </View>
-          {summary?.conceptsMastered.map((concept, index) => (
-            <View key={index} style={styles.masteryRow}>
-              <Text style={[styles.conceptName, typography.bodySmall]}>{concept.name}</Text>
-              <Text style={[styles.masteryPercent, typography.bodySmall]}>{concept.mastery}%</Text>
+        {normalizedSummary.conceptsMastered.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <CheckCircle size={20} color={colors.success} />
+              <Text style={[styles.cardTitle, typography.h3]}>Concepts mastered</Text>
             </View>
-          ))}
-        </View>
+            {normalizedSummary.conceptsMastered.map((concept, index) => (
+              <View key={index} style={styles.masteryRow}>
+                <Text style={[styles.conceptName, typography.bodySmall]}>{concept.name}</Text>
+                <Text style={[styles.masteryPercent, typography.bodySmall]}>{concept.mastery}%</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -124,7 +141,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
               <Text style={[styles.cardSubtitle, typography.caption]}>AI detected slight hesitation</Text>
             </View>
           </View>
-          {summary?.areasToRevisit.map((area, index) => (
+          {normalizedSummary.areasToRevisit.map((area, index) => (
             <View key={index} style={styles.revisitRow}>
               <Text style={[styles.revisitName, typography.bodySmall]}>{area.name}</Text>
               <TouchableOpacity style={styles.studyBtnPill}>
@@ -134,18 +151,18 @@ export const TutorSessionSummaryScreen: React.FC = () => {
           ))}
         </View>
 
-        {summary?.bestQuestion && (
+        {normalizedSummary.bestQuestion && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <Quote size={20} color={colors.primary} />
               <Text style={[styles.cardTitle, typography.h3]}>Your questions</Text>
             </View>
             <View style={styles.quoteBlock}>
-              <Text style={[styles.quoteText, typography.body]}>"{summary.bestQuestion}"</Text>
+              <Text style={[styles.quoteText, typography.body]}>"{normalizedSummary.bestQuestion}"</Text>
             </View>
             <View style={styles.insightBox}>
                <Text style={[styles.insightLabel, typography.mono]}>AI TUTOR INSIGHT</Text>
-               <Text style={[styles.insightText, typography.bodySmall]}>{summary.aiInsight}</Text>
+               <Text style={[styles.insightText, typography.bodySmall]}>{normalizedSummary.aiInsight}</Text>
             </View>
           </View>
         )}
