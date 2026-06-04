@@ -141,12 +141,16 @@ export class MaterialsService {
       },
     });
 
-    // If chunks exist, trigger assembly
-    if (material.upload_chunks.length > 0) {
-      await systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id });
-    } else {
-      // Direct upload, trigger ingestion
-      await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
+    try {
+      // If chunks exist, trigger assembly
+      if (material.upload_chunks.length > 0) {
+        await systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id });
+      } else {
+        // Direct upload, trigger ingestion
+        await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
+      }
+    } catch (error) {
+      console.error(`Material ${id} upload confirmed, but ingestion failed:`, error);
     }
 
     return this.getMaterial(id);

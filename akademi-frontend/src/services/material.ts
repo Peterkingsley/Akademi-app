@@ -60,7 +60,7 @@ export const materialService = {
   },
 
   confirmUpload: async (id: string) => {
-    const { data } = await api.post(`/materials/${id}/confirm`);
+    const { data } = await api.post<Material>(`/materials/${id}/confirm`);
     return data;
   },
 
