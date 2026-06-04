@@ -338,7 +338,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
             </TouchableOpacity>
             <TextInput
               style={[styles.input, typography.body]}
-              placeholder="Ask Lumina anything..."
+              placeholder="Ask Akademi anything..."
               placeholderTextColor={colors.textMuted}
               value={inputText}
               onChangeText={setInputText}
