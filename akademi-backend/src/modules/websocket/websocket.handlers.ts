@@ -74,7 +74,7 @@ export const registerHandlers = (
 
   socket.on('session:pause', async ({ sessionId, position }) => {
     try {
-      const pausePosition = Number.isFinite(position) ? position : 0;
+      const pausePosition = typeof position === 'number' && Number.isFinite(position) ? position : 0;
       await redisClient.set(`session:pause_position:${sessionId}`, pausePosition.toString());
       socket.emit('audio:stop');
       socket.emit('session:paused', { position: pausePosition });
