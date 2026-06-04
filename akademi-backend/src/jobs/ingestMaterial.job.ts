@@ -2,7 +2,7 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import prisma from '../config/db';
 import { config } from '../config/env';
 import { FileType } from '@prisma/client';
-import pdf from 'pdf-parse';
+import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -84,6 +84,25 @@ async function generateEmbedding(text: string) {
   return hashTextEmbedding(text);
 }
 
+async function extractPdfText(buffer: Buffer) {
+  const parserModule = pdfParse as any;
+  const parse = parserModule.default || parserModule;
+
+  if (typeof parse === 'function') {
+    const data = await parse(buffer);
+    return data.text || '';
+  }
+
+  if (typeof parserModule.PDFParse === 'function') {
+    const parser = new parserModule.PDFParse({ data: buffer });
+    const data = await parser.getText();
+    await parser.destroy?.();
+    return data.text || '';
+  }
+
+  throw new Error('PDF parser is not available');
+}
+
 export async function ingestMaterialJob(materialId: string) {
   const material = await prisma.material.findUnique({
     where: { id: materialId },
@@ -104,8 +123,7 @@ export async function ingestMaterialJob(materialId: string) {
   let extractedText = '';
 
   if (material.file_type === FileType.PDF) {
-    const data = await (pdf as any)(buffer);
-    extractedText = data.text;
+    extractedText = await extractPdfText(buffer);
   } else if (material.file_type === FileType.DOC) {
     const result = await mammoth.extractRawText({ buffer });
     extractedText = result.value;
