@@ -25,7 +25,12 @@ export type AuthStackParamList = {
       email: string;
       name: string;
       university?: string;
+      faculty?: string;
       department?: string;
+      level?: number;
+      courses?: string[];
+      profile_photo_url?: string | null;
+      is_verified?: boolean;
       admin_role?: string | null;
     };
     accessToken: string;

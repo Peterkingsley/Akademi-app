@@ -21,7 +21,7 @@ if (typeof window !== 'undefined') {
 
 export const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, hasSeenOnboarding } = useAuthStore();
+  const { isAuthenticated, hasSeenOnboarding, updateUser } = useAuthStore();
 
   const registerForPushNotificationsAsync = async () => {
     if (!Device.isDevice) return;
@@ -54,7 +54,8 @@ export const RootNavigator = () => {
       if (isAuthenticated) {
         try {
           // Verify session validity on startup
-          await userService.getProfile();
+          const profile = await userService.getProfile();
+          updateUser(profile);
           // Register for push notifications
           registerForPushNotificationsAsync().catch(console.error);
         } catch (error) {

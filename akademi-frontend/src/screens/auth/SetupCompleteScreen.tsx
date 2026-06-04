@@ -15,17 +15,37 @@ import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { useAuthStore } from "../../store/useAuthStore";
 
-const COURSES = ["EEE 301", "MTH 201", "CSC 312", "EEE 305"];
+const CoursePill = ({ course, delay }: { course: string; delay: number }) => {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
+  }, [delay, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: withSpring(opacity.value) }],
+  }));
+
+  return (
+    <Animated.View style={[styles.coursePill, animatedStyle]}>
+      <Text style={styles.courseText}>{course}</Text>
+    </Animated.View>
+  );
+};
 
 export const SetupCompleteScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
   const authPayload = route.params || {};
+  const courses: string[] =
+    Array.isArray(authPayload.user?.courses) && authPayload.user.courses.length > 0
+      ? authPayload.user.courses
+      : ["Your courses"];
 
   const checkScale = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
-  const courseOpacities = COURSES.map(() => useSharedValue(0));
 
   useEffect(() => {
     // 1. Checkmark circle scales from 0 to 1.2 then settles at 1.0
@@ -33,14 +53,6 @@ export const SetupCompleteScreen: React.FC = () => {
 
     // 2. Headline and body fade up 150ms stagger after checkmark
     contentOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
-
-    // 3. Course pills appear one by one with 80ms stagger
-    COURSES.forEach((_, index) => {
-      courseOpacities[index].value = withDelay(
-        800 + index * 80,
-        withTiming(1, { duration: 400 })
-      );
-    });
   }, []);
 
   const checkStyle = useAnimatedStyle(() => ({
@@ -82,17 +94,9 @@ export const SetupCompleteScreen: React.FC = () => {
           <View style={styles.syncSection}>
             <Text style={styles.syncLabel}>CURRICULUM SYNCED</Text>
             <View style={styles.courseRow}>
-              {COURSES.map((course, index) => {
-                const animatedStyle = useAnimatedStyle(() => ({
-                  opacity: courseOpacities[index].value,
-                  transform: [{ scale: withSpring(courseOpacities[index].value) }],
-                }));
-                return (
-                  <Animated.View key={course} style={[styles.coursePill, animatedStyle]}>
-                    <Text style={styles.courseText}>{course}</Text>
-                  </Animated.View>
-                );
-              })}
+              {courses.slice(0, 4).map((course, index) => (
+                <CoursePill key={course} course={course} delay={800 + index * 80} />
+              ))}
             </View>
           </View>
         </View>

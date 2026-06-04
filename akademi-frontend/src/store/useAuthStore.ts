@@ -7,8 +7,13 @@ interface User {
   email: string;
   name: string;
   university?: string;
+  faculty?: string;
   department?: string;
+  level?: number;
+  courses?: string[];
+  profile_photo_url?: string | null;
   avatar_url?: string | null;
+  is_verified?: boolean;
   onboarding_complete?: boolean;
   admin_role?: string | null;
 }

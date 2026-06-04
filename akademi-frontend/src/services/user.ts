@@ -10,7 +10,11 @@ export interface UserProfile {
   faculty?: string;
   department?: string;
   level?: number;
-  avatar_url?: string;
+  profile_photo_url?: string | null;
+  avatar_url?: string | null;
+  courses?: string[];
+  is_verified?: boolean;
+  admin_role?: string | null;
   stats?: {
     assignments: number;
     sessions: number;
