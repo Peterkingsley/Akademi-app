@@ -59,13 +59,20 @@ function normalizeQuestion(raw: any): GeneratedQuestion | null {
 }
 
 export async function generateQuestionsJob(materialId: string) {
-  const material = await prisma.material.findUnique({
+  let material = await prisma.material.findUnique({
     where: { id: materialId },
   });
   if (!material) throw new Error('Material not found');
 
-  const materialContent = material.content?.trim();
+  let materialContent = material.content?.trim();
   if (!materialContent) {
+    const { ingestMaterialJob } = await import('./ingestMaterial.job');
+    await ingestMaterialJob(materialId);
+    material = await prisma.material.findUnique({ where: { id: materialId } });
+    materialContent = material?.content?.trim();
+  }
+
+  if (!material || !materialContent) {
     throw new Error('Cannot generate questions before material content is ingested');
   }
 
