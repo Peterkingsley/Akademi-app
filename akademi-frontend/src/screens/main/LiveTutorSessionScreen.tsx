@@ -74,6 +74,9 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const endFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasNavigatedToSummaryRef = useRef(false);
+  const sessionCourse = sessionData?.course_code || "General";
+  const sessionTopic = sessionData?.topic?.trim() || "Live tutor session";
+  const sessionDuration = sessionData?.duration ? `${sessionData.duration} min` : "Open-ended";
 
   useEffect(() => {
     loadSession();
@@ -373,8 +376,8 @@ export const LiveTutorSessionScreen: React.FC = () => {
 
         <View style={styles.contextPill}>
           <GraduationCap size={16} color={colors.primary} />
-          <Text style={[styles.contextText, typography.mono]}>
-            {sessionData?.course_code || "EEE 301"} • {sessionData?.topic?.toUpperCase() || "THEVENIN'S THEOREM"}
+          <Text style={[styles.contextText, typography.mono]} numberOfLines={1}>
+            {sessionCourse} - {sessionTopic} - {sessionDuration}
           </Text>
         </View>
 
@@ -530,6 +533,7 @@ const styles = StyleSheet.create({
   contextText: {
     color: colors.textPrimary,
     marginLeft: 8,
+    flex: 1,
     fontSize: 7.5,
     letterSpacing: 0.5,
   },

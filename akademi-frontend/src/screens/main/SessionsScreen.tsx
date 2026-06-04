@@ -43,6 +43,19 @@ const TYPE_COLORS: Record<SessionUI["type"], string> = {
   STUDY: "#D97706",
 };
 
+const formatSessionDuration = (duration?: number) => {
+  if (!duration) return "Open-ended";
+  if (duration > 60) return `${Math.floor(duration / 60)}h ${duration % 60}m`;
+  return `${duration}m`;
+};
+
+const getSessionTitle = (session: any, type: SessionUI["type"]) => {
+  if (session.topic?.trim()) return session.topic.trim();
+  if (type === "TUTOR") return "Live tutor session";
+  if (type === "SOLVE ASSIGNMENT") return "Assignment help";
+  return "Study session";
+};
+
 const SessionIcon: React.FC<{ type: SessionUI["type"] }> = ({ type }) => {
   const bg = TYPE_COLORS[type];
   return (
@@ -82,16 +95,13 @@ export const SessionsScreen: React.FC = () => {
           const date = new Date(s.created_at);
           const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-          const durationMins = s.duration || 0;
-          const formattedDuration = durationMins > 60
-            ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m duration`
-            : `${durationMins}m duration`;
+          const formattedDuration = formatSessionDuration(s.duration);
 
           return {
               id: s.id,
-              course: s.course_code,
+              course: s.course_code || "General",
               type,
-              title: s.topic,
+              title: getSessionTitle(s, type),
               date: formattedDate,
               duration: formattedDuration,
               bookmarked: false
@@ -224,7 +234,7 @@ export const SessionsScreen: React.FC = () => {
                       {session.title}
                     </Text>
                     <Text style={styles.sessionMeta}>
-                      {session.date} • {session.duration}
+                      {session.date} - {session.duration}
                     </Text>
                   </View>
                   <View style={styles.sessionActions}>
@@ -249,8 +259,7 @@ export const SessionsScreen: React.FC = () => {
                 <Text style={styles.insightLabel}>ACADEMIC INSIGHT</Text>
               </View>
               <Text style={styles.insightText}>
-                "You tend to perform 15% better on morning sessions. Consider
-                scheduling your next EEE 301 session before 11 AM."
+                Your saved sessions will help Akademi spot the best time and topics for your next lesson.
               </Text>
             </View>
           </>

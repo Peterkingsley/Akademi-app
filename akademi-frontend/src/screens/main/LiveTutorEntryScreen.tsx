@@ -27,6 +27,10 @@ import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 
 const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
+const formatDuration = (duration?: number) => duration ? `${duration} min` : "Open-ended";
+
+const getSessionTopic = (session: Session) => session.topic?.trim() || "Live tutor session";
+
 export const LiveTutorEntryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -49,10 +53,10 @@ export const LiveTutorEntryScreen: React.FC = () => {
     try {
       setLoading(true);
       const [sessions, profile] = await Promise.all([
-        sessionService.getRecentSessions(3),
+        sessionService.getRecentSessions(20),
         sessionService.getLearningProfile(),
       ]);
-      setRecentSessions(sessions);
+      setRecentSessions(sessions.filter((session) => session.session_type === "TUTOR").slice(0, 3));
       setLearningProfile(profile);
     } catch (error) {
       console.error("Error fetching entry data:", error);
@@ -142,15 +146,15 @@ export const LiveTutorEntryScreen: React.FC = () => {
           >
             <View style={styles.recentLeft}>
               <View style={[styles.courseCodePill, { backgroundColor: colors.surfaceElevated }]}>
-                <Text style={[styles.courseCodeText, typography.mono]}>{session.course_code}</Text>
+                <Text style={[styles.courseCodeText, typography.mono]}>{session.course_code || "General"}</Text>
               </View>
               <View style={styles.recentMeta}>
-                <Text style={[styles.recentTopic, typography.bodySmall]} numberOfLines={1}>{session.topic}</Text>
+                <Text style={[styles.recentTopic, typography.bodySmall]} numberOfLines={1}>{getSessionTopic(session)}</Text>
                 <Text style={[styles.recentDate, typography.caption]}>{new Date(session.created_at).toLocaleDateString()}</Text>
               </View>
             </View>
             <View style={styles.recentRight}>
-              <Text style={[styles.recentDuration, typography.caption]}>{session.duration || "Open"} min</Text>
+              <Text style={[styles.recentDuration, typography.caption]}>{formatDuration(session.duration)}</Text>
               <ChevronRight size={18} color={colors.textMuted} />
             </View>
           </TouchableOpacity>

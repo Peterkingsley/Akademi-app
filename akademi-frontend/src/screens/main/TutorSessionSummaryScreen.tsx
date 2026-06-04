@@ -8,8 +8,19 @@ import { Button } from "../../components/ui/Button";
 import { Avatar } from "../../components/ui/Avatar";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Settings, BookOpen, CheckCircle, AlertTriangle, Quote, Star } from "lucide-react-native";
-import { sessionService, SessionSummary } from "../../services/session";
+import { sessionService, Session, SessionSummary } from "../../services/session";
 import { Skeleton } from "../../components/ui/Skeleton";
+
+const formatDuration = (duration?: number) => duration ? `${duration} min` : "Open-ended";
+
+type MasteredConcept = {
+  name: string;
+  mastery: number;
+};
+
+type RevisitArea = {
+  name: string;
+};
 
 export const TutorSessionSummaryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -19,27 +30,33 @@ export const TutorSessionSummaryScreen: React.FC = () => {
 
   const [summary, setSummary] = useState<SessionSummary | null>(initialSummary || null);
   const [loading, setLoading] = useState(!initialSummary);
+  const [session, setSession] = useState<Session | null>(null);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const sessionTopic = session?.topic?.trim() || "Live tutor session";
+  const sessionCourse = session?.course_code || "General";
+  const sessionDuration = formatDuration(session?.duration);
   const normalizedSummary = {
-    topicsCovered: (summary as any)?.topicsCovered || summary?.key_points || [],
-    conceptsMastered: (summary as any)?.conceptsMastered || [],
-    areasToRevisit: (summary as any)?.areasToRevisit || summary?.next_steps?.map((step) => ({ name: step })) || [],
+    topicsCovered: ((summary as any)?.topicsCovered || summary?.key_points || []) as string[],
+    conceptsMastered: ((summary as any)?.conceptsMastered || []) as MasteredConcept[],
+    areasToRevisit: ((summary as any)?.areasToRevisit || summary?.next_steps?.map((step) => ({ name: step })) || []) as RevisitArea[],
     bestQuestion: (summary as any)?.bestQuestion || null,
     aiInsight: (summary as any)?.aiInsight || summary?.summary || "",
   };
 
   useEffect(() => {
-    if (!initialSummary) {
-      fetchSummary();
-    }
+    fetchScreenData();
   }, []);
 
-  const fetchSummary = async () => {
+  const fetchScreenData = async () => {
     try {
       setLoading(true);
-      const data = await sessionService.getSessionSummary(sessionId);
-      setSummary(data);
+      const [sessionData, summaryData] = await Promise.all([
+        sessionService.getSession(sessionId),
+        initialSummary ? Promise.resolve(initialSummary) : sessionService.getSessionSummary(sessionId),
+      ]);
+      setSession(sessionData);
+      setSummary(summaryData);
     } catch (error) {
       console.error("Error fetching summary:", error);
     } finally {
@@ -90,12 +107,20 @@ export const TutorSessionSummaryScreen: React.FC = () => {
 
         <View style={styles.completionBanner}>
           <View style={styles.bannerText}>
-            <Text style={[styles.completionTitle, typography.h2]}>Complete! 🎉</Text>
+            <Text style={[styles.completionTitle, typography.h2]}>Session complete</Text>
             <Text style={[styles.completionSubtitle, typography.bodySmall]}>
               You've covered {normalizedSummary.topicsCovered.length || 1} key topic in this session.
             </Text>
           </View>
           <BookOpen size={48} color={colors.primary} style={styles.bannerIcon} />
+        </View>
+
+        <View style={styles.sessionContextCard}>
+          <Text style={[styles.contextLabel, typography.mono]}>LIVE TUTOR SESSION</Text>
+          <Text style={[styles.contextTitle, typography.h3]} numberOfLines={2}>{sessionTopic}</Text>
+          <Text style={[styles.contextMeta, typography.bodySmall]} numberOfLines={1}>
+            {sessionCourse} - {sessionDuration}
+          </Text>
         </View>
 
         <View style={styles.card}>
@@ -145,7 +170,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
             <View key={index} style={styles.revisitRow}>
               <Text style={[styles.revisitName, typography.bodySmall]}>{area.name}</Text>
               <TouchableOpacity style={styles.studyBtnPill}>
-                <Text style={[styles.studyBtnText, typography.caption]}>STUDY THESE →</Text>
+                <Text style={[styles.studyBtnText, typography.caption]}>STUDY THESE</Text>
               </TouchableOpacity>
             </View>
           ))}
@@ -262,6 +287,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  sessionContextCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + "44",
+  },
+  contextLabel: {
+    color: colors.primary,
+    fontSize: 8,
+    marginBottom: 8,
+    letterSpacing: 0.8,
+  },
+  contextTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  contextMeta: {
+    color: colors.textSecondary,
   },
   cardHeader: {
     flexDirection: "row",
