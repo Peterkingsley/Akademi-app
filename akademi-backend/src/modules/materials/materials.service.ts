@@ -134,20 +134,22 @@ export class MaterialsService {
 
     console.log(`Confirming upload for material ${id}`);
 
-    // If chunks exist, trigger assembly
-    if (material.upload_chunks.length > 0) {
-      systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id }).catch(console.error);
-    } else {
-      // Direct upload, trigger ingestion
-      systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id }).catch(console.error);
-    }
-
-    return prisma.material.update({
+    await prisma.material.update({
       where: { id },
       data: {
         verification_status: VerificationStatus.PENDING,
       },
     });
+
+    // If chunks exist, trigger assembly
+    if (material.upload_chunks.length > 0) {
+      await systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id });
+    } else {
+      // Direct upload, trigger ingestion
+      await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
+    }
+
+    return this.getMaterial(id);
   }
 
   // Helper method for admin or auto-verification to trigger question generation
@@ -161,7 +163,7 @@ export class MaterialsService {
     });
 
     // Trigger question generation job
-    systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id }).catch(console.error);
+    await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
 
     return material;
   }
