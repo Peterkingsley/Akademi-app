@@ -3,7 +3,7 @@ import api from "./api";
 export interface Material {
   id: string;
   title: string;
-  course_code: string;
+  course_code?: string | null;
   university: string;
   faculty: string;
   department: string;
@@ -12,7 +12,8 @@ export interface Material {
   verification_status: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   file_ref: string;
   content?: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
   rating?: number;
   isBookmarked?: boolean;
 }

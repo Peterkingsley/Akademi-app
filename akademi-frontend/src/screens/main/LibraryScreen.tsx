@@ -72,15 +72,16 @@ export const LibraryScreen: React.FC = () => {
 
   const filteredMaterials = useMemo(() => {
     return materials.filter(m => {
-      const matchesCourse = selectedCourse === "All" || m.course_code === selectedCourse;
+      const courseCode = m.course_code || "General";
+      const matchesCourse = selectedCourse === "All" || courseCode === selectedCourse;
       const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           m.course_code.toLowerCase().includes(searchQuery.toLowerCase());
+                           courseCode.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCourse && matchesSearch;
     });
   }, [materials, selectedCourse, searchQuery]);
 
   const courses = useMemo(() => {
-    const uniqueCourses = Array.from(new Set(materials.map(m => m.course_code)));
+    const uniqueCourses = Array.from(new Set(materials.map(m => m.course_code || "General")));
     return uniqueCourses.sort();
   }, [materials]);
 
@@ -208,11 +209,11 @@ export const LibraryScreen: React.FC = () => {
           >
             <MaterialCard
               title={item.title}
-              courseCode={item.course_code}
+              courseCode={item.course_code || "General"}
               fileType={item.file_type === "PDF" ? "PDF" : item.file_type === "IMAGE" ? "SYSTEM_FILE" : "STUDY_DOC"}
               isVerified={item.verification_status === "VERIFIED"}
               fileSize={"-"}
-              date={new Date(item.updated_at).toLocaleDateString()}
+              date={new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
               rating={item.rating}
               isBookmarked={item.isBookmarked}
               onPress={() => navigation.navigate("StudyMode", { materialId: item.id })}

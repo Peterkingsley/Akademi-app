@@ -33,6 +33,7 @@ export const StudyModeScreen: React.FC = () => {
   const [selectedText, setSelectedText] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const courseCode = material?.course_code || "General";
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -125,7 +126,7 @@ export const StudyModeScreen: React.FC = () => {
           <View style={styles.materialHeader}>
             <Text style={[styles.materialTitle, typography.h2]}>{material.title}</Text>
             <Text style={[styles.materialMeta, typography.caption]}>
-              {material.course_code} • {material.university}
+              {courseCode} • {material.university}
             </Text>
           </View>
         )}
@@ -177,7 +178,7 @@ export const StudyModeScreen: React.FC = () => {
         visible={isAskModalVisible}
         onClose={() => setIsAskModalVisible(false)}
         contextText={selectedText}
-        courseCode={material?.course_code}
+        courseCode={courseCode}
       />
     </Screen>
   );
