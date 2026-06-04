@@ -5,12 +5,13 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation } from "@react-navigation/native";
 import { userService } from "../../services/user";
+import { Material } from "../../services/material";
 import { FileText, CloudUpload, ChevronRight, Clock } from "lucide-react-native";
 
 export const MyUploadsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
-  const [uploads, setUploads] = useState<any[]>([]);
+  const [uploads, setUploads] = useState<Material[]>([]);
 
   useEffect(() => {
     fetchUploads();
@@ -27,19 +28,23 @@ export const MyUploadsScreen: React.FC = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.uploadItem} activeOpacity={0.7}>
+  const renderItem = ({ item }: { item: Material }) => (
+    <TouchableOpacity
+      style={styles.uploadItem}
+      activeOpacity={0.7}
+      onPress={() => navigation.navigate("StudyMode", { materialId: item.id })}
+    >
       <View style={styles.fileIcon}>
         <FileText size={20} color={colors.primary} />
       </View>
       <View style={styles.uploadInfo}>
         <Text style={styles.fileName} numberOfLines={1}>{item.title}</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>{item.course_code}</Text>
+          <Text style={styles.metaText}>{item.course_code || "General"}</Text>
           <View style={styles.dot} />
           <Clock size={10} color={colors.textMuted} />
           <Text style={styles.metaText}>
-            {new Date(item.created_at).toLocaleDateString()}
+            {new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
           </Text>
         </View>
       </View>
