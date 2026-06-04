@@ -12,7 +12,7 @@ type RedisLike = {
   expire: (key: string, ttlSeconds: number) => Promise<void>;
   keys: (pattern: string) => Promise<string[]>;
   del: (keys: string[] | string) => Promise<number>;
-  ping?: () => Promise<string>;
+  ping: () => Promise<string>;
 };
 
 function createInMemoryRedis(): RedisLike {
