@@ -50,7 +50,7 @@ export class AuthService {
       throw new Error("All registration fields are required");
     }
 
-    const emailRegex = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.email)) {
       throw new Error("Invalid email format");
     }
