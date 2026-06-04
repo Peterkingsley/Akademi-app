@@ -11,12 +11,12 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { X, Send, Sparkles } from "lucide-react-native";
+import { BookOpen, ClipboardList, GraduationCap, ListChecks, Send, Sparkles, X } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "./Button";
 import { Avatar } from "./Avatar";
-import { sessionService, Message } from "../../services/session";
+import { sessionService } from "../../services/session";
 
 interface AskAkademiModalProps {
   visible: boolean;
@@ -35,35 +35,73 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<"ask" | "summarize" | "explain" | "teach" | "practice">("ask");
 
   useEffect(() => {
     if (visible) {
       setQuestion("");
       setResponse(null);
       setSessionId(null);
+      setActiveAction("ask");
     }
   }, [visible]);
 
-  const handleAsk = async () => {
-    if (!question.trim()) return;
+  const buildPrompt = (action: typeof activeAction) => {
+    const trimmedQuestion = question.trim();
+    const safeContext = contextText.trim();
+
+    switch (action) {
+      case "summarize":
+        return `Summarize this selected material section clearly for a student.\n\nSelected section:\n${safeContext}`;
+      case "explain":
+        return `Explain this selected material section step by step. Use simple language and connect it to ${courseCode || "this course"}.\n\nSelected section:\n${safeContext}`;
+      case "teach":
+        return `Teach this selected material section in depth like a patient university tutor. Start from intuition, then definitions, examples, likely exam angles, and common mistakes.\n\nSelected section:\n${safeContext}`;
+      case "practice":
+        return `Create a short CBT-style practice from this selected material section. Give 5 multiple-choice questions with options, answers, and explanations.\n\nSelected section:\n${safeContext}`;
+      case "ask":
+      default:
+        return `Use this selected material section as context, then answer the student's question.\n\nSelected section:\n${safeContext}\n\nStudent question:\n${trimmedQuestion}`;
+    }
+  };
+
+  const handleAction = async (action: typeof activeAction = activeAction) => {
+    if (action === "ask" && !question.trim()) return;
+    if (!contextText.trim()) return;
 
     setLoading(true);
+    setActiveAction(action);
     try {
-      // In a real implementation, we might create a special session type or use an existing one
-      // For this feature, we'll simulate the AI interaction
-      // We send the contextText along with the question
+      const activeSessionId = sessionId || (
+        await sessionService.createSession({
+          session_type: "STUDY",
+          course_code: courseCode || "GENERAL",
+          reply_mode: action === "practice" ? "QUESTION" : "STUDY",
+        })
+      ).id;
 
-      // Mocking AI response for now as we don't have a dedicated "quick ask" endpoint yet
-      // but we could use createSession with metadata
-      setTimeout(() => {
-        setResponse(`Based on the text: "${contextText.substring(0, 50)}...", here is the answer: This concept refers to the fundamental principles of ${courseCode || 'the subject'}. It is important because it connects to later topics in the course.`);
-        setLoading(false);
-      }, 1500);
+      if (!sessionId) setSessionId(activeSessionId);
+
+      const aiMessage = await sessionService.sendMessage(activeSessionId, {
+        content: buildPrompt(action),
+        reply_mode: action === "practice" ? "QUESTION" : "STUDY",
+      });
+
+      setResponse(aiMessage.content);
     } catch (error) {
       console.error("Failed to ask Akademi:", error);
+      setResponse("I could not reach Akademi AI for this material yet. Please try again in a moment.");
+    } finally {
       setLoading(false);
     }
   };
+
+  const actions = [
+    { key: "summarize" as const, label: "Summarize", icon: <ListChecks size={16} color="#FFFFFF" /> },
+    { key: "explain" as const, label: "Explain", icon: <BookOpen size={16} color="#FFFFFF" /> },
+    { key: "teach" as const, label: "Teach", icon: <GraduationCap size={16} color="#FFFFFF" /> },
+    { key: "practice" as const, label: "CBT", icon: <ClipboardList size={16} color="#FFFFFF" /> },
+  ];
 
   return (
     <Modal
@@ -95,6 +133,20 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
               </Text>
             </View>
 
+            <View style={styles.actionRow}>
+              {actions.map((action) => (
+                <TouchableOpacity
+                  key={action.key}
+                  style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
+                  onPress={() => handleAction(action.key)}
+                  disabled={loading}
+                >
+                  {action.icon}
+                  <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {response ? (
               <View style={styles.responseContainer}>
                 <View style={styles.aiHeader}>
@@ -109,7 +161,11 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 <Button
                   label="Clear and ask another"
                   variant="ghost"
-                  onPress={() => setResponse(null)}
+                  onPress={() => {
+                    setResponse(null);
+                    setQuestion("");
+                    setActiveAction("ask");
+                  }}
                   style={styles.clearBtn}
                 />
               </View>
@@ -135,7 +191,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
             <View style={styles.footer}>
               <Button
                 label="Ask Akademi"
-                onPress={handleAsk}
+                onPress={() => handleAction("ask")}
                 loading={loading}
                 disabled={!question.trim()}
                 icon={<Send size={18} color="#FFFFFF" />}
@@ -191,6 +247,31 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
     marginBottom: 24,
+  },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
+  actionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  actionChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + "22",
+  },
+  actionText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   contextLabel: {
     color: colors.textMuted,

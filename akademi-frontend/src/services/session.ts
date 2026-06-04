@@ -86,4 +86,15 @@ export const sessionService = {
     const response = await api.get<Message[]>(`/sessions/${sessionId}/messages`);
     return response.data;
   },
+
+  sendMessage: async (
+    sessionId: string,
+    data: {
+      content: string;
+      reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
+    }
+  ) => {
+    const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data);
+    return response.data;
+  },
 };
