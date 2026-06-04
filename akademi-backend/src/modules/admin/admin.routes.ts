@@ -32,6 +32,7 @@ router.get('/materials/flagged', (req, res) => adminController.getFlaggedMateria
 router.get('/materials/pending', (req, res) => adminController.getPendingMaterials(req, res));
 router.get('/materials/verified', (req, res) => adminController.getVerifiedMaterials(req, res));
 router.get('/materials/archived', (req, res) => adminController.getArchivedMaterials(req, res));
+router.get('/materials/:id/download', (req, res) => adminController.getMaterialDownloadUrl(req, res));
 router.patch('/materials/:id/approve', (req, res) => adminController.approveMaterial(req, res));
 router.patch('/materials/:id/takedown', (req, res) => adminController.takedownMaterial(req, res));
 router.patch('/materials/:id/restore', (req, res) => adminController.restoreMaterial(req, res));

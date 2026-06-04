@@ -152,6 +152,15 @@ export class AdminController {
     }
   }
 
+  async getMaterialDownloadUrl(req: Request, res: Response) {
+    try {
+      const url = await adminService.getMaterialDownloadUrl(req.params.id);
+      res.json({ url });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async approveMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.approveMaterial(req.params.id, req.admin!.adminId);

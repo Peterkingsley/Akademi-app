@@ -7,6 +7,7 @@ import { config } from '../../config/env';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { NotFoundException } from '../../shared/exceptions';
 import { SessionType } from '@prisma/client';
+import { MaterialsService } from '../materials/materials.service';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -25,6 +26,8 @@ import {
 
 
 export class AdminService {
+  private materialsService = new MaterialsService();
+
   async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
     const admin = await prisma.admin.findUnique({ where: { email: data.email } });
     if (!admin) {
@@ -280,6 +283,10 @@ export class AdminService {
     });
   }
 
+  async getMaterialDownloadUrl(id: string) {
+    return this.materialsService.getDownloadUrl(id);
+  }
+
   async approveMaterial(id: string, adminId: string) {
     const material = await prisma.material.update({
       where: { id },
@@ -291,7 +298,12 @@ export class AdminService {
       }
     });
 
-    await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
+    try {
+      await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
+    } catch (error) {
+      console.error(`Material ${id} approved, but question generation failed:`, error);
+    }
+
     return material;
   }
 

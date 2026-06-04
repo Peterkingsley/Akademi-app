@@ -349,7 +349,7 @@ export const adminService = {
   },
 
   getMaterialDownloadUrl: async (id: string): Promise<{ url: string }> => {
-    const { data } = await api.get("/materials/" + id + "/download");
+    const { data } = await api.get(`/admin/materials/${id}/download`);
     return data;
   },
 
