@@ -63,6 +63,7 @@ export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   AssignmentResult: { sessionId: string };
   StudyMode: { sessionId?: string; materialId?: string };
+  MaterialPractice: { materialId: string; title?: string };
   Socratic: { sessionId: string };
   ChallengeResult: { sessionId: string };
   Camera: undefined;

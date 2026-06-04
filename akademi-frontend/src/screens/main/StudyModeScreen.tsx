@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { X, Download, CheckCircle2 } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -157,6 +157,14 @@ export const StudyModeScreen: React.FC = () => {
         </TouchableOpacity>
 
         <View style={styles.bottomBar}>
+          {material && (
+            <Button
+              label="Practice CBT"
+              icon={<ClipboardList size={18} color="#FFFFFF" />}
+              onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
+              style={styles.practiceBtn}
+            />
+          )}
           <Button
             label="Finish Study"
             onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
@@ -261,6 +269,9 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     flex: 1,
+  },
+  practiceBtn: {
+    marginBottom: 12,
   },
   finishBtn: {
   },

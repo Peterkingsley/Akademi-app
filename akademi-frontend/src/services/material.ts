@@ -22,6 +22,9 @@ export interface PracticeQuestion {
   question_text: string;
   approach_guide: string;
   difficulty: "EASY" | "MEDIUM" | "HARD";
+  options?: string[];
+  correct_answer?: string | null;
+  explanation?: string | null;
 }
 
 export const materialService = {
