@@ -72,6 +72,16 @@ export const PrepPlanScreen: React.FC = () => {
     }
   };
 
+  const startMockExam = async () => {
+    if (!plan || plan.progress < 60) return;
+    try {
+      const mockExam = await examPrepService.startMockExam(examId);
+      navigation.navigate("MockExam", { examId, mockExamId: mockExam.id });
+    } catch (error) {
+      console.error("Failed to start mock exam:", error);
+    }
+  };
+
   const getTaskIcon = (type: Task["type"]) => {
     switch (type) {
       case "quiz": return <HelpCircle size={18} color="white" />;
@@ -211,9 +221,9 @@ export const PrepPlanScreen: React.FC = () => {
             <Button
               label="Take Mock Exam"
               icon={<TrendingUp size={18} color="white" />}
-              onPress={() => navigation.navigate("MockExam", { examId })}
-              disabled={plan.readinessScore < 60}
-              style={StyleSheet.flatten([styles.mockBtn, plan.readinessScore < 60 ? styles.disabledBtn : undefined])}
+              onPress={startMockExam}
+              disabled={plan.progress < 60}
+              style={StyleSheet.flatten([styles.mockBtn, plan.progress < 60 ? styles.disabledBtn : undefined])}
             />
           </View>
         </View>

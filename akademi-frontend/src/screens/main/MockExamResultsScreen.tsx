@@ -43,7 +43,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export const MockExamResultsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { examId } = route.params;
+  const { examId, mockExamId } = route.params;
   const { user } = useAuthStore();
 
   const [results, setResults] = useState<MockResult | null>(null);
@@ -55,7 +55,7 @@ export const MockExamResultsScreen: React.FC = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const data = await examPrepService.getMockResults(examId, "mock-1");
+        const data = await examPrepService.getMockResults(examId, mockExamId);
         setResults(data);
         ringProgress.value = withTiming(data.score / 100, {
           duration: 1500,
@@ -68,7 +68,7 @@ export const MockExamResultsScreen: React.FC = () => {
       }
     };
     fetchResults();
-  }, [examId]);
+  }, [examId, mockExamId]);
 
   const radius = 60;
   const circumference = 2 * Math.PI * radius;

@@ -41,7 +41,7 @@ const { width } = Dimensions.get("window");
 export const MockExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { examId } = route.params;
+  const { examId, mockExamId } = route.params;
 
   const [exam, setExam] = useState<MockExam | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,9 @@ export const MockExamScreen: React.FC = () => {
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        const data = await examPrepService.getMockExam(examId, "mock-1");
+        const data = mockExamId
+          ? await examPrepService.getMockExam(examId, mockExamId)
+          : await examPrepService.startMockExam(examId);
         setExam(data);
         setTimeLeft(data.durationMinutes * 60);
       } catch (error) {
@@ -66,7 +68,7 @@ export const MockExamScreen: React.FC = () => {
       }
     };
     fetchExam();
-  }, [examId]);
+  }, [examId, mockExamId]);
 
   useEffect(() => {
     if (timeLeft <= 0 || loading) return;
@@ -145,8 +147,8 @@ export const MockExamScreen: React.FC = () => {
 
     setSubmitting(true);
     try {
-      await examPrepService.submitMockExam(examId, "mock-1", answers);
-      navigation.replace("MockExamResults", { examId });
+      await examPrepService.submitMockExam(examId, exam.id, answers);
+      navigation.replace("MockExamResults", { examId, mockExamId: exam.id });
     } catch (error) {
       console.error("Failed to submit exam:", error);
     } finally {

@@ -16,9 +16,8 @@ export class AuthController {
 
   async verifyEmail(req: Request, res: Response) {
     try {
-      const { token } = req.body;
-      await authService.verifyEmail(token);
-      res.status(200).json({ message: 'Email verified successfully.' });
+      const result = await authService.verifyEmail(req.body);
+      res.status(200).json({ message: 'Email verified successfully.', ...result });
     } catch (error: any) {
       console.error('Email verification error:', error);
       res.status(400).json({ message: error.message });

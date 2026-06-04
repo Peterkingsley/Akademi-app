@@ -81,8 +81,9 @@ const startServer = async () => {
 
     if (config.serviceType === 'api') {
       // await typesenseService.initCollections();
+      initWebSocket(server);
       server.listen(config.port, () => {
-        console.log(`API Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+        console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
       });
     } else if (config.serviceType === 'websocket') {
       initWebSocket(server);

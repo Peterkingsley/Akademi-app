@@ -19,6 +19,7 @@ export interface RegisterRequest {
   department: string;
   level: number;
   password?: string;
+  courses?: string[];
 }
 
 export interface LoginRequest {
@@ -26,6 +27,14 @@ export interface LoginRequest {
   password?: string;
   googleToken?: string;
   deviceInfo: {
+    name: string;
+    type: DeviceType;
+  };
+}
+
+export interface VerifyEmailRequest {
+  token: string;
+  deviceInfo?: {
     name: string;
     type: DeviceType;
   };

@@ -5,8 +5,8 @@ import { Resend } from 'resend';
 import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
-import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest } from './auth.types';
-import { AuthProvider, VocabularyLevel } from '@prisma/client';
+import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest, VerifyEmailRequest } from './auth.types';
+import { AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 
 const resend = new Resend(config.resendApiKey);
@@ -78,6 +78,7 @@ export class AuthService {
         faculty: data.faculty,
         department: data.department,
         level: data.level,
+        courses: data.courses || [],
         auth_provider: AuthProvider.EMAIL,
         is_verified: false,
         verification_token: verificationToken,
@@ -112,10 +113,10 @@ export class AuthService {
     }
   }
 
-  async verifyEmail(token: string): Promise<void> {
+  async verifyEmail(data: VerifyEmailRequest): Promise<AuthResponse> {
     const user = await prisma.user.findFirst({
       where: {
-        verification_token: token,
+        verification_token: data.token,
         verification_token_expires_at: { gt: new Date() },
         is_deleted: false,
       },
@@ -125,7 +126,7 @@ export class AuthService {
       throw new Error('Invalid or expired verification token');
     }
 
-    await prisma.user.update({
+    const verifiedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         is_verified: true,
@@ -133,6 +134,22 @@ export class AuthService {
         verification_token_expires_at: null,
       },
     });
+
+    const deviceInfo = data.deviceInfo || { name: 'Unknown Device', type: DeviceType.ANDROID };
+    const accessToken = this.generateAccessToken({ userId: verifiedUser.id, email: verifiedUser.email });
+    const refreshToken = await this.generateRefreshToken(verifiedUser.id, deviceInfo);
+
+    const admin = await prisma.admin.findUnique({
+      where: { email: verifiedUser.email },
+      select: { role: true }
+    });
+
+    const { password_hash, ...userWithoutPassword } = verifiedUser;
+    return {
+      accessToken,
+      refreshToken,
+      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+    };
   }
 
   async login(data: LoginRequest): Promise<AuthResponse> {

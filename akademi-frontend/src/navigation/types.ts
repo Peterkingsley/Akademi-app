@@ -7,17 +7,30 @@ export type AuthStackParamList = {
     faculty: string;
     department: string;
     level: string;
+    selectedCourses?: string[];
   };
   UniversityPicker: undefined;
-  DepartmentPicker: { university: string };
+  DepartmentPicker: { universityId: string; universityName: string };
   CoursePicker: {
     university: string;
     faculty: string;
     department: string;
     level: string;
+    selectedCourses?: string[];
   };
   EmailVerification: { email?: string };
-  SetupComplete: undefined;
+  SetupComplete: {
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      university?: string;
+      department?: string;
+      admin_role?: string | null;
+    };
+    accessToken: string;
+    refreshToken: string;
+  };
   Login: undefined;
   ForgotPassword: { email?: string };
 };
@@ -61,8 +74,8 @@ export type MainStackParamList = {
   ExamPrep: undefined;
   AddExam: undefined;
   PrepPlan: { examId: string };
-  MockExam: { examId: string };
-  MockExamResults: { examId: string };
+  MockExam: { examId: string; mockExamId?: string };
+  MockExamResults: { examId: string; mockExamId: string };
   Sessions: undefined;
   SessionDetail: { id: string };
   Progress: undefined;

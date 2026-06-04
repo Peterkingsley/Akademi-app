@@ -1,7 +1,11 @@
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const SOCKET_URL = "https://akademi-websocket.onrender.com";
+const SOCKET_URL =
+  process.env.EXPO_PUBLIC_SOCKET_URL ||
+  process.env.EXPO_PUBLIC_WEBSOCKET_URL ||
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://akademi-app.onrender.com";
 
 class SocketService {
   private socket: Socket | null = null;

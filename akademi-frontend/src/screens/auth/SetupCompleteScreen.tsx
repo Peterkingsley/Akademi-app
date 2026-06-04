@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,7 +19,9 @@ const COURSES = ["EEE 301", "MTH 201", "CSC 312", "EEE 305"];
 
 export const SetupCompleteScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const authPayload = route.params || {};
 
   const checkScale = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
@@ -51,12 +53,11 @@ export const SetupCompleteScreen: React.FC = () => {
   }));
 
   const handleGoHome = () => {
-    // Set a dummy user to trigger the navigation shift in RootNavigator
-    setAuth(
-      { id: "1", email: "student@unilag.edu.ng", name: "Jules" },
-      "dummy_access_token",
-      "dummy_refresh_token"
-    );
+    if (authPayload.user && authPayload.accessToken && authPayload.refreshToken) {
+      setAuth(authPayload.user, authPayload.accessToken, authPayload.refreshToken);
+    } else {
+      navigation.navigate("Login");
+    }
   };
 
   return (

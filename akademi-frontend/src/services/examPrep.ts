@@ -104,6 +104,11 @@ const examPrepService = {
     return data;
   },
 
+  startMockExam: async (planId: string) => {
+    const { data } = await api.post<MockExam>(`/exam-prep/${planId}/mock-exam`);
+    return data;
+  },
+
   getMockExam: async (planId: string, examId: string) => {
     const { data } = await api.get<MockExam>(`/exam-prep/${planId}/mock-exam/${examId}`);
     return data;

@@ -6,6 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   Keyboard,
+  Platform,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Lock } from "lucide-react-native";
@@ -58,21 +59,27 @@ export const EmailVerificationScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      await api.post("/auth/verify-email", { token: otpCode });
-      navigation.navigate("SetupComplete");
-    } catch (error) {
+      const response = await api.post("/auth/verify-email", {
+        token: otpCode,
+        deviceInfo: {
+          name: Platform.OS === "ios" ? "iPhone" : "Android Device",
+          type: Platform.OS === "ios" ? "IOS" : "ANDROID",
+        },
+      });
+
+      const { user, accessToken, refreshToken } = response.data;
+      navigation.navigate("SetupComplete", { user, accessToken, refreshToken });
+    } catch (error: any) {
       console.error("Verification failed", error);
-      // For now, let's navigate anyway to allow the flow to be tested
-      navigation.navigate("SetupComplete");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (timer === 0) {
       setTimer(45);
-      // api.post("/auth/resend-verification", { email });
+      await api.post("/auth/resend-verification", { email });
     }
   };
 
