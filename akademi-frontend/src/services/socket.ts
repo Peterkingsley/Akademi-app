@@ -13,12 +13,21 @@ class SocketService {
   async connect() {
     if (this.socket?.connected) return this.socket;
 
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
     const token = await AsyncStorage.getItem("accessToken");
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
-      transports: ["websocket"],
+      transports: ["websocket", "polling"],
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     this.socket.on("connect", () => {

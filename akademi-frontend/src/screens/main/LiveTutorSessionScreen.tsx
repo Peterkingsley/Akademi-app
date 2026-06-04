@@ -67,19 +67,28 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const [sessionActive, setSessionActive] = useState(true);
   const [isAudioStreaming, setIsAudioStreaming] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [sessionData, setSessionData] = useState<any>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const endFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasNavigatedToSummaryRef = useRef(false);
 
   useEffect(() => {
     loadSession();
-    setupWebSocket();
+    let cleanupSocket: (() => void) | undefined;
+    setupWebSocket().then((cleanup) => {
+      cleanupSocket = cleanup;
+    });
     const stopTimer = startTimer();
     return () => {
       stopTimer();
+      if (endFallbackRef.current) clearTimeout(endFallbackRef.current);
+      cleanupSocket?.();
       socketService.disconnect();
     };
-  }, []);
+  }, [sessionId]);
 
   const loadSession = async () => {
     try {
@@ -96,44 +105,129 @@ export const LiveTutorSessionScreen: React.FC = () => {
     }
   };
 
+  const upsertMessage = (message: Message) => {
+    setMessages((prev) => {
+      if (prev.some((item) => item.id === message.id)) return prev;
+      return [...prev, message];
+    });
+  };
+
+  const navigateToSummary = (summary?: any) => {
+    if (hasNavigatedToSummaryRef.current) return;
+    hasNavigatedToSummaryRef.current = true;
+    if (endFallbackRef.current) {
+      clearTimeout(endFallbackRef.current);
+      endFallbackRef.current = null;
+    }
+    setSessionActive(false);
+    setIsEnding(false);
+    setIsAudioStreaming(false);
+    setIsPaused(false);
+    navigation.navigate("TutorSessionSummary", { sessionId, summary });
+  };
+
+  const endSessionWithRestFallback = async () => {
+    try {
+      await sessionService.endSession(sessionId);
+    } catch (error) {
+      console.error("REST end session fallback failed:", error);
+    }
+
+    try {
+      const summary = await sessionService.getSessionSummary(sessionId);
+      navigateToSummary(summary);
+    } catch (error) {
+      console.error("Summary fallback failed:", error);
+      navigateToSummary();
+    }
+  };
+
   const setupWebSocket = async () => {
     const socket = await socketService.connect();
 
-    socket.emit("session:start", { sessionId });
+    const joinSession = () => {
+      setIsSocketConnected(true);
+      socket.emit("session:start", { sessionId });
+    };
 
-    socket.on("message:typing", () => setIsTyping(true));
-
-    socket.on("message:receive", (data: any) => {
+    const handleDisconnect = () => {
+      setIsSocketConnected(false);
       setIsTyping(false);
-      const newMessage: Message = {
+      setIsAudioStreaming(false);
+      setIsPaused(false);
+    };
+
+    const handleTyping = () => setIsTyping(true);
+
+    const handleReceive = (data: any) => {
+      setIsTyping(false);
+      upsertMessage({
         id: data.messageId || Date.now().toString(),
         type: "ai",
         content: data.content,
         metadata: data.metadata,
-      };
-      setMessages((prev) => [...prev, newMessage]);
-    });
+      });
+    };
 
-    socket.on("audio:stream", () => setIsAudioStreaming(true));
-    socket.on("audio:stop", () => setIsAudioStreaming(false));
+    const handleAudioStream = () => setIsAudioStreaming(true);
+    const handleAudioStop = () => {
+      setIsAudioStreaming(false);
+      setIsPaused(false);
+    };
 
-    socket.on("session:paused", () => setIsPaused(true));
-    socket.on("session:resumed", () => setIsPaused(false));
+    const handlePaused = () => setIsPaused(true);
+    const handleResumed = () => setIsPaused(false);
 
-    socket.on("session:summary", (data: any) => {
-      navigation.navigate("TutorSessionSummary", { sessionId, summary: data?.summary || data });
-    });
+    const handleSummary = (data: any) => navigateToSummary(data?.summary || data);
 
-    socket.on("session:ended", () => {
-      setSessionActive(false);
-      navigation.navigate("TutorSessionSummary", { sessionId });
-    });
+    const handleEnded = () => navigateToSummary();
 
-    socket.on("error", async (data: any) => {
+    const handleError = async (data: any) => {
       setIsTyping(false);
+      setIsEnding(false);
       console.error("Live Tutor socket error:", data);
       Alert.alert("Live Tutor", data?.message || "Something went wrong. Please try again.");
-    });
+    };
+
+    socket.off("connect", joinSession);
+    socket.off("disconnect", handleDisconnect);
+    socket.off("message:typing", handleTyping);
+    socket.off("message:receive", handleReceive);
+    socket.off("audio:stream", handleAudioStream);
+    socket.off("audio:stop", handleAudioStop);
+    socket.off("session:paused", handlePaused);
+    socket.off("session:resumed", handleResumed);
+    socket.off("session:summary", handleSummary);
+    socket.off("session:ended", handleEnded);
+    socket.off("error", handleError);
+
+    socket.on("connect", joinSession);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("message:typing", handleTyping);
+    socket.on("message:receive", handleReceive);
+    socket.on("audio:stream", handleAudioStream);
+    socket.on("audio:stop", handleAudioStop);
+    socket.on("session:paused", handlePaused);
+    socket.on("session:resumed", handleResumed);
+    socket.on("session:summary", handleSummary);
+    socket.on("session:ended", handleEnded);
+    socket.on("error", handleError);
+
+    if (socket.connected) joinSession();
+
+    return () => {
+      socket.off("connect", joinSession);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("message:typing", handleTyping);
+      socket.off("message:receive", handleReceive);
+      socket.off("audio:stream", handleAudioStream);
+      socket.off("audio:stop", handleAudioStop);
+      socket.off("session:paused", handlePaused);
+      socket.off("session:resumed", handleResumed);
+      socket.off("session:summary", handleSummary);
+      socket.off("session:ended", handleEnded);
+      socket.off("error", handleError);
+    };
   };
 
   const startTimer = () => {
@@ -159,7 +253,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
       content: content.trim(),
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    upsertMessage(newMessage);
     setInputText("");
 
     const socket = socketService.getSocket();
@@ -171,11 +265,11 @@ export const LiveTutorSessionScreen: React.FC = () => {
     setIsTyping(true);
     try {
       const aiMessage = await sessionService.sendMessage(sessionId, { content: content.trim() });
-      setMessages((prev) => [...prev, {
+      upsertMessage({
         id: aiMessage.id,
         type: "ai",
         content: aiMessage.content,
-      }]);
+      });
     } catch (error) {
       console.error("Failed to send tutor message:", error);
       Alert.alert("Live Tutor", "I could not send that message. Please try again.");
@@ -185,10 +279,28 @@ export const LiveTutorSessionScreen: React.FC = () => {
   };
 
   const handleEndSession = () => {
-    socketService.emit("session:end", { sessionId });
+    if (isEnding || hasNavigatedToSummaryRef.current) return;
+    setIsEnding(true);
+
+    const socket = socketService.getSocket();
+    if (socket?.connected) {
+      socketService.emit("session:end", { sessionId });
+      endFallbackRef.current = setTimeout(endSessionWithRestFallback, 3500);
+      return;
+    }
+
+    endSessionWithRestFallback();
   };
 
   const togglePause = () => {
+    const socket = socketService.getSocket();
+    if (!socket?.connected) {
+      setIsPaused(false);
+      setIsAudioStreaming(false);
+      Alert.alert("Live Tutor", "Audio controls are unavailable while reconnecting.");
+      return;
+    }
+
     if (isPaused) {
       socketService.emit("session:resume", { sessionId });
     } else {
@@ -204,12 +316,14 @@ export const LiveTutorSessionScreen: React.FC = () => {
       <View style={styles.headerCenter}>
         <Text style={[styles.headerTitle, typography.h3]}>Live Tutor</Text>
         <View style={styles.statusRow}>
-          <View style={styles.statusDot} />
-          <Text style={[styles.timerText, typography.mono]}>{formatTimer(timer)}</Text>
+          <View style={[styles.statusDot, !isSocketConnected && styles.statusDotOffline]} />
+          <Text style={[styles.timerText, typography.mono]}>
+            {isSocketConnected ? formatTimer(timer) : "reconnecting"}
+          </Text>
         </View>
       </View>
-      <TouchableOpacity onPress={handleEndSession}>
-        <Text style={[styles.endBtn, typography.bodySmall]}>End Session</Text>
+      <TouchableOpacity onPress={handleEndSession} disabled={isEnding}>
+        <Text style={[styles.endBtn, typography.bodySmall]}>{isEnding ? "Ending..." : "End Session"}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -391,6 +505,9 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.success,
     marginRight: 6,
+  },
+  statusDotOffline: {
+    backgroundColor: colors.warning,
   },
   timerText: {
     color: colors.textSecondary,
