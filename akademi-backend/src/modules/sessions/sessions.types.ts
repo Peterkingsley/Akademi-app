@@ -4,6 +4,9 @@ export interface StartSessionRequest {
   session_type: SessionType;
   reply_mode?: ReplyMode;
   course_code?: string | null;
+  topic?: string | null;
+  duration?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SendMessageRequest {
@@ -16,6 +19,8 @@ export interface SessionResponse {
   session_type: SessionType;
   reply_mode: ReplyMode | null;
   course_code?: string | null;
+  topic?: string | null;
+  duration?: number | null;
   university: string;
   department: string;
   started_at: Date;

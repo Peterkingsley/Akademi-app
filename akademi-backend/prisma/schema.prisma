@@ -227,6 +227,8 @@ model Session {
   session_type SessionType
   reply_mode   ReplyMode?
   course_code  String?
+  topic        String?
+  duration     Int?
   university   String
   department   String
   started_at   DateTime    @default(now())
