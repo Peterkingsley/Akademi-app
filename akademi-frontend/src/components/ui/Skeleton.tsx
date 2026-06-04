@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, ViewStyle, LayoutChangeEvent } from "react-native";
+import { Dimensions, View, StyleSheet, ViewStyle } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,6 +8,8 @@ import Animated, {
   interpolate,
 } from "react-native-reanimated";
 import { colors } from "../../theme/colors";
+
+const SHIMMER_DISTANCE = Dimensions.get("window").width;
 
 interface SkeletonProps {
   width?: number | string;
@@ -36,10 +38,10 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     const translateX = interpolate(
       shimmerValue.value,
       [0, 1],
-      [-100, 100], // Relative percentages
+      [-SHIMMER_DISTANCE, SHIMMER_DISTANCE],
     );
     return {
-      transform: [{ translateX: `${translateX}%` }],
+      transform: [{ translateX }],
     };
   });
 
