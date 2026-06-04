@@ -1,0 +1,5 @@
+env: load .env
+env: export EXPO_PUBLIC_SOCKET_URL EXPO_PUBLIC_WEBSOCKET_URL
+Starting project at C:\Users\PC\Documents\Akademi\Akademi-app\akademi-frontend
+› Port 8091 is being used by another process
+› Skipping dev server
