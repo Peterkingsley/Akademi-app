@@ -91,7 +91,7 @@ export type MainStackParamList = {
   Notifications: undefined;
   EditAcademicDetails: undefined;
   MyCourses: undefined;
-  MyUploads: undefined;
+  MyUploads: { uploadStatus?: "success" } | undefined;
   OfflineDownloads: undefined;
   AppLanguage: undefined;
   AppearanceSettings: undefined;

@@ -19,6 +19,7 @@ import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { Toast } from "../../components/ui/Toast";
 import * as DocumentPicker from "expo-document-picker";
 import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -44,6 +45,7 @@ export const LibraryScreen: React.FC = () => {
   const [uploadCourseCode, setUploadCourseCode] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
   const userCourses = useMemo(() => user?.courses || [], [user?.courses]);
   const defaultCourseCode = userCourses[0] || "";
   const userLevel = typeof user?.level === "number" ? user.level : 100;
@@ -146,7 +148,7 @@ export const LibraryScreen: React.FC = () => {
         },
       });
 
-      // 3. Confirm upload
+      // 3. Confirm upload and queue it for admin review
       await materialService.confirmUpload(materialId);
 
       bottomSheetRef.current?.close();
@@ -154,8 +156,13 @@ export const LibraryScreen: React.FC = () => {
       setUploadCourseCode(defaultCourseCode);
       setSelectedFile(null);
       fetchMaterials();
+      navigation.navigate("MyUploads", { uploadStatus: "success" });
     } catch (error) {
       console.error("Upload failed:", error);
+      setToast({
+        message: "Upload failed. Please check your connection and try again.",
+        type: "error",
+      });
     } finally {
       setUploading(false);
     }
@@ -319,6 +326,15 @@ export const LibraryScreen: React.FC = () => {
           />
         </BottomSheetView>
       </BottomSheet>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={4500}
+          onHide={() => setToast(null)}
+        />
+      )}
     </Screen>
   );
 };
