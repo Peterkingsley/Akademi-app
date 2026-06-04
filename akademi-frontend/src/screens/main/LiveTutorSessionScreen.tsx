@@ -192,7 +192,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
     if (isPaused) {
       socketService.emit("session:resume", { sessionId });
     } else {
-      socketService.emit("session:pause", { sessionId });
+      socketService.emit("session:pause", { sessionId, position: 0 });
     }
   };
 

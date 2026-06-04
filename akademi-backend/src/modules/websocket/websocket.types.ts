@@ -17,7 +17,7 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   'session:start': (payload: { sessionId?: string; courseCode?: string; topic?: string; sessionType?: SessionType; replyMode?: ReplyMode }) => void;
   'message:send': (payload: { content: string; sessionId: string }) => void;
-  'session:pause': (payload: { sessionId: string; position: number }) => void;
+  'session:pause': (payload: { sessionId: string; position?: number }) => void;
   'session:resume': (payload: { sessionId: string }) => void;
   'session:end': (payload: { sessionId: string }) => void;
 }
