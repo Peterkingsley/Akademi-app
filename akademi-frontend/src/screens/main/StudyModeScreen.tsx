@@ -192,7 +192,16 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
-        <TouchableOpacity style={styles.tutorBanner} onPress={() => navigation.navigate("LiveTutorEntry")}>
+        <TouchableOpacity
+          style={styles.tutorBanner}
+          onPress={() => navigation.navigate("LiveTutorEntry", {
+            courseCode,
+            topic: material?.title || courseCode,
+            materialId: material?.id,
+            materialTitle: material?.title,
+            materialContext,
+          })}
+        >
           <View style={styles.tutorIcon}>
             <Headphones size={18} color={colors.primary} />
           </View>

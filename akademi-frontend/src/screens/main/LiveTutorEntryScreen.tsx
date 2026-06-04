@@ -21,7 +21,7 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Session, LearningProfile } from "../../services/session";
 import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 
@@ -29,10 +29,13 @@ const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
 export const LiveTutorEntryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const params = route.params || {};
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [topic, setTopic] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState((user as any)?.courses?.[0] || "Select Course");
+  const [starting, setStarting] = useState(false);
+  const [topic, setTopic] = useState(params.topic || "");
+  const [selectedCourse, setSelectedCourse] = useState(params.courseCode || (user as any)?.courses?.[0] || "Select Course");
   const [selectedDuration, setSelectedDuration] = useState("30 min");
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
@@ -59,17 +62,32 @@ export const LiveTutorEntryScreen: React.FC = () => {
   };
 
   const handleStartSession = async () => {
-    if (!topic || selectedCourse === "Select Course") return;
+    if (!topic || selectedCourse === "Select Course" || starting) return;
+    setStarting(true);
     try {
       const session = await sessionService.createSession({
         session_type: "TUTOR",
         course_code: selectedCourse,
         topic,
         duration: selectedDuration === "Open-ended" ? undefined : parseInt(selectedDuration),
+        metadata: params.materialId ? {
+          materialId: params.materialId,
+          materialTitle: params.materialTitle,
+        } : undefined,
       });
+
+      if (params.materialContext) {
+        await sessionService.sendMessage(session.id, {
+          content: `Start this live tutor session using the material context below. Teach the student, ask what they are struggling with, and be ready to answer follow-up questions.\n\n${params.materialContext}`,
+          reply_mode: "STUDY",
+        });
+      }
+
       navigation.navigate("LiveTutorSession", { sessionId: session.id });
     } catch (error) {
       console.error("Error starting session:", error);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -147,8 +165,20 @@ export const LiveTutorEntryScreen: React.FC = () => {
 
         <Text style={[styles.title, typography.h1]}>Live Tutor</Text>
         <Text style={[styles.subtitle, typography.body, { color: colors.textSecondary }]}>
-          Start a tutoring session on any topic
+          {params.materialTitle ? `Continue with ${params.materialTitle}` : "Start a tutoring session on any topic"}
         </Text>
+
+        {params.materialTitle && (
+          <View style={styles.materialContextCard}>
+            <Text style={[styles.materialContextLabel, typography.mono]}>MATERIAL CONTEXT</Text>
+            <Text style={[styles.materialContextTitle, typography.bodySmall]} numberOfLines={2}>
+              {params.materialTitle}
+            </Text>
+            <Text style={[styles.materialContextText, typography.caption]} numberOfLines={2}>
+              The tutor will start with this material and your selected course.
+            </Text>
+          </View>
+        )}
 
         <View style={[styles.setupCard, { flex: 1 }]}>
           <View>
@@ -200,10 +230,11 @@ export const LiveTutorEntryScreen: React.FC = () => {
           </View>
 
           <Button
-            label="Start Session →"
+            label="Start Session ->"
             onPress={handleStartSession}
             style={styles.startBtn}
-            disabled={!topic || selectedCourse === "Select Course"}
+            loading={starting}
+            disabled={!topic || selectedCourse === "Select Course" || starting}
           />
         </View>
 
@@ -256,6 +287,28 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 32,
     justifyContent: "space-between",
+  },
+  materialContextCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + "44",
+    padding: 14,
+    marginBottom: 16,
+  },
+  materialContextLabel: {
+    color: colors.primary,
+    fontSize: 8,
+    marginBottom: 6,
+  },
+  materialContextTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  materialContextText: {
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
   label: {
     color: colors.textSecondary,
@@ -403,3 +456,4 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 });
+

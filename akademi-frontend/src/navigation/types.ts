@@ -74,7 +74,13 @@ export type MainStackParamList = {
   Camera: undefined;
   CropConfirm: { imageUri: string };
   AIProcessing: { type: "assignment" | "tutor"; sessionId?: string; reply_mode?: string };
-  LiveTutorEntry: undefined;
+  LiveTutorEntry: {
+    courseCode?: string;
+    topic?: string;
+    materialId?: string;
+    materialTitle?: string;
+    materialContext?: string;
+  } | undefined;
   LiveTutorSession: { sessionId: string };
   TutorSessionSummary: { sessionId: string };
   ExamPrep: undefined;
