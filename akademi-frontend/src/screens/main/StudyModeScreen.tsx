@@ -31,9 +31,21 @@ export const StudyModeScreen: React.FC = () => {
   const [material, setMaterial] = useState<Material | null>(null);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [highlights, setHighlights] = useState<string[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const courseCode = material?.course_code || "General";
+  const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
+  const materialContext = material
+    ? [
+        `Material title: ${material.title}`,
+        `Course: ${courseCode}`,
+        `University: ${material.university}`,
+        `Department: ${material.department}`,
+        `Level: ${material.level}L`,
+        material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
+      ].join("\n")
+    : content;
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -60,8 +72,14 @@ export const StudyModeScreen: React.FC = () => {
   }, [sessionId, materialId]);
 
   const handleAskAkademi = (text: string) => {
-    setSelectedText(text);
+    setSelectedText(text || materialContext);
     setIsAskModalVisible(true);
+  };
+
+  const handleHighlight = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setHighlights((current) => current.includes(trimmed) ? current : [...current, trimmed]);
   };
 
   const handleDownload = async () => {
@@ -141,11 +159,38 @@ export const StudyModeScreen: React.FC = () => {
             </View>
           )}
 
-          <SelectableText
-            content={content || "No content available."}
-            onAskAkademi={handleAskAkademi}
-          />
+          {material && !hasExtractedContent ? (
+            <View style={styles.extractionPending}>
+              <Text style={[styles.pendingTitle, typography.h3]}>Text extraction is still pending</Text>
+              <Text style={[styles.pendingText, typography.bodySmall]}>
+                You can still ask Akademi about this material using its title and course details while the uploaded file is being processed.
+              </Text>
+              <Button
+                label="Ask Akademi"
+                variant="secondary"
+                onPress={() => handleAskAkademi(materialContext)}
+                style={styles.pendingAskBtn}
+              />
+            </View>
+          ) : (
+            <SelectableText
+              content={content || "No content available."}
+              onAskAkademi={handleAskAkademi}
+              onHighlight={handleHighlight}
+            />
+          )}
         </Card>
+
+        {highlights.length > 0 && (
+          <View style={styles.highlightSummary}>
+            <Text style={[styles.highlightTitle, typography.bodySmall]}>
+              {highlights.length} highlight{highlights.length === 1 ? "" : "s"} saved for this study session
+            </Text>
+            <Text style={[styles.highlightText, typography.caption]} numberOfLines={2}>
+              {highlights[highlights.length - 1]}
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity style={styles.tutorBanner} onPress={() => navigation.navigate("LiveTutorEntry")}>
           <View style={styles.tutorIcon}>
@@ -181,6 +226,7 @@ export const StudyModeScreen: React.FC = () => {
         onClose={() => setIsAskModalVisible(false)}
         contextText={selectedText}
         courseCode={courseCode}
+        materialTitle={material?.title}
       />
     </Screen>
   );
@@ -254,6 +300,42 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "flex-start",
     marginBottom: 40,
+  },
+  extractionPending: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  pendingTitle: {
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  pendingText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  pendingAskBtn: {
+    marginTop: 16,
+  },
+  highlightSummary: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 10,
+    padding: 14,
+    marginTop: -12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: colors.primary + "55",
+  },
+  highlightTitle: {
+    color: colors.primary,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  highlightText: {
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
   tutorIcon: {
     width: 36,

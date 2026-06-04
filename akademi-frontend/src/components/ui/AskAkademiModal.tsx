@@ -23,6 +23,7 @@ interface AskAkademiModalProps {
   onClose: () => void;
   contextText: string;
   courseCode?: string;
+  materialTitle?: string;
 }
 
 export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
@@ -30,6 +31,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   onClose,
   contextText,
   courseCode,
+  materialTitle,
 }) => {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,19 +51,20 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   const buildPrompt = (action: typeof activeAction) => {
     const trimmedQuestion = question.trim();
     const safeContext = contextText.trim();
+    const materialLine = materialTitle ? `Material: ${materialTitle}\n` : "";
 
     switch (action) {
       case "summarize":
-        return `Summarize this selected material section clearly for a student.\n\nSelected section:\n${safeContext}`;
+        return `${materialLine}Summarize this material context clearly for a student.\n\nContext:\n${safeContext}`;
       case "explain":
-        return `Explain this selected material section step by step. Use simple language and connect it to ${courseCode || "this course"}.\n\nSelected section:\n${safeContext}`;
+        return `${materialLine}Explain this material context step by step. Use simple language and connect it to ${courseCode || "this course"}.\n\nContext:\n${safeContext}`;
       case "teach":
-        return `Teach this selected material section in depth like a patient university tutor. Start from intuition, then definitions, examples, likely exam angles, and common mistakes.\n\nSelected section:\n${safeContext}`;
+        return `${materialLine}Teach this material context in depth like a patient university tutor. Start from intuition, then definitions, examples, likely exam angles, and common mistakes.\n\nContext:\n${safeContext}`;
       case "practice":
-        return `Create a short CBT-style practice from this selected material section. Give 5 multiple-choice questions with options, answers, and explanations.\n\nSelected section:\n${safeContext}`;
+        return `${materialLine}Create a short CBT-style practice from this material context. Give 5 multiple-choice questions with options, answers, and explanations.\n\nContext:\n${safeContext}`;
       case "ask":
       default:
-        return `Use this selected material section as context, then answer the student's question.\n\nSelected section:\n${safeContext}\n\nStudent question:\n${trimmedQuestion}`;
+        return `${materialLine}Use this material context, then answer the student's question.\n\nContext:\n${safeContext}\n\nStudent question:\n${trimmedQuestion}`;
     }
   };
 
@@ -129,7 +132,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
             <View style={styles.contextBox}>
               <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
               <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
-                "{contextText}"
+                {materialTitle ? `${materialTitle}\n` : ""}{contextText}
               </Text>
             </View>
 
