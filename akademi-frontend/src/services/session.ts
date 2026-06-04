@@ -59,6 +59,11 @@ export const sessionService = {
     return response.data;
   },
 
+  getSession: async (sessionId: string) => {
+    const response = await api.get<Session & { messages?: Message[] }>(`/sessions/${sessionId}`);
+    return response.data;
+  },
+
   endSession: async (sessionId: string) => {
     const response = await api.patch(`/sessions/${sessionId}/end`);
     return response.data;

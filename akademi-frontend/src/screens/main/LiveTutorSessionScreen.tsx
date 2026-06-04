@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Animated } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Animated, Alert } from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -72,12 +72,29 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
+    loadSession();
     setupWebSocket();
-    startTimer();
+    const stopTimer = startTimer();
     return () => {
+      stopTimer();
       socketService.disconnect();
     };
   }, []);
+
+  const loadSession = async () => {
+    try {
+      const session = await sessionService.getSession(sessionId);
+      setSessionData(session);
+      const existingMessages = await sessionService.listMessages(sessionId);
+      setMessages(existingMessages.map((message) => ({
+        id: message.id,
+        type: message.role === "AI" ? "ai" : "student",
+        content: message.content,
+      })));
+    } catch (error) {
+      console.error("Failed to load tutor session:", error);
+    }
+  };
 
   const setupWebSocket = async () => {
     const socket = await socketService.connect();
@@ -89,7 +106,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
     socket.on("message:receive", (data: any) => {
       setIsTyping(false);
       const newMessage: Message = {
-        id: Date.now().toString(),
+        id: data.messageId || Date.now().toString(),
         type: "ai",
         content: data.content,
         metadata: data.metadata,
@@ -111,6 +128,12 @@ export const LiveTutorSessionScreen: React.FC = () => {
       setSessionActive(false);
       navigation.navigate("TutorSessionSummary", { sessionId });
     });
+
+    socket.on("error", async (data: any) => {
+      setIsTyping(false);
+      console.error("Live Tutor socket error:", data);
+      Alert.alert("Live Tutor", data?.message || "Something went wrong. Please try again.");
+    });
   };
 
   const startTimer = () => {
@@ -126,7 +149,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleSendMessage = (text?: string) => {
+  const handleSendMessage = async (text?: string) => {
     const content = text || inputText;
     if (!content.trim()) return;
 
@@ -137,8 +160,28 @@ export const LiveTutorSessionScreen: React.FC = () => {
     };
 
     setMessages((prev) => [...prev, newMessage]);
-    socketService.emit("message:send", { content: content.trim(), sessionId });
     setInputText("");
+
+    const socket = socketService.getSocket();
+    if (socket?.connected) {
+      socketService.emit("message:send", { content: content.trim(), sessionId });
+      return;
+    }
+
+    setIsTyping(true);
+    try {
+      const aiMessage = await sessionService.sendMessage(sessionId, { content: content.trim() });
+      setMessages((prev) => [...prev, {
+        id: aiMessage.id,
+        type: "ai",
+        content: aiMessage.content,
+      }]);
+    } catch (error) {
+      console.error("Failed to send tutor message:", error);
+      Alert.alert("Live Tutor", "I could not send that message. Please try again.");
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleEndSession = () => {

@@ -13,16 +13,32 @@ export const registerHandlers = (
 ) => {
   const userId = socket.data.user.userId;
 
-  socket.on('session:start', async ({ courseCode, topic, sessionType, replyMode }) => {
+  socket.on('session:start', async ({ sessionId, courseCode, sessionType, replyMode }) => {
     try {
+      if (sessionId) {
+        const session = await sessionsService.getSession(sessionId);
+        if (session.user_id !== userId) {
+          throw new Error('Session not found');
+        }
+
+        socket.join(session.id);
+        socket.emit('session:joined', { sessionId: session.id });
+        await redisClient.del(`session:disconnected:${session.id}`);
+        return;
+      }
+
+      if (!courseCode) {
+        throw new Error('courseCode is required to start a tutor session');
+      }
+
       // Check for active session first for reconnection support
       const sessions = await sessionsService.listSessions(userId);
       // Handle optional course code when finding active session
-      let session = sessions.find(s => !s.ended_at && s.course_code === (courseCode || null));
+      let session = sessions.find(s => !s.ended_at && s.course_code === courseCode);
 
       if (!session) {
         session = await sessionsService.startSession(userId, {
-          course_code: courseCode || null,
+          course_code: courseCode,
           session_type: sessionType || SessionType.TUTOR,
           reply_mode: replyMode,
         });
