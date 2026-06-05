@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
   Dimensions,
   Alert,
 } from "react-native";
@@ -16,7 +15,6 @@ import { Button } from "../../components/ui/Button";
 import { useNavigation } from "@react-navigation/native";
 import examPrepService from "../../services/examPrep";
 import { SafeArea } from "../../components/layout/SafeArea";
-import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { useAuthStore } from "../../store/useAuthStore";
 
 const { width } = Dimensions.get("window");
@@ -36,20 +34,6 @@ export const AddExamScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1));
   const [errorMessage, setErrorMessage] = useState("");
-
-  const snapPoints = useMemo(() => ["90%"], []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.7}
-      />
-    ),
-    []
-  );
 
   const handleAddExam = async () => {
     if (!selectedCourse) {
@@ -157,89 +141,73 @@ export const AddExamScreen: React.FC = () => {
 
   return (
     <SafeArea style={styles.safeArea}>
-      <View style={styles.backgroundContent}>
-         <Text style={[styles.bgTitle, typography.h2]}>Your Academic Timeline</Text>
-         {/* Background content as per frame 65 description */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <X size={24} color={colors.textPrimary} />
+        </TouchableOpacity>
+        <Text style={[styles.title, typography.h3]}>Add an Exam</Text>
+        <View style={styles.closeButton} />
       </View>
 
-      <BottomSheet
-        index={0}
-        snapPoints={snapPoints}
-        enablePanDownToClose={false}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={styles.bottomSheetBg}
-        handleIndicatorStyle={styles.handle}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={[styles.title, typography.h3]}>Add an Exam</Text>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <X size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <View style={styles.labelRow}>
+            <Text style={[styles.label, typography.mono]}>SELECT COURSE</Text>
+            <View style={styles.requiredBadge}>
+              <Text style={[styles.requiredText, typography.caption]}>Required</Text>
+            </View>
           </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.section}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.label, typography.mono]}>SELECT COURSE</Text>
-                <View style={styles.requiredBadge}>
-                  <Text style={[styles.requiredText, typography.caption]}>Required</Text>
-                </View>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courseRow}>
-                {courses.map((course: string) => {
-                  const isSelected = selectedCourse === course;
-                  return (
-                    <TouchableOpacity
-                      key={course}
-                      style={[
-                        styles.coursePill,
-                        isSelected && styles.coursePillSelected
-                      ]}
-                      onPress={() => setSelectedCourse(course)}
-                    >
-                      <Text style={[
-                        styles.courseText,
-                        typography.bodySmall,
-                        isSelected && styles.courseTextSelected
-                      ]}>
-                        {course}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              {courses.length === 0 && (
-                <Text style={[styles.emptyCoursesText, typography.bodySmall]}>
-                  No courses found. Complete your academic setup before creating an exam plan.
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.section}>
-               <Text style={[styles.label, typography.mono]}>EXAMINATION DATE</Text>
-               {renderCalendar()}
-            </View>
-
-            {errorMessage ? (
-              <View style={styles.errorCard}>
-                <Text style={[styles.errorText, typography.bodySmall]}>{errorMessage}</Text>
-              </View>
-            ) : null}
-
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courseRow}>
+            {courses.map((course: string) => {
+              const isSelected = selectedCourse === course;
+              return (
+                <TouchableOpacity
+                  key={course}
+                  style={[
+                    styles.coursePill,
+                    isSelected && styles.coursePillSelected
+                  ]}
+                  onPress={() => setSelectedCourse(course)}
+                >
+                  <Text style={[
+                    styles.courseText,
+                    typography.bodySmall,
+                    isSelected && styles.courseTextSelected
+                  ]}>
+                    {course}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
-
-          <View style={styles.footer}>
-            <Button
-              label="Add Exam"
-              icon={<Plus size={20} color="white" />}
-              onPress={handleAddExam}
-              loading={loading}
-              disabled={!selectedCourse || courses.length === 0}
-            />
-          </View>
+          {courses.length === 0 && (
+            <Text style={[styles.emptyCoursesText, typography.bodySmall]}>
+              No courses found. Complete your academic setup before creating an exam plan.
+            </Text>
+          )}
         </View>
-      </BottomSheet>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, typography.mono]}>EXAMINATION DATE</Text>
+          {renderCalendar()}
+        </View>
+
+        {errorMessage ? (
+          <View style={styles.errorCard}>
+            <Text style={[styles.errorText, typography.bodySmall]}>{errorMessage}</Text>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button
+          label="Add Exam"
+          icon={<Plus size={20} color="white" />}
+          onPress={handleAddExam}
+          loading={loading}
+          disabled={!selectedCourse || courses.length === 0}
+        />
+      </View>
     </SafeArea>
   );
 };
