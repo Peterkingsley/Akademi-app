@@ -217,35 +217,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  backgroundContent: {
-    flex: 1,
-    padding: 20,
-    alignItems: "center",
-    paddingTop: 40,
-  },
-  bgTitle: {
-    color: colors.textPrimary,
-  },
-  bottomSheetBg: {
-    backgroundColor: colors.surface,
-  },
-  handle: {
-    backgroundColor: colors.border,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 0,
-  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 32,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
   },
   title: {
     color: colors.textPrimary,
     fontWeight: "700",
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
   section: {
     marginBottom: 32,
@@ -398,7 +388,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footer: {
-    marginTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
 });
