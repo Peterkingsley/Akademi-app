@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Animated, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, GraduationCap, Mic, Send, Pause, Play, Bot } from "lucide-react-native";
+import { ArrowLeft, GraduationCap, Send, Bot } from "lucide-react-native";
 import { socketService } from "../../services/socket";
 import { sessionService } from "../../services/session";
 
@@ -25,36 +25,6 @@ const QUICK_REPLIES = [
   "Test me on this",
 ];
 
-const WaveformBar = ({ index }: { index: number }) => {
-  const anim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(anim, {
-          toValue: Math.random() * 20 + 5,
-          duration: 400 + Math.random() * 300,
-          useNativeDriver: false,
-        }),
-        Animated.timing(anim, {
-          toValue: 5,
-          duration: 400 + Math.random() * 300,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        styles.waveformBar,
-        { height: anim, marginHorizontal: 2 }
-      ]}
-    />
-  );
-};
-
 export const LiveTutorSessionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -64,9 +34,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [timer, setTimer] = useState(0);
-  const [sessionActive, setSessionActive] = useState(true);
-  const [isAudioStreaming, setIsAudioStreaming] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [sessionData, setSessionData] = useState<any>(null);
@@ -122,10 +89,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
       clearTimeout(endFallbackRef.current);
       endFallbackRef.current = null;
     }
-    setSessionActive(false);
     setIsEnding(false);
-    setIsAudioStreaming(false);
-    setIsPaused(false);
     navigation.navigate("TutorSessionSummary", { sessionId, summary });
   };
 
@@ -156,8 +120,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
     const handleDisconnect = () => {
       setIsSocketConnected(false);
       setIsTyping(false);
-      setIsAudioStreaming(false);
-      setIsPaused(false);
     };
 
     const handleTyping = () => setIsTyping(true);
@@ -171,15 +133,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
         metadata: data.metadata,
       });
     };
-
-    const handleAudioStream = () => setIsAudioStreaming(true);
-    const handleAudioStop = () => {
-      setIsAudioStreaming(false);
-      setIsPaused(false);
-    };
-
-    const handlePaused = () => setIsPaused(true);
-    const handleResumed = () => setIsPaused(false);
 
     const handleSummary = (data: any) => navigateToSummary(data?.summary || data);
 
@@ -196,10 +149,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
     socket.off("disconnect", handleDisconnect);
     socket.off("message:typing", handleTyping);
     socket.off("message:receive", handleReceive);
-    socket.off("audio:stream", handleAudioStream);
-    socket.off("audio:stop", handleAudioStop);
-    socket.off("session:paused", handlePaused);
-    socket.off("session:resumed", handleResumed);
     socket.off("session:summary", handleSummary);
     socket.off("session:ended", handleEnded);
     socket.off("error", handleError);
@@ -208,10 +157,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
     socket.on("disconnect", handleDisconnect);
     socket.on("message:typing", handleTyping);
     socket.on("message:receive", handleReceive);
-    socket.on("audio:stream", handleAudioStream);
-    socket.on("audio:stop", handleAudioStop);
-    socket.on("session:paused", handlePaused);
-    socket.on("session:resumed", handleResumed);
     socket.on("session:summary", handleSummary);
     socket.on("session:ended", handleEnded);
     socket.on("error", handleError);
@@ -223,10 +168,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
       socket.off("disconnect", handleDisconnect);
       socket.off("message:typing", handleTyping);
       socket.off("message:receive", handleReceive);
-      socket.off("audio:stream", handleAudioStream);
-      socket.off("audio:stop", handleAudioStop);
-      socket.off("session:paused", handlePaused);
-      socket.off("session:resumed", handleResumed);
       socket.off("session:summary", handleSummary);
       socket.off("session:ended", handleEnded);
       socket.off("error", handleError);
@@ -293,22 +234,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
     }
 
     endSessionWithRestFallback();
-  };
-
-  const togglePause = () => {
-    const socket = socketService.getSocket();
-    if (!socket?.connected) {
-      setIsPaused(false);
-      setIsAudioStreaming(false);
-      Alert.alert("Live Tutor", "Audio controls are unavailable while reconnecting.");
-      return;
-    }
-
-    if (isPaused) {
-      socketService.emit("session:resume", { sessionId });
-    } else {
-      socketService.emit("session:pause", { sessionId, position: 0 });
-    }
   };
 
   const renderHeader = () => (
@@ -424,19 +349,6 @@ export const LiveTutorSessionScreen: React.FC = () => {
         </ScrollView>
 
         <View style={styles.bottomSection}>
-          {isAudioStreaming && (
-            <View style={styles.audioControls}>
-              <View style={styles.waveformContainer}>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-                  <WaveformBar key={i} index={i} />
-                ))}
-              </View>
-              <TouchableOpacity style={styles.pauseBtn} onPress={togglePause}>
-                {isPaused ? <Play size={20} color={colors.textPrimary} fill={colors.textPrimary} /> : <Pause size={20} color={colors.textPrimary} fill={colors.textPrimary} />}
-              </TouchableOpacity>
-            </View>
-          )}
-
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickReplies}>
             {QUICK_REPLIES.map((reply) => (
               <TouchableOpacity
@@ -450,9 +362,9 @@ export const LiveTutorSessionScreen: React.FC = () => {
           </ScrollView>
 
           <View style={styles.inputBar}>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Mic size={24} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <View style={styles.inputIcon}>
+              <Bot size={22} color={colors.textSecondary} />
+            </View>
             <TextInput
               style={[styles.input, typography.body]}
               placeholder="Ask Akademi anything..."
@@ -613,36 +525,6 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 40 : 20,
     paddingTop: 10,
   },
-  audioControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  waveformContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    height: 30,
-    justifyContent: "center",
-  },
-  waveformBar: {
-    width: 3,
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  pauseBtn: {
-    backgroundColor: colors.surfaceElevated,
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 16,
-  },
   quickReplies: {
     marginBottom: 16,
   },
@@ -665,7 +547,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     paddingVertical: 6,
   },
-  iconBtn: {
+  inputIcon: {
     padding: 8,
   },
   input: {

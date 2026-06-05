@@ -3,6 +3,7 @@ import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketDa
 import { SessionsService } from '../sessions/sessions.service';
 import { streamAudio } from './websocket.audio';
 import redisClient from '../../config/redis';
+import { config } from '../../config/env';
 import { SessionType } from '@prisma/client';
 
 const sessionsService = new SessionsService();
@@ -65,8 +66,9 @@ export const registerHandlers = (
         messageId: aiMessage.id
       });
 
-      // Stream audio
-      await streamAudio(socket, aiMessage.content);
+      if (config.enableLiveTutorAudio) {
+        await streamAudio(socket, aiMessage.content);
+      }
     } catch (error: any) {
       socket.emit('error', { message: error.message });
     }
