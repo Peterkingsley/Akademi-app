@@ -20,6 +20,7 @@ import { TutorSessionSummaryScreen } from "../screens/main/TutorSessionSummarySc
 import { ExamPrepScreen } from "../screens/main/ExamPrepScreen";
 import { AddExamScreen } from "../screens/main/AddExamScreen";
 import { PrepPlanScreen } from "../screens/main/PrepPlanScreen";
+import { AcademicTimelineScreen } from "../screens/main/AcademicTimelineScreen";
 import { MockExamScreen } from "../screens/main/MockExamScreen";
 import { MockExamResultsScreen } from "../screens/main/MockExamResultsScreen";
 import { SubscriptionScreen } from "../screens/main/SubscriptionScreen";
@@ -78,6 +79,7 @@ export const MainStack = () => {
       />
       <Stack.Screen name="ExamPrep" component={ExamPrepScreen} />
       <Stack.Screen name="AddExam" component={AddExamScreen} />
+      <Stack.Screen name="AcademicTimeline" component={AcademicTimelineScreen} />
       <Stack.Screen name="PrepPlan" component={PrepPlanScreen} />
       <Stack.Screen name="MockExam" component={MockExamScreen} />
       <Stack.Screen name="MockExamResults" component={MockExamResultsScreen} />

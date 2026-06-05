@@ -85,6 +85,7 @@ export type MainStackParamList = {
   TutorSessionSummary: { sessionId: string };
   ExamPrep: undefined;
   AddExam: undefined;
+  AcademicTimeline: undefined;
   PrepPlan: { examId: string };
   MockExam: { examId: string; mockExamId?: string };
   MockExamResults: { examId: string; mockExamId: string };

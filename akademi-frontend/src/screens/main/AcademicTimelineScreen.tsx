@@ -70,7 +70,7 @@ export const AcademicTimelineScreen: React.FC = () => {
         <Card style={styles.planCard} onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}>
           <View style={styles.cardHeader}>
             <Text style={[styles.courseCode, typography.h4]}>{plan.course_code}</Text>
-            <Badge label={isPast ? "COMPLETED" : `${plan.days_left}D LEFT`} variant={isPast ? "gray" : "orange"} />
+            <Badge label={isPast ? "COMPLETED" : `${plan.days_left}D LEFT`} variant={isPast ? "success" : "warning"} />
           </View>
           <Text style={[styles.courseName, typography.bodySmall]} numberOfLines={1}>{plan.course_name || plan.subject || "Exam"}</Text>
           <View style={styles.metaRow}>
