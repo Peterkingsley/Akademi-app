@@ -23,7 +23,7 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { LinearGradient as LinearGradient } from "expo-linear-gradient";
-import examPrepService, { MockResult, MockResultQuestion } from "../../services/examPrep";
+import examPrepService, { ExamPrepPlan, MockResult, MockResultQuestion } from "../../services/examPrep";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Skeleton } from "../../components/ui/Skeleton";
@@ -46,6 +46,7 @@ export const MockExamResultsScreen: React.FC = () => {
   const { user } = useAuthStore();
 
   const [results, setResults] = useState<MockResult | null>(null);
+  const [plan, setPlan] = useState<ExamPrepPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -57,9 +58,13 @@ export const MockExamResultsScreen: React.FC = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const data = await examPrepService.getMockResults(examId, mockExamId);
-        setResults(data);
-        ringProgress.value = withTiming(data.score / 100, {
+        const [resultData, planData] = await Promise.all([
+          examPrepService.getMockResults(examId, mockExamId),
+          examPrepService.getPlanDetails(examId),
+        ]);
+        setResults(resultData);
+        setPlan(planData);
+        ringProgress.value = withTiming(resultData.score / 100, {
           duration: 1500,
           easing: Easing.out(Easing.exp),
         });
@@ -82,6 +87,28 @@ export const MockExamResultsScreen: React.FC = () => {
 
   const weakTopics = results?.breakdown.filter(item => item.questions > 0 && item.correct / item.questions < 0.7) || [];
   const missedQuestions = results?.questions.filter(q => !q.isCorrect && !q.isLocked) || [];
+  const topicsToReview = results
+    ? (weakTopics.length > 0
+      ? weakTopics
+      : results.breakdown.filter(item => item.questions > 0).slice(0, 2))
+    : [];
+
+  const buildTutorContext = () => {
+    if (!results) return "";
+
+    const topicLines = topicsToReview.length > 0
+      ? topicsToReview.map(topic => {
+        const score = Math.round((topic.correct / topic.questions) * 100);
+        return `- ${topic.topic}: ${score}% (${topic.correct}/${topic.questions})`;
+      }).join("\n")
+      : "- No weak topic rows were returned. Use the missed questions as the study guide.";
+
+    const missedLines = missedQuestions.slice(0, 4).map((question, index) =>
+      `${index + 1}. ${question.text}\nStudent answered: ${question.userAnswer}\nCorrect answer: ${question.correctAnswer}\nExplanation: ${question.aiExplanation}`
+    ).join("\n\n");
+
+    return `Mock exam score: ${results.score}%.\nCourse: ${plan?.course_code || "Exam prep"} ${plan?.course_name ? `- ${plan.course_name}` : ""}.\n\nWeak topics:\n${topicLines}\n\nMissed questions to reteach:\n${missedLines || "No missed unlocked questions were returned."}\n\nTutor instruction: reteach these weak areas simply, ask one diagnostic question at a time, and help the student build exam-ready confidence.`;
+  };
 
   const handleStudyWeakAreas = () => {
     if (!results) return;
@@ -193,10 +220,6 @@ export const MockExamResultsScreen: React.FC = () => {
   const renderWeakStudyPath = () => {
     if (!results || !weakStudyVisible) return null;
 
-    const topicsToReview = weakTopics.length > 0
-      ? weakTopics
-      : results.breakdown.filter(item => item.questions > 0).slice(0, 2);
-
     return (
       <Card style={styles.weakStudyCard}>
         <Text style={[styles.weakStudyLabel, typography.mono]}>WEAK AREA STUDY PATH</Text>
@@ -225,6 +248,16 @@ export const MockExamResultsScreen: React.FC = () => {
 
         <View style={styles.weakActionRow}>
           <Button
+            label="Live Tutor"
+            onPress={() => navigation.navigate("LiveTutorEntry", {
+              courseCode: plan?.course_code,
+              topic: topicsToReview[0]?.topic || plan?.course_name || "Mock exam weak areas",
+              materialTitle: `${plan?.course_code || "Mock Exam"} Weak Areas`,
+              materialContext: buildTutorContext(),
+            })}
+            style={styles.weakActionBtn}
+          />
+          <Button
             label="Review Questions"
             onPress={() => {
               if (missedQuestions[0]) setExpandedQuestion(missedQuestions[0].id);
@@ -232,13 +265,10 @@ export const MockExamResultsScreen: React.FC = () => {
             }}
             style={styles.weakActionBtn}
           />
-          <Button
-            label="Prep Tasks"
-            variant="secondary"
-            onPress={() => navigation.navigate("PrepPlan", { examId })}
-            style={styles.weakActionBtn}
-          />
         </View>
+        <TouchableOpacity onPress={() => navigation.navigate("PrepPlan", { examId })} style={styles.prepTasksLink}>
+          <Text style={[styles.prepTasksText, typography.bodySmall]}>Back to prep tasks</Text>
+        </TouchableOpacity>
       </Card>
     );
   };
@@ -538,6 +568,15 @@ const styles = StyleSheet.create({
   },
   weakActionBtn: {
     flex: 1,
+  },
+  prepTasksLink: {
+    alignItems: "center",
+    marginTop: 14,
+    paddingVertical: 6,
+  },
+  prepTasksText: {
+    color: colors.textMuted,
+    fontWeight: "600",
   },
   questionReviewCard: {
     marginBottom: 12,
