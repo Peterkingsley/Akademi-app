@@ -40,6 +40,9 @@ export const PrepPlanScreen: React.FC = () => {
   const [plan, setPlan] = useState<ExamPrepPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const dailyTasks = plan?.daily_tasks || plan?.dailyTasks || [];
+  const readinessGrade = plan?.readiness_grade || plan?.readinessGrade || "N/A";
+  const readinessScore = plan?.readiness_score ?? plan?.readinessScore ?? 0;
 
   const fetchPlan = useCallback(async () => {
     try {
@@ -94,9 +97,9 @@ export const PrepPlanScreen: React.FC = () => {
   const renderProgressCard = () => {
     if (!plan) return null;
 
-    const completedTasks = plan.dailyTasks?.reduce((acc, group) =>
+    const completedTasks = dailyTasks.reduce((acc, group) =>
       acc + group.tasks.filter(t => t.completed).length, 0) || 0;
-    const totalTasks = plan.dailyTasks?.reduce((acc, group) =>
+    const totalTasks = dailyTasks.reduce((acc, group) =>
       acc + group.tasks.length, 0) || 0;
 
     return (
@@ -196,7 +199,7 @@ export const PrepPlanScreen: React.FC = () => {
           <Animated.View entering={FadeInUp}>
             {renderProgressCard()}
             <View style={styles.timeline}>
-              {plan?.dailyTasks?.map((group, idx) => renderDayGroup(group, idx))}
+              {dailyTasks.map((group, idx) => renderDayGroup(group, idx))}
             </View>
           </Animated.View>
         )}
@@ -215,7 +218,7 @@ export const PrepPlanScreen: React.FC = () => {
             <View style={styles.readinessContainer}>
               <Text style={[styles.readinessLabel, typography.caption]}>READINESS SCORE</Text>
               <Text style={[styles.readinessValue, typography.h2]}>
-                {plan.readinessGrade} ({plan.readinessScore}%)
+                {readinessGrade} ({readinessScore}%)
               </Text>
             </View>
             <Button

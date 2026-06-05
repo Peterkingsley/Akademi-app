@@ -23,9 +23,12 @@ export interface ExamPrepPlan {
   progress: number;
   readiness_score: number;
   readiness_grade: string;
+  readinessScore?: number;
+  readinessGrade?: string;
   subject: string;
   days_left: number;
   daily_tasks?: DailyTaskGroup[];
+  dailyTasks?: DailyTaskGroup[];
 }
 
 export interface ReadinessResponse {

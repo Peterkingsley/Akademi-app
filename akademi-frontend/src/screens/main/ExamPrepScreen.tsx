@@ -98,7 +98,7 @@ export const ExamPrepScreen: React.FC = () => {
   };
 
   const renderPrimaryExamCard = (plan: ExamPrepPlan) => {
-    const mockActive = plan.progress >= 70;
+    const mockActive = plan.progress >= 60;
 
     return (
       <Animated.View key={plan.id} entering={FadeInUp.delay(100)}>
@@ -112,7 +112,7 @@ export const ExamPrepScreen: React.FC = () => {
                 EXAM ON {new Date(plan.exam_date).toLocaleDateString()}
               </Text>
             </View>
-            <Badge label={`${plan.days_left}D LEFT`} variant="orange" />
+            <Badge label={`${plan.days_left}D LEFT`} variant="warning" />
           </View>
 
           <View style={styles.progressSection}>
@@ -159,7 +159,7 @@ export const ExamPrepScreen: React.FC = () => {
           </View>
           {!mockActive && (
             <Text style={[styles.lockText, typography.caption]}>
-              *Reach 70% Mastery to unlock Mock Exam
+              *Reach 60% Mastery to unlock Mock Exam
             </Text>
           )}
         </Card>
@@ -202,10 +202,9 @@ export const ExamPrepScreen: React.FC = () => {
           ) : plans.length > 0 ? (
             <>
               {renderUrgentBanner()}
-              <AIInsightBanner
-                message="Focus on 'Thevenin's Theorem' for EEE 301. It covers 35% of the exam."
-                style={styles.insight}
-              />
+              <View style={styles.insight}>
+                <AIInsightBanner text="Focus on your weakest prep tasks first. Mock exams unlock once your plan reaches 60% mastery." />
+              </View>
               <Text style={[styles.sectionTitle, typography.mono]}>
                 ACTIVE PREP PLANS
               </Text>
