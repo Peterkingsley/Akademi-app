@@ -29,6 +29,47 @@ function normalizeExtractedText(text: string) {
   return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+async function extractTextFromImage(buffer: Buffer) {
+  const content = buffer.toString('base64');
+
+  if (hasUsableVisionKey()) {
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${config.googleVisionApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content },
+              features: [{ type: 'TEXT_DETECTION' }],
+            },
+          ],
+        }),
+      },
+    );
+
+    const payload = await response.json() as any;
+
+    if (!response.ok) {
+      throw new Error(payload?.error?.message || 'Google Vision OCR failed');
+    }
+
+    const result = payload?.responses?.[0];
+    if (result?.error?.message) {
+      throw new Error(result.error.message);
+    }
+
+    return normalizeExtractedText(result?.fullTextAnnotation?.text || result?.textAnnotations?.[0]?.description || '');
+  }
+
+  const [result] = await getVisionClient().textDetection({
+    image: { content },
+  });
+
+  return normalizeExtractedText(result.fullTextAnnotation?.text || '');
+}
+
 export class SessionsService {
   private mapSessionTypeToFeature(type: SessionType): Feature {
     switch (type) {
@@ -166,11 +207,7 @@ export class SessionsService {
       throw new Error('Uploaded file must be an image');
     }
 
-    const [result] = await getVisionClient().textDetection({
-      image: { content: file.buffer.toString('base64') },
-    });
-
-    const extractedText = normalizeExtractedText(result.fullTextAnnotation?.text || '');
+    const extractedText = await extractTextFromImage(file.buffer);
 
     if (!extractedText) {
       throw new Error('Could not read text from this image. Please retake it with clearer lighting.');
