@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  Alert,
 } from "react-native";
 import { ArrowLeft, Check, X, GraduationCap, Zap, Search } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -29,10 +30,25 @@ export const CropConfirmScreen: React.FC = () => {
   const [course, setCourse] = useState(userCourses[0] || "Select Course");
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const getPhotoErrorMessage = (error: any) => {
+    const serverMessage = error?.response?.data?.message;
+    if (typeof serverMessage === "string" && serverMessage.trim()) {
+      return serverMessage;
+    }
+
+    if (error?.code === "ECONNABORTED") {
+      return "The upload took too long. Please check your connection and try again.";
+    }
+
+    return "We could not read this image. Retake it with clearer lighting and make sure the full question is visible.";
+  };
 
   const handleSolve = async () => {
     if (!imageUri || course === "Select Course") return;
 
+    setErrorMessage("");
     setLoading(true);
     try {
       const replyMode = strategy === "quick" ? "DIRECT" : "STUDY";
@@ -47,7 +63,12 @@ export const CropConfirmScreen: React.FC = () => {
         imageUri,
       });
     } catch (error) {
-      console.error("Failed to process image:", error);
+      const message = getPhotoErrorMessage(error);
+      setErrorMessage(message);
+      Alert.alert("Could not read image", message, [
+        { text: "Retake", onPress: () => navigation.navigate("Camera") },
+        { text: "Try Again", style: "cancel" },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -78,6 +99,13 @@ export const CropConfirmScreen: React.FC = () => {
         <Text style={[styles.qualityPrompt, typography.h3]}>
           Is the question text clear and fully visible?
         </Text>
+
+        {errorMessage ? (
+          <View style={styles.errorCard}>
+            <Text style={[styles.errorTitle, typography.bodySmall]}>OCR failed</Text>
+            <Text style={[styles.errorText, typography.caption]}>{errorMessage}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.guidanceRow}>
           <Card style={styles.guidanceCard}>
@@ -144,7 +172,7 @@ export const CropConfirmScreen: React.FC = () => {
 
         <View style={styles.bottomHint}>
           <Text style={[styles.hintText, typography.mono]}>
-            OCR EXTRACTION READY
+            {loading ? "READING QUESTION TEXT" : "OCR EXTRACTION READY"}
           </Text>
         </View>
       </ScrollView>
@@ -221,6 +249,23 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginBottom: 20,
     textAlign: "center",
+  },
+  errorCard: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorTitle: {
+    color: colors.error,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  errorText: {
+    color: colors.textPrimary,
+    lineHeight: 18,
   },
   guidanceRow: {
     flexDirection: "row",
