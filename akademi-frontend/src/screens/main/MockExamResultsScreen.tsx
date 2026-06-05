@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -49,6 +49,8 @@ export const MockExamResultsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [weakStudyVisible, setWeakStudyVisible] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   const ringProgress = useSharedValue(0);
 
@@ -77,6 +79,22 @@ export const MockExamResultsScreen: React.FC = () => {
   const animatedCircleProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - ringProgress.value),
   }));
+
+  const weakTopics = results?.breakdown.filter(item => item.questions > 0 && item.correct / item.questions < 0.7) || [];
+  const missedQuestions = results?.questions.filter(q => !q.isCorrect && !q.isLocked) || [];
+
+  const handleStudyWeakAreas = () => {
+    if (!results) return;
+
+    setWeakStudyVisible(true);
+    if (missedQuestions[0]) {
+      setExpandedQuestion(missedQuestions[0].id);
+    }
+
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 430, animated: true });
+    });
+  };
 
   const renderScoreCard = () => {
     if (!results) return null;
@@ -172,6 +190,59 @@ export const MockExamResultsScreen: React.FC = () => {
     );
   };
 
+  const renderWeakStudyPath = () => {
+    if (!results || !weakStudyVisible) return null;
+
+    const topicsToReview = weakTopics.length > 0
+      ? weakTopics
+      : results.breakdown.filter(item => item.questions > 0).slice(0, 2);
+
+    return (
+      <Card style={styles.weakStudyCard}>
+        <Text style={[styles.weakStudyLabel, typography.mono]}>WEAK AREA STUDY PATH</Text>
+        <Text style={[styles.weakStudyTitle, typography.h3]}>
+          {missedQuestions.length > 0 ? "Review missed questions first" : "Keep strengthening this course"}
+        </Text>
+        <Text style={[styles.weakStudyText, typography.bodySmall]}>
+          {missedQuestions.length > 0
+            ? `Start with ${missedQuestions.length} missed question${missedQuestions.length === 1 ? "" : "s"}, then revisit the lowest-scoring topics below.`
+            : "No missed unlocked questions were found, so use this pass to reinforce your lowest topic scores."}
+        </Text>
+
+        <View style={styles.weakTopicList}>
+          {topicsToReview.map(topic => {
+            const score = Math.round((topic.correct / topic.questions) * 100);
+            return (
+              <View key={topic.topic} style={styles.weakTopicRow}>
+                <View style={styles.weakTopicDot} />
+                <Text style={[styles.weakTopicText, typography.bodySmall]}>
+                  {topic.topic}: {score}% ({topic.correct}/{topic.questions})
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.weakActionRow}>
+          <Button
+            label="Review Questions"
+            onPress={() => {
+              if (missedQuestions[0]) setExpandedQuestion(missedQuestions[0].id);
+              scrollRef.current?.scrollToEnd({ animated: true });
+            }}
+            style={styles.weakActionBtn}
+          />
+          <Button
+            label="Prep Tasks"
+            variant="secondary"
+            onPress={() => navigation.navigate("PrepPlan", { examId })}
+            style={styles.weakActionBtn}
+          />
+        </View>
+      </Card>
+    );
+  };
+
   const renderQuestionReview = () => {
     if (!results) return null;
 
@@ -241,7 +312,7 @@ export const MockExamResultsScreen: React.FC = () => {
   return (
     <SafeArea style={styles.safeArea}>
       {renderHeader()}
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <Skeleton height={250} borderRadius={16} />
         ) : errorMessage ? (
@@ -258,6 +329,7 @@ export const MockExamResultsScreen: React.FC = () => {
           <Animated.View entering={FadeInUp}>
             {renderScoreCard()}
             {renderBreakdown()}
+            {renderWeakStudyPath()}
             {renderQuestionReview()}
 
             <View style={styles.actionButtons}>
@@ -265,7 +337,7 @@ export const MockExamResultsScreen: React.FC = () => {
                 label="Study Weak Areas"
                 icon={<ArrowRight size={18} color="white" />}
 
-                onPress={() => {}}
+                onPress={handleStudyWeakAreas}
                 style={styles.mainBtn}
               />
               <Button
@@ -421,6 +493,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  weakStudyCard: {
+    padding: 18,
+    marginBottom: 40,
+    borderColor: colors.warning + "66",
+  },
+  weakStudyLabel: {
+    color: colors.warning,
+    fontSize: 8,
+    marginBottom: 10,
+  },
+  weakStudyTitle: {
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  weakStudyText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  weakTopicList: {
+    gap: 10,
+    marginBottom: 18,
+  },
+  weakTopicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  weakTopicDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+    marginRight: 10,
+  },
+  weakTopicText: {
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  weakActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  weakActionBtn: {
+    flex: 1,
   },
   questionReviewCard: {
     marginBottom: 12,
