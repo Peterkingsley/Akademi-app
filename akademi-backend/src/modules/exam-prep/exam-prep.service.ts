@@ -92,6 +92,23 @@ export class ExamPrepService {
     };
   }
 
+  private formatMockAttempt(attempt: any) {
+    const completedAt = attempt.completed_at || attempt.started_at;
+    return {
+      id: attempt.id,
+      mockExamId: attempt.mock_exam_id,
+      mock_exam_id: attempt.mock_exam_id,
+      title: attempt.mock_exam?.title || 'Mock Exam',
+      score: Math.round(attempt.score),
+      aggregate: `${Math.round(attempt.score)}%`,
+      feedback: attempt.feedback,
+      completedAt,
+      completed_at: completedAt,
+      questionCount: attempt.mock_exam?.questions?.length || 0,
+      question_count: attempt.mock_exam?.questions?.length || 0,
+    };
+  }
+
   async createPlan(userId: string, courseCode: string, examDate: string) {
     const plan = await prisma.examPrepPlan.create({
       data: {
@@ -131,6 +148,29 @@ export class ExamPrepService {
     });
     if (!plan) throw new Error('Plan not found');
     return this.formatPlan(plan);
+  }
+
+  async getMockHistory(userId: string, planId: string) {
+    const plan = await prisma.examPrepPlan.findFirst({
+      where: { id: planId, user_id: userId },
+    });
+    if (!plan) throw new Error('Plan not found');
+
+    const attempts = await prisma.mockAttempt.findMany({
+      where: {
+        user_id: userId,
+        mock_exam: { plan_id: planId },
+        completed_at: { not: null },
+      },
+      orderBy: { completed_at: 'desc' },
+      include: {
+        mock_exam: {
+          include: { questions: true },
+        },
+      },
+    });
+
+    return attempts.map((attempt) => this.formatMockAttempt(attempt));
   }
 
   async updateProgress(userId: string, planId: string, taskId: string, completed: boolean) {

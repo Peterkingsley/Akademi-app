@@ -59,6 +59,17 @@ export class ExamPrepController {
     }
   }
 
+  async getMockHistory(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const userId = (req.user as any).userId;
+      const history = await examPrepService.getMockHistory(userId, id);
+      res.status(200).json(history);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message });
+    }
+  }
+
   async startMock(req: Request, res: Response) {
     try {
       const { id } = req.params;

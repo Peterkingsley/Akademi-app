@@ -12,12 +12,13 @@ import {
   Calendar,
   Clock,
   BookOpen,
+  RotateCcw,
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation } from "@react-navigation/native";
-import examPrepService, { ExamPrepPlan } from "../../services/examPrep";
+import examPrepService, { ExamPrepPlan, MockHistoryItem } from "../../services/examPrep";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Skeleton } from "../../components/ui/Skeleton";
@@ -28,14 +29,30 @@ export const AcademicTimelineScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [plans, setPlans] = useState<ExamPrepPlan[]>([]);
+  const [latestAttempts, setLatestAttempts] = useState<Record<string, MockHistoryItem>>({});
 
   const fetchPlans = async () => {
     try {
       setLoading(true);
       const data = await examPrepService.getAllPlans();
+      const historyPairs = await Promise.all(
+        data.map(async (plan) => {
+          try {
+            const history = await examPrepService.getMockHistory(plan.id);
+            return [plan.id, history[0]] as const;
+          } catch (error) {
+            return [plan.id, undefined] as const;
+          }
+        })
+      );
       // Sort by date
       const sorted = data.sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime());
       setPlans(sorted);
+      const attemptsByPlan = historyPairs.reduce<Record<string, MockHistoryItem>>((acc, [planId, attempt]) => {
+        if (attempt) acc[planId] = attempt;
+        return acc;
+      }, {});
+      setLatestAttempts(attemptsByPlan);
     } catch (error) {
       console.error("Error fetching timeline:", error);
     } finally {
@@ -57,6 +74,8 @@ export const AcademicTimelineScreen: React.FC = () => {
     const examDate = new Date(plan.exam_date);
     const dateStr = examDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     const isPast = examDate.getTime() < new Date().getTime();
+    const latestAttempt = latestAttempts[plan.id];
+    const latestMockExamId = latestAttempt?.mockExamId || latestAttempt?.mock_exam_id;
 
     return (
       <Animated.View key={plan.id} entering={FadeInUp.delay(index * 100)} style={styles.timelineItem}>
@@ -83,6 +102,17 @@ export const AcademicTimelineScreen: React.FC = () => {
               <Text style={[styles.metaText, typography.caption]}>{plan.readiness_grade} Readiness</Text>
             </View>
           </View>
+          {latestAttempt && latestMockExamId && (
+            <TouchableOpacity
+              style={styles.latestResultRow}
+              onPress={() => navigation.navigate("MockExamResults", { examId: plan.id, mockExamId: latestMockExamId })}
+            >
+              <RotateCcw size={13} color={colors.primary} />
+              <Text style={[styles.latestResultText, typography.caption]}>
+                Latest mock: {latestAttempt.score}% • reopen results
+              </Text>
+            </TouchableOpacity>
+          )}
         </Card>
       </Animated.View>
     );
@@ -236,6 +266,19 @@ const styles = StyleSheet.create({
   },
   metaText: {
     color: colors.textMuted,
+  },
+  latestResultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  latestResultText: {
+    color: colors.primary,
+    fontWeight: "700",
   },
   pastText: {
     color: colors.textMuted,

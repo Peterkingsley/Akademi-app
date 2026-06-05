@@ -75,6 +75,20 @@ export interface MockResult {
   questions: MockResultQuestion[];
 }
 
+export interface MockHistoryItem {
+  id: string;
+  mockExamId: string;
+  mock_exam_id?: string;
+  title: string;
+  score: number;
+  aggregate: string;
+  feedback?: string;
+  completedAt: string;
+  completed_at?: string;
+  questionCount: number;
+  question_count?: number;
+}
+
 const examPrepService = {
   getAllPlans: async () => {
     const { data } = await api.get<ExamPrepPlan[]>("/exam-prep");
@@ -114,6 +128,11 @@ const examPrepService = {
 
   getMockExam: async (planId: string, examId: string) => {
     const { data } = await api.get<MockExam>(`/exam-prep/${planId}/mock-exam/${examId}`);
+    return data;
+  },
+
+  getMockHistory: async (planId: string) => {
+    const { data } = await api.get<MockHistoryItem[]>(`/exam-prep/${planId}/mock-history`);
     return data;
   },
 

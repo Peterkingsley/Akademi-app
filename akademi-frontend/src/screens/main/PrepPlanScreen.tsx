@@ -19,6 +19,7 @@ import {
   Book,
   Sparkles,
   TrendingUp,
+  RotateCcw,
 } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,7 +28,7 @@ import { Header } from "../../components/layout/Header";
 import { Card } from "../../components/ui/Card";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Badge } from "../../components/ui/Badge";
-import examPrepService, { ExamPrepPlan, Task, DailyTaskGroup } from "../../services/examPrep";
+import examPrepService, { ExamPrepPlan, Task, DailyTaskGroup, MockHistoryItem } from "../../services/examPrep";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Button } from "../../components/ui/Button";
@@ -39,6 +40,7 @@ export const PrepPlanScreen: React.FC = () => {
   const { examId } = route.params;
 
   const [plan, setPlan] = useState<ExamPrepPlan | null>(null);
+  const [mockHistory, setMockHistory] = useState<MockHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const dailyTasks = plan?.daily_tasks || plan?.dailyTasks || [];
@@ -66,8 +68,12 @@ export const PrepPlanScreen: React.FC = () => {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const data = await examPrepService.getPlanDetails(examId);
+      const [data, history] = await Promise.all([
+        examPrepService.getPlanDetails(examId),
+        examPrepService.getMockHistory(examId),
+      ]);
       setPlan(data);
+      setMockHistory(history);
     } catch (error) {
       console.error("Failed to fetch plan details:", error);
     } finally {
@@ -202,6 +208,44 @@ export const PrepPlanScreen: React.FC = () => {
     );
   };
 
+  const renderMockHistory = () => {
+    if (mockHistory.length === 0) return null;
+
+    return (
+      <View style={styles.historySection}>
+        <Text style={[styles.historyTitle, typography.h3]}>Mock Exam History</Text>
+        {mockHistory.map((attempt) => {
+          const mockExamId = attempt.mockExamId || attempt.mock_exam_id;
+          const completedAt = attempt.completedAt || attempt.completed_at;
+          const questionCount = attempt.questionCount || attempt.question_count || 0;
+
+          return (
+            <Card
+              key={attempt.id}
+              style={styles.historyCard}
+              onPress={() => mockExamId && navigation.navigate("MockExamResults", { examId, mockExamId })}
+            >
+              <View style={styles.historyMeta}>
+                <View style={styles.historyIcon}>
+                  <RotateCcw size={16} color={colors.primary} />
+                </View>
+                <View style={styles.historyText}>
+                  <Text style={[styles.historyAttemptTitle, typography.bodySmall]} numberOfLines={1}>
+                    {attempt.title || "Completed mock exam"}
+                  </Text>
+                  <Text style={[styles.historyDate, typography.caption]}>
+                    {completedAt ? new Date(completedAt).toLocaleDateString() : "Completed"} • {questionCount} questions
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.historyScore, typography.h3]}>{attempt.score}%</Text>
+            </Card>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <SafeArea style={styles.safeArea}>
       <Header
@@ -229,6 +273,7 @@ export const PrepPlanScreen: React.FC = () => {
         ) : (
           <Animated.View entering={FadeInUp}>
             {renderProgressCard()}
+            {renderMockHistory()}
             <View style={styles.timeline}>
               {dailyTasks.map((group, idx) => renderDayGroup(group, idx))}
             </View>
@@ -300,6 +345,50 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
+  },
+  historySection: {
+    marginBottom: 32,
+  },
+  historyTitle: {
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  historyCard: {
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  historyMeta: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  historyIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.primary + "20",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  historyText: {
+    flex: 1,
+  },
+  historyAttemptTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  historyDate: {
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  historyScore: {
+    color: colors.primary,
+    fontWeight: "700",
   },
   timeline: {
     marginTop: 8,
