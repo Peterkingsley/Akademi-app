@@ -23,7 +23,7 @@ const STATUS_TEXTS = [
 export const AIProcessingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { type, sessionId, reply_mode } = route.params || {};
+  const { type, sessionId, reply_mode, courseCode } = route.params || {};
 
   const [statusIndex, setStatusIndex] = useState(0);
   const glowAnim = useRef(new Animated.Value(0.3)).current;
@@ -116,7 +116,7 @@ export const AIProcessingScreen: React.FC = () => {
         </View>
 
         <Text style={[styles.contextText, typography.bodySmall]}>
-          Checking against your course: <Text style={styles.courseCode}>EEE 301</Text>
+          Checking against your course: <Text style={styles.courseCode}>{courseCode || "your course"}</Text>
         </Text>
       </View>
 

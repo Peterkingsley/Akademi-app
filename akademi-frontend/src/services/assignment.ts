@@ -22,3 +22,27 @@ export const submitQuestion = async (sessionId: string, content: string) => {
   });
   return data;
 };
+
+export const submitPhotoQuestion = async (
+  sessionId: string,
+  photoUri: string,
+  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY"
+) => {
+  const filename = photoUri.split("/").pop() || `assignment-${Date.now()}.jpg`;
+  const extension = filename.split(".").pop()?.toLowerCase();
+  const mimeType = extension === "png" ? "image/png" : "image/jpeg";
+  const formData = new FormData();
+
+  formData.append("photo", {
+    uri: photoUri,
+    name: filename,
+    type: mimeType,
+  } as any);
+  formData.append("reply_mode", reply_mode);
+
+  const { data } = await api.post(`/sessions/${sessionId}/messages/photo`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return data;
+};

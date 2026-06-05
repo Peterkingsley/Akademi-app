@@ -79,6 +79,7 @@ export const SolveScreen: React.FC = () => {
         type: "assignment",
         sessionId: session.id,
         reply_mode: answerMode,
+        courseCode: course,
       });
     } catch (error) {
       console.error("Failed to start session:", error);

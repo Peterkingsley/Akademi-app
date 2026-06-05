@@ -13,35 +13,38 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
+import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import api from "../../services/api";
+import { createAssignmentSession, submitPhotoQuestion } from "../../services/assignment";
+import { useAuthStore } from "../../store/useAuthStore";
 
 export const CropConfirmScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { imageUri } = route.params || {};
+  const { user } = useAuthStore();
+  const userCourses = (user as any)?.courses || [];
 
   const [strategy, setStrategy] = useState<"step" | "quick">("quick");
+  const [course, setCourse] = useState(userCourses[0] || "Select Course");
+  const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSolve = async () => {
+    if (!imageUri || course === "Select Course") return;
+
     setLoading(true);
     try {
-      // Simulate session creation and OCR
-      const { data: session } = await api.post("/sessions", {
-        session_type: "ASSIGNMENT",
-        reply_mode: strategy === "quick" ? "DIRECT" : "STUDY",
-        course_code: "EEE 301",
-      });
+      const replyMode = strategy === "quick" ? "DIRECT" : "STUDY";
+      const session = await createAssignmentSession(replyMode, course);
+      await submitPhotoQuestion(session.id, imageUri, replyMode);
 
-      // In a real app, we'd upload the image here
-      // For this flow, we'll navigate to AIProcessing
       navigation.navigate("AIProcessing", {
         type: "assignment",
         sessionId: session.id,
-        reply_mode: strategy === "quick" ? "DIRECT" : "STUDY",
-        imageUri: imageUri
+        reply_mode: replyMode,
+        courseCode: course,
+        imageUri,
       });
     } catch (error) {
       console.error("Failed to process image:", error);
@@ -97,10 +100,10 @@ export const CropConfirmScreen: React.FC = () => {
 
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, typography.mono]}>SUBJECT CONTEXT</Text>
-          <View style={styles.coursePill}>
+          <TouchableOpacity style={styles.coursePill} onPress={() => setIsCoursePickerVisible(true)}>
             <GraduationCap size={16} color={colors.primary} />
-            <Text style={[styles.courseText, typography.bodySmall]}>Course: EEE 301</Text>
-          </View>
+            <Text style={[styles.courseText, typography.bodySmall]}>Course: {course}</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -132,18 +135,26 @@ export const CropConfirmScreen: React.FC = () => {
         </View>
 
         <Button
-          label="Solve This →"
+          label="Solve This"
           onPress={handleSolve}
           loading={loading}
+          disabled={!imageUri || course === "Select Course"}
           style={styles.solveBtn}
         />
 
         <View style={styles.bottomHint}>
           <Text style={[styles.hintText, typography.mono]}>
-            • NEURAL ENGINE READY FOR OCR EXTRACTION
+            OCR EXTRACTION READY
           </Text>
         </View>
       </ScrollView>
+
+      <CoursePickerModal
+        visible={isCoursePickerVisible}
+        onClose={() => setIsCoursePickerVisible(false)}
+        onSelect={setCourse}
+        selectedCourse={course}
+      />
     </Screen>
   );
 };

@@ -1,9 +1,33 @@
 import prisma from '../../config/db';
-import { StartSessionRequest, SendMessageRequest } from './sessions.types';
+import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
+import { config } from '../../config/env';
+import * as vision from '@google-cloud/vision';
+
+let visionClient: vision.ImageAnnotatorClient | null = null;
+
+const PLACEHOLDER_KEYWORDS = ['your_', 'replace_me', 'api_key', 'dummy'];
+
+function hasUsableVisionKey() {
+  const key = config.googleVisionApiKey;
+  return !!key && !PLACEHOLDER_KEYWORDS.some(keyword => key.toLowerCase().includes(keyword));
+}
+
+function getVisionClient() {
+  if (!visionClient) {
+    visionClient = new vision.ImageAnnotatorClient(
+      hasUsableVisionKey() ? { apiKey: config.googleVisionApiKey } : {},
+    );
+  }
+  return visionClient;
+}
+
+function normalizeExtractedText(text: string) {
+  return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
 
 export class SessionsService {
   private mapSessionTypeToFeature(type: SessionType): Feature {
@@ -126,6 +150,41 @@ export class SessionsService {
         reply_mode: replyMode,
       },
     });
+  }
+
+  async sendPhotoMessage(
+    userId: string,
+    sessionId: string,
+    file: Express.Multer.File,
+    data: SendPhotoMessageRequest,
+  ) {
+    if (!file) {
+      throw new Error('No image uploaded');
+    }
+
+    if (!file.mimetype.startsWith('image/')) {
+      throw new Error('Uploaded file must be an image');
+    }
+
+    const [result] = await getVisionClient().textDetection({
+      image: { content: file.buffer.toString('base64') },
+    });
+
+    const extractedText = normalizeExtractedText(result.fullTextAnnotation?.text || '');
+
+    if (!extractedText) {
+      throw new Error('Could not read text from this image. Please retake it with clearer lighting.');
+    }
+
+    const message = await this.sendMessage(userId, sessionId, {
+      content: extractedText,
+      reply_mode: data.reply_mode,
+    });
+
+    return {
+      extractedText,
+      message,
+    };
   }
 
   async getSessionSummary(sessionId: string) {

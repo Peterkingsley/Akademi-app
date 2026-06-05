@@ -14,6 +14,10 @@ export interface SendMessageRequest {
   reply_mode?: ReplyMode;
 }
 
+export interface SendPhotoMessageRequest {
+  reply_mode?: ReplyMode;
+}
+
 export interface SessionResponse {
   id: string;
   session_type: SessionType;
