@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  Alert,
 } from "react-native";
 import {
   Settings,
@@ -76,12 +77,23 @@ export const PrepPlanScreen: React.FC = () => {
   };
 
   const startMockExam = async () => {
-    if (!plan || plan.progress < 60) return;
+    if (!plan) return;
+    if (plan.progress < 60) {
+      Alert.alert(
+        "Mock exam locked",
+        "Complete at least 60% of your prep tasks to unlock this mock exam."
+      );
+      return;
+    }
     try {
       const mockExam = await examPrepService.startMockExam(examId);
       navigation.navigate("MockExam", { examId, mockExamId: mockExam.id });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start mock exam:", error);
+      Alert.alert(
+        "Mock exam unavailable",
+        error?.response?.data?.message || "No scored questions are available for this course yet."
+      );
     }
   };
 

@@ -49,6 +49,7 @@ export const MockExamResultsScreen: React.FC = () => {
   const [results, setResults] = useState<MockResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const ringProgress = useSharedValue(0);
 
@@ -61,8 +62,9 @@ export const MockExamResultsScreen: React.FC = () => {
           duration: 1500,
           easing: Easing.out(Easing.exp),
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch results:", error);
+        setErrorMessage(error?.response?.data?.message || "We could not load your mock exam results.");
       } finally {
         setLoading(false);
       }
@@ -243,6 +245,16 @@ export const MockExamResultsScreen: React.FC = () => {
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <Skeleton height={250} borderRadius={16} />
+        ) : errorMessage ? (
+          <View style={styles.errorState}>
+            <Text style={[styles.errorTitle, typography.h3]}>Results unavailable</Text>
+            <Text style={[styles.errorText, typography.bodySmall]}>{errorMessage}</Text>
+            <Button
+              label="Back to Prep Plan"
+              onPress={() => navigation.navigate("PrepPlan", { examId })}
+              style={styles.mainBtn}
+            />
+          </View>
         ) : (
           <Animated.View entering={FadeInUp}>
             {renderScoreCard()}
@@ -273,7 +285,7 @@ export const MockExamResultsScreen: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Nav Placeholder */}
-      {!loading && (
+      {!loading && !errorMessage && (
         <View style={styles.bottomNav}>
            {['Tutor', 'Hub', 'Timeline', 'Exams'].map((tab) => (
              <TouchableOpacity key={tab} style={styles.navItem}>
@@ -368,6 +380,21 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 40,
+  },
+  errorState: {
+    alignItems: "center",
+    paddingTop: 80,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  errorText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
   },
   sectionHeader: {
     marginBottom: 16,

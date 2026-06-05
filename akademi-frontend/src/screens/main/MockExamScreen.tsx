@@ -50,6 +50,7 @@ export const MockExamScreen: React.FC = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [flagged, setFlagged] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const timerGlow = useSharedValue(1);
 
@@ -61,8 +62,14 @@ export const MockExamScreen: React.FC = () => {
           : await examPrepService.startMockExam(examId);
         setExam(data);
         setTimeLeft(data.durationMinutes * 60);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch mock exam:", error);
+        const message = error?.response?.data?.message || "We could not start this mock exam yet.";
+        setErrorMessage(message);
+        Alert.alert("Mock exam unavailable", message, [
+          { text: "Back to Prep Plan", onPress: () => navigation.goBack() },
+          { text: "OK", style: "cancel" },
+        ]);
       } finally {
         setLoading(false);
       }
@@ -149,8 +156,11 @@ export const MockExamScreen: React.FC = () => {
     try {
       await examPrepService.submitMockExam(examId, exam.id, answers);
       navigation.replace("MockExamResults", { examId, mockExamId: exam.id });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to submit exam:", error);
+      const message = error?.response?.data?.message || "We could not submit your mock exam. Please try again.";
+      setErrorMessage(message);
+      Alert.alert("Submit failed", message);
     } finally {
       setSubmitting(false);
     }
@@ -279,11 +289,22 @@ export const MockExamScreen: React.FC = () => {
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         {loading ? (
            <Skeleton height={200} borderRadius={12} />
+        ) : errorMessage ? (
+          <View style={styles.errorState}>
+            <Text style={[styles.errorTitle, typography.h3]}>Mock exam unavailable</Text>
+            <Text style={[styles.errorText, typography.bodySmall]}>{errorMessage}</Text>
+            <Button
+              label="Back to Prep Plan"
+              onPress={() => navigation.goBack()}
+              style={styles.errorButton}
+            />
+          </View>
         ) : (
           renderQuestionCard()
         )}
       </ScrollView>
 
+      {!errorMessage && (
       <View style={styles.footer}>
          <View style={styles.aiInsightContainer}>
            <TouchableOpacity style={styles.insightPlus}>
@@ -314,6 +335,7 @@ export const MockExamScreen: React.FC = () => {
            />
          </View>
       </View>
+      )}
     </SafeArea>
   );
 };
@@ -371,6 +393,25 @@ const styles = StyleSheet.create({
   },
   questionSection: {
     flex: 1,
+  },
+  errorState: {
+    alignItems: "center",
+    paddingTop: 80,
+    paddingHorizontal: 20,
+  },
+  errorTitle: {
+    color: colors.textPrimary,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  errorText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  errorButton: {
+    width: "100%",
   },
   questionInfoHeader: {
     flexDirection: "row",
