@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -44,6 +44,25 @@ export const PrepPlanScreen: React.FC = () => {
   const dailyTasks = plan?.daily_tasks || plan?.dailyTasks || [];
   const readinessGrade = plan?.readiness_grade || plan?.readinessGrade || "N/A";
   const readinessScore = plan?.readiness_score ?? plan?.readinessScore ?? 0;
+  const aiSuggestion = useMemo(() => {
+    if (!plan) return "";
+
+    const courseLabel = plan.course_code || plan.course_name || plan.subject || "this exam";
+    const todayGroup = dailyTasks[0];
+    const pendingTask = dailyTasks
+      .flatMap(group => group.tasks)
+      .find(task => !task.completed);
+
+    if (pendingTask) {
+      return `AI SUGGESTION: ${courseLabel} - start with "${pendingTask.name}" (${pendingTask.duration}) before moving ahead.`;
+    }
+
+    if (todayGroup?.focus) {
+      return `AI SUGGESTION: ${courseLabel} - review ${todayGroup.focus} today, then unlock a mock exam when ready.`;
+    }
+
+    return `AI SUGGESTION: ${courseLabel} - keep your prep streak moving and refresh readiness after each study block.`;
+  }, [dailyTasks, plan]);
 
   const fetchPlan = useCallback(async () => {
     try {
@@ -221,9 +240,7 @@ export const PrepPlanScreen: React.FC = () => {
         <View style={styles.stickyFooter}>
           <View style={styles.aiSuggestion}>
              <Sparkles size={16} color={colors.primary} style={styles.sparkleIcon} />
-             <Text style={[styles.suggestionText, typography.mono]}>
-               AI SUGGESTION: Focus on integration by parts.
-             </Text>
+             <Text style={[styles.suggestionText, typography.mono]}>{aiSuggestion}</Text>
           </View>
 
           <View style={styles.bottomBar}>

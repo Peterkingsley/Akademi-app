@@ -168,6 +168,27 @@ export const MockExamScreen: React.FC = () => {
 
   const progress = exam ? ((Object.keys(answers).length) / exam.questions.length) * 100 : 0;
   const currentQuestion = exam?.questions[currentIndex];
+  const answeredCount = Object.keys(answers).length;
+  const aiInsight = useMemo(() => {
+    if (!exam) return "";
+
+    const totalQuestions = exam.questions.length;
+    const unansweredCount = Math.max(totalQuestions - answeredCount, 0);
+
+    if (unansweredCount === totalQuestions) {
+      return `AI INSIGHT: ${totalQuestions} questions loaded. Answer the sure ones first, then flag anything uncertain.`;
+    }
+
+    if (flagged[currentQuestion?.id || ""]) {
+      return "AI INSIGHT: This question is flagged. Choose your best answer now, then revisit it before submitting.";
+    }
+
+    if (unansweredCount === 0) {
+      return "AI INSIGHT: All questions have answers. Review flagged items before you submit.";
+    }
+
+    return `AI INSIGHT: ${answeredCount} answered, ${unansweredCount} left. Keep a steady pace and use flags for tough questions.`;
+  }, [answeredCount, currentQuestion?.id, exam, flagged]);
 
   const renderQuestionCard = () => {
     if (!currentQuestion) return null;
@@ -311,7 +332,7 @@ export const MockExamScreen: React.FC = () => {
              <Plus size={16} color="white" />
            </TouchableOpacity>
            <Text style={[styles.insightText, typography.mono]}>
-             AI INSIGHT: Try integration by parts twice.
+             {aiInsight}
            </Text>
          </View>
 

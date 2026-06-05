@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
 } from "react-native";
 import {
   Settings,
@@ -89,7 +88,7 @@ export const MockExamResultsScreen: React.FC = () => {
         end={{ x: 1, y: 1 }}
         style={styles.scoreCard}
       >
-        <Text style={[styles.scoreTitle, typography.h2]}>Mock Exam Complete! 🎓</Text>
+        <Text style={[styles.scoreTitle, typography.h2]}>Mock Exam Complete</Text>
         <Text style={[styles.scoreSubtitle, typography.bodySmall]}>{results.subtitle}</Text>
 
         <View style={styles.datePill}>
@@ -283,23 +282,6 @@ export const MockExamResultsScreen: React.FC = () => {
           </Animated.View>
         )}
       </ScrollView>
-
-      {/* Bottom Nav Placeholder */}
-      {!loading && !errorMessage && (
-        <View style={styles.bottomNav}>
-           {['Tutor', 'Hub', 'Timeline', 'Exams'].map((tab) => (
-             <TouchableOpacity key={tab} style={styles.navItem}>
-               <Text style={[
-                 typography.caption,
-                 { color: tab === 'Exams' ? colors.primary : colors.textMuted }
-               ]}>
-                 {tab}
-               </Text>
-               {tab === 'Exams' && <View style={styles.activeDot} />}
-             </TouchableOpacity>
-           ))}
-        </View>
-      )}
     </SafeArea>
   );
 };
@@ -325,7 +307,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 40,
   },
   scoreCard: {
     borderRadius: 16,
@@ -535,30 +517,5 @@ const styles = StyleSheet.create({
   ghostText: {
     color: colors.textMuted,
     fontWeight: "600",
-  },
-  bottomNav: {
-    flexDirection: "row",
-    height: Platform.OS === 'ios' ? 88 : 64,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 0,
-  },
-  navItem: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  activeDot: {
-    position: "absolute",
-    top: 10,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
   },
 });
