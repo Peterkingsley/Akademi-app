@@ -30,6 +30,7 @@ export const AcademicTimelineScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [plans, setPlans] = useState<ExamPrepPlan[]>([]);
   const [latestAttempts, setLatestAttempts] = useState<Record<string, MockHistoryItem>>({});
+  const [historyErrors, setHistoryErrors] = useState<Record<string, boolean>>({});
 
   const fetchPlans = async () => {
     try {
@@ -39,20 +40,26 @@ export const AcademicTimelineScreen: React.FC = () => {
         data.map(async (plan) => {
           try {
             const history = await examPrepService.getMockHistory(plan.id);
-            return [plan.id, history[0]] as const;
+            return { planId: plan.id, attempt: history[0], failed: false };
           } catch (error) {
-            return [plan.id, undefined] as const;
+            console.error(`Error fetching mock history for ${plan.id}:`, error);
+            return { planId: plan.id, attempt: undefined, failed: true };
           }
         })
       );
       // Sort by date
       const sorted = data.sort((a, b) => new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime());
       setPlans(sorted);
-      const attemptsByPlan = historyPairs.reduce<Record<string, MockHistoryItem>>((acc, [planId, attempt]) => {
-        if (attempt) acc[planId] = attempt;
+      const attemptsByPlan = historyPairs.reduce<Record<string, MockHistoryItem>>((acc, item) => {
+        if (item.attempt) acc[item.planId] = item.attempt;
+        return acc;
+      }, {});
+      const errorsByPlan = historyPairs.reduce<Record<string, boolean>>((acc, item) => {
+        if (item.failed) acc[item.planId] = true;
         return acc;
       }, {});
       setLatestAttempts(attemptsByPlan);
+      setHistoryErrors(errorsByPlan);
     } catch (error) {
       console.error("Error fetching timeline:", error);
     } finally {
@@ -76,6 +83,7 @@ export const AcademicTimelineScreen: React.FC = () => {
     const isPast = examDate.getTime() < new Date().getTime();
     const latestAttempt = latestAttempts[plan.id];
     const latestMockExamId = latestAttempt?.mockExamId || latestAttempt?.mock_exam_id;
+    const historyFailed = historyErrors[plan.id];
 
     return (
       <Animated.View key={plan.id} entering={FadeInUp.delay(index * 100)} style={styles.timelineItem}>
@@ -112,6 +120,13 @@ export const AcademicTimelineScreen: React.FC = () => {
                 Latest mock: {latestAttempt.score}% • reopen results
               </Text>
             </TouchableOpacity>
+          )}
+          {!latestAttempt && (
+            <View style={styles.latestResultStateRow}>
+              <Text style={[styles.latestResultStateText, typography.caption]}>
+                {historyFailed ? "Mock history could not load" : "No completed mock yet"}
+              </Text>
+            </View>
           )}
         </Card>
       </Animated.View>
@@ -279,6 +294,15 @@ const styles = StyleSheet.create({
   latestResultText: {
     color: colors.primary,
     fontWeight: "700",
+  },
+  latestResultStateRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  latestResultStateText: {
+    color: colors.textMuted,
   },
   pastText: {
     color: colors.textMuted,

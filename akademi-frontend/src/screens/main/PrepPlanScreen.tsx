@@ -41,6 +41,8 @@ export const PrepPlanScreen: React.FC = () => {
 
   const [plan, setPlan] = useState<ExamPrepPlan | null>(null);
   const [mockHistory, setMockHistory] = useState<MockHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const dailyTasks = plan?.daily_tasks || plan?.dailyTasks || [];
@@ -68,14 +70,23 @@ export const PrepPlanScreen: React.FC = () => {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const [data, history] = await Promise.all([
-        examPrepService.getPlanDetails(examId),
-        examPrepService.getMockHistory(examId),
-      ]);
+      setHistoryLoading(true);
+      setHistoryError("");
+      const data = await examPrepService.getPlanDetails(examId);
       setPlan(data);
-      setMockHistory(history);
+      try {
+        const history = await examPrepService.getMockHistory(examId);
+        setMockHistory(history);
+      } catch (historyFetchError) {
+        console.error("Failed to fetch mock history:", historyFetchError);
+        setMockHistory([]);
+        setHistoryError("Mock history could not load. Pull to refresh or try again later.");
+      } finally {
+        setHistoryLoading(false);
+      }
     } catch (error) {
       console.error("Failed to fetch plan details:", error);
+      setHistoryLoading(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -209,12 +220,25 @@ export const PrepPlanScreen: React.FC = () => {
   };
 
   const renderMockHistory = () => {
-    if (mockHistory.length === 0) return null;
-
     return (
       <View style={styles.historySection}>
         <Text style={[styles.historyTitle, typography.h3]}>Mock Exam History</Text>
-        {mockHistory.map((attempt) => {
+        {historyLoading ? (
+          <Skeleton height={64} borderRadius={12} />
+        ) : historyError ? (
+          <Card style={styles.historyStateCard}>
+            <Text style={[styles.historyStateTitle, typography.bodySmall]}>History unavailable</Text>
+            <Text style={[styles.historyStateText, typography.caption]}>{historyError}</Text>
+          </Card>
+        ) : mockHistory.length === 0 ? (
+          <Card style={styles.historyStateCard}>
+            <Text style={[styles.historyStateTitle, typography.bodySmall]}>No completed mocks yet</Text>
+            <Text style={[styles.historyStateText, typography.caption]}>
+              Once you submit a mock exam, your scores and review links will appear here.
+            </Text>
+          </Card>
+        ) : (
+          mockHistory.map((attempt) => {
           const mockExamId = attempt.mockExamId || attempt.mock_exam_id;
           const completedAt = attempt.completedAt || attempt.completed_at;
           const questionCount = attempt.questionCount || attempt.question_count || 0;
@@ -241,7 +265,8 @@ export const PrepPlanScreen: React.FC = () => {
               <Text style={[styles.historyScore, typography.h3]}>{attempt.score}%</Text>
             </Card>
           );
-        })}
+          })
+        )}
       </View>
     );
   };
@@ -389,6 +414,18 @@ const styles = StyleSheet.create({
   historyScore: {
     color: colors.primary,
     fontWeight: "700",
+  },
+  historyStateCard: {
+    padding: 14,
+  },
+  historyStateTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  historyStateText: {
+    color: colors.textMuted,
+    lineHeight: 18,
   },
   timeline: {
     marginTop: 8,
