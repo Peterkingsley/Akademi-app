@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   Dimensions,
+  Alert,
 } from "react-native";
 import { X, Clock, FileText, ChevronLeft, ChevronRight, Plus } from "lucide-react-native";
 import { colors } from "../../theme/colors";
@@ -16,22 +17,25 @@ import { useNavigation } from "@react-navigation/native";
 import examPrepService from "../../services/examPrep";
 import { SafeArea } from "../../components/layout/SafeArea";
 import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { useAuthStore } from "../../store/useAuthStore";
 
 const { width } = Dimensions.get("window");
 
-const COURSES = [
-  "Introduction to AI",
-  "Advanced Calculus",
-  "CHM 101",
-  "PHY 102",
-  "GST 111",
-];
-
 export const AddExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const { user } = useAuthStore();
+  const courses = (user as any)?.courses || [];
+  const tomorrow = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  }, []);
+  const [selectedCourse, setSelectedCourse] = useState(courses[0] || "");
+  const [selectedDate, setSelectedDate] = useState<Date>(tomorrow);
   const [loading, setLoading] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1));
+  const [errorMessage, setErrorMessage] = useState("");
 
   const snapPoints = useMemo(() => ["90%"], []);
 
@@ -48,62 +52,88 @@ export const AddExamScreen: React.FC = () => {
   );
 
   const handleAddExam = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse) {
+      setErrorMessage("Select a course before creating the exam plan.");
+      return;
+    }
 
+    if (selectedDate < tomorrow) {
+      setErrorMessage("Choose a future exam date.");
+      return;
+    }
+
+    setErrorMessage("");
     setLoading(true);
     try {
       const dateString = selectedDate.toISOString().split('T')[0];
-      await examPrepService.createPlan(selectedCourse, dateString);
-      navigation.goBack();
-    } catch (error) {
+      const plan = await examPrepService.createPlan(selectedCourse, dateString);
+      navigation.replace("PrepPlan", { examId: plan.id });
+    } catch (error: any) {
       console.error("Failed to add exam:", error);
+      const message = error?.response?.data?.message || "We could not create this exam plan. Please try again.";
+      setErrorMessage(message);
+      Alert.alert("Exam plan not created", message);
     } finally {
       setLoading(false);
     }
   };
 
+  const changeMonth = (offset: number) => {
+    setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  };
+
   const renderCalendar = () => {
-    // Basic calendar implementation for the sake of the exercise
     const today = new Date();
-    const currentMonth = selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+    today.setHours(0, 0, 0, 0);
+    const currentMonth = calendarMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+    const firstDayOffset = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
+    const cells = [
+      ...Array.from({ length: firstDayOffset }, (_, index) => ({ key: `empty-${index}`, day: null })),
+      ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 })),
+    ];
 
     return (
       <View style={styles.calendarContainer}>
         <View style={styles.calendarHeader}>
-          <TouchableOpacity><ChevronLeft size={20} color={colors.textPrimary} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => changeMonth(-1)}><ChevronLeft size={20} color={colors.textPrimary} /></TouchableOpacity>
           <Text style={[styles.monthText, typography.body]}>{currentMonth}</Text>
-          <TouchableOpacity><ChevronRight size={20} color={colors.textPrimary} /></TouchableOpacity>
+          <TouchableOpacity onPress={() => changeMonth(1)}><ChevronRight size={20} color={colors.textPrimary} /></TouchableOpacity>
         </View>
         <View style={styles.daysGrid}>
            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
              <Text key={idx} style={[styles.dayHeader, typography.caption]}>{day}</Text>
            ))}
-           {/* Render a simple grid of days (mock for May 2024 context) */}
-           {Array.from({ length: 31 }).map((_, i) => {
-             const day = i + 1;
-             const isSelected = selectedDate.getDate() === day;
-             const isToday = today.getDate() === day;
+           {cells.map((cell) => {
+             if (!cell.day) return <View key={cell.key} style={styles.dayCell} />;
+
+             const cellDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), cell.day, 12);
+             const isSelected = selectedDate.toDateString() === cellDate.toDateString();
+             const isToday = today.toDateString() === cellDate.toDateString();
+             const isPast = cellDate < tomorrow;
 
              return (
                <TouchableOpacity
-                 key={day}
+                 key={cell.key}
                  style={[
                    styles.dayCell,
-                   isSelected && styles.selectedDay
+                   isSelected && styles.selectedDay,
+                   isPast && styles.disabledDay,
                  ]}
+                 disabled={isPast}
                  onPress={() => {
-                   const newDate = new Date(selectedDate);
-                   newDate.setDate(day);
-                   setSelectedDate(newDate);
+                   setSelectedDate(cellDate);
+                   setErrorMessage("");
                  }}
                >
                  <Text style={[
                    styles.dayText,
                    typography.bodySmall,
                    isSelected && styles.selectedDayText,
-                   !isSelected && styles.dimDayText
+                   !isSelected && styles.dimDayText,
+                   isPast && styles.disabledDayText,
                  ]}>
-                   {day}
+                   {cell.day}
                  </Text>
                  {isToday && !isSelected && <View style={styles.todayIndicator} />}
                </TouchableOpacity>
@@ -157,7 +187,7 @@ export const AddExamScreen: React.FC = () => {
                 </View>
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courseRow}>
-                {COURSES.map((course) => {
+                {courses.map((course: string) => {
                   const isSelected = selectedCourse === course;
                   return (
                     <TouchableOpacity
@@ -179,12 +209,23 @@ export const AddExamScreen: React.FC = () => {
                   );
                 })}
               </ScrollView>
+              {courses.length === 0 && (
+                <Text style={[styles.emptyCoursesText, typography.bodySmall]}>
+                  No courses found. Complete your academic setup before creating an exam plan.
+                </Text>
+              )}
             </View>
 
             <View style={styles.section}>
                <Text style={[styles.label, typography.mono]}>EXAMINATION DATE</Text>
                {renderCalendar()}
             </View>
+
+            {errorMessage ? (
+              <View style={styles.errorCard}>
+                <Text style={[styles.errorText, typography.bodySmall]}>{errorMessage}</Text>
+              </View>
+            ) : null}
 
           </ScrollView>
 
@@ -194,7 +235,7 @@ export const AddExamScreen: React.FC = () => {
               icon={<Plus size={20} color="white" />}
               onPress={handleAddExam}
               loading={loading}
-              disabled={!selectedCourse}
+              disabled={!selectedCourse || courses.length === 0}
             />
           </View>
         </View>
@@ -284,6 +325,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  emptyCoursesText: {
+    color: colors.warning,
+    lineHeight: 20,
+    marginTop: 12,
+  },
   calendarContainer: {
     marginTop: 16,
   },
@@ -319,6 +365,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 20,
   },
+  disabledDay: {
+    opacity: 0.35,
+  },
   dayText: {
     fontWeight: "600",
   },
@@ -327,6 +376,9 @@ const styles = StyleSheet.create({
   },
   dimDayText: {
     color: colors.textSecondary,
+  },
+  disabledDayText: {
+    color: colors.textMuted,
   },
   todayIndicator: {
     position: "absolute",
@@ -364,6 +416,18 @@ const styles = StyleSheet.create({
   formatText: {
     color: colors.warning,
     fontWeight: "600",
+  },
+  errorCard: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: colors.textPrimary,
+    lineHeight: 20,
   },
   footer: {
     marginTop: 16,
