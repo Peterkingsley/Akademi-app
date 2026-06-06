@@ -1,69 +1,86 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, FlatList } from "react-native";
-import { Bell, Sparkles, Camera, Book, Bot, Target, X, Clock, Layers, Compass } from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  Bell,
+  BookOpen,
+  Bot,
+  Camera,
+  ChevronRight,
+  Clock,
+  GraduationCap,
+  Library,
+  Sparkles,
+  Target,
+  Timer,
+  TrendingUp,
+  X,
+} from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  FadeInUp
-} from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
+import Animated, { FadeInUp } from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 
-import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
-import { Skeleton } from "../../components/ui/Skeleton";
-import { Card } from "../../components/ui/Card";
-import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
+import { Badge } from "../../components/ui/Badge";
+import { Screen } from "../../components/layout/Screen";
+import { Skeleton } from "../../components/ui/Skeleton";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
-import { Session, LearningProfile, ExamPrepPlan, Recommendation } from "./types";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
+import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types";
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 
 const QUICK_ACTIONS = [
   {
     id: "solve",
-    label: "Solve Assignment",
+    label: "Solve",
+    description: "Scan assignment",
     icon: Camera,
-    color: colors.primary,
-    screen: "Solve"
+    tint: "#38BDF8",
+    screen: "Solve",
   },
   {
-    id: "study",
-    label: "Study Materials",
-    icon: Book,
-    color: colors.accentPurple,
-    screen: "Library"
+    id: "library",
+    label: "Library",
+    description: "Study materials",
+    icon: Library,
+    tint: colors.primary,
+    screen: "Library",
   },
   {
     id: "tutor",
-    label: "Live Tutor",
+    label: "Tutor",
+    description: "Live support",
     icon: Bot,
-    color: colors.success,
-    screen: "LiveTutorEntry"
+    tint: "#A78BFA",
+    screen: "LiveTutorEntry",
   },
   {
     id: "exam",
     label: "Exam Prep",
+    description: "Mock tests",
     icon: Target,
-    color: colors.warning,
-    screen: "ExamPrep"
-  }
+    tint: colors.warning,
+    screen: "ExamPrep",
+  },
 ];
 
 const AI_TIPS = [
-  "AI TIP: Study between 6-8 AM for maximum retention today.",
-  "AI TIP: Take a 5-minute break every 25 minutes of studying.",
-  "AI TIP: Explain a concept to someone else to solidify your understanding.",
-  "AI TIP: Use mnemonics to remember complex academic terms.",
-  "AI TIP: Stay hydrated while studying to maintain focus and energy."
+  "Review one weak topic before starting a new one today.",
+  "Use a short CBT round after reading to lock the idea in.",
+  "Ask Akademi to explain a confusing paragraph before moving on.",
+  "Turn one material into practice questions after each study session.",
+  "End each session by writing the one thing you now understand better.",
 ];
 
-// Helper to avoid date-fns dependency
 const getTimeAgo = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -71,44 +88,43 @@ const getTimeAgo = (dateString: string) => {
 
   if (diffInSeconds < 60) return "just now";
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m`;
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h`;
-  const diffInDays = Math.floor(diffInHours / 24);
-  return `${diffInDays}d`;
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  return `${Math.floor(diffInHours / 24)}d ago`;
 };
 
-const QuickActionTile = ({ action, onPress }: { action: typeof QUICK_ACTIONS[0], onPress: () => void }) => {
-  const scale = useSharedValue(1);
+const getDaysLeft = (dateString?: string) => {
+  if (!dateString) return null;
+  return Math.max(
+    0,
+    Math.ceil((new Date(dateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  );
+};
+
+type QuickAction = (typeof QUICK_ACTIONS)[number];
+
+const QuickActionTile = ({
+  action,
+  onPress,
+}: {
+  action: QuickAction;
+  onPress: () => void;
+}) => {
   const Icon = action.icon;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.95);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1);
-  };
-
   return (
-    <TouchableOpacity
-      activeOpacity={1}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      style={styles.tileWrapper}
-    >
-      <Animated.View style={[styles.tile, animatedStyle]}>
-        <View style={[styles.iconContainer, { backgroundColor: `${action.color}26` }]}>
-          <Icon size={24} color={action.color} />
-        </View>
-        <Text style={[styles.tileLabel, typography.bodySmall]}>{action.label}</Text>
-      </Animated.View>
+    <TouchableOpacity activeOpacity={0.82} onPress={onPress} style={styles.actionTile}>
+      <View style={[styles.actionIcon, { backgroundColor: `${action.tint}22` }]}>
+        <Icon size={22} color={action.tint} />
+      </View>
+      <View style={styles.actionTextBlock}>
+        <Text style={styles.actionLabel}>{action.label}</Text>
+        <Text style={styles.actionDescription} numberOfLines={1}>
+          {action.description}
+        </Text>
+      </View>
+      <ChevronRight size={16} color={colors.textMuted} />
     </TouchableOpacity>
   );
 };
@@ -133,12 +149,12 @@ export const HomeScreen: React.FC = () => {
       const [sessionsRes, profileRes, examsRes] = await Promise.all([
         api.get("/users/me/sessions?limit=4"),
         api.get("/users/me/learning-profile"),
-        api.get("/exam-prep")
+        api.get("/exam-prep"),
       ]);
 
-      setSessions(sessionsRes.data);
+      setSessions(sessionsRes.data || []);
       setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
-      setExams(examsRes.data);
+      setExams(examsRes.data || []);
     } catch (error) {
       console.error("Error fetching home data:", error);
     } finally {
@@ -163,143 +179,170 @@ export const HomeScreen: React.FC = () => {
     return "Good evening";
   }, []);
 
-  const examSubtitle = useMemo(() => {
-    if (exams.length === 0) return "Ready to ace your semester?";
-    const nextExam = exams[0];
-    const daysLeft = Math.ceil((new Date(nextExam.exam_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return `${nextExam.course_code} exam in ${daysLeft} days`;
-  }, [exams]);
+  const firstName = user?.name?.split(" ")[0] || "Student";
+  const nextExam = exams[0];
+  const nextExamDays = getDaysLeft(nextExam?.exam_date);
+  const sessionCount = learningProfile?.session_count || 0;
+
+  const heroSubtext = useMemo(() => {
+    if (nextExam && nextExamDays !== null) {
+      return `${nextExam.course_code} is ${nextExamDays === 0 ? "today" : `in ${nextExamDays} day${nextExamDays === 1 ? "" : "s"}`}.`;
+    }
+    return "Pick one learning flow and keep moving.";
+  }, [nextExam, nextExamDays]);
 
   const recommendations: Recommendation[] = useMemo(() => {
     const recs: Recommendation[] = [];
-    if (learningProfile?.subject_weaknesses && learningProfile.subject_weaknesses.length > 0) {
-      const weakness = learningProfile.subject_weaknesses[0] as any;
+    const weakness = learningProfile?.subject_weaknesses?.[0] as any;
+
+    if (weakness?.subject || weakness?.topic) {
       recs.push({
-        id: "rec1",
-        title: `Strengthen ${weakness.subject}`,
-        description: `AI suggests focusing on ${weakness.topic} based on your recent performance.`,
+        id: "rec-weakness",
+        title: `Strengthen ${weakness.topic || weakness.subject}`,
+        description: `Use a focused tutor session to close this gap before your next test.`,
         type: "weakness",
-        color: colors.accentPurple,
-        metadata: { duration: "25m", sections: 3 }
+        color: "#A78BFA",
+        metadata: { duration: "25m", sections: 3 },
       });
     }
+
     recs.push({
-        id: "rec2",
-        title: "Simulation: EEE 301 Mock Exam",
-        description: "Standard past-questions simulated with timing and difficulty variations.",
-        type: "exam",
-        color: colors.primary,
-        metadata: { duration: "60m", sections: 4 }
+      id: "rec-cbt",
+      title: "Run a material CBT",
+      description: "Open a material, practice questions, then review weak areas immediately.",
+      type: "exam",
+      color: colors.primary,
+      metadata: { duration: "10q", sections: 1 },
     });
+
     return recs;
   }, [learningProfile]);
 
   const dailyTip = useMemo(() => {
-    const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+    );
     return AI_TIPS[dayOfYear % AI_TIPS.length];
   }, []);
 
-  const showStreakBanner = !loading &&
-    learningProfile &&
-    learningProfile.session_count > 0 &&
-    !isStreakBannerDismissed;
+  const showStreakBanner =
+    !loading && sessionCount > 0 && !isStreakBannerDismissed;
 
-  const renderSessionCard = ({ item, index }: { item: Session, index: number }) => (
-    <Animated.View key={item.id} entering={FadeInUp.delay(index * 100)}>
-      <Card style={styles.sessionCard} onPress={() => {}}>
-        <View style={styles.sessionTop}>
-          <View style={styles.courseTag}>
-            <Text style={[styles.courseText, typography.mono]}>{item.course_code}</Text>
-          </View>
-          <Text style={[styles.timeAgo, typography.mono]}>
-            {getTimeAgo(item.created_at)} ago
-          </Text>
+  const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (
+    <Animated.View entering={FadeInUp.delay(index * 80)} style={styles.sessionItem}>
+      <TouchableOpacity activeOpacity={0.82} style={styles.sessionCard}>
+        <View style={styles.sessionHeader}>
+          <Text style={styles.coursePill}>{item.course_code || "SESSION"}</Text>
+          <Text style={styles.sessionTime}>{getTimeAgo(item.created_at)}</Text>
         </View>
-        <Text style={[styles.sessionTitle, typography.body]} numberOfLines={1}>
-          {item.title}
+        <Text style={styles.sessionTitle} numberOfLines={2}>
+          {item.title || "Study session"}
         </Text>
-        <Text style={[styles.sessionType, typography.bodySmall]}>{item.type}</Text>
-        <Text style={[styles.resumeLink, typography.bodySmall]}>Resume →</Text>
-      </Card>
+        <View style={styles.sessionFooter}>
+          <Text style={styles.sessionType}>{item.type || "Live Tutor"}</Text>
+          <ChevronRight size={16} color={colors.primary} />
+        </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 
-  const renderRecommendationCard = ({ item, index }: { item: Recommendation, index: number }) => (
-    <Animated.View key={item.id} entering={FadeInUp.delay(index * 100 + 400)}>
-      <Card style={StyleSheet.flatten([styles.recCard, { borderLeftWidth: 3, borderLeftColor: item.color }])} onPress={() => {}}>
-        <View style={styles.recTop}>
-          <Text style={[styles.recTitle, typography.body]}>{item.title}</Text>
-          <Badge
-            label={item.type === "weakness" ? "AI Recommended" : "New Simulation"}
-            variant={item.type === "weakness" ? "purple" : "blue"}
-          />
-        </View>
-        <Text style={[styles.recDescription, typography.bodySmall]}>{item.description}</Text>
-        <View style={styles.recMeta}>
-          <View style={styles.metaItem}>
-            <Clock size={14} color={colors.textMuted} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.caption]}>{item.metadata.duration}</Text>
+  const renderRecommendationCard = (item: Recommendation, index: number) => (
+    <Animated.View key={item.id} entering={FadeInUp.delay(index * 80 + 240)}>
+      <TouchableOpacity activeOpacity={0.86} style={styles.recommendationCard}>
+        <View style={[styles.recommendationRail, { backgroundColor: item.color }]} />
+        <View style={styles.recommendationBody}>
+          <View style={styles.recommendationTop}>
+            <Text style={styles.recommendationTitle}>{item.title}</Text>
+            <Badge
+              label={item.type === "weakness" ? "AI Pick" : "Practice"}
+              variant={item.type === "weakness" ? "purple" : "blue"}
+            />
           </View>
-          <View style={styles.metaItem}>
-            <Layers size={14} color={colors.textMuted} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.caption]}>{item.metadata.sections} sections</Text>
+          <Text style={styles.recommendationDescription}>{item.description}</Text>
+          <View style={styles.recommendationMeta}>
+            <View style={styles.metaItem}>
+              <Timer size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>{item.metadata.duration}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <BookOpen size={14} color={colors.textMuted} />
+              <Text style={styles.metaText}>{item.metadata.sections} section</Text>
+            </View>
           </View>
         </View>
-      </Card>
+      </TouchableOpacity>
     </Animated.View>
   );
 
   return (
     <Screen scrollable style={styles.screen}>
       <View style={styles.container}>
-        {/* Section 1: Greeting Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.7}>
-                <Avatar
-                    name={user?.name || "Student"}
-                    uri={user?.avatar_url || undefined}
-                    size={44}
-                    style={styles.headerAvatar}
-                />
-            </TouchableOpacity>
-            <View style={styles.headerText}>
-                <Text style={[typography.h2, { color: colors.textPrimary }]}>
-                {greeting}, {user?.name?.split(" ")[0] || "Student"}
-                </Text>
-                <Text style={[styles.subtitle, typography.mono]}>
-                {examSubtitle}
-                </Text>
-            </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.75}>
+            <Avatar
+              name={user?.name || "Student"}
+              uri={user?.avatar_url || undefined}
+              size={44}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
+          <View style={styles.headerCopy}>
+            <Text style={styles.eyebrow}>{greeting}</Text>
+            <Text style={styles.studentName} numberOfLines={1}>
+              {firstName}
+            </Text>
           </View>
           <TouchableOpacity
-            style={styles.notificationBtn}
+            style={styles.notificationButton}
             onPress={() => navigation.navigate("Notifications")}
+            activeOpacity={0.75}
           >
-            <Bell size={24} color={colors.textSecondary} />
+            <Bell size={22} color={colors.textPrimary} />
             <View style={styles.unreadDot} />
           </TouchableOpacity>
         </View>
 
-        {/* Section 2: Streak Banner */}
+        <View style={styles.heroPanel}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroIcon}>
+              <GraduationCap size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.heroStatus}>MVP beta</Text>
+          </View>
+          <Text style={styles.heroTitle}>Your study command center</Text>
+          <Text style={styles.heroSubtitle}>{heroSubtext}</Text>
+          <View style={styles.heroStats}>
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>{sessionCount}</Text>
+              <Text style={styles.statLabel}>sessions</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>{exams.length}</Text>
+              <Text style={styles.statLabel}>exam plans</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statBlock}>
+              <Text style={styles.statValue}>{nextExamDays ?? "-"}</Text>
+              <Text style={styles.statLabel}>days left</Text>
+            </View>
+          </View>
+        </View>
+
         {showStreakBanner && (
           <Animated.View entering={FadeInUp} style={styles.streakBanner}>
-            <View style={styles.streakContent}>
-              <Text style={styles.streakEmoji}>🔥</Text>
-              <Text style={styles.streakText}>
-                <Text style={{ fontWeight: "700", color: "#FFFFFF" }}>{learningProfile?.session_count}-day streak!</Text>
-                {" "}Keep it up — study something today.
-              </Text>
-            </View>
-            <TouchableOpacity onPress={dismissStreakBanner} style={styles.dismissBtn}>
-              <X size={18} color={colors.textMuted} />
+            <TrendingUp size={18} color={colors.warning} />
+            <Text style={styles.streakText}>
+              You have completed {sessionCount} learning session{sessionCount === 1 ? "" : "s"}. Keep the rhythm today.
+            </Text>
+            <TouchableOpacity onPress={dismissStreakBanner} style={styles.dismissButton}>
+              <X size={16} color={colors.textMuted} />
             </TouchableOpacity>
           </Animated.View>
         )}
 
-        {/* Section 3: Quick Action Grid */}
-        <View style={styles.grid}>
-          {QUICK_ACTIONS.map((action, index) => (
+        <View style={styles.quickActionsGrid}>
+          {QUICK_ACTIONS.map((action) => (
             <QuickActionTile
               key={action.id}
               action={action}
@@ -308,14 +351,22 @@ export const HomeScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* Section 4: Continue where you left off */}
         {(loading || sessions.length > 0) && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, typography.h3]}>Continue where you left off</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Continue learning</Text>
+              <Clock size={17} color={colors.textMuted} />
+            </View>
             {loading ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} width={180} height={140} borderRadius={12} style={{ marginRight: 16 }} />
+                  <Skeleton
+                    key={i}
+                    width={190}
+                    height={132}
+                    borderRadius={10}
+                    style={styles.sessionSkeleton}
+                  />
                 ))}
               </ScrollView>
             ) : (
@@ -325,39 +376,34 @@ export const HomeScreen: React.FC = () => {
                 keyExtractor={(item) => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
+                contentContainerStyle={styles.horizontalList}
               />
             )}
           </View>
         )}
 
-        {/* Section 5: Recommended for you */}
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, typography.h3]}>Recommended for you</Text>
-            <Sparkles size={20} color={colors.primary} style={styles.sparkleIcon} />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recommended next</Text>
+            <Sparkles size={17} color={colors.primary} />
           </View>
           {loading ? (
             <View>
               {[1, 2].map((i) => (
-                <Skeleton key={i} height={120} borderRadius={12} style={{ marginBottom: 16 }} />
+                <Skeleton key={i} height={116} borderRadius={10} style={styles.recommendationSkeleton} />
               ))}
             </View>
           ) : (
-            <View>
-              {recommendations.map((item, index) => renderRecommendationCard({ item, index }))}
-            </View>
+            recommendations.map(renderRecommendationCard)
           )}
         </View>
 
-        {/* Section 6: AI Tip Banner */}
-        <View style={styles.aiTipContainer}>
-          <View style={styles.aiTipBanner}>
-            <Compass size={18} color={colors.primary} style={styles.aiTipIcon} />
-            <Text style={[styles.aiTipText, typography.mono]}>{dailyTip}</Text>
+        <View style={styles.tipPanel}>
+          <View style={styles.tipIcon}>
+            <Sparkles size={16} color={colors.primary} />
           </View>
+          <Text style={styles.tipText}>{dailyTip}</Text>
         </View>
-
       </View>
     </Screen>
   );
@@ -366,218 +412,340 @@ export const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
-    flex: 1,
   },
   container: {
-    padding: 20,
-    paddingTop: 0,
     flex: 1,
+    paddingHorizontal: 18,
+    paddingTop: 2,
+    paddingBottom: 24,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
-  },
-  headerLeft: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    marginBottom: 18,
   },
-  headerAvatar: {
-    borderWidth: 1.5,
+  avatar: {
     borderColor: colors.border,
+    borderWidth: 1,
   },
-  headerText: {
-    justifyContent: "center",
+  headerCopy: {
+    flex: 1,
+    marginLeft: 12,
   },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: 10.5,
+  eyebrow: {
+    ...typography.label,
+    color: colors.textMuted,
+    letterSpacing: 0,
+  },
+  studentName: {
+    ...typography.h1,
+    color: colors.textPrimary,
     marginTop: 2,
   },
-  notificationBtn: {
+  notificationButton: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: "center",
     position: "relative",
-    padding: 4,
+    width: 42,
   },
   unreadDot: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     backgroundColor: colors.error,
-    borderWidth: 1.5,
-    borderColor: colors.background,
+    borderColor: colors.surface,
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 8,
+    position: "absolute",
+    right: 10,
+    top: 9,
+    width: 8,
+  },
+  heroPanel: {
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 18,
+  },
+  heroTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  heroStatus: {
+    ...typography.label,
+    color: colors.primary,
+    letterSpacing: 0,
+  },
+  heroTitle: {
+    ...typography.h1,
+    color: colors.textPrimary,
+    fontSize: 25,
+    lineHeight: 31,
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  heroStats: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderColor: "rgba(255,255,255,0.06)",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginTop: 18,
+    paddingVertical: 12,
+  },
+  statBlock: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statValue: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 20,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  statDivider: {
+    backgroundColor: colors.border,
+    height: 28,
+    width: 1,
   },
   streakBanner: {
-    backgroundColor: "#1C1A10",
-    borderRadius: 12,
-    padding: 14,
-    paddingHorizontal: 16,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  streakContent: {
+    backgroundColor: "#181510",
+    borderColor: "rgba(245,158,11,0.22)",
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  streakEmoji: {
-    fontSize: 15,
-    marginRight: 12,
+    marginBottom: 14,
+    padding: 12,
   },
   streakText: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontSize: 10.5,
     flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    marginLeft: 10,
   },
-  dismissBtn: {
+  dismissButton: {
     padding: 4,
   },
-  grid: {
+  quickActionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 32,
+    marginBottom: 22,
   },
-  tileWrapper: {
-    width: "48%",
-    marginBottom: 16,
-  },
-  tile: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "flex-start",
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: "center",
+  actionTile: {
     alignItems: "center",
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 10,
+    minHeight: 76,
+    padding: 12,
+    width: "48.5%",
   },
-  tileLabel: {
+  actionIcon: {
+    alignItems: "center",
+    borderRadius: 8,
+    height: 38,
+    justifyContent: "center",
+    marginRight: 10,
+    width: 38,
+  },
+  actionTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  actionLabel: {
+    ...typography.h4,
     color: colors.textPrimary,
-    fontWeight: "600",
+    fontSize: 13,
+    marginBottom: 3,
+  },
+  actionDescription: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
   },
   section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    color: colors.textPrimary,
-    marginBottom: 16,
-  },
-  horizontalScroll: {
-    paddingRight: 20,
-  },
-  sessionCard: {
-    width: 180,
-    marginRight: 16,
-    padding: 14,
-  },
-  sessionTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  courseTag: {
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  courseText: {
-    color: colors.primary,
-    fontSize: 7.5,
-    textTransform: "uppercase",
-  },
-  timeAgo: {
-    color: colors.textMuted,
-    fontSize: 7.5,
-  },
-  sessionTitle: {
-    color: colors.textPrimary,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  sessionType: {
-    color: colors.textSecondary,
-    marginBottom: 12,
-  },
-  resumeLink: {
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  sparkleIcon: {
-    marginLeft: 8,
-    marginTop: -16,
-  },
-  recCard: {
-    marginBottom: 16,
-    padding: 16,
-  },
-  recTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  recTitle: {
-    color: colors.textPrimary,
-    fontWeight: "700",
-    flex: 1,
-    marginRight: 12,
-  },
-  recDescription: {
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  recMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  metaIcon: {
-    marginRight: 4,
-  },
-  metaText: {
-    color: colors.textMuted,
-  },
-  aiTipContainer: {
-    marginTop: 8,
     marginBottom: 24,
   },
-  aiTipBanner: {
-    backgroundColor: "#0D1526",
-    borderRadius: 10,
-    padding: 12,
-    flexDirection: "row",
+  sectionHeader: {
     alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
   },
-  aiTipIcon: {
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontSize: 16,
+  },
+  horizontalList: {
+    paddingRight: 18,
+  },
+  sessionItem: {
     marginRight: 12,
   },
-  aiTipText: {
-    color: colors.textSecondary,
+  sessionCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 132,
+    padding: 14,
+    width: 190,
+  },
+  sessionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  coursePill: {
+    ...typography.mono,
+    backgroundColor: "rgba(34,197,94,0.1)",
+    borderRadius: 5,
+    color: colors.primary,
     fontSize: 9,
+    overflow: "hidden",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  sessionTime: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  sessionTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
     flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  sessionFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
+  sessionType: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 10,
+    textTransform: "capitalize",
+  },
+  sessionSkeleton: {
+    marginRight: 12,
+  },
+  recommendationCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  recommendationRail: {
+    width: 4,
+  },
+  recommendationBody: {
+    flex: 1,
+    padding: 14,
+  },
+  recommendationTop: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  recommendationTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    marginRight: 10,
+  },
+  recommendationDescription: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 19,
+    marginBottom: 12,
+  },
+  recommendationMeta: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  metaItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginRight: 16,
+  },
+  metaText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginLeft: 5,
+  },
+  recommendationSkeleton: {
+    marginBottom: 12,
+  },
+  tipPanel: {
+    alignItems: "center",
+    backgroundColor: "#0D1520",
+    borderColor: "rgba(56,189,248,0.16)",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 13,
+  },
+  tipIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 7,
+    height: 32,
+    justifyContent: "center",
+    marginRight: 10,
+    width: 32,
+  },
+  tipText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });
