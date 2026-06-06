@@ -22,6 +22,15 @@ import { materialService, Material, offlineService } from "../../services/materi
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 
+const formatStudyContent = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/^\s*\*\s+/gm, "- ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 export const StudyModeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -36,6 +45,7 @@ export const StudyModeScreen: React.FC = () => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const courseCode = material?.course_code || "General";
   const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
+  const displayContent = formatStudyContent(content || "No content available.");
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -144,7 +154,7 @@ export const StudyModeScreen: React.FC = () => {
           <View style={styles.materialHeader}>
             <Text style={[styles.materialTitle, typography.h2]}>{material.title}</Text>
             <Text style={styles.materialMeta}>
-              {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" · ")}
+              {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
             </Text>
           </View>
         )}
@@ -175,7 +185,7 @@ export const StudyModeScreen: React.FC = () => {
             </View>
           ) : (
             <SelectableText
-              content={content || "No content available."}
+              content={displayContent}
               onAskAkademi={handleAskAkademi}
               onHighlight={handleHighlight}
             />

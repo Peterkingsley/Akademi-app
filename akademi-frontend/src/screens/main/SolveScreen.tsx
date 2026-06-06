@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 14,
     lineHeight: 22,
-    minHeight: 148,
+    minHeight: 124,
     padding: 0,
   },
   hintRow: {
