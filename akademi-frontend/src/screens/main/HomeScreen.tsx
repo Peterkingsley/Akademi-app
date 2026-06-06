@@ -346,7 +346,7 @@ export const HomeScreen: React.FC = () => {
   );
 
   return (
-    <Screen scrollable style={styles.screen}>
+    <Screen scrollable hideHeader style={styles.screen}>
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.75}>
