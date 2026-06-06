@@ -30,6 +30,7 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Badge } from "../../components/ui/Badge";
 import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { notificationService } from "../../services/notificationService";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
@@ -136,6 +137,7 @@ export const HomeScreen: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
   const [exams, setExams] = useState<ExamPrepPlan[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isStreakBannerDismissed, setIsStreakBannerDismissed] = useState(false);
 
@@ -146,15 +148,17 @@ export const HomeScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [sessionsRes, profileRes, examsRes] = await Promise.all([
+      const [sessionsRes, profileRes, examsRes, notificationsRes] = await Promise.all([
         api.get("/users/me/sessions?limit=4"),
         api.get("/users/me/learning-profile"),
         api.get("/exam-prep"),
+        notificationService.list(),
       ]);
 
       setSessions(sessionsRes.data || []);
       setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
       setExams(examsRes.data || []);
+      setUnreadNotifications(notificationsRes.filter((item) => !item.read).length);
     } catch (error) {
       console.error("Error fetching home data:", error);
     } finally {
@@ -202,21 +206,53 @@ export const HomeScreen: React.FC = () => {
         description: `Use a focused tutor session to close this gap before your next test.`,
         type: "weakness",
         color: "#A78BFA",
-        metadata: { duration: "25m", sections: 3 },
+        metadata: {
+          duration: "25m",
+          sections: 1,
+          course_code: weakness.course_code || weakness.subject,
+        },
       });
     }
 
-    recs.push({
-      id: "rec-cbt",
-      title: "Run a material CBT",
-      description: "Open a material, practice questions, then review weak areas immediately.",
-      type: "exam",
-      color: colors.primary,
-      metadata: { duration: "10q", sections: 1 },
-    });
+    if (nextExam) {
+      recs.push({
+        id: `rec-exam-${nextExam.id}`,
+        title: `Prepare for ${nextExam.course_code}`,
+        description:
+          nextExamDays === 0
+            ? "This exam is today. Open your prep plan and review the latest mock result."
+            : `Your exam is ${nextExamDays} day${nextExamDays === 1 ? "" : "s"} away. Continue the plan from where you stopped.`,
+        type: "exam",
+        color: colors.warning,
+        metadata: {
+          duration: nextExamDays === null ? "Plan" : `${nextExamDays}d`,
+          sections: nextExam.tasks?.length || 0,
+          course_code: nextExam.course_code,
+        },
+      });
+    }
+
+    const latestTutorSession = sessions.find(
+      (session) => session.session_type === "TUTOR" || session.type === "TUTOR"
+    );
+
+    if (latestTutorSession) {
+      recs.push({
+        id: `rec-session-${latestTutorSession.id}`,
+        title: `Resume ${latestTutorSession.topic || latestTutorSession.course_code || "your tutor session"}`,
+        description: "Continue from your latest live tutor session or review what was covered.",
+        type: "material",
+        color: colors.primary,
+        metadata: {
+          duration: latestTutorSession.duration ? `${latestTutorSession.duration}m` : "Recent",
+          sections: 1,
+          course_code: latestTutorSession.course_code,
+        },
+      });
+    }
 
     return recs;
-  }, [learningProfile]);
+  }, [learningProfile, nextExam, nextExamDays, sessions]);
 
   const dailyTip = useMemo(() => {
     const dayOfYear = Math.floor(
@@ -228,18 +264,45 @@ export const HomeScreen: React.FC = () => {
   const showStreakBanner =
     !loading && sessionCount > 0 && !isStreakBannerDismissed;
 
+  const getSessionTitle = (item: Session) =>
+    item.title || item.topic || item.course_code || `${item.session_type || item.type || "Study"} session`;
+
+  const getSessionTypeLabel = (item: Session) =>
+    (item.session_type || item.type || "study").replace(/_/g, " ").toLowerCase();
+
+  const openRecommendation = (item: Recommendation) => {
+    if (item.id.startsWith("rec-exam-")) {
+      navigation.navigate("PrepPlan", { examId: item.id.replace("rec-exam-", "") });
+      return;
+    }
+
+    if (item.id.startsWith("rec-session-")) {
+      navigation.navigate("SessionDetail", { id: item.id.replace("rec-session-", "") });
+      return;
+    }
+
+    navigation.navigate("LiveTutorEntry", {
+      courseCode: item.metadata.course_code,
+      topic: item.title.replace(/^Strengthen\s+/i, ""),
+    });
+  };
+
   const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (
     <Animated.View entering={FadeInUp.delay(index * 80)} style={styles.sessionItem}>
-      <TouchableOpacity activeOpacity={0.82} style={styles.sessionCard}>
+      <TouchableOpacity
+        activeOpacity={0.82}
+        style={styles.sessionCard}
+        onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+      >
         <View style={styles.sessionHeader}>
           <Text style={styles.coursePill}>{item.course_code || "SESSION"}</Text>
-          <Text style={styles.sessionTime}>{getTimeAgo(item.created_at)}</Text>
+          <Text style={styles.sessionTime}>{getTimeAgo(item.started_at || item.created_at)}</Text>
         </View>
         <Text style={styles.sessionTitle} numberOfLines={2}>
-          {item.title || "Study session"}
+          {getSessionTitle(item)}
         </Text>
         <View style={styles.sessionFooter}>
-          <Text style={styles.sessionType}>{item.type || "Live Tutor"}</Text>
+          <Text style={styles.sessionType}>{getSessionTypeLabel(item)}</Text>
           <ChevronRight size={16} color={colors.primary} />
         </View>
       </TouchableOpacity>
@@ -248,7 +311,11 @@ export const HomeScreen: React.FC = () => {
 
   const renderRecommendationCard = (item: Recommendation, index: number) => (
     <Animated.View key={item.id} entering={FadeInUp.delay(index * 80 + 240)}>
-      <TouchableOpacity activeOpacity={0.86} style={styles.recommendationCard}>
+      <TouchableOpacity
+        activeOpacity={0.86}
+        style={styles.recommendationCard}
+        onPress={() => openRecommendation(item)}
+      >
         <View style={[styles.recommendationRail, { backgroundColor: item.color }]} />
         <View style={styles.recommendationBody}>
           <View style={styles.recommendationTop}>
@@ -264,10 +331,14 @@ export const HomeScreen: React.FC = () => {
               <Timer size={14} color={colors.textMuted} />
               <Text style={styles.metaText}>{item.metadata.duration}</Text>
             </View>
-            <View style={styles.metaItem}>
-              <BookOpen size={14} color={colors.textMuted} />
-              <Text style={styles.metaText}>{item.metadata.sections} section</Text>
-            </View>
+            {!!item.metadata.sections && (
+              <View style={styles.metaItem}>
+                <BookOpen size={14} color={colors.textMuted} />
+                <Text style={styles.metaText}>
+                  {item.metadata.sections} section{item.metadata.sections === 1 ? "" : "s"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -298,7 +369,7 @@ export const HomeScreen: React.FC = () => {
             activeOpacity={0.75}
           >
             <Bell size={22} color={colors.textPrimary} />
-            <View style={styles.unreadDot} />
+            {unreadNotifications > 0 && <View style={styles.unreadDot} />}
           </TouchableOpacity>
         </View>
 
@@ -393,6 +464,21 @@ export const HomeScreen: React.FC = () => {
                 <Skeleton key={i} height={116} borderRadius={10} style={styles.recommendationSkeleton} />
               ))}
             </View>
+          ) : recommendations.length === 0 ? (
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.emptyRecommendationCard}
+              onPress={() => navigation.navigate("Library")}
+            >
+              <BookOpen size={20} color={colors.primary} />
+              <View style={styles.emptyRecommendationText}>
+                <Text style={styles.recommendationTitle}>Start from your library</Text>
+                <Text style={styles.recommendationDescription}>
+                  Open a real material to study, ask Akademi, or practice CBT questions.
+                </Text>
+              </View>
+              <ChevronRight size={17} color={colors.textMuted} />
+            </TouchableOpacity>
           ) : (
             recommendations.map(renderRecommendationCard)
           )}
@@ -722,6 +808,20 @@ const styles = StyleSheet.create({
   },
   recommendationSkeleton: {
     marginBottom: 12,
+  },
+  emptyRecommendationCard: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    padding: 14,
+  },
+  emptyRecommendationText: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 10,
   },
   tipPanel: {
     alignItems: "center",
