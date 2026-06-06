@@ -38,6 +38,7 @@ export type AuthStackParamList = {
   };
   Login: undefined;
   ForgotPassword: { email?: string };
+  PrivacyData: undefined;
 };
 
 export type MainTabParamList = {

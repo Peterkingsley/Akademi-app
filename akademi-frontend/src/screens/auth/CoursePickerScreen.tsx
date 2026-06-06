@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Search, CheckCircle2, PlusCircle } from "lucide-react-native";
+import { Search, CheckCircle2 } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
@@ -164,13 +164,12 @@ export const CoursePickerScreen: React.FC = () => {
               <Text style={styles.emptyText}>No courses found for your department yet.</Text>
             }
             ListFooterComponent={
-              <TouchableOpacity style={styles.addManual}>
-                <Text style={styles.addManualText}>Don't see your course listed?</Text>
-                <View style={styles.addManualLink}>
-                  <PlusCircle size={16} color={colors.primary} />
-                  <Text style={styles.addManualLinkText}>Add course manually</Text>
-                </View>
-              </TouchableOpacity>
+              <View style={styles.helperCard}>
+                <Text style={styles.helperTitle}>Courses can be updated later</Text>
+                <Text style={styles.helperText}>
+                  Continue even if your exact course is not listed. You can add or change courses from Profile after signup.
+                </Text>
+              </View>
             }
           />
         )}
@@ -180,9 +179,9 @@ export const CoursePickerScreen: React.FC = () => {
             <Text style={styles.countText}>{selectedCodes.length} COURSES ADDED</Text>
           </View>
           <Button
-            label="Done >"
+            label="Continue"
             onPress={handleDone}
-            disabled={selectedCodes.length === 0 || loading}
+            disabled={loading}
             style={styles.doneButton}
           />
         </View>
@@ -293,25 +292,24 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
-  addManual: {
+  helperCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
     marginTop: 24,
-    alignItems: "center",
+    padding: 14,
   },
-  addManualText: {
+  helperTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  helperText: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
-    marginBottom: 8,
-  },
-  addManualLink: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  addManualLinkText: {
-    color: colors.primary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Bold",
-    marginLeft: 6,
+    lineHeight: 18,
   },
   bottomBar: {
     position: "absolute",

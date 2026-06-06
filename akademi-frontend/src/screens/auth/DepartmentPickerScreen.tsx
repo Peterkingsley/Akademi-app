@@ -79,7 +79,7 @@ export const DepartmentPickerScreen: React.FC = () => {
 
   const handleContinue = () => {
     if (selectedDept) {
-      navigation.navigate("Register", {
+      navigation.navigate("CoursePicker", {
         universityId,
         university: universityName,
         faculty: selectedFaculty,

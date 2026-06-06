@@ -1,20 +1,22 @@
-import React, { useState, useRef } from "react";
+import React, { useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   Dimensions,
-  TouchableOpacity,
-  ScrollView,
+  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowRight, GraduationCap } from "lucide-react-native";
+import { ArrowRight, BookOpen, GraduationCap, ScanLine, Target } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "../../theme/colors";
+
 import { Button } from "../../components/ui/Button";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 const { width, height } = Dimensions.get("window");
 
@@ -28,20 +30,16 @@ export const OnboardingScreen: React.FC = () => {
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
-    const index = event.nativeEvent.contentOffset.x / slideSize;
-    setActiveSlide(Math.round(index));
+    setActiveSlide(Math.round(event.nativeEvent.contentOffset.x / slideSize));
   };
 
   const nextSlide = () => {
     if (activeSlide < 1) {
       scrollViewRef.current?.scrollTo({ x: width, animated: true });
-    } else {
-      navigation.navigate("UniversityPicker");
+      return;
     }
-  };
 
-  const skipOnboarding = () => {
-    navigation.navigate("Login");
+    navigation.navigate("UniversityPicker");
   };
 
   const handleLogin = () => {
@@ -58,97 +56,93 @@ export const OnboardingScreen: React.FC = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
       >
-        {/* Slide 1 - Frame 3 */}
         <View style={styles.slide}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.slideContent}>
+            <View style={styles.topBar}>
+              <View style={styles.logoContainer}>
+                <GraduationCap size={22} color={colors.primary} />
+                <Text style={styles.logoText}>Akademi</Text>
+              </View>
+              <TouchableOpacity onPress={handleLogin} activeOpacity={0.8}>
+                <Text style={styles.signInTop}>Sign in</Text>
+              </TouchableOpacity>
+            </View>
 
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.slide1Content}
-          >
             <View style={styles.illustrationArea}>
               <View style={styles.illustrationCard}>
-                <Image
-                  source={onboardingFemale}
-                  style={styles.illustrationImage}
-                  resizeMode="cover"
-                />
+                <Image source={onboardingFemale} style={styles.illustrationImage} resizeMode="cover" />
                 <View style={styles.badgeChip}>
-                  <Text style={styles.systemStatusLabel}>SYSTEM STATUS</Text>
-                  <Text style={styles.systemStatusValue}>
-                    Personalized curriculum optimized for JAMB 2024.
-                  </Text>
+                  <Text style={styles.badgeLabel}>MVP BETA</Text>
+                  <Text style={styles.badgeValue}>Materials, CBT practice, and live tutor in one flow.</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.contentArea}>
               <Text style={styles.headline}>
-                Built for <Text style={{ color: colors.primary }}>you</Text>
+                Study with your <Text style={styles.greenText}>real course context</Text>
               </Text>
               <Text style={styles.body}>
-                Tailored learning paths that adapt to your pace, your goals, and
-                your dreams.
+                Open verified materials, ask Akademi questions, practice CBT, and keep your prep organized around your department.
               </Text>
             </View>
 
-            <View style={styles.bottomAreaInside}>
+            <View style={styles.featureRow}>
+              <View style={styles.featureItem}>
+                <BookOpen size={17} color={colors.primary} />
+                <Text style={styles.featureText}>Verified library</Text>
+              </View>
+              <View style={styles.featureItem}>
+                <ScanLine size={17} color="#38BDF8" />
+                <Text style={styles.featureText}>Photo solving</Text>
+              </View>
+            </View>
+
+            <View style={styles.bottomArea}>
               <View style={styles.progressDots}>
                 <View style={[styles.dot, styles.activeDot, styles.pillDot]} />
                 <View style={[styles.dot, styles.inactiveDot]} />
-                <View style={[styles.dot, styles.inactiveDot]} />
               </View>
-              <Button
-                label="Get Started"
-                onPress={nextSlide}
-                icon={<ArrowRight size={20} color={colors.textPrimary} />}
-              />
+              <Button label="Continue" onPress={nextSlide} icon={<ArrowRight size={18} color={colors.textPrimary} />} />
             </View>
           </ScrollView>
         </View>
 
-        {/* Slide 2 - Frame 38 */}
         <View style={styles.slide}>
           <View style={styles.slide2Header}>
             <View style={styles.logoContainer}>
-              <GraduationCap size={24} color={colors.primary} />
+              <GraduationCap size={22} color={colors.primary} />
               <Text style={styles.logoText}>Akademi</Text>
             </View>
             <View style={styles.progressIndicators}>
+              <View style={styles.indicator} />
               <View style={[styles.indicator, styles.activeIndicator]} />
-              <View style={styles.indicator} />
-              <View style={styles.indicator} />
-              <View style={styles.indicator} />
             </View>
           </View>
 
           <View style={styles.heroImageContainer}>
-            <Image
-              source={onboardingMale}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={["transparent", colors.background]}
-              style={styles.imageOverlay}
-            />
+            <Image source={onboardingMale} style={styles.heroImage} resizeMode="cover" />
+            <LinearGradient colors={["transparent", colors.background]} style={styles.imageOverlay} />
           </View>
 
-          <ScrollView style={styles.slide2Content} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.slide2Content} contentContainerStyle={styles.slide2ScrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.liveBadge}>
+              <Target size={15} color={colors.primary} />
+              <Text style={styles.liveBadgeText}>Free beta access</Text>
+            </View>
             <Text style={styles.slide2Headline}>
-              The tutor you always needed.{"\n"}
-              <Text style={{ color: colors.primary }}>Finally here.</Text>
+              Your academic command center.{"\n"}
+              <Text style={styles.greenText}>Built for Android beta.</Text>
             </Text>
             <Text style={styles.slide2Body}>
-              Akademi helps you solve assignments, understand topics, and
-              prepare for exams — all in one place.
+              Create your academic profile once. Akademi uses it to match materials, assignment help, live tutor sessions, and exam prep.
             </Text>
 
             <View style={styles.slide2Buttons}>
               <Button
-                label="Let's go"
+                label="Create your profile"
                 onPress={nextSlide}
-                icon={<ArrowRight size={20} color={colors.textPrimary} />}
+                icon={<ArrowRight size={18} color={colors.textPrimary} />}
                 style={styles.mainButton}
               />
               <Button
@@ -167,91 +161,135 @@ export const OnboardingScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: colors.background,
+    flex: 1,
   },
   slide: {
-    width: width,
-    height: height,
+    height,
     paddingHorizontal: 24,
+    width,
   },
-  slide1Content: {
-    paddingBottom: 80,
+  slideContent: {
+    paddingBottom: 54,
   },
-
+  topBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 26,
+  },
+  logoContainer: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  logoText: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    marginLeft: 8,
+  },
+  signInTop: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
+  },
   illustrationArea: {
-    height: height * 0.45,
-    marginTop: 100,
+    height: height * 0.42,
     justifyContent: "center",
+    marginTop: 34,
   },
   illustrationCard: {
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 20,
-    padding: 24,
-    height: 300,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 292,
+    padding: 14,
     position: "relative",
   },
   illustrationImage: {
-    flex: 1,
-    width: "100%",
+    borderRadius: 8,
     height: "100%",
-    borderRadius: 12,
+    width: "100%",
   },
   badgeChip: {
-    position: "absolute",
-    bottom: -16,
-    right: 16,
-    backgroundColor: "#0F172A",
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    maxWidth: 200,
+    bottom: -18,
+    maxWidth: 214,
+    padding: 12,
+    position: "absolute",
+    right: 16,
   },
-  systemStatusLabel: {
-    color: colors.textMuted,
-    fontSize: 7.5,
-    fontFamily: "SpaceMono-Regular",
+  badgeLabel: {
+    ...typography.label,
+    color: colors.primary,
+    fontSize: 8,
     marginBottom: 4,
   },
-  systemStatusValue: {
+  badgeValue: {
+    ...typography.caption,
     color: colors.textPrimary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Regular",
+    lineHeight: 15,
   },
   contentArea: {
-    marginTop: 40,
+    marginTop: 36,
   },
   headline: {
+    ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    lineHeight: 40,
+    fontSize: 27,
+    lineHeight: 36,
+  },
+  greenText: {
+    color: colors.primary,
   },
   body: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    lineHeight: 24,
-    marginTop: 16,
+    fontSize: 13,
+    lineHeight: 21,
+    marginTop: 12,
   },
-  bottomAreaInside: {
-    marginTop: 40,
+  featureRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+  featureItem: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  featureText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  bottomArea: {
+    marginTop: 28,
   },
   progressDots: {
-    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
+    flexDirection: "row",
+    marginBottom: 22,
   },
   dot: {
-    height: 8,
     borderRadius: 4,
+    height: 8,
     marginRight: 8,
   },
   inactiveDot: {
-    width: 8,
     backgroundColor: "#1F2937",
+    width: 8,
   },
   activeDot: {
     backgroundColor: colors.primary,
@@ -259,88 +297,92 @@ const styles = StyleSheet.create({
   pillDot: {
     width: 24,
   },
-  // Slide 2 Styles
   slide2Header: {
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 60,
+    marginTop: 32,
     zIndex: 10,
-  },
-  logoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  logoText: {
-    color: colors.textPrimary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    marginLeft: 8,
   },
   progressIndicators: {
     flexDirection: "row",
   },
   indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     backgroundColor: "#1F2937",
+    borderRadius: 4,
+    height: 8,
     marginLeft: 6,
+    width: 8,
   },
   activeIndicator: {
     backgroundColor: colors.primary,
+    width: 24,
   },
   heroImageContainer: {
-    position: "absolute",
-    top: 0,
+    height: height * 0.56,
     left: 0,
+    position: "absolute",
     right: 0,
-    height: height * 0.55,
+    top: 0,
   },
   heroImage: {
-    width: "100%",
     height: "100%",
+    width: "100%",
   },
   imageOverlay: {
-    position: "absolute",
     bottom: 0,
+    height: 170,
     left: 0,
+    position: "absolute",
     right: 0,
-    height: 150,
-  },
-  placeholderText: {
-    color: colors.textMuted,
-    fontFamily: "SpaceMono-Regular",
-    fontSize: 9,
   },
   slide2Content: {
-    marginTop: height * 0.5,
     flex: 1,
+    marginTop: height * 0.48,
+  },
+  slide2ScrollContent: {
+    paddingBottom: 56,
+  },
+  liveBadge: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  liveBadgeText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    marginLeft: 6,
   },
   slide2Headline: {
+    ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 27,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    lineHeight: 44,
+    fontSize: 26,
+    lineHeight: 36,
   },
   slide2Body: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 21,
     marginTop: 12,
   },
   slide2Buttons: {
-    marginTop: 32,
+    marginTop: 26,
   },
   mainButton: {
     marginBottom: 12,
   },
   secondaryButton: {
     backgroundColor: "transparent",
-    borderWidth: 1,
     borderColor: colors.border,
+    borderWidth: 1,
   },
 });

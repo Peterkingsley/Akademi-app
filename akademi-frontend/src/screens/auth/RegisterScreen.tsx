@@ -1,21 +1,14 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Linking,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Apple, Eye, EyeOff } from "lucide-react-native";
+import { BookOpen, GraduationCap, LockKeyhole, Mail, User } from "lucide-react-native";
+
+import { Screen } from "../../components/layout/Screen";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import api from "../../services/api";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Button } from "../../components/ui/Button";
-import { Screen } from "../../components/layout/Screen";
-import { Input } from "../../components/ui/Input";
-import { Toast } from "../../components/ui/Toast";
-import api from "../../services/api";
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,35 +19,42 @@ export const RegisterScreen: React.FC = () => {
     name: "",
     email: "",
     password: "",
-    phone: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+
+  const hasAcademicProfile = !!university && !!department;
 
   useEffect(() => {
-    // Basic enforcement: if academic data is missing, redirect back
-    if (!university || !department) {
-       setError("Missing academic profile. Please go back and complete the selection.");
+    if (!hasAcademicProfile) {
+      setError("Complete your academic profile before creating an account.");
     }
-  }, [university, department]);
+  }, [hasAcademicProfile]);
 
   const handleRegister = async () => {
-    if (!university || !department) {
-      setError("Please complete the onboarding flow correctly.");
+    if (!hasAcademicProfile) {
+      setError("Complete your academic profile before creating an account.");
+      return;
+    }
+
+    if (!form.name.trim() || !form.email.trim()) {
+      setError("Enter your name and email address.");
+      return;
+    }
+
+    if (form.password.length < 8) {
+      setError("Use at least 8 characters for your password.");
       return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      // Convert level string to number (e.g. "300L" -> 300)
-      const levelInt = parseInt(level.replace(/[^0-9]/g, ""), 10) || 100;
+      const levelInt = parseInt(String(level || "").replace(/[^0-9]/g, ""), 10) || 100;
 
       await api.post("/auth/register", {
-        name: form.name,
-        email: form.email,
+        name: form.name.trim(),
+        email: form.email.trim(),
         password: form.password,
         university,
         faculty,
@@ -62,11 +62,10 @@ export const RegisterScreen: React.FC = () => {
         level: levelInt,
         courses: selectedCourses,
       });
-      navigation.navigate("EmailVerification", { email: form.email });
+
+      navigation.navigate("EmailVerification", { email: form.email.trim() });
     } catch (err: any) {
-      console.log("Registration failed", err.response?.data?.message || err.message);
-      const message = err.response?.data?.message || "Registration failed. Please try again.";
-      setError(message);
+      setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -74,380 +73,288 @@ export const RegisterScreen: React.FC = () => {
 
   const getPasswordStrength = () => {
     if (!form.password) return 0;
-    if (form.password.length < 4) return 1;
-    if (form.password.length < 8) return 2;
-    if (/[A-Z]/.test(form.password) && /[0-9]/.test(form.password)) return 4;
-    return 3;
+    if (form.password.length < 8) return 1;
+    if (/[A-Z]/.test(form.password) && /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password)) return 4;
+    if (/[A-Z]/.test(form.password) && /[0-9]/.test(form.password)) return 3;
+    return 2;
   };
 
   const strength = getPasswordStrength();
-  const strengthLabels = ["WEAK", "WEAK", "FAIR", "MEDIUM", "STRONG"];
-
-  const handleSocialComingSoon = () => {
-    setToast({ message: "Coming soon...", type: "warning" });
-  };
-  const strengthColors = [colors.error, colors.error, colors.warning, colors.warning, colors.success];
+  const strengthLabels = ["Not started", "Weak", "Fair", "Good", "Strong"];
+  const strengthColors = [colors.border, colors.error, colors.warning, colors.warning, colors.success];
 
   return (
-    <Screen style={{ flex: 1 }}
-      onBack={() => navigation.navigate("Onboarding")}
-      title=""
-      rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
-      }
-      scrollable
-    >
-      <View style={styles.container}>
-        <Text style={styles.headline}>Almost there!</Text>
-        <Text style={styles.subtext}>Create your account to save your progress</Text>
+    <Screen hideHeader style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.backChip} activeOpacity={0.8}>
+            <GraduationCap size={17} color={colors.primary} />
+            <Text style={styles.backChipText}>Academic profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate("Login")} activeOpacity={0.8}>
+            <Text style={styles.signInTop}>Sign in</Text>
+          </TouchableOpacity>
+        </View>
 
-        {error && (
-          <View style={styles.errorBanner}>
-            <View style={styles.errorHeader}>
-              <Text style={styles.errorText}>{error}</Text>
-              {error.includes("academic profile") && (
-                <TouchableOpacity
-                  style={styles.errorAction}
-                  onPress={() => navigation.navigate("Onboarding")}
-                >
-                  <Text style={styles.errorActionText}>Go back</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <User size={23} color={colors.primary} />
           </View>
-        )}
-
-        <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.googleButton} onPress={handleSocialComingSoon}>
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleText}>Google</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.appleButton} onPress={handleSocialComingSoon}>
-            <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.appleText}>Apple</Text>
-          </TouchableOpacity>
+          <Text style={styles.headline}>Create your account</Text>
+          <Text style={styles.subtext}>Save your materials, tutor sessions, mock attempts, and progress history.</Text>
         </View>
 
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-          <View style={styles.dividerLine} />
+        <View style={styles.academicCard}>
+          <View style={styles.academicIcon}>
+            <BookOpen size={19} color={colors.primary} />
+          </View>
+          <View style={styles.academicCopy}>
+            <Text style={styles.cardLabel}>Studying as</Text>
+            <Text style={styles.academicTitle} numberOfLines={2}>
+              {hasAcademicProfile ? `${department} / ${level || "Level"}` : "Academic profile missing"}
+            </Text>
+            <Text style={styles.academicMeta} numberOfLines={2}>
+              {hasAcademicProfile ? `${university}${selectedCourses.length ? ` - ${selectedCourses.length} courses selected` : ""}` : "Go back and choose your school details."}
+            </Text>
+          </View>
         </View>
 
-        <Input
-          label="Full Name"
-          placeholder="Enter your full name"
-          value={form.name}
-          onChangeText={(text) => setForm({ ...form, name: text })}
-        />
+        {error ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
-        <Input
-          label="Email address"
-          placeholder="name@example.com"
-          value={form.email}
-          onChangeText={(text) => setForm({ ...form, email: text })}
-          keyboardType="email-address"
-        />
+        <View style={styles.formCard}>
+          <Input
+            label="Full name"
+            placeholder="Enter your full name"
+            value={form.name}
+            onChangeText={(text) => setForm({ ...form, name: text })}
+            leftIcon={<User size={18} color={colors.textMuted} />}
+          />
 
-        <View style={styles.passwordContainer}>
+          <Input
+            label="Email address"
+            placeholder="name@example.com"
+            value={form.email}
+            onChangeText={(text) => setForm({ ...form, email: text })}
+            keyboardType="email-address"
+            leftIcon={<Mail size={18} color={colors.textMuted} />}
+          />
+
           <Input
             label="Password"
-            placeholder="Min. 8 characters"
+            placeholder="At least 8 characters"
             value={form.password}
             onChangeText={(text) => setForm({ ...form, password: text })}
-            secureTextEntry={!showPassword}
-            style={{ marginBottom: 8 }}
+            secureTextEntry
+            leftIcon={<LockKeyhole size={18} color={colors.textMuted} />}
+            style={styles.passwordInput}
           />
+
           <View style={styles.strengthBarContainer}>
             {[1, 2, 3, 4].map((i) => (
               <View
                 key={i}
                 style={[
                   styles.strengthSegment,
-                  i <= strength && { backgroundColor: strengthColors[strength] }
+                  i <= strength && { backgroundColor: strengthColors[strength] },
                 ]}
               />
             ))}
           </View>
-          <Text style={[styles.strengthLabel, { color: colors.textSecondary }]}>
-            PASSWORD STRENGTH: <Text style={{ color: strengthColors[strength] }}>{strengthLabels[strength]}</Text>
+          <Text style={styles.strengthLabel}>
+            Password strength: <Text style={{ color: strengthColors[strength] }}>{strengthLabels[strength]}</Text>
           </Text>
+
+          <Text style={styles.termsText}>
+            By continuing, you agree to Akademi's{" "}
+            <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Terms</Text>
+            {" "}and{" "}
+            <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Privacy Policy</Text>.
+          </Text>
+
+          <Button label="Create account" onPress={handleRegister} loading={loading} disabled={loading} style={styles.createButton} />
         </View>
-
-        <View style={styles.phoneInputContainer}>
-          <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>Phone number</Text>
-            <Text style={styles.optionalTag}>OPTIONAL</Text>
-          </View>
-          <Input
-            label=""
-            placeholder="+234 000 000 0000"
-            value={form.phone}
-            onChangeText={(text) => setForm({ ...form, phone: text })}
-            keyboardType="phone-pad"
-          />
-        </View>
-
-        <Text style={styles.termsText}>
-          By continuing, you agree to our{" "}
-          <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Terms of Service</Text>
-          {" "}and{" "}
-          <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Privacy Policy</Text>
-        </Text>
-
-        <Button
-          label="Create Account"
-          onPress={handleRegister}
-          loading={loading}
-          disabled={!university || !department || !form.email || !form.password || !form.name}
-          style={styles.createButton}
-        />
 
         <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.signInLink}>
           <Text style={styles.signInText}>
             Already have an account? <Text style={styles.linkText}>Sign in instead</Text>
           </Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.tabSwitcher}>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => navigation.navigate("Login")}
-        >
-          <Text style={styles.tabTextInactive}>Sign In</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]}>
-          <Text style={styles.tabTextActive}>Create Account</Text>
-          <View style={styles.tabIndicator} />
-        </TouchableOpacity>
-      </View>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onHide={() => setToast(null)}
-        />
-      )}
+      </ScrollView>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
+  screen: {
+    backgroundColor: colors.background,
+    flex: 1,
   },
   container: {
-    padding: 24,
-    paddingBottom: 140,
-    flex: 1,
+    flexGrow: 1,
+    paddingBottom: 34,
+    paddingHorizontal: 24,
+    paddingTop: 22,
   },
-  headline: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-  },
-  subtext: {
-    color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
-    marginTop: 8,
-    marginBottom: 32,
-  },
-  socialRow: {
+  topBar: {
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 32,
+    marginBottom: 18,
   },
-  googleButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    flexDirection: "row",
+  backChip: {
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
   },
-  googleIcon: {
-    fontSize: 15,
+  backChipText: {
+    ...typography.bodySmall,
+    color: colors.primary,
     fontWeight: "700",
-    color: "#4285F4",
-    marginRight: 8,
+    marginLeft: 7,
   },
-  googleText: {
-    color: "#000000",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
+  signInTop: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
   },
-  appleButton: {
-    flex: 1,
-    height: 52,
-    backgroundColor: "#000000",
-    borderRadius: 10,
-    flexDirection: "row",
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 18,
+  },
+  heroIcon: {
     alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 46,
     justifyContent: "center",
-    marginLeft: 8,
+    marginBottom: 16,
+    width: 46,
   },
-  appleText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
-    marginLeft: 8,
+  headline: {
+    ...typography.h1,
+    color: colors.textPrimary,
+    fontSize: 27,
+    lineHeight: 34,
   },
-  dividerContainer: {
-    flexDirection: "row",
+  subtext: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 21,
+    marginTop: 8,
+  },
+  academicCard: {
     alignItems: "center",
-    marginBottom: 32,
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 14,
+    padding: 14,
   },
-  dividerLine: {
+  academicIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 42,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 42,
+  },
+  academicCopy: {
     flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
+    minWidth: 0,
   },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-    marginHorizontal: 16,
+  cardLabel: {
+    ...typography.label,
+    color: colors.primary,
+    fontSize: 9,
+    marginBottom: 4,
   },
-  passwordContainer: {
-    marginBottom: 20,
+  academicTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
+  academicMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: colors.error,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 12,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    lineHeight: 18,
+  },
+  formCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 16,
+  },
+  passwordInput: {
+    marginBottom: 8,
   },
   strengthBarContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 5,
     marginBottom: 8,
   },
   strengthSegment: {
-    flex: 1,
-    height: 4,
     backgroundColor: colors.border,
     borderRadius: 2,
-    marginHorizontal: 2,
+    flex: 1,
+    height: 4,
   },
   strengthLabel: {
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-  },
-  phoneInputContainer: {
-    marginBottom: 20,
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  inputLabel: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Regular",
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-  },
-  optionalTag: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
+    marginBottom: 18,
   },
   termsText: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Regular",
-    lineHeight: 18,
+    lineHeight: 19,
+    marginBottom: 18,
     textAlign: "center",
-    marginBottom: 24,
   },
   linkText: {
     color: colors.primary,
-    fontFamily: "Inter-Bold",
+    fontWeight: "700",
   },
   createButton: {
-    marginBottom: 24,
+    borderRadius: 8,
   },
   signInLink: {
     alignItems: "center",
-    marginBottom: 40,
+    marginTop: 18,
   },
   signInText: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
-  },
-  tabSwitcher: {
-    flexDirection: "row",
-    height: 60,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: colors.primary,
-  },
-  tabTextInactive: {
-    color: colors.textMuted,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  errorBanner: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderWidth: 1,
-    borderColor: colors.error,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 24,
-  },
-  errorText: {
-    color: colors.error,
-    fontSize: 10.5,
-    fontFamily: "Inter-Medium",
-    flex: 1,
-  },
-  errorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  errorAction: {
-    backgroundColor: colors.error,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginLeft: 12,
-  },
-  errorActionText: {
-    color: "#FFFFFF",
-    fontSize: 10.5,
-    fontFamily: "Inter-Bold",
-  },
-  tabIndicator: {
-    position: "absolute",
-    top: 0,
-    width: 40,
-    height: 2,
-    backgroundColor: colors.primary,
   },
 });

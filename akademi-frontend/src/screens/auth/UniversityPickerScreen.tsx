@@ -164,9 +164,9 @@ export const UniversityPickerScreen: React.FC = () => {
             disabled={!selectedId || loading}
             style={styles.continueButton}
           />
-          <TouchableOpacity style={styles.ghostLink}>
-            <Text style={styles.ghostLinkText}>Can't find your university?</Text>
-          </TouchableOpacity>
+          <Text style={styles.footerHint}>
+            More schools can be added by admin during beta.
+          </Text>
         </View>
       </View>
     </Screen>
@@ -313,12 +313,10 @@ const styles = StyleSheet.create({
   continueButton: {
     marginBottom: 16,
   },
-  ghostLink: {
-    alignItems: "center",
-  },
-  ghostLinkText: {
+  footerHint: {
     color: colors.textSecondary,
     fontSize: 10.5,
     fontFamily: "Inter-Regular",
+    textAlign: "center",
   },
 });

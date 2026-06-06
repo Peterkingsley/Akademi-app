@@ -1,352 +1,228 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-} from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { Apple, Eye, EyeOff } from "lucide-react-native";
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
-import { Button } from "../../components/ui/Button";
+import { useNavigation } from "@react-navigation/native";
+import { BookOpen, GraduationCap, LockKeyhole, Mail } from "lucide-react-native";
+
 import { Screen } from "../../components/layout/Screen";
+import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { Toast } from "../../components/ui/Toast";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSocialComingSoon = () => {
-    setToast({ message: "Coming soon...", type: "warning" });
-  };
+  const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
 
   const handleLogin = async () => {
+    if (!canSubmit) {
+      setError("Enter your email and password to continue.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const response = await api.post("/auth/login", {
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
         deviceInfo: {
-          name: Platform.OS === 'ios' ? 'iPhone' : 'Android Device',
-          type: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
-        }
+          name: Platform.OS === "ios" ? "iPhone" : "Android Device",
+          type: Platform.OS === "ios" ? "IOS" : "ANDROID",
+        },
       });
 
       const { user, accessToken, refreshToken } = response.data;
-
       await AsyncStorage.setItem("accessToken", accessToken);
       await AsyncStorage.setItem("refreshToken", refreshToken);
-
       setAuth(user, accessToken, refreshToken);
-      // Navigation to MainStack will be handled by RootNavigator based on isAuthenticated
     } catch (err: any) {
-      console.log("Login failed", err.response?.data?.message || err.message);
-      const message = err.response?.data?.message || "Invalid email or password";
-      setError(message);
+      setError(err.response?.data?.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Screen style={{ flex: 1 }}
-      onBack={() => navigation.goBack()}
-      title=""
-      rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
-      }
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.centerTop}>
-          <Text style={styles.wordmark}>Akademi</Text>
+    <Screen hideHeader style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <View style={styles.brandMark}>
+            <GraduationCap size={22} color={colors.primary} />
+          </View>
+          <Text style={styles.brandText}>Akademi</Text>
         </View>
 
-        <Text style={styles.headline}>Welcome back 👋</Text>
-        <Text style={styles.subtext}>Sign in to continue learning</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroIcon}>
+            <BookOpen size={24} color={colors.primary} />
+          </View>
+          <Text style={styles.headline}>Welcome back</Text>
+          <Text style={styles.subtext}>Sign in to continue your study sessions, materials, and exam prep.</Text>
+        </View>
 
-        {error && (
+        {error ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
-        )}
+        ) : null}
 
-        <View style={styles.form}>
+        <View style={styles.formCard}>
           <Input
-            label="EMAIL ADDRESS"
-            labelStyle={styles.spaceMonoLabel}
+            label="Email address"
             placeholder="name@example.com"
             value={form.email}
             onChangeText={(text) => setForm({ ...form, email: text })}
             keyboardType="email-address"
-            style={styles.input}
+            leftIcon={<Mail size={18} color={colors.textMuted} />}
           />
 
-          <View style={styles.passwordLabelRow}>
-            <Text style={[styles.label, styles.spaceMonoLabel]}>PASSWORD</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </View>
           <Input
-            label=""
-            placeholder="••••••••"
+            label="Password"
+            placeholder="Enter your password"
             value={form.password}
             onChangeText={(text) => setForm({ ...form, password: text })}
-            secureTextEntry={!showPassword}
-            style={styles.input}
+            secureTextEntry
+            leftIcon={<LockKeyhole size={18} color={colors.textMuted} />}
+            style={styles.passwordInput}
           />
 
-          <Button
-            label="Sign In"
-            onPress={handleLogin}
-            loading={loading}
-            style={styles.signInButton}
-          />
-        </View>
-
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.socialRow}>
-          <TouchableOpacity style={styles.socialButton} onPress={handleSocialComingSoon}>
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.socialButtonText}>Google</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })} style={styles.forgotButton}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialButton} onPress={handleSocialComingSoon}>
-            <Apple size={20} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.socialButtonText}>Apple</Text>
-          </TouchableOpacity>
+
+          <Button label="Sign in" onPress={handleLogin} loading={loading} disabled={loading} style={styles.signInButton} />
         </View>
 
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Register")}
-          style={styles.signUpLink}
-        >
-          <Text style={styles.signUpText}>
-            New to Akademi? <Text style={styles.linkText}>Create account</Text>
-          </Text>
+        <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.createCard} activeOpacity={0.85}>
+          <Text style={styles.createTitle}>New to Akademi?</Text>
+          <Text style={styles.createText}>Create your academic profile</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      <View style={styles.tabSwitcher}>
-        <TouchableOpacity style={[styles.tabItem, styles.tabItemActive]}>
-          <Text style={styles.tabTextActive}>Sign In</Text>
-          <View style={styles.tabIndicator} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => navigation.navigate("Register")}
-        >
-          <Text style={styles.tabTextInactive}>Create Account</Text>
-        </TouchableOpacity>
-      </View>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onHide={() => setToast(null)}
-        />
-      )}
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 13.5,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
+  screen: {
+    backgroundColor: colors.background,
+    flex: 1,
   },
   container: {
-    padding: 24,
-    paddingBottom: 140,
     flexGrow: 1,
+    paddingBottom: 34,
+    paddingHorizontal: 24,
+    paddingTop: 22,
   },
-  centerTop: {
+  topBar: {
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 40,
+    flexDirection: "row",
+    marginBottom: 22,
   },
-  wordmark: {
+  brandMark: {
+    alignItems: "center",
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  brandText: {
+    ...typography.h3,
     color: colors.primary,
-    fontSize: 18,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
+    marginLeft: 12,
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 18,
+    padding: 20,
+  },
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 48,
+    justifyContent: "center",
+    marginBottom: 18,
+    width: 48,
   },
   headline: {
+    ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 24,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    textAlign: "center",
+    fontSize: 28,
+    lineHeight: 36,
   },
   subtext: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontSize: 11.25,
-    fontFamily: "Inter-Regular",
+    fontSize: 13,
+    lineHeight: 21,
     marginTop: 8,
-    marginBottom: 32,
-    textAlign: "center",
   },
   errorBanner: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderWidth: 1,
+    backgroundColor: "rgba(239,68,68,0.12)",
     borderColor: colors.error,
-    borderRadius: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
     padding: 12,
-    marginBottom: 24,
   },
   errorText: {
+    ...typography.bodySmall,
     color: colors.error,
-    fontSize: 10.5,
-    fontFamily: "Inter-Medium",
+    lineHeight: 18,
   },
-  form: {
-    marginBottom: 32,
+  formCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 16,
   },
-  label: {
-    color: colors.textSecondary,
-    fontSize: 8.25,
-    letterSpacing: 1,
+  passwordInput: {
     marginBottom: 8,
-    textTransform: "uppercase",
   },
-  spaceMonoLabel: {
-    fontFamily: "SpaceMono-Regular",
-  },
-  passwordLabelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 0,
+  forgotButton: {
+    alignSelf: "flex-end",
+    marginBottom: 18,
   },
   forgotText: {
+    ...typography.bodySmall,
     color: colors.primary,
-    fontSize: 9.75,
-    fontFamily: "Inter-Medium",
-    marginBottom: 8,
-  },
-  input: {
-    marginBottom: 20,
+    fontWeight: "700",
   },
   signInButton: {
-    marginTop: 8,
+    borderRadius: 8,
   },
-  dividerContainer: {
-    flexDirection: "row",
+  createCard: {
     alignItems: "center",
-    marginBottom: 32,
-  },
-  dividerLine: {
-    flexGrow: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
-    marginHorizontal: 16,
-  },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 40,
-  },
-  socialButton: {
-    flexGrow: 1,
-    height: 52,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 6,
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: 16,
+    padding: 16,
   },
-  googleIcon: {
-    fontSize: 13.5,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginRight: 8,
-  },
-  socialButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontFamily: "Inter-SemiBold",
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  signUpLink: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  signUpText: {
+  createTitle: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 10.5,
-    fontFamily: "Inter-Regular",
   },
-  linkText: {
+  createText: {
+    ...typography.h4,
     color: colors.primary,
-    fontFamily: "Inter-Bold",
-  },
-  tabSwitcher: {
-    flexDirection: "row",
-    height: 60,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  tabItem: {
-    flexGrow: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: colors.primary,
-  },
-  tabTextInactive: {
-    color: colors.textMuted,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontSize: 10.5,
-    fontFamily: "Inter-SemiBold",
-  },
-  tabIndicator: {
-    position: "absolute",
-    top: 0,
-    width: 40,
-    height: 2,
-    backgroundColor: colors.primary,
+    marginTop: 4,
   },
 });
