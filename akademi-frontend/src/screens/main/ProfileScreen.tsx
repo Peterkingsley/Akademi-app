@@ -94,7 +94,9 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const academicLabel = profile
-    ? `${profile.university} • ${profile.department} • Level ${profile.level}`
+    ? [profile.university, profile.department, profile.level ? `Level ${profile.level}` : null]
+        .filter(Boolean)
+        .join(" / ")
     : "";
 
   const handleLogout = () => {
@@ -373,7 +375,9 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
     padding: 20,
     alignItems: "center",
     marginBottom: 20,
@@ -429,7 +433,9 @@ const styles = StyleSheet.create({
   statTile: {
     flex: 1,
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
     padding: 12,
     alignItems: "center",
     marginHorizontal: 4,
@@ -457,7 +463,9 @@ const styles = StyleSheet.create({
   },
   menuGroup: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
     overflow: "hidden",
   },
   menuItem: {

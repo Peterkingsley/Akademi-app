@@ -47,7 +47,7 @@ const BulletItem: React.FC<{ text: string; colors: any }> = ({ text, colors }) =
   const styles = createStyles(colors);
   return (
     <View style={styles.bulletPoint}>
-      <Text style={styles.bullet}>•</Text>
+      <Text style={styles.bullet}>-</Text>
       <Text style={styles.bulletText}>{text}</Text>
     </View>
   );
@@ -57,7 +57,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
   const styles = createStyles(colors);
   return (
     <View style={styles.contentContainer}>
-      <Text style={styles.mainTitle}>Privacy Policy — Akademi</Text>
+      <Text style={styles.mainTitle}>Privacy Policy - Akademi</Text>
       <Text style={styles.lastUpdated}>Effective Date: March 22, 2026</Text>
       <Text style={styles.lastUpdated}>Last Updated: March 22, 2026</Text>
 
@@ -83,7 +83,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.paragraph}>When you create an account, we collect:</Text>
       <BulletItem text="Full name" colors={colors} />
       <BulletItem text="Email address" colors={colors} />
-      <BulletItem text="Password (stored in encrypted form — we never store your plain password)" colors={colors} />
+      <BulletItem text="Password (stored in encrypted form - we never store your plain password)" colors={colors} />
       <BulletItem text="Phone number (optional)" colors={colors} />
       <BulletItem text="University, faculty, department, and academic level" colors={colors} />
       <BulletItem text="Profile photo (optional)" colors={colors} />
@@ -219,7 +219,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       </Text>
       <BulletItem text="Does not make decisions that have legal or significant effects on you" colors={colors} />
       <BulletItem text="Uses your learning profile and course context to personalize responses" colors={colors} />
-      <BulletItem text="Does not store your conversations directly — conversation history is stored in our own database and referenced when needed" colors={colors} />
+      <BulletItem text="Does not store your conversations directly - conversation history is stored in our own database and referenced when needed" colors={colors} />
       <BulletItem text="Is guided by discipline-specific documents we have created to ensure academically accurate responses for your department" colors={colors} />
       <Text style={[styles.paragraph, { marginTop: 8 }]}>
         You can request to opt out of learning profile personalization by contacting us, though this will significantly reduce the quality of AI responses you receive.
@@ -255,7 +255,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
   const styles = createStyles(colors);
   return (
     <View style={styles.contentContainer}>
-      <Text style={styles.mainTitle}>Terms of Service — Akademi</Text>
+      <Text style={styles.mainTitle}>Terms of Service - Akademi</Text>
       <Text style={styles.lastUpdated}>Effective Date: March 22, 2026</Text>
       <Text style={styles.lastUpdated}>Last Updated: March 22, 2026</Text>
 
@@ -326,7 +326,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.subSectionTitle}>4.3 Academic Integrity</Text>
       <Text style={styles.paragraph}>
-        Akademi is designed as a learning tool — not a shortcut. We strongly encourage you to use Akademi to genuinely understand topics, not simply to copy answers. We are not responsible for any academic consequences resulting from how you use AI-generated content from our platform.
+        Akademi is designed as a learning tool - not a shortcut. We strongly encourage you to use Akademi to genuinely understand topics, not simply to copy answers. We are not responsible for any academic consequences resulting from how you use AI-generated content from our platform.
       </Text>
 
       <Text style={styles.sectionTitle}>5. Course Materials and Content</Text>
@@ -421,7 +421,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.sectionTitle}>8. Intellectual Property</Text>
       <Text style={styles.subSectionTitle}>8.1 Our Intellectual Property</Text>
       <Text style={styles.paragraph}>
-        All aspects of Akademi — including the app design, code, AI system architecture, brand, logo, and name — are the intellectual property of Akademi. You may not copy, reproduce, or distribute any part of the platform without our written permission.
+        All aspects of Akademi - including the app design, code, AI system architecture, brand, logo, and name - are the intellectual property of Akademi. You may not copy, reproduce, or distribute any part of the platform without our written permission.
       </Text>
 
       <Text style={styles.subSectionTitle}>8.2 Your Content</Text>

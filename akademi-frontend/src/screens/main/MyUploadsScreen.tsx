@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl } from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { userService } from "../../services/user";
 import { Material } from "../../services/material";
-import { FileText, CloudUpload, Clock } from "lucide-react-native";
+import { AlertCircle, CheckCircle2, ChevronRight, CloudUpload, Clock, FileText, RefreshCw } from "lucide-react-native";
 
 export const MyUploadsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const showUploadSuccess = route.params?.uploadStatus === "success";
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [uploads, setUploads] = useState<Material[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUploads();
@@ -21,13 +23,21 @@ export const MyUploadsScreen: React.FC = () => {
 
   const fetchUploads = async () => {
     try {
+      setError(null);
       const data = await userService.getUploads();
       setUploads(data);
-    } catch (error) {
-      console.error("Failed to fetch uploads", error);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not load your uploads.");
+      console.error("Failed to fetch uploads", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUploads();
   };
 
   const getStatusConfig = (status: Material["verification_status"]) => {
@@ -38,6 +48,7 @@ export const MyUploadsScreen: React.FC = () => {
           helper: "Approved and visible to other students",
           backgroundColor: "rgba(34, 197, 94, 0.1)",
           color: colors.primary,
+          icon: CheckCircle2,
         };
       case "FLAGGED":
         return {
@@ -45,6 +56,7 @@ export const MyUploadsScreen: React.FC = () => {
           helper: "Admin review found an issue",
           backgroundColor: "rgba(239, 68, 68, 0.1)",
           color: colors.error,
+          icon: AlertCircle,
         };
       case "TAKEN_DOWN":
         return {
@@ -52,6 +64,7 @@ export const MyUploadsScreen: React.FC = () => {
           helper: "This material is no longer public",
           backgroundColor: "rgba(239, 68, 68, 0.1)",
           color: colors.error,
+          icon: AlertCircle,
         };
       case "PENDING":
       default:
@@ -60,12 +73,14 @@ export const MyUploadsScreen: React.FC = () => {
           helper: "Only you can use it until admin approves",
           backgroundColor: "rgba(245, 158, 11, 0.1)",
           color: colors.warning,
+          icon: Clock,
         };
     }
   };
 
   const renderItem = ({ item }: { item: Material }) => {
     const status = getStatusConfig(item.verification_status);
+    const StatusIcon = status.icon;
 
     return (
       <TouchableOpacity
@@ -88,16 +103,14 @@ export const MyUploadsScreen: React.FC = () => {
           </View>
           <Text style={styles.statusHelper} numberOfLines={2}>{status.helper}</Text>
         </View>
-        <View style={[
-          styles.statusPill,
-          { backgroundColor: status.backgroundColor }
-        ]}>
-          <Text style={[
-            styles.statusText,
-            { color: status.color }
-          ]}>
-            {status.label}
-          </Text>
+        <View style={styles.trailing}>
+          <View style={[styles.statusPill, { backgroundColor: status.backgroundColor }]}>
+            <StatusIcon size={10} color={status.color} style={styles.statusIcon} />
+            <Text style={[styles.statusText, { color: status.color }]}>
+              {status.label}
+            </Text>
+          </View>
+          <ChevronRight size={17} color={colors.textMuted} />
         </View>
       </TouchableOpacity>
     );
@@ -110,11 +123,26 @@ export const MyUploadsScreen: React.FC = () => {
           <View style={styles.center}>
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <AlertCircle size={30} color={colors.warning} />
+            </View>
+            <Text style={styles.emptyTitle}>Uploads unavailable</Text>
+            <Text style={styles.emptySubtitle}>{error}</Text>
+            <TouchableOpacity onPress={fetchUploads} style={styles.retryButton}>
+              <RefreshCw size={16} color={colors.background} />
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         ) : uploads.length > 0 ? (
           <FlatList
             data={uploads}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            }
             ListHeaderComponent={
               showUploadSuccess ? (
                 <View style={styles.successBanner}>
@@ -129,10 +157,12 @@ export const MyUploadsScreen: React.FC = () => {
           />
         ) : (
           <View style={styles.emptyState}>
-            <CloudUpload size={64} color={colors.textMuted} />
+            <View style={styles.emptyIcon}>
+              <CloudUpload size={30} color={colors.primary} />
+            </View>
             <Text style={styles.emptyTitle}>No uploads yet</Text>
             <Text style={styles.emptySubtitle}>
-              Contribute study materials to help others and earn points.
+              Upload course materials from Library. You can use pending uploads while admins review them.
             </Text>
           </View>
         )}
@@ -176,10 +206,10 @@ const styles = StyleSheet.create({
   },
   uploadItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 8,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
@@ -195,6 +225,7 @@ const styles = StyleSheet.create({
   },
   uploadInfo: {
     flex: 1,
+    minWidth: 0,
   },
   fileName: {
     ...typography.h3,
@@ -220,17 +251,26 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   statusPill: {
+    alignItems: "center",
+    flexDirection: "row",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-    marginLeft: 8,
+    borderRadius: 5,
     maxWidth: 104,
+  },
+  statusIcon: {
+    marginRight: 3,
   },
   statusText: {
     fontSize: 8,
     fontWeight: "700",
     fontFamily: "Inter-Bold",
     textAlign: "center",
+  },
+  trailing: {
+    alignItems: "flex-end",
+    gap: 12,
+    marginLeft: 8,
   },
   statusHelper: {
     fontSize: 10,
@@ -245,6 +285,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 40,
   },
+  emptyIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 58,
+    justifyContent: "center",
+    marginBottom: 18,
+    width: 58,
+  },
   emptyTitle: {
     ...typography.h2,
     color: colors.textPrimary,
@@ -255,5 +304,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     marginTop: 8,
+  },
+  retryButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    flexDirection: "row",
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 8,
   },
 });
