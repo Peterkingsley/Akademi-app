@@ -5,6 +5,7 @@ import { authenticate } from '../auth/auth.middleware';
 const router = Router();
 const controller = new FeatureAccessController();
 
+router.get('/products', authenticate, controller.getProducts);
 router.get('/', authenticate, controller.getActiveUnlocks);
 router.post('/purchase', authenticate, controller.purchase);
 router.get('/check/:feature', authenticate, controller.checkFeature);

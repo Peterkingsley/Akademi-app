@@ -39,8 +39,24 @@ export interface FeatureAccess {
 export interface PurchaseSubscriptionResponse {
   paymentUrl: string;
   reference: string;
+  productCode?: string;
+  amount?: number;
+  currency?: string;
   betaUnlocked?: boolean;
   message?: string;
+}
+
+export interface FeatureProduct {
+  code: string;
+  name: string;
+  description: string;
+  feature: string;
+  access_type: string;
+  amount: number;
+  currency: string;
+  durationHours?: number;
+  uses?: number;
+  scope_type: "MATERIAL" | "COURSE" | "GLOBAL";
 }
 
 export const userService = {
@@ -99,6 +115,20 @@ export const userService = {
       feature: "EXAM_PREP",
       access_type: "TIME_WINDOW",
       amount: plan === "monthly" ? 2000 : 20000,
+    });
+    return response.data;
+  },
+
+  getFeatureProducts: async () => {
+    const response = await api.get<FeatureProduct[]>("/feature-access/products");
+    return response.data;
+  },
+
+  purchaseFeaturePass: async (productCode: string, scopeId: string, scopeType: "MATERIAL" | "COURSE" | "GLOBAL" = "MATERIAL") => {
+    const response = await api.post<PurchaseSubscriptionResponse>("/feature-access/purchase", {
+      productCode,
+      scopeType,
+      scopeId,
     });
     return response.data;
   },

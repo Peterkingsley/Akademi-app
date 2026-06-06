@@ -293,6 +293,9 @@ model FeatureAccess {
   user_id        String
   feature        Feature
   access_type    AccessType
+  product_code   String?
+  scope_type     String?
+  scope_id       String?
   expires_at     DateTime?
   uses_remaining Int?
   purchased_at   DateTime   @default(now())
@@ -302,6 +305,8 @@ model FeatureAccess {
 
   @@index([user_id])
   @@index([feature])
+  @@index([product_code])
+  @@index([scope_type, scope_id])
   @@map("feature_access")
 }
 
