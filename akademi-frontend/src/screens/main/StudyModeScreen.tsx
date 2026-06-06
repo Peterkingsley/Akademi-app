@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, Headphones } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, Headphones, BookOpen } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -114,7 +114,7 @@ export const StudyModeScreen: React.FC = () => {
           onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
           style={styles.headerBtn}
         >
-          <X size={24} color="#FFFFFF" />
+          <X size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, typography.h3]}>
           {material ? "Reading Material" : "Study Mode"}
@@ -131,7 +131,7 @@ export const StudyModeScreen: React.FC = () => {
               ) : isDownloaded ? (
                 <CheckCircle2 size={20} color={colors.success} />
               ) : (
-                <Download size={20} color="#FFFFFF" />
+                <Download size={20} color={colors.textPrimary} />
               )}
             </TouchableOpacity>
           )}
@@ -143,8 +143,8 @@ export const StudyModeScreen: React.FC = () => {
         {material && (
           <View style={styles.materialHeader}>
             <Text style={[styles.materialTitle, typography.h2]}>{material.title}</Text>
-            <Text style={[styles.materialMeta, typography.caption]}>
-              {courseCode} • {material.university}
+            <Text style={styles.materialMeta}>
+              {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" · ")}
             </Text>
           </View>
         )}
@@ -161,8 +161,9 @@ export const StudyModeScreen: React.FC = () => {
 
           {material && !hasExtractedContent ? (
             <View style={styles.extractionPending}>
-              <Text style={[styles.pendingTitle, typography.h3]}>Text extraction is still pending</Text>
-              <Text style={[styles.pendingText, typography.bodySmall]}>
+              <BookOpen size={24} color={colors.warning} style={styles.pendingIcon} />
+              <Text style={styles.pendingTitle}>Text extraction is still pending</Text>
+              <Text style={styles.pendingText}>
                 You can still ask Akademi about this material using its title and course details while the uploaded file is being processed.
               </Text>
               <Button
@@ -209,7 +210,7 @@ export const StudyModeScreen: React.FC = () => {
             <Text style={[styles.tutorText, typography.bodySmall]}>
               Still confused? Our scholars are online to help you 1-on-1.
             </Text>
-            <Text style={[styles.tutorLink, typography.bodySmall]}>Ask the Live Tutor →</Text>
+            <Text style={styles.tutorLink}>Ask the Live Tutor</Text>
           </View>
         </TouchableOpacity>
 
@@ -256,13 +257,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerBtn: {
-    padding: 8,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
   headerTitle: {
-    color: "#FFFFFF",
+    color: colors.textPrimary,
     fontWeight: "600",
   },
   headerRight: {
@@ -271,27 +279,38 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerIconBtn: {
-    padding: 8,
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
   materialHeader: {
-    marginBottom: 20,
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 16,
   },
   materialTitle: {
-    color: "#FFFFFF",
-    marginBottom: 4,
+    color: colors.textPrimary,
+    lineHeight: 27,
+    marginBottom: 6,
   },
   materialMeta: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
+    fontSize: 11,
   },
   studyCard: {
     backgroundColor: colors.surface,
-    padding: 20,
-    marginBottom: 24,
-    borderRadius: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    padding: 18,
   },
   aiHeader: {
     flexDirection: "row",
@@ -303,12 +322,14 @@ const styles = StyleSheet.create({
   },
   tutorBanner: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 18,
-    borderRadius: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "flex-start",
-    marginBottom: 40,
+    marginBottom: 28,
   },
   extractionPending: {
     backgroundColor: colors.surfaceElevated,
@@ -318,12 +339,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   pendingTitle: {
+    ...typography.h3,
     color: colors.textPrimary,
     marginBottom: 8,
   },
   pendingText: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  pendingIcon: {
+    marginBottom: 12,
   },
   pendingAskBtn: {
     marginTop: 16,
@@ -361,11 +387,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   tutorText: {
-    color: "#FFFFFF",
+    color: colors.textPrimary,
     lineHeight: 20,
     marginBottom: 4,
   },
   tutorLink: {
+    ...typography.bodySmall,
     color: colors.primary,
     fontWeight: "600",
   },

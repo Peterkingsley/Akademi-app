@@ -1,31 +1,29 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   FlatList,
   RefreshControl,
-  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { Plus, Upload, Search } from "lucide-react-native";
-import Animated, { FadeInUp, Layout } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
-import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
-import { MaterialCard } from "../../components/ui/MaterialCard";
-import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
+import * as DocumentPicker from "expo-document-picker";
+import { useNavigation } from "@react-navigation/native";
+import Animated, { FadeInUp, Layout } from "react-native-reanimated";
+import { AlertCircle, BookOpen, FileUp, Plus, RefreshCw, Upload } from "lucide-react-native";
+
 import { Button } from "../../components/ui/Button";
+import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
 import { Input } from "../../components/ui/Input";
+import { MaterialCard } from "../../components/ui/MaterialCard";
+import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Toast } from "../../components/ui/Toast";
-import * as DocumentPicker from "expo-document-picker";
 import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useNavigation } from "@react-navigation/native";
-
-const { width } = Dimensions.get("window");
+import { colors } from "../../theme/colors";
+import { typography } from "../../theme/typography";
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -34,18 +32,19 @@ export const LibraryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchActive, setIsSearchActive] = useState(false);
 
-  // Upload Bottom Sheet state
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["50%", "80%"], []);
+  const snapPoints = useMemo(() => ["58%", "86%"], []);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCourseCode, setUploadCourseCode] = useState("");
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
+
   const userCourses = useMemo(() => user?.courses || [], [user?.courses]);
   const defaultCourseCode = userCourses[0] || "";
   const userLevel = typeof user?.level === "number" ? user.level : 100;
@@ -53,14 +52,15 @@ export const LibraryScreen: React.FC = () => {
 
   const fetchMaterials = async () => {
     try {
+      setError(null);
       setLoading(true);
       const data = await materialService.getMaterials({
         university: user?.university,
         department: user?.department,
       });
       setMaterials(data);
-    } catch (error) {
-      console.error("Error fetching materials:", error);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not load library materials.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,26 +83,33 @@ export const LibraryScreen: React.FC = () => {
   };
 
   const filteredMaterials = useMemo(() => {
-    return materials.filter(m => {
-      const courseCode = m.course_code || "General";
+    const query = searchQuery.trim().toLowerCase();
+    return materials.filter((material) => {
+      const courseCode = material.course_code || "General";
       const matchesCourse = selectedCourse === "All" || courseCode === selectedCourse;
-      const matchesSearch = m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           courseCode.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch =
+        !query ||
+        material.title.toLowerCase().includes(query) ||
+        courseCode.toLowerCase().includes(query);
+
       return matchesCourse && matchesSearch;
     });
-  }, [materials, selectedCourse, searchQuery]);
+  }, [materials, searchQuery, selectedCourse]);
 
   const courses = useMemo(() => {
-    const materialCourses = materials.map(m => m.course_code || "General");
-    const uniqueCourses = Array.from(new Set([...userCourses, ...materialCourses]));
-    return uniqueCourses.sort();
+    const materialCourses = materials.map((material) => material.course_code || "General");
+    return Array.from(new Set([...userCourses, ...materialCourses])).sort();
   }, [materials, userCourses]);
-
 
   const handleSelectFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+        type: [
+          "application/pdf",
+          "image/*",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ],
       });
 
       if (!result.canceled) {
@@ -111,23 +118,27 @@ export const LibraryScreen: React.FC = () => {
           setUploadTitle(result.assets[0].name.split(".")[0]);
         }
       }
-    } catch (error) {
-      console.error("Error picking document:", error);
+    } catch (err) {
+      setToast({ message: "Could not open file picker.", type: "error" });
     }
   };
 
-    const handleUpload = async () => {
+  const handleUpload = async () => {
     if (!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile) return;
 
     setUploading(true);
     try {
       const file = selectedFile.assets[0];
       const fileExtension = file.name.split(".").pop()?.toUpperCase();
-      const fileType = fileExtension === "PDF" ? "PDF" : (["JPG", "JPEG", "PNG"].includes(fileExtension || "") ? "IMAGE" : "DOC");
+      const fileType =
+        fileExtension === "PDF"
+          ? "PDF"
+          : ["JPG", "JPEG", "PNG"].includes(fileExtension || "")
+            ? "IMAGE"
+            : "DOC";
 
-      // 1. Create upload entry and get presigned URL
       const { materialId, presignedUrl } = await materialService.uploadMaterial({
-        title: uploadTitle,
+        title: uploadTitle.trim(),
         course_code: uploadCourseCode.trim().toUpperCase(),
         university: user?.university || "",
         faculty: user?.faculty || "",
@@ -136,19 +147,15 @@ export const LibraryScreen: React.FC = () => {
         file_type: fileType,
       });
 
-      // 2. Upload to S2/R2
       const response = await fetch(file.uri);
       const blob = await response.blob();
 
       await fetch(presignedUrl, {
         method: "PUT",
         body: blob,
-        headers: {
-          "Content-Type": "application/octet-stream",
-        },
+        headers: { "Content-Type": "application/octet-stream" },
       });
 
-      // 3. Confirm upload and queue it for admin review
       await materialService.confirmUpload(materialId);
 
       bottomSheetRef.current?.close();
@@ -156,9 +163,12 @@ export const LibraryScreen: React.FC = () => {
       setUploadCourseCode(defaultCourseCode);
       setSelectedFile(null);
       fetchMaterials();
+      setToast({
+        message: "Upload received. It is pending admin approval.",
+        type: "success",
+      });
       navigation.navigate("MyUploads", { uploadStatus: "success" });
-    } catch (error) {
-      console.error("Upload failed:", error);
+    } catch (err) {
       setToast({
         message: "Upload failed. Please check your connection and try again.",
         type: "error",
@@ -170,24 +180,35 @@ export const LibraryScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.titleSection}>
-        <Text style={[styles.title, typography.h1]}>Library</Text>
-        <Text style={[styles.subtitle, typography.bodySmall]}>
-          Access your curated course materials
-        </Text>
+      <View style={styles.hero}>
+        <View style={styles.heroIcon}>
+          <BookOpen size={22} color={colors.primary} />
+        </View>
+        <View style={styles.heroCopy}>
+          <Text style={styles.title}>Library</Text>
+          <Text style={styles.subtitle}>
+            {materials.length} verified material{materials.length === 1 ? "" : "s"} for your department
+          </Text>
+        </View>
       </View>
 
       {isSearchActive && (
         <View style={styles.searchBarContainer}>
-           <Input
+          <Input
             label=""
-            placeholder="Search materials..."
+            placeholder="Search title or course code"
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchInput}
           />
-          <TouchableOpacity onPress={() => {setIsSearchActive(false); setSearchQuery("");}} style={styles.cancelSearch}>
-            <Text style={[typography.caption, {color: colors.primary}]}>Cancel</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setIsSearchActive(false);
+              setSearchQuery("");
+            }}
+            style={styles.cancelSearch}
+          >
+            <Text style={styles.cancelSearchText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -202,35 +223,68 @@ export const LibraryScreen: React.FC = () => {
   );
 
   const renderSkeleton = () => (
-    <View style={styles.listContent}>
-      {[1, 2, 3, 4].map((i) => (
-        <View key={i} style={styles.skeletonCard}>
-          <Skeleton width={40} height={40} borderRadius={8} />
-          <View style={{ flex: 1, marginLeft: 12, gap: 8 }}>
-            <Skeleton width="80%" height={16} />
-            <Skeleton width="40%" height={12} />
+    <View style={styles.skeletonContent}>
+      {[1, 2, 3, 4].map((item) => (
+        <View key={item} style={styles.skeletonCard}>
+          <Skeleton width={42} height={42} borderRadius={8} />
+          <View style={styles.skeletonBody}>
+            <Skeleton width="82%" height={16} />
+            <Skeleton width="44%" height={12} />
           </View>
         </View>
       ))}
     </View>
   );
 
+  const renderEmpty = () => {
+    if (loading) return null;
+
+    if (error) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIcon}>
+            <AlertCircle size={28} color={colors.warning} />
+          </View>
+          <Text style={styles.emptyTitle}>Library unavailable</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity onPress={fetchMaterials} style={styles.retryButton}>
+            <RefreshCw size={16} color={colors.background} />
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIcon}>
+          <BookOpen size={28} color={colors.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>
+          {searchQuery || selectedCourse !== "All" ? "No matching materials" : "No verified materials yet"}
+        </Text>
+        <Text style={styles.emptyText}>
+          {searchQuery || selectedCourse !== "All"
+            ? "Try another course filter or search term."
+            : "Upload a course material to help build your department library. It becomes public after admin approval."}
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <Screen hideHeader style={styles.screen}>
       <FlatList
-        data={filteredMaterials}
+        data={loading && !refreshing ? [] : filteredMaterials}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
-          <Animated.View
-            entering={FadeInUp.delay(index * 50).duration(400)}
-            layout={Layout.springify()}
-          >
+          <Animated.View entering={FadeInUp.delay(index * 45).duration(320)} layout={Layout.springify()}>
             <MaterialCard
               title={item.title}
               courseCode={item.course_code || "General"}
               fileType={item.file_type === "PDF" ? "PDF" : item.file_type === "IMAGE" ? "SYSTEM_FILE" : "STUDY_DOC"}
               isVerified={item.verification_status === "VERIFIED"}
-              fileSize={"-"}
+              status={item.verification_status}
               date={new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
               rating={item.rating}
               isBookmarked={item.isBookmarked}
@@ -239,22 +293,16 @@ export const LibraryScreen: React.FC = () => {
           </Animated.View>
         )}
         ListHeaderComponent={renderHeader}
-        style={{ flex: 1 }}
+        style={styles.list}
         contentContainerStyle={[
           styles.listContent,
-          filteredMaterials.length === 0 && { flexGrow: 1, justifyContent: "center" }
+          (filteredMaterials.length === 0 || error) && styles.emptyListContent,
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, typography.body]}>No materials found</Text>
-            </View>
-          ) : null
-        }
+        ListEmptyComponent={error || !loading ? renderEmpty : null}
       />
 
       {loading && !refreshing && renderSkeleton()}
@@ -262,9 +310,9 @@ export const LibraryScreen: React.FC = () => {
       <TouchableOpacity
         style={styles.fab}
         onPress={() => bottomSheetRef.current?.expand()}
-        activeOpacity={0.8}
+        activeOpacity={0.82}
       >
-        <Plus size={32} color="#FFFFFF" />
+        <Plus size={28} color={colors.background} />
       </TouchableOpacity>
 
       <BottomSheet
@@ -272,18 +320,30 @@ export const LibraryScreen: React.FC = () => {
         index={-1}
         snapPoints={snapPoints}
         enablePanDownToClose
-        backgroundStyle={{ backgroundColor: colors.surfaceElevated }}
-        handleIndicatorStyle={{ backgroundColor: colors.border }}
+        backgroundStyle={styles.sheetBackground}
+        handleIndicatorStyle={styles.sheetHandle}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
-          <Text style={[styles.sheetTitle, typography.h2]}>Upload Material</Text>
+          <Text style={styles.sheetTitle}>Upload material</Text>
+          <Text style={styles.sheetSubtitle}>
+            Your upload goes to admin review before other students can see it.
+          </Text>
 
-                    <Button
-            label={selectedFile && !selectedFile.canceled ? selectedFile.assets[0].name : "Select File"}
+          {!hasAcademicProfile && (
+            <View style={styles.warningBox}>
+              <AlertCircle size={16} color={colors.warning} />
+              <Text style={styles.warningText}>
+                Complete your university, faculty, department, and level before uploading.
+              </Text>
+            </View>
+          )}
+
+          <Button
+            label={selectedFile && !selectedFile.canceled ? selectedFile.assets[0].name : "Select file"}
             variant="secondary"
             onPress={handleSelectFile}
             icon={<Upload size={20} color="#FFFFFF" />}
-            style={styles.sheetBtn}
+            style={styles.sheetButton}
           />
 
           <Input
@@ -300,29 +360,20 @@ export const LibraryScreen: React.FC = () => {
             onChangeText={setUploadTitle}
           />
 
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, typography.caption]}>University:</Text>
-            <Text style={[styles.infoValue, typography.caption]}>{user?.university || "Not set"}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, typography.caption]}>Faculty:</Text>
-            <Text style={[styles.infoValue, typography.caption]}>{user?.faculty || "Not set"}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, typography.caption]}>Department:</Text>
-            <Text style={[styles.infoValue, typography.caption]}>{user?.department || "Not set"}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, typography.caption]}>Level:</Text>
-            <Text style={[styles.infoValue, typography.caption]}>{user?.level ? `${user.level}L` : "Not set"}</Text>
+          <View style={styles.profileCard}>
+            <InfoRow label="University" value={user?.university || "Not set"} />
+            <InfoRow label="Faculty" value={user?.faculty || "Not set"} />
+            <InfoRow label="Department" value={user?.department || "Not set"} />
+            <InfoRow label="Level" value={user?.level ? `${user.level}L` : "Not set"} />
           </View>
 
           <Button
-            label="Upload"
+            label="Submit for review"
             onPress={handleUpload}
             loading={uploading}
             disabled={!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile}
-            style={styles.uploadBtn}
+            icon={<FileUp size={18} color="#FFFFFF" />}
+            style={styles.uploadButton}
           />
         </BottomSheetView>
       </BottomSheet>
@@ -339,32 +390,65 @@ export const LibraryScreen: React.FC = () => {
   );
 };
 
+const InfoRow = ({ label, value }: { label: string; value: string }) => (
+  <View style={styles.infoRow}>
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoValue} numberOfLines={1}>
+      {value}
+    </Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
   },
+  list: {
+    flex: 1,
+  },
   header: {
     paddingTop: 10,
   },
-  titleSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+  hero: {
+    alignItems: "center",
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 16,
+    padding: 16,
+  },
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 44,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 44,
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 21,
   },
   subtitle: {
+    ...typography.bodySmall,
     color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 17,
     marginTop: 4,
   },
   searchBarContainer: {
-    paddingHorizontal: 20,
-    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    flexDirection: "row",
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
@@ -373,57 +457,156 @@ const styles = StyleSheet.create({
   cancelSearch: {
     marginLeft: 12,
   },
+  cancelSearchText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
   listContent: {
-    paddingHorizontal: 20,
     paddingBottom: 100,
+    paddingHorizontal: 18,
+  },
+  emptyListContent: {
+    flexGrow: 1,
+  },
+  skeletonContent: {
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: 18,
+    paddingTop: 148,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   skeletonCard: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
     alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    padding: 14,
+  },
+  skeletonBody: {
+    flex: 1,
+    gap: 8,
+    marginLeft: 12,
   },
   emptyContainer: {
+    alignItems: "center",
     flex: 1,
     justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  emptyIcon: {
     alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 58,
+    justifyContent: "center",
+    marginBottom: 18,
+    width: 58,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontSize: 17,
+    marginBottom: 8,
+    textAlign: "center",
   },
   emptyText: {
+    ...typography.body,
     color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  retryButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    flexDirection: "row",
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryText: {
+    ...typography.body,
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 8,
   },
   fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    justifyContent: "center",
     alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    bottom: 24,
     elevation: 8,
+    height: 56,
+    justifyContent: "center",
+    position: "absolute",
+    right: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+    width: 56,
+  },
+  sheetBackground: {
+    backgroundColor: colors.surface,
+  },
+  sheetHandle: {
+    backgroundColor: colors.border,
   },
   bottomSheetContent: {
-    padding: 24,
     flex: 1,
+    padding: 24,
   },
   sheetTitle: {
-    color: "#FFFFFF",
-    marginBottom: 24,
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 20,
+    marginBottom: 6,
   },
-  sheetBtn: {
-    marginBottom: 20,
+  sheetSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
   },
-  uploadBtn: {
-    marginTop: 20,
+  warningBox: {
+    alignItems: "flex-start",
+    backgroundColor: "rgba(245,158,11,0.1)",
+    borderColor: "rgba(245,158,11,0.25)",
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 14,
+    padding: 12,
+  },
+  warningText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 17,
+    marginLeft: 8,
+  },
+  sheetButton: {
+    borderRadius: 8,
+    marginBottom: 18,
+  },
+  profileCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 2,
+    padding: 12,
   },
   infoRow: {
     flexDirection: "row",
@@ -431,10 +614,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   infoLabel: {
+    ...typography.caption,
     color: colors.textSecondary,
+    fontSize: 10,
   },
   infoValue: {
+    ...typography.caption,
     color: colors.textPrimary,
-    fontWeight: "600",
+    flex: 1,
+    fontSize: 10,
+    fontWeight: "700",
+    marginLeft: 12,
+    textAlign: "right",
+  },
+  uploadButton: {
+    borderRadius: 8,
+    marginTop: 18,
   },
 });

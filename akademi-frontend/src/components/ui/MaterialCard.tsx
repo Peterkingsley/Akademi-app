@@ -1,14 +1,17 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import {
-  FileText,
-  FileStack,
-  Grid,
   Book,
-  Star,
   Bookmark,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileStack,
+  FileText,
+  Grid,
+  Star,
 } from "lucide-react-native";
+
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
@@ -17,6 +20,7 @@ export interface MaterialCardProps {
   courseCode: string;
   fileType: "PDF" | "STUDY_DOC" | "SYSTEM_FILE" | "ETHICS";
   isVerified?: boolean;
+  status?: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   fileSize?: string;
   date?: string;
   rating?: number;
@@ -25,170 +29,211 @@ export interface MaterialCardProps {
   onBookmarkPress?: () => void;
 }
 
-export const MaterialCard = React.forwardRef<any, MaterialCardProps>(({
-  title,
-  courseCode,
-  fileType,
-  isVerified,
-  fileSize,
-  date,
-  rating,
-  isBookmarked,
-  onPress,
-  onBookmarkPress,
-}, ref) => {
-  const getIconConfig = () => {
-    switch (fileType) {
-      case "PDF":
-        return { icon: <FileText size={20} color="#FFFFFF" />, bg: "#FF6B35" };
-      case "STUDY_DOC":
-        return { icon: <FileStack size={20} color="#FFFFFF" />, bg: colors.primary };
-      case "SYSTEM_FILE":
-        return { icon: <Grid size={20} color="#FFFFFF" />, bg: colors.accentPurple };
-      case "ETHICS":
-        return { icon: <Book size={20} color="#FFFFFF" />, bg: colors.success };
-      default:
-        return { icon: <FileText size={20} color="#FFFFFF" />, bg: colors.textMuted };
-    }
-  };
+export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
+  (
+    {
+      title,
+      courseCode,
+      fileType,
+      isVerified,
+      status,
+      fileSize,
+      date,
+      rating,
+      isBookmarked,
+      onPress,
+      onBookmarkPress,
+    },
+    ref
+  ) => {
+    const getIconConfig = () => {
+      switch (fileType) {
+        case "PDF":
+          return { icon: <FileText size={20} color="#FFFFFF" />, bg: "#EF4444" };
+        case "STUDY_DOC":
+          return { icon: <FileStack size={20} color="#FFFFFF" />, bg: colors.primary };
+        case "SYSTEM_FILE":
+          return { icon: <Grid size={20} color="#FFFFFF" />, bg: "#38BDF8" };
+        case "ETHICS":
+          return { icon: <Book size={20} color="#FFFFFF" />, bg: "#A78BFA" };
+        default:
+          return { icon: <FileText size={20} color="#FFFFFF" />, bg: colors.textMuted };
+      }
+    };
 
-  const { icon, bg } = getIconConfig();
+    const { icon, bg } = getIconConfig();
+    const isPending = status === "PENDING";
 
-  return (
-    <TouchableOpacity
-      ref={ref}
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={styles.container}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: bg }]}>
-        {icon}
-      </View>
+    return (
+      <TouchableOpacity
+        ref={ref}
+        onPress={onPress}
+        activeOpacity={0.82}
+        style={styles.container}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: bg }]}>{icon}</View>
 
-      <View style={styles.content}>
-        <Text style={[styles.title, typography.bodySmall, { fontWeight: "700" }]} numberOfLines={1}>
-          {title}
-        </Text>
-
-        <View style={styles.metaRow}>
-          <View style={styles.coursePill}>
-            <Text style={[styles.courseText, typography.caption, { color: colors.primary }]}>
-              {courseCode}
-            </Text>
-          </View>
-
-          {isVerified && (
-            <View style={styles.verifiedBadge}>
-              <CheckCircle2 size={10} color="#3B82F6" style={{ marginRight: 2 }} />
-              <Text style={styles.verifiedText}>VERIFIED</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={[styles.footerText, typography.caption]}>
-            {fileSize && `${fileSize} • `}{date}
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title}
           </Text>
 
-          {rating !== undefined && (
-            <View style={styles.ratingContainer}>
-              <Star size={12} color={colors.warning} fill={colors.warning} />
-              <Text style={[styles.ratingText, typography.caption]}>{rating.toFixed(1)}</Text>
+          <View style={styles.metaRow}>
+            <View style={styles.coursePill}>
+              <Text style={styles.courseText}>{courseCode}</Text>
             </View>
-          )}
-        </View>
-      </View>
 
-      <TouchableOpacity
-        onPress={onBookmarkPress}
-        style={styles.bookmarkBtn}
-        activeOpacity={0.6}
-      >
-        <Bookmark
-          size={20}
-          color={isBookmarked ? colors.primary : colors.textSecondary}
-          fill={isBookmarked ? colors.primary : "transparent"}
-        />
+            {isVerified && (
+              <View style={styles.verifiedBadge}>
+                <CheckCircle2 size={10} color={colors.primary} style={styles.badgeIcon} />
+                <Text style={styles.verifiedText}>VERIFIED</Text>
+              </View>
+            )}
+
+            {isPending && (
+              <View style={styles.pendingBadge}>
+                <Clock size={10} color={colors.warning} style={styles.badgeIcon} />
+                <Text style={styles.pendingText}>PENDING</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText} numberOfLines={1}>
+              {[fileSize, date].filter(Boolean).join(" · ")}
+            </Text>
+
+            {rating !== undefined && (
+              <View style={styles.ratingContainer}>
+                <Star size={12} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {onBookmarkPress ? (
+          <TouchableOpacity
+            onPress={onBookmarkPress}
+            style={styles.bookmarkBtn}
+            activeOpacity={0.65}
+          >
+            <Bookmark
+              size={20}
+              color={isBookmarked ? colors.primary : colors.textSecondary}
+              fill={isBookmarked ? colors.primary : "transparent"}
+            />
+          </TouchableOpacity>
+        ) : (
+          <ChevronRight size={18} color={colors.textMuted} />
+        )}
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
-});
+    );
+  }
+);
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
     alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    padding: 14,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: "center",
     alignItems: "center",
+    borderRadius: 8,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
   },
   content: {
     flex: 1,
     marginLeft: 12,
+    minWidth: 0,
   },
   title: {
+    ...typography.h4,
     color: colors.textPrimary,
-    marginBottom: 4,
+    fontSize: 14,
+    lineHeight: 19,
+    marginBottom: 8,
   },
   metaRow: {
-    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
-    gap: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    marginBottom: 6,
   },
   coursePill: {
     backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   courseText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontSize: 9,
     fontWeight: "700",
-    fontSize: 7.5,
   },
   verifiedBadge: {
-    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(59, 130, 246, 0.1)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: "rgba(34,197,94,0.1)",
+    borderRadius: 5,
+    flexDirection: "row",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   verifiedText: {
-    color: "#3B82F6",
-    fontSize: 6.75,
+    color: colors.primary,
+    fontSize: 8,
     fontWeight: "800",
   },
-  footer: {
-    flexDirection: "row",
+  pendingBadge: {
     alignItems: "center",
+    backgroundColor: "rgba(245,158,11,0.12)",
+    borderRadius: 5,
+    flexDirection: "row",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  pendingText: {
+    color: colors.warning,
+    fontSize: 8,
+    fontWeight: "800",
+  },
+  badgeIcon: {
+    marginRight: 3,
+  },
+  footer: {
+    alignItems: "center",
+    flexDirection: "row",
     justifyContent: "space-between",
   },
   footerText: {
+    ...typography.caption,
     color: colors.textMuted,
-    fontSize: 8.25,
+    flex: 1,
+    fontSize: 10,
+    marginRight: 8,
   },
   ratingContainer: {
-    flexDirection: "row",
     alignItems: "center",
+    flexDirection: "row",
     gap: 4,
   },
   ratingText: {
+    ...typography.caption,
     color: colors.warning,
     fontWeight: "600",
   },
   bookmarkBtn: {
-    padding: 4,
     marginLeft: 8,
+    padding: 4,
   },
 });
