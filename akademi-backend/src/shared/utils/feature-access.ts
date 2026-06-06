@@ -2,7 +2,12 @@ import { Feature } from '@prisma/client';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 
-export async function checkFeatureAccess(userId: string, feature: Feature): Promise<boolean> {
+export async function checkFeatureAccess(
+  userId: string,
+  feature: Feature,
+  scopeType?: string,
+  scopeId?: string
+): Promise<boolean> {
   if (config.unlockAllFeatures) {
     return true;
   }
@@ -11,6 +16,14 @@ export async function checkFeatureAccess(userId: string, feature: Feature): Prom
     where: {
       user_id: userId,
       feature,
+      AND: scopeType && scopeId ? [
+        {
+          OR: [
+            { scope_type: scopeType, scope_id: scopeId },
+            { scope_type: null, scope_id: null },
+          ],
+        },
+      ] : undefined,
       OR: [
         { expires_at: { gt: new Date() } },
         { uses_remaining: { gt: 0 } },

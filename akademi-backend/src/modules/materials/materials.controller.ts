@@ -51,9 +51,17 @@ export class MaterialsController {
 
   async getQuestions(req: Request, res: Response) {
     try {
-      const questions = await materialsService.getQuestions(req.params.id);
+      const questions = await materialsService.getQuestions(req.params.id, req.user!.userId);
       res.status(200).json(questions);
     } catch (error: any) {
+      if (error.message === 'Material CBT Day Pass required') {
+        return res.status(403).json({
+          message: error.message,
+          productCode: 'MATERIAL_CBT_DAY_PASS',
+          scopeType: 'MATERIAL',
+          scopeId: req.params.id,
+        });
+      }
       res.status(404).json({ message: error.message });
     }
   }

@@ -3,8 +3,9 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
-import { VerificationStatus } from '@prisma/client';
+import { Feature, VerificationStatus } from '@prisma/client';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
+import { checkFeatureAccess } from '../../shared/utils/feature-access';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -99,13 +100,18 @@ export class MaterialsService {
     return getSignedUrl(s3Client, command, { expiresIn: 3600 });
   }
 
-  async getQuestions(id: string) {
+  async getQuestions(id: string, userId: string) {
     const material = await prisma.material.findUnique({
       where: { id, verification_status: VerificationStatus.VERIFIED },
     });
 
     if (!material) {
       throw new Error('Verified material not found');
+    }
+
+    const hasAccess = await checkFeatureAccess(userId, Feature.EXAM_PREP, 'MATERIAL', id);
+    if (!hasAccess) {
+      throw new Error('Material CBT Day Pass required');
     }
 
     return prisma.question.findMany({
