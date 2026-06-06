@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -50,6 +50,8 @@ export const SolveScreen: React.FC = () => {
   const [selectedType, setSelectedType] = useState("Theory");
   const [loading, setLoading] = useState(false);
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
+  const hasQuestion = question.trim().length > 0;
+  const hasCourse = course !== "Select Course";
 
   useEffect(() => {
     if (photoUri) {
@@ -57,14 +59,19 @@ export const SolveScreen: React.FC = () => {
     }
   }, [photoUri]);
 
-  const canSolve = useMemo(
-    () => !!question.trim() && course !== "Select Course" && !!selectedCause && !!selectedType,
-    [course, question, selectedCause, selectedType]
-  );
-
   const handleSolve = async () => {
-    if (!canSolve) {
-      Alert.alert("Add the missing details", "Choose a course and enter the question before solving.");
+    if (!hasCourse) {
+      Alert.alert("Choose a course", "Select the course this question belongs to before solving.");
+      return;
+    }
+
+    if (!hasQuestion) {
+      Alert.alert("Enter the question", "Type or paste the assignment question, then tap Solve assignment again.");
+      return;
+    }
+
+    if (!selectedCause || !selectedType) {
+      Alert.alert("Add the missing details", "Choose why you are solving this and the question type.");
       return;
     }
 
@@ -250,7 +257,7 @@ export const SolveScreen: React.FC = () => {
           label="Solve assignment"
           onPress={handleSolve}
           loading={loading}
-          disabled={!canSolve}
+          disabled={loading}
           style={styles.solveButton}
         />
       </ScrollView>
