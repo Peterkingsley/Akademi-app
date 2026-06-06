@@ -30,6 +30,15 @@ export class FeatureAccessService {
   }
 
   async initiatePurchase(userId: string, feature: Feature, accessType: AccessType, amount: number) {
+    if (config.unlockAllFeatures) {
+      return {
+        paymentUrl: '',
+        reference: 'BYPASS',
+        betaUnlocked: true,
+        message: 'Akademi free beta is active. All MVP features are currently unlocked.',
+      };
+    }
+
     const reference = `PAY-${uuidv4()}`;
 
     // In a real implementation, this would call Paystack API

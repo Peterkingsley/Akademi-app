@@ -23,9 +23,24 @@ export interface UserProfile {
 }
 
 export interface FeatureAccess {
-  hasAccess: boolean;
-  plan: "free" | "pro";
+  id?: string;
+  user_id?: string;
+  feature?: string;
+  access_type?: string;
+  expires_at?: string;
+  uses_remaining?: number | null;
+  purchased_at?: string;
+  payment_ref?: string;
+  hasAccess?: boolean;
+  plan?: "free" | "pro";
   expiresAt?: string;
+}
+
+export interface PurchaseSubscriptionResponse {
+  paymentUrl: string;
+  reference: string;
+  betaUnlocked?: boolean;
+  message?: string;
 }
 
 export const userService = {
@@ -75,13 +90,13 @@ export const userService = {
   },
 
   getFeatureAccess: async () => {
-    const response = await api.get<FeatureAccess>("/users/me/feature-access");
+    const response = await api.get<FeatureAccess[]>("/users/me/feature-access");
     return response.data;
   },
 
   purchaseSubscription: async (plan: "monthly" | "yearly") => {
-    const response = await api.post<{ paymentUrl: string }>("/feature-access/purchase", {
-      feature: "ALL",
+    const response = await api.post<PurchaseSubscriptionResponse>("/feature-access/purchase", {
+      feature: "EXAM_PREP",
       access_type: "TIME_WINDOW",
       amount: plan === "monthly" ? 2000 : 20000,
     });

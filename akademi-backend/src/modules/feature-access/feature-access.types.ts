@@ -9,6 +9,8 @@ export interface PurchaseRequest {
 export interface PurchaseResponse {
   paymentUrl: string;
   reference: string;
+  betaUnlocked?: boolean;
+  message?: string;
 }
 
 export interface FeatureAccessCheckResponse {

@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -30,14 +30,48 @@ export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [isFreeBetaActive, setIsFreeBetaActive] = useState(false);
+
+  useEffect(() => {
+    const fetchAccess = async () => {
+      try {
+        const access = await userService.getFeatureAccess();
+        setIsFreeBetaActive(access.some((item) => item.payment_ref === "BYPASS"));
+      } catch (error) {
+        console.error("Feature access check failed:", error);
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+
+    fetchAccess();
+  }, []);
 
   const handleUpgrade = async () => {
+    if (isFreeBetaActive) {
+      navigation.goBack();
+      return;
+    }
+
     setLoading(true);
     try {
-      const { paymentUrl } = await userService.purchaseSubscription(billingCycle);
+      const { paymentUrl, betaUnlocked, message } = await userService.purchaseSubscription(billingCycle);
+      if (betaUnlocked) {
+        setIsFreeBetaActive(true);
+        Alert.alert("Free beta active", message || "All MVP features are unlocked for now.");
+        return;
+      }
+
+      if (!paymentUrl) {
+        Alert.alert("Payment unavailable", "Payment setup is not ready yet. Please try again later.");
+        return;
+      }
+
       await WebBrowser.openBrowserAsync(paymentUrl);
     } catch (error) {
       console.error("Subscription purchase failed:", error);
+      Alert.alert("Payment unavailable", "We could not start checkout. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -51,9 +85,9 @@ export const SubscriptionScreen: React.FC = () => {
     { icon: <Target size={20} color="#FFFFFF" />, text: "Full Exam Prep & unlimited mock exams" },
   ];
 
-  const price = billingCycle === "yearly" ? "₦18,000" : "₦2,500";
-  const originalPrice = billingCycle === "yearly" ? "₦30,000" : null;
-  const savings = billingCycle === "yearly" ? "SAVE ₦12,000" : null;
+  const displayPrice = billingCycle === "yearly" ? "NGN 18,000" : "NGN 2,500";
+  const displayOriginalPrice = billingCycle === "yearly" ? "NGN 30,000" : null;
+  const displaySavings = billingCycle === "yearly" ? "SAVE NGN 12,000" : null;
 
   return (
     <View style={styles.container}>
@@ -75,7 +109,9 @@ export const SubscriptionScreen: React.FC = () => {
               <Sparkles size={24} color="#FFFFFF" />
             </View>
             <Text style={styles.subtitle}>
-              Unlock the full potential of your academic journey.
+              {isFreeBetaActive
+                ? "Free beta is active. All MVP study tools are unlocked."
+                : "Unlock the full potential of your academic journey."}
             </Text>
           </View>
         </LinearGradient>
@@ -92,6 +128,15 @@ export const SubscriptionScreen: React.FC = () => {
               </View>
             ))}
           </View>
+
+          {isFreeBetaActive && (
+            <View style={styles.betaBanner}>
+              <Text style={styles.betaLabel}>FREE BETA</Text>
+              <Text style={styles.betaText}>
+                Payments are configured for launch, but checkout is paused while beta access is unlocked.
+              </Text>
+            </View>
+          )}
 
           {/* Billing Toggle */}
           <View style={styles.toggleContainer}>
@@ -122,31 +167,35 @@ export const SubscriptionScreen: React.FC = () => {
 
           {/* Price Display */}
           <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>{price}<Text style={styles.pricePeriod}>/{billingCycle === "yearly" ? "year" : "mo"}</Text></Text>
+            <Text style={styles.priceText}>{displayPrice}<Text style={styles.pricePeriod}>/{billingCycle === "yearly" ? "year" : "mo"}</Text></Text>
             {billingCycle === "yearly" && (
               <View style={styles.savingsRow}>
-                <Text style={styles.originalPrice}>{originalPrice}</Text>
-                <Text style={styles.savingsText}>{savings}</Text>
+                <Text style={styles.originalPrice}>{displayOriginalPrice}</Text>
+                <Text style={styles.savingsText}>{displaySavings}</Text>
               </View>
             )}
           </View>
 
           {/* Action Button */}
           <Button
-            label="Upgrade to Pro"
+            label={isFreeBetaActive ? "Continue with free beta" : "Upgrade to Pro"}
             onPress={handleUpgrade}
-            loading={loading}
+            loading={loading || checkingAccess}
             icon={<ArrowRight size={20} color="#FFFFFF" />}
             style={styles.upgradeButton}
           />
 
           <Text style={styles.trustText}>
-            Cancel anytime • Secure payment • 3-day free trial
+            {isFreeBetaActive
+              ? "No payment needed during beta. Paid plans can be enabled after launch."
+              : "Cancel anytime - Secure payment - 3-day free trial"}
           </Text>
 
-          <TouchableOpacity style={styles.restoreButton}>
-            <Text style={styles.restoreText}>Restore purchases</Text>
-          </TouchableOpacity>
+          {!isFreeBetaActive && (
+            <TouchableOpacity style={styles.restoreButton}>
+              <Text style={styles.restoreText}>Restore purchases</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </SafeArea>
     </View>
@@ -198,7 +247,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   featuresList: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   featureRow: {
     flexDirection: "row",
@@ -217,6 +266,25 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: 11.25,
     color: colors.textPrimary,
+  },
+  betaBanner: {
+    backgroundColor: colors.primary + "18",
+    borderWidth: 1,
+    borderColor: colors.primary + "55",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+  },
+  betaLabel: {
+    ...typography.mono,
+    color: colors.primary,
+    fontSize: 8,
+    marginBottom: 6,
+  },
+  betaText: {
+    color: colors.textSecondary,
+    fontSize: 10.5,
+    lineHeight: 18,
   },
   toggleContainer: {
     alignItems: "center",
