@@ -8,6 +8,7 @@ import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { NotFoundException } from '../../shared/exceptions';
 import { SessionType } from '@prisma/client';
 import { MaterialsService } from '../materials/materials.service';
+import { notificationsService } from '../notifications/notifications.service';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -304,11 +305,20 @@ export class AdminService {
       console.error(`Material ${id} approved, but question generation failed:`, error);
     }
 
+    await notificationsService.createNotification({
+      user_id: material.uploaded_by,
+      title: 'Material approved',
+      message: `${material.title} is now public and ready for students to use.`,
+      type: 'success',
+    }).catch(error => {
+      console.error(`Material ${id} approved, but notification failed:`, error);
+    });
+
     return material;
   }
 
   async takedownMaterial(id: string, adminId: string) {
-    return prisma.material.update({
+    const material = await prisma.material.update({
       where: { id },
       data: {
         verification_status: VerificationStatus.TAKEN_DOWN,
@@ -316,10 +326,21 @@ export class AdminService {
         admin_reviewed_at: new Date()
       }
     });
+
+    await notificationsService.createNotification({
+      user_id: material.uploaded_by,
+      title: 'Material taken down',
+      message: `${material.title} is no longer public after admin review.`,
+      type: 'warning',
+    }).catch(error => {
+      console.error(`Material ${id} takedown notification failed:`, error);
+    });
+
+    return material;
   }
 
   async restoreMaterial(id: string, adminId: string) {
-    return prisma.material.update({
+    const material = await prisma.material.update({
       where: { id },
       data: {
         verification_status: VerificationStatus.VERIFIED,
@@ -327,6 +348,17 @@ export class AdminService {
         admin_reviewed_at: new Date()
       }
     });
+
+    await notificationsService.createNotification({
+      user_id: material.uploaded_by,
+      title: 'Material restored',
+      message: `${material.title} is public again after admin review.`,
+      type: 'success',
+    }).catch(error => {
+      console.error(`Material ${id} restore notification failed:`, error);
+    });
+
+    return material;
   }
 
   async forceVerify(id: string, adminId: string) {

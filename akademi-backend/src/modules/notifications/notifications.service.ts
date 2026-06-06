@@ -9,9 +9,17 @@ export class NotificationsService {
   }
 
   async markAsRead(id: string, userId: string) {
-    return prisma.notification.update({
+    const result = await prisma.notification.updateMany({
       where: { id, user_id: userId },
       data: { read: true },
+    });
+
+    if (result.count === 0) {
+      throw new Error('Notification not found');
+    }
+
+    return prisma.notification.findUnique({
+      where: { id },
     });
   }
 
