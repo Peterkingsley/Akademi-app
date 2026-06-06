@@ -274,9 +274,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingBottom: 14,
+    paddingBottom: 10,
     paddingHorizontal: 18,
-    paddingTop: 16,
+    paddingTop: 0,
   },
   headerEyebrow: {
     ...typography.label,
@@ -300,7 +300,8 @@ const styles = StyleSheet.create({
     width: 40,
   },
   content: {
-    padding: 18,
+    paddingHorizontal: 18,
+    paddingTop: 4,
     paddingBottom: 36,
   },
   coursePanel: {

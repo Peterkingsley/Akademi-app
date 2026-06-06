@@ -9,6 +9,7 @@ interface CourseFilterTabsProps {
   selectedCourse: string;
   onSelectCourse: (course: string) => void;
   onSearchPress?: () => void;
+  contentPaddingHorizontal?: number;
 }
 
 export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
@@ -16,13 +17,17 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
   selectedCourse,
   onSelectCourse,
   onSearchPress,
+  contentPaddingHorizontal = 20,
 }) => {
   return (
     <View style={styles.container}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingHorizontal: contentPaddingHorizontal },
+        ]}
       >
         <TouchableOpacity
           onPress={onSearchPress}
@@ -67,7 +72,6 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     gap: 8,
     alignItems: "center",
   },

@@ -218,6 +218,7 @@ export const LibraryScreen: React.FC = () => {
         selectedCourse={selectedCourse}
         onSelectCourse={setSelectedCourse}
         onSearchPress={() => setIsSearchActive(true)}
+        contentPaddingHorizontal={0}
       />
     </View>
   );
@@ -408,7 +409,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 10,
+    paddingTop: 0,
+    marginBottom: 2,
   },
   hero: {
     alignItems: "center",
@@ -474,7 +476,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     paddingHorizontal: 18,
-    paddingTop: 148,
+    paddingTop: 136,
     position: "absolute",
     right: 0,
     top: 0,
