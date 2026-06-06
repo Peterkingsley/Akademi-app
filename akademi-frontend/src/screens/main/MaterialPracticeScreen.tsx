@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Check, ChevronLeft, ChevronRight, ClipboardList, X } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import * as WebBrowser from "expo-web-browser";
 import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -17,6 +18,9 @@ import { ProgressBar } from "../../components/ui/ProgressBar";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { materialService, PracticeQuestion } from "../../services/material";
+import { userService } from "../../services/user";
+
+const MATERIAL_CBT_DAY_PASS = "MATERIAL_CBT_DAY_PASS";
 
 export const MaterialPracticeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -25,6 +29,7 @@ export const MaterialPracticeScreen: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [passStatus, setPassStatus] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -32,6 +37,22 @@ export const MaterialPracticeScreen: React.FC = () => {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
+        setPassStatus("Checking CBT pass...");
+        const pass = await userService.purchaseFeaturePass(MATERIAL_CBT_DAY_PASS, materialId, "MATERIAL");
+        if (pass.betaUnlocked) {
+          setPassStatus("Free beta active");
+        } else if (pass.paymentUrl) {
+          Alert.alert(
+            "CBT pass required",
+            "Open checkout to unlock unlimited CBT practice for this material today.",
+            [
+              { text: "Not now", style: "cancel", onPress: () => navigation.goBack() },
+              { text: "Open checkout", onPress: () => WebBrowser.openBrowserAsync(pass.paymentUrl) },
+            ]
+          );
+          return;
+        }
+
         const data = await materialService.getMaterialQuestions(materialId);
         setQuestions(data);
       } catch (error) {
@@ -77,6 +98,7 @@ export const MaterialPracticeScreen: React.FC = () => {
       <Screen style={styles.screen} hideHeader>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, typography.caption]}>{passStatus || "Preparing CBT..."}</Text>
         </View>
       </Screen>
     );
@@ -209,6 +231,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
+  },
+  loadingText: {
+    color: colors.textMuted,
+    marginTop: 12,
   },
   header: {
     alignItems: "center",
