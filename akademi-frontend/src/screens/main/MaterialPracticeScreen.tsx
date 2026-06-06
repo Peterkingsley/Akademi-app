@@ -21,6 +21,8 @@ import { materialService, PracticeQuestion } from "../../services/material";
 import { userService } from "../../services/user";
 
 const MATERIAL_CBT_DAY_PASS = "MATERIAL_CBT_DAY_PASS";
+const MATERIAL_CBT_PASS_LABEL = "Material CBT Day Pass";
+const MATERIAL_CBT_PASS_PRICE = "NGN 100";
 
 export const MaterialPracticeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -28,6 +30,8 @@ export const MaterialPracticeScreen: React.FC = () => {
   const { materialId, title } = route.params;
 
   const [loading, setLoading] = useState(true);
+  const [checkoutUrl, setCheckoutUrl] = useState("");
+  const [checkoutOpening, setCheckoutOpening] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [passStatus, setPassStatus] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -42,14 +46,7 @@ export const MaterialPracticeScreen: React.FC = () => {
         if (pass.betaUnlocked) {
           setPassStatus("Free beta active");
         } else if (pass.paymentUrl) {
-          Alert.alert(
-            "CBT pass required",
-            "Open checkout to unlock unlimited CBT practice for this material today.",
-            [
-              { text: "Not now", style: "cancel", onPress: () => navigation.goBack() },
-              { text: "Open checkout", onPress: () => WebBrowser.openBrowserAsync(pass.paymentUrl) },
-            ]
-          );
+          setCheckoutUrl(pass.paymentUrl);
           return;
         }
 
@@ -93,12 +90,70 @@ export const MaterialPracticeScreen: React.FC = () => {
     setSubmitted(true);
   };
 
+  const openCheckout = async () => {
+    if (!checkoutUrl || checkoutOpening) return;
+
+    setCheckoutOpening(true);
+    try {
+      const result = await WebBrowser.openBrowserAsync(checkoutUrl);
+      if (result.type === "cancel") {
+        Alert.alert(
+          "Checkout not completed",
+          "Complete payment to unlock CBT practice for this material, then return here and try again."
+        );
+      }
+    } catch (error) {
+      console.error("Failed to open CBT pass checkout:", error);
+      Alert.alert("Checkout unavailable", "We could not open payment. Please check your connection and try again.");
+    } finally {
+      setCheckoutOpening(false);
+    }
+  };
+
   if (loading) {
     return (
       <Screen style={styles.screen} hideHeader>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, typography.caption]}>{passStatus || "Preparing CBT..."}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (checkoutUrl) {
+    return (
+      <Screen style={styles.screen} hideHeader>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+            <X size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleWrap}>
+            <Text style={[styles.headerTitle, typography.h3]}>Material CBT</Text>
+            <Text style={[styles.headerSubtitle, typography.caption]} numberOfLines={1}>{title || "Practice"}</Text>
+          </View>
+          <View style={styles.headerBtn} />
+        </View>
+
+        <View style={styles.passPrompt}>
+          <View style={styles.passIcon}>
+            <ClipboardList size={28} color={colors.primary} />
+          </View>
+          <Text style={[styles.passEyebrow, typography.mono]}>PASS REQUIRED</Text>
+          <Text style={[styles.passTitle, typography.h2]}>{MATERIAL_CBT_PASS_LABEL}</Text>
+          <Text style={[styles.passPrice, typography.h1]}>{MATERIAL_CBT_PASS_PRICE}</Text>
+          <Text style={[styles.passDescription, typography.bodySmall]}>
+            Unlock unlimited CBT practice for this material for 24 hours. This pass only applies to this material.
+          </Text>
+          <Button
+            label="Buy pass and continue"
+            onPress={openCheckout}
+            loading={checkoutOpening}
+            style={styles.passButton}
+          />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.passCancel}>
+            <Text style={[styles.passCancelText, typography.bodySmall]}>Not now</Text>
+          </TouchableOpacity>
         </View>
       </Screen>
     );
@@ -235,6 +290,53 @@ const styles = StyleSheet.create({
   loadingText: {
     color: colors.textMuted,
     marginTop: 12,
+  },
+  passPrompt: {
+    alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  passIcon: {
+    alignItems: "center",
+    backgroundColor: colors.primary + "18",
+    borderRadius: 22,
+    height: 64,
+    justifyContent: "center",
+    marginBottom: 18,
+    width: 64,
+  },
+  passEyebrow: {
+    color: colors.primary,
+    fontSize: 9,
+    marginBottom: 10,
+  },
+  passTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  passPrice: {
+    color: colors.primary,
+    fontWeight: "800",
+    marginTop: 10,
+  },
+  passDescription: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  passButton: {
+    marginTop: 26,
+    width: "100%",
+  },
+  passCancel: {
+    padding: 14,
+  },
+  passCancelText: {
+    color: colors.textMuted,
+    fontWeight: "700",
   },
   header: {
     alignItems: "center",
