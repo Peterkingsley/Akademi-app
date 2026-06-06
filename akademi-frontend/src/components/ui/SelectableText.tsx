@@ -19,6 +19,15 @@ interface SelectableTextProps {
   onHighlight?: (selectedText: string) => void;
 }
 
+const formatDisplayText = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/^\s*\*\s+/gm, "- ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 export const SelectableText: React.FC<SelectableTextProps> = ({
   content,
   onAskAkademi,
@@ -27,6 +36,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const displayContent = formatDisplayText(content);
 
   const handleSelectionChange = (event: any) => {
     const { start, end } = event.nativeEvent.selection;
@@ -41,7 +51,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   };
 
   const getSelectedText = () => {
-    return content.substring(selection.start, selection.end);
+    return displayContent.substring(selection.start, selection.end);
   };
 
   const handleCopy = () => {
@@ -65,7 +75,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         multiline
         editable={false}
         scrollEnabled={false}
-        value={content}
+        value={displayContent}
         style={[styles.textInput, typography.body]}
         onSelectionChange={handleSelectionChange}
         contextMenuHidden={true} // Hide native menu to show ours

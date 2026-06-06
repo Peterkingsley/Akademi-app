@@ -393,9 +393,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   academicDetails: {
-    fontFamily: "SpaceMono-Regular",
-    fontSize: 9,
+    ...typography.bodySmall,
     color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 17,
+    maxWidth: "86%",
     textAlign: "center",
     marginBottom: 16,
   },
