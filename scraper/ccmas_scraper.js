@@ -8,7 +8,16 @@ const CCMAS_URLS = {
     "Social Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Social-Sciences-CCMAS-FINAL-2023-A.pdf",
     "Engineering": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Engineering-Technology-CCMAS-2023-FINAL.pdf",
     "Law": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Law-ALL.pdf",
-    "Agriculture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Agriculture-2023.pdf"
+    "Agriculture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Agriculture-2023.pdf",
+    "Architecture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Architecture-CCMAS-2023-FINAL.pdf",
+    "Arts": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Arts-CCMAS-2023-FINAL.pdf",
+    "Basic Medical Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Basic-Medical-Sciences-CCMAS-FINAL-December-26-2022.pdf",
+    "Communication and Media Studies": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Communication-and-Media-Studies-CCMAS-2023-FINAL.pdf",
+    "Education": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Education-CCMAS-2023-New.pdf",
+    "Environmental Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Environmental-Sciences-CCMAS-2023-FINAL.pdf",
+    "Medicine and Dentistry": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Medicine-and-Dentistry-CCMAS-2023-FINAL.pdf",
+    "Pharmacy": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Pharmacy-and-Pharmaceutical-Sciences-CCMAS-2023-FINAL.pdf",
+    "Veterinary Medicine": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Veterinary-Medicine-CCMAS-2023-FINAL.pdf"
 };
 
 const DELAY_BETWEEN_DISCIPLINES = 2000;
@@ -26,12 +35,12 @@ async function fetchWithRetry(url, retries = MAX_RETRIES) {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 },
-                timeout: 30000
+                timeout: 60000
             });
         } catch (error) {
             console.warn(`Attempt ${i + 1} failed for ${url}: ${error.message}`);
             if (i === retries - 1) throw error;
-            await sleep(Math.pow(2, i) * 2000); // Exponential backoff: 2s, 4s, 8s
+            await sleep(Math.pow(2, i) * 2000);
         }
     }
 }
@@ -56,7 +65,6 @@ async function downloadAndParse(discipline, url) {
             else if (trimmedLine.includes('500 Level')) currentLevel = 500;
             else if (trimmedLine.includes('600 Level')) currentLevel = 600;
 
-            // Updated Regex to be more flexible
             const courseMatch = trimmedLine.match(/^([A-Z]{3,4})\s?([0-9]{3})[:\s]+(.+?)\s+([0-9])\s+[CE]/i)
                              || trimmedLine.match(/^([A-Z]{3,4})\s?([0-9]{3})\s+(.+?)\s+([0-9])$/);
 
@@ -94,7 +102,7 @@ async function main() {
         await sleep(DELAY_BETWEEN_DISCIPLINES);
     }
     fs.writeFileSync('scraper/ccmas_courses.json', JSON.stringify(allResults, null, 2));
-    console.log('CCMAS scraping complete.');
+    console.log('CCMAS full scraping complete.');
 }
 
 if (require.main === module) {

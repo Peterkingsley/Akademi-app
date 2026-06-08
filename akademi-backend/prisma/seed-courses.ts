@@ -13,22 +13,28 @@ async function main() {
 
   const ccmasData = JSON.parse(fs.readFileSync(coursesPath, 'utf-8'));
 
-  // Mapping from CCMAS Discipline to typical faculty/department names in DB
-  // This is a heuristic mapping
   const mapping: Record<string, string[]> = {
-    "Computing": ["Computer Science", "Information Technology", "Cyber Security", "Software Engineering"],
-    "Sciences": ["Biochemistry", "Biology", "Botany", "Chemistry", "Geology", "Mathematics", "Microbiology", "Physics", "Zoology", "Science"],
-    "Social Sciences": ["Economics", "Geography", "Political Science", "Psychology", "Sociology", "Social Science"],
-    "Engineering": ["Civil Engineering", "Computer Engineering", "Electrical Engineering", "Mechanical Engineering", "Engineering"],
+    "Computing": ["Computer Science", "Information Technology", "Cyber Security", "Software Engineering", "Computing"],
+    "Sciences": ["Biochemistry", "Biology", "Botany", "Chemistry", "Geology", "Mathematics", "Microbiology", "Physics", "Zoology", "Science", "Statistics"],
+    "Social Sciences": ["Economics", "Geography", "Political Science", "Psychology", "Sociology", "Social Science", "Mass Communication", "Public Administration", "International Relations"],
+    "Engineering": ["Civil Engineering", "Computer Engineering", "Electrical Engineering", "Mechanical Engineering", "Engineering", "Chemical Engineering", "Petroleum Engineering"],
     "Law": ["Law"],
-    "Agriculture": ["Agriculture", "Animal Science", "Soil Science", "Crop Science"]
+    "Agriculture": ["Agriculture", "Animal Science", "Soil Science", "Crop Science", "Fisheries", "Forestry"],
+    "Architecture": ["Architecture"],
+    "Arts": ["History", "English", "Philosophy", "Religious Studies", "Linguistics", "Theatre Arts", "Music", "French", "Arabic", "Fine Arts", "Arts"],
+    "Basic Medical Sciences": ["Anatomy", "Physiology", "Medical Biochemistry"],
+    "Communication and Media Studies": ["Mass Communication", "Journalism", "Public Relations", "Advertising", "Media Studies"],
+    "Education": ["Education", "Guidance and Counselling"],
+    "Environmental Sciences": ["Environmental Science", "Estate Management", "Quantity Surveying", "Urban and Regional Planning", "Surveying", "Building"],
+    "Medicine and Dentistry": ["Medicine", "Surgery", "Dentistry"],
+    "Pharmacy": ["Pharmacy"],
+    "Veterinary Medicine": ["Veterinary"]
   };
 
   for (const [discipline, courses] of Object.entries(ccmasData)) {
     const deptKeywords = mapping[discipline] || [discipline];
     console.log(`Seeding courses for discipline: ${discipline}`);
 
-    // Find all departments that match any of the keywords
     const departments = await prisma.department.findMany({
       where: {
         OR: deptKeywords.map(keyword => ({
@@ -64,7 +70,6 @@ async function main() {
             },
           });
         } catch (error) {
-          // Silently skip errors (usually unique constraint or data issues)
         }
       }
     }
