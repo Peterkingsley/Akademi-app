@@ -13,15 +13,25 @@ async function main() {
 
   const ccmasData = JSON.parse(fs.readFileSync(coursesPath, 'utf-8'));
 
-  // Mapping from CCMAS Discipline to typical faculty/department names in DB
-  // This is a heuristic mapping
+  // Expanded Mapping from CCMAS Discipline to typical faculty/department names in DB
   const mapping: Record<string, string[]> = {
-    "Computing": ["Computer Science", "Information Technology", "Cyber Security", "Software Engineering"],
-    "Sciences": ["Biochemistry", "Biology", "Botany", "Chemistry", "Geology", "Mathematics", "Microbiology", "Physics", "Zoology", "Science"],
-    "Social Sciences": ["Economics", "Geography", "Political Science", "Psychology", "Sociology", "Social Science"],
-    "Engineering": ["Civil Engineering", "Computer Engineering", "Electrical Engineering", "Mechanical Engineering", "Engineering"],
+    "Administration and Management": ["Accounting", "Business Administration", "Public Administration", "Marketing", "Insurance", "Management"],
+    "Agriculture": ["Agriculture", "Animal Science", "Soil Science", "Crop Science", "Fisheries", "Forestry"],
+    "Allied Health Sciences": ["Nursing", "Physiotherapy", "Radiography", "Medical Laboratory", "Nutrition", "Dietetics"],
+    "Architecture": ["Architecture"],
+    "Arts": ["English", "History", "Philosophy", "Religious Studies", "Theatre Arts", "Music", "French", "Linguistics"],
+    "Basic Medical Sciences": ["Anatomy", "Physiology", "Medical Biochemistry"],
+    "Communication and Media Studies": ["Mass Communication", "Journalism", "Broadcasting", "Public Relations", "Advertising"],
+    "Computing": ["Computer Science", "Information Technology", "Cyber Security", "Software Engineering", "Computer"],
+    "Education": ["Education", "Adult Education", "Guidance and Counseling", "Special Education"],
+    "Engineering": ["Civil Engineering", "Computer Engineering", "Electrical Engineering", "Mechanical Engineering", "Chemical Engineering", "Engineering"],
+    "Environmental Sciences": ["Estate Management", "Quantity Surveying", "Urban and Regional Planning", "Building", "Environmental"],
     "Law": ["Law"],
-    "Agriculture": ["Agriculture", "Animal Science", "Soil Science", "Crop Science"]
+    "Medicine and Dentistry": ["Medicine", "Surgery", "Dentistry"],
+    "Pharmacy and Pharmaceutical Sciences": ["Pharmacy"],
+    "Sciences": ["Biochemistry", "Biology", "Botany", "Chemistry", "Geology", "Mathematics", "Microbiology", "Physics", "Zoology", "Science"],
+    "Social Sciences": ["Economics", "Geography", "Political Science", "Psychology", "Sociology", "Anthropology", "Social Science"],
+    "Veterinary Medicine": ["Veterinary"]
   };
 
   for (const [discipline, courses] of Object.entries(ccmasData)) {
@@ -64,7 +74,7 @@ async function main() {
             },
           });
         } catch (error) {
-          // Silently skip errors (usually unique constraint or data issues)
+          // Silently skip errors
         }
       }
     }
