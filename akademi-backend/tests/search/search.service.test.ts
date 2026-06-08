@@ -1,7 +1,22 @@
 import { SearchService } from '../../src/modules/search/search.service';
 import { typesenseService } from '../../src/shared/search/typesense.service';
+import prisma from '../../src/config/db';
 
 jest.mock('../../src/shared/search/typesense.service');
+jest.mock('../../src/config/db', () => ({
+  material: {
+    findMany: jest.fn(),
+  },
+  question: {
+    findMany: jest.fn(),
+  },
+  course: {
+    findMany: jest.fn(),
+  },
+  university: {
+    findMany: jest.fn(),
+  },
+}));
 
 describe('SearchService', () => {
   let searchService: SearchService;
@@ -25,19 +40,51 @@ describe('SearchService', () => {
     }));
   });
 
-  it('should handle cross-school browsing when no university is provided', async () => {
-    (typesenseService.search as jest.Mock).mockResolvedValue({ hits: [], found: 0 });
+  it('should fallback to Prisma when Typesense search fails', async () => {
+    (typesenseService.search as jest.Mock).mockRejectedValue(new Error('Typesense down'));
+    const mockPrismaResults = [{ id: 'mat-1', title: 'Thermo' }];
+    (prisma.material.findMany as jest.Mock).mockResolvedValue(mockPrismaResults);
+
+    const query = { q: 'thermo', type: 'material', university: 'UNILAG' };
+    const result = await searchService.search(query, mockUser);
+
+    expect(typesenseService.search).toHaveBeenCalled();
+    expect(prisma.material.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        AND: expect.arrayContaining([
+          expect.objectContaining({ OR: expect.any(Array) }),
+          expect.objectContaining({ university: 'UNILAG' })
+        ])
+      })
+    }));
+
+    expect(result.materials.hits).toHaveLength(1);
+    expect(result.materials.hits[0].document.title).toBe('Thermo');
+    expect(result.materials.found).toBe(1);
+  });
+
+  it('should handle cross-school browsing fallback when Typesense fails', async () => {
+    (typesenseService.search as jest.Mock).mockRejectedValue(new Error('Typesense down'));
+    (prisma.material.findMany as jest.Mock).mockResolvedValue([]);
 
     const query = { q: 'thermo', type: 'material' };
     await searchService.search(query, mockUser);
 
-    // Should call search twice: once for own university, once for others
-    expect(typesenseService.search).toHaveBeenCalledTimes(2);
-    expect(typesenseService.search).toHaveBeenNthCalledWith(1, 'materials', expect.objectContaining({
-      filter_by: 'university:=UNILAG',
+    // Should call Prisma twice: once for own university, once for others
+    expect(prisma.material.findMany).toHaveBeenCalledTimes(2);
+    expect(prisma.material.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({
+        AND: expect.arrayContaining([
+          expect.objectContaining({ university: 'UNILAG' })
+        ])
+      })
     }));
-    expect(typesenseService.search).toHaveBeenNthCalledWith(2, 'materials', expect.objectContaining({
-      filter_by: 'university:!=UNILAG',
+    expect(prisma.material.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: expect.objectContaining({
+        AND: expect.arrayContaining([
+          expect.objectContaining({ university: { not: 'UNILAG' } })
+        ])
+      })
     }));
   });
 });
