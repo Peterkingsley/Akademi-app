@@ -3,12 +3,23 @@ const axios = require('axios');
 const pdf = require('pdf-parse');
 
 const CCMAS_URLS = {
+    "Administration and Management": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Administration-and-Management.pdf",
+    "Agriculture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Agriculture-2023.pdf",
+    "Allied Health Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Allied-Health-Sciences-2023.pdf",
+    "Architecture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Architecture-CCMAS-2023-FINAL.pdf",
+    "Arts": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Arts-CCMAS-2023-FINAL.pdf",
+    "Basic Medical Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Basic-Medical-Sciences-CCMAS-FINAL-December-26-2022.pdf",
+    "Communication and Media Studies": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Communication-and-Media-Studies-CCMAS-2023-FINAL.pdf",
     "Computing": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Computing-CCMAS-2023-FINAL.pdf",
+    "Education": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Education-CCMAS-2023-New.pdf",
+    "Engineering": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Engineering-Technology-CCMAS-2023-FINAL.pdf",
+    "Environmental Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Environmental-Sciences-CCMAS-2023-FINAL.pdf",
+    "Law": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Law-ALL.pdf",
+    "Medicine and Dentistry": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Medicine-and-Dentistry-CCMAS-2023-FINAL.pdf",
+    "Pharmacy and Pharmaceutical Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Pharmacy-and-Pharmaceutical-Sciences-CCMAS-2023-FINAL.pdf",
     "Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Sciences-CCMAS-2023-FINAL.pdf",
     "Social Sciences": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Social-Sciences-CCMAS-FINAL-2023-A.pdf",
-    "Engineering": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Engineering-Technology-CCMAS-2023-FINAL.pdf",
-    "Law": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Law-ALL.pdf",
-    "Agriculture": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Agriculture-2023.pdf"
+    "Veterinary Medicine": "https://www.nuc.edu.ng/wp-content/uploads/2026/03/Veterinary-Medicine-CCMAS-2023-FINAL.pdf"
 };
 
 const DELAY_BETWEEN_DISCIPLINES = 2000;
