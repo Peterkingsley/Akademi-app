@@ -9,13 +9,25 @@ export async function syncAllToTypesense() {
   console.log('Syncing universities...');
   await syncUniversitiesAndDepartments();
 
-  console.log('Syncing materials and courses...');
+  console.log('Syncing materials...');
   const materials = await prisma.material.findMany();
   for (const m of materials) {
     await addMaterialToIndex(m.id);
-    if (m.course_code) {
-      await addCourseToIndex(m.course_code, m.university, m.department);
+  }
+
+  console.log('Syncing courses from master table...');
+  const courses = await prisma.course.findMany({
+    include: {
+      department: {
+        include: {
+          university: true
+        }
+      }
     }
+  });
+
+  for (const c of courses) {
+     await addCourseToIndex(c.code, c.department.university.name, c.department.name);
   }
 
   console.log('Syncing questions...');
