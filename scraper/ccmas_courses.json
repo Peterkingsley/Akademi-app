@@ -1,0 +1,7484 @@
+{
+  "Computing": [
+    {
+      "code": "MTH 101",
+      "name": "General Mathematics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 102",
+      "name": "General Mathematics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 101",
+      "name": "General Physics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 102",
+      "name": "General Physics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 107",
+      "name": "General Practical Physics I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "PHY 108",
+      "name": "General Practical Physics II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "COS 101",
+      "name": "Introduction to Computing",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "COS 102",
+      "name": "Problem Solving",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "COS 201",
+      "name": "Computer Programming I",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "COS 202",
+      "name": "Computer Programming II",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "COS 409",
+      "name": "Research Methodology and Technical Report Writing",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Culture 2C 30",
+      "units": 0,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Philosophy, Logic and Human Existence 2C 30",
+      "units": 0,
+      "level": 100
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation 2C 30",
+      "units": 0,
+      "level": 100
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolution 2C 30",
+      "units": 0,
+      "level": 100
+    },
+    {
+      "code": "GST 111",
+      "name": "Communication in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "STA 111",
+      "name": "Descriptive Statistics",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "MTH 201",
+      "name": "Mathematical Methods I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MTH 202",
+      "name": "Elementary Differential Equations",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSC 203",
+      "name": "Discrete Structures",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSC 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "IFT 211",
+      "name": "Digital Logic Design",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IFT 212",
+      "name": "Computer Architecture and Organisation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "SEN 201",
+      "name": "Introduction to Software Engineering",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CSC 301",
+      "name": "Data Structures",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CSC 308",
+      "name": "Operating Systems",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CSC 309",
+      "name": "Artificial Intelligence",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CSC 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "DTS 304",
+      "name": "Data Management I",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "ICT 305",
+      "name": "Data Communication System & Network",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CSC 401",
+      "name": "Algorithms and Complexity Analysis",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CSC 497",
+      "name": "Final Year Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "CSC 498",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "INS 401",
+      "name": "Project Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CYB 203",
+      "name": "Cybercrime, Law and Countermeasures",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CYB 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "INS 204",
+      "name": "Systems Analysis and Design",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "CYB 302",
+      "name": "Biometrics Security",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CYB 304",
+      "name": "Information and Big Data Security",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CYB 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CYB 404",
+      "name": "Cloud Computing Security",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CYB 405",
+      "name": "Ethical Hacking and Reverse Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CYB 406",
+      "name": "Deep and Dark Web Security",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CYB 497",
+      "name": "Final Year Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "CYB 498",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MTH 203",
+      "name": "Sets, Logic and Algebra I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MTH 209",
+      "name": "Introduction to Numerical Analysis",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DTS 201",
+      "name": "Introduction to Data Science",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DTS 211",
+      "name": "Introduction to R Programming",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DTS 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "DTS 302",
+      "name": "Big Data Computing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DTS 308",
+      "name": "Ethics and Legal Issues in Data Science",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DTS 316",
+      "name": "Probability for Data Science",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "DTS 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "DTS 497",
+      "name": "Final Year Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "DTS 498",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICT 298",
+      "name": "SIWES",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "INS 202",
+      "name": "Human-Computer Interface",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IFT 203",
+      "name": "Introduction to Web Technologies",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ICT 301",
+      "name": "Satellite Communication",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICT 398",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CSC 432",
+      "name": "Distributed Computing Systems",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICT 497",
+      "name": "Final Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICT 498",
+      "name": "Final Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STA 121",
+      "name": "Statistical Inference 1",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "BUA 102",
+      "name": "Introduction to Business II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "INS 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "INS 301",
+      "name": "Business Process Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "INS 305",
+      "name": "Management Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "INS 311",
+      "name": "E-Business Systems Development",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "INS 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "DTS 404",
+      "name": "Data Management II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "INS 403",
+      "name": "Business Process Re-engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "INS 497",
+      "name": "Final Year Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "INS 498",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IFT 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "IFT 302",
+      "name": "Web Application Development",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IFT 308",
+      "name": "Ethics and Legal Issues in IT",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IFT 310",
+      "name": "Mobile Application Development",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IFT 322",
+      "name": "IT Innovation and Entrepreneurship",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IFT 342",
+      "name": "Network Servers and Infrastructures",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IFT 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "IFT 403",
+      "name": "Mobile and Pervasive Computing",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "IFT 410",
+      "name": "System Integration and Architecture",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "IFT 497",
+      "name": "Final Year Student’s Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IFT 498",
+      "name": "Final Year Student’s Project II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ENT 212",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "SEN 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "SEN 301",
+      "name": "Object-Oriented Analysis and Design",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SEN 304",
+      "name": "Software Testing and Quality Assurance",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SEN 306",
+      "name": "Software Construction",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SEN 399",
+      "name": "SIWES II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "SEN 410",
+      "name": "Software Architecture and Design",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SEN 497",
+      "name": "Final Year Student’s Project I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SEN 498",
+      "name": "Final Year Student’s Project II",
+      "units": 3,
+      "level": 400
+    }
+  ],
+  "Sciences": [
+    {
+      "code": "GST 111",
+      "name": "Communication in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "COS 101",
+      "name": "Introduction to Computing Sciences",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "MTH 101",
+      "name": "Elementary Mathematics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 102",
+      "name": "Elementary Mathematics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 101",
+      "name": "General Physics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 102",
+      "name": "General Physics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 107",
+      "name": "General Physics Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "PHY 108",
+      "name": "General Physics Practical II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 101",
+      "name": "General Chemistry I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 102",
+      "name": "General Chemistry II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 107",
+      "name": "General Chemistry Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GEY 101",
+      "name": "Introduction to Geology I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GEY 102",
+      "name": "Introduction to Geology II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 205",
+      "name": "Thermal Physics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 207",
+      "name": "Practical Physics III",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "PHY 208",
+      "name": "Practical Physics IV",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolutions",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "GPH 307",
+      "name": "Magnetic Prospecting Methods",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "GPH 308",
+      "name": "Seismic Refraction Prospecting Methods",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "GPH 309",
+      "name": "Gravity Prospecting Methods",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "GPH 311",
+      "name": "Principles of Geophysics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "GPH 312",
+      "name": "Electrical & Electromagnetic Methods",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "GPH 322",
+      "name": "Introduction to software modelling",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "GPH 398",
+      "name": "Entrepreneurship in Applied Geophysics",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "GEY 408",
+      "name": "Petroleum Geology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GEY 415",
+      "name": "Geology of Nigeria",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GPH 401",
+      "name": "Research Project",
+      "units": 6,
+      "level": 100
+    },
+    {
+      "code": "GPH 405",
+      "name": "Engineering Geophysics",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GPH 408",
+      "name": "Geophysical Seminar",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GPH 409",
+      "name": "Radiometric and Well Logging Methods",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GPH 410",
+      "name": "Geophysics and Geothermal Energy",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GPH 411",
+      "name": "Seismic Reflection Prospecting Methods",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GPH 412",
+      "name": "Groundwater Geophysics",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GPH 413",
+      "name": "Borehole Geophysics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GPH 414",
+      "name": "Environmental Geophysics",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 108",
+      "name": "General Chemistry Practical II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BCH 201",
+      "name": "General Biochemistry I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BCH 202",
+      "name": "General Biochemistry II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BCH 203",
+      "name": "General Biochemistry Practical",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "BCH 301",
+      "name": "Enzymology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BCH 302",
+      "name": "Metabolism of Carbohydrates",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BCH 303",
+      "name": "Metabolism of Lipids",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BCH 307",
+      "name": "Membrane Biochemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BCH 308",
+      "name": "Bioenergetics",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "BCH 309",
+      "name": "Inorganic Biochemistry",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "BCH 401",
+      "name": "Advanced Enzymology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BCH 402",
+      "name": "Molecular Biochemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BCH 403",
+      "name": "Metabolic Regulations",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BCH 404",
+      "name": "Biochemical Reasoning",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "BCH 405",
+      "name": "Plant Biochemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BCH 406",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "BCH 407",
+      "name": "Bioinformatics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BCH 408",
+      "name": "Biochemical Entrepreneurship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BIO 101",
+      "name": "General Biology I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BIO 102",
+      "name": "General Biology II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BIO 107",
+      "name": "General Biology Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "BIO 108",
+      "name": "General Biology Practical II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "BIO 201",
+      "name": "Genetics I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 203",
+      "name": "General Physiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 202",
+      "name": "Introductory Ecology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 204",
+      "name": "Biological Techniques",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 206",
+      "name": "Hydrobiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 208",
+      "name": "Biostatistics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BIO 301",
+      "name": "Genetics II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BIO 304",
+      "name": "Nigerian Flora and Fauna",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BIO 306",
+      "name": "Systematic Biology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BIO 307",
+      "name": "Field Course I",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "BIO 400",
+      "name": "Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "BIO 407",
+      "name": "Field Course II",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "BIO 408",
+      "name": "Applied Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BIO 413",
+      "name": "Bioinformatics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BIO 414",
+      "name": "Molecular Biology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCB 221",
+      "name": "General Microbiology I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BTG 301",
+      "name": "Molecular Genetics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 302",
+      "name": "Molecular Cell Biology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 304",
+      "name": "Genetic Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 305",
+      "name": "Techniques in Biotechnology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 309",
+      "name": "Food Biotechnology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 311",
+      "name": "Plant and Animal Cells Tissue Culture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 313",
+      "name": "Biotechnology for Animal Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 315",
+      "name": "Bioinformatics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BTG 401",
+      "name": "Biotechnology Seminar",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BTG 402",
+      "name": "Bio-safety and Bioethics",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "BTG 403",
+      "name": "Environmental Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BTG 404",
+      "name": "Medical Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BTG 405",
+      "name": "Industrial Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BTG 406",
+      "name": "Plant Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BTG 407",
+      "name": "Research Project in Biotechnology",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "BTG 433",
+      "name": "Biotechnology Entrepreneurship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BOT 102",
+      "name": "Introductory Botany",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BOT 202",
+      "name": "Seedless Plants",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BOT 203",
+      "name": "Seed Plants",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BOT 301",
+      "name": "Plant Taxonomy",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 302",
+      "name": "Comparative Anatomy of  Plant",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 303",
+      "name": "Plant Physiology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 304",
+      "name": "Plant Ecology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 305",
+      "name": "Mycology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 311",
+      "name": "Medicinal Plants",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "BOT 401",
+      "name": "Seminar",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "BOT 406",
+      "name": "Plant Pathology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "BOT 409",
+      "name": "Plant Virology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "BOT 411",
+      "name": "Bioinformatics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "BOT 416",
+      "name": "Plant Cytogenesis",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "GET 101",
+      "name": "Engineer in Society",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 400",
+      "name": "Seminar",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 401",
+      "name": "Research Project",
+      "units": 6,
+      "level": 100
+    },
+    {
+      "code": "CHM 406",
+      "name": "Reaction Kinetics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 410",
+      "name": "Analytical Chemistry II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 423",
+      "name": "Organometallic Chemistry",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 424",
+      "name": "Co-ordination Chemistry",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CSC 201",
+      "name": "Computer Programming I",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "EMT 206",
+      "name": "Introductory GIS",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "EMT 300",
+      "name": "Environment Ecosystem and Man",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EMT 302",
+      "name": "Hazardous Substance Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EMT 303",
+      "name": "Metal and Environment",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EMT 403",
+      "name": "Water Analysis",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "EMT 405",
+      "name": "Rural and Urban Regional Planning",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ENT 415",
+      "name": "Entrepreneurial Studies II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "EMT 499",
+      "name": "Industrial Attachment",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "EMT 501",
+      "name": "Environmental Law",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "EMT 502",
+      "name": "Waste Management and Control",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "EMT 503",
+      "name": "Ecological Disasters and Control",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "EMT 504",
+      "name": "Human Settlement and Development",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "EMT 507",
+      "name": "Seminar",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "PHY 105",
+      "name": "Practical Physics I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "BIO 103",
+      "name": "General Practical Biology I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "EMT 201",
+      "name": "Introduction to Environmental Science",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 212",
+      "name": "Inorganic Chemistry I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "EMT 305",
+      "name": "Environmental Pollution Studies",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FRS 102",
+      "name": "Introductory Forensic Science",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Philosophy, Logic and Human Existence",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CYB 201",
+      "name": "Fundamentals of Cyber Security I",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "FRS 201",
+      "name": "Footwear and Tire Track Examination",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 203",
+      "name": "Forensic Audio and Video Analysis",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 205",
+      "name": "Forensic Entomology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "LAW 211",
+      "name": "Criminal Law for Forensic Scientists",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 215",
+      "name": "Forensic Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CYB 202",
+      "name": "Fundamentals of Cyber Security II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 202",
+      "name": "Crime Scene Investigation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 204",
+      "name": "Trace Evidence",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 206",
+      "name": "Forensic Microbiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FRS 301",
+      "name": "Introduction to Forensic Serology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FRS 303",
+      "name": "Forensic Practical I",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FRS 307",
+      "name": "Research Methodology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FRS 308",
+      "name": "Forensic Practical II",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FRS 302",
+      "name": "Fingerprint",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FRS 305",
+      "name": "Forensic Odontology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FRS 306",
+      "name": "Forensic Toxicology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FRS 399",
+      "name": "SIWES",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FRS 401",
+      "name": "Introduction to Questioned Documents",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 402",
+      "name": "Forensic Pathology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 403",
+      "name": "Forensic Ballistics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "FRS 404",
+      "name": "DNA Fingerprinting",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 405",
+      "name": "Forensic Practical    III",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 406",
+      "name": "Forensic Practical IV",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 409",
+      "name": "Applied Forensic Physics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 410",
+      "name": "Entrepreneurship for Forensic Scientists",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FRS 499",
+      "name": "Final Year Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "ICH 400",
+      "name": "Seminar in Industrial Chemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ICH 401",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "ICH 453",
+      "name": "Chemistry of Industrial Processes",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICH 455",
+      "name": "Macromolecular Chemistry II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ECO 101",
+      "name": "Principles of Economics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ECO 102",
+      "name": "Principles of Economics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 103",
+      "name": "General Physics III",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 104",
+      "name": "General Physics IV",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTS 102",
+      "name": "Introduction to Oceanography",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 223",
+      "name": "Introduction to Meteorology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 235",
+      "name": "Marine Techniques",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 232",
+      "name": "Marine Operations & ISM Code",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 242",
+      "name": "Field and Professional Skills",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 321",
+      "name": "Radar/Electronic Navigation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 411",
+      "name": "Advanced Navigation Safety",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 472",
+      "name": "Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "MTS 434",
+      "name": "Ship Stability and Trim",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 432",
+      "name": "Port Health and Safety",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTS 401",
+      "name": "Mariculture entrepreneurship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTH 404",
+      "name": "Project",
+      "units": 6,
+      "level": 100
+    },
+    {
+      "code": "MTH 405",
+      "name": "General Topology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 406",
+      "name": "Lebesgue Measure and Integrals",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 407",
+      "name": "Mathematical Methods",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 202",
+      "name": "Elementary Different Equations",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 211",
+      "name": "Workshop Practice",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 213",
+      "name": "Classical Physics I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 301",
+      "name": "Analytical Mechanics I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 303",
+      "name": "Electromagnetism",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PHY 304",
+      "name": "Electro-magnetic Waves & Optics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PHY 305",
+      "name": "Quantum Physics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PHY 306",
+      "name": "Statistical and Thermal Physics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MPH 323",
+      "name": "Medical Physics Practical",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "MPH 326",
+      "name": "Medical Imaging",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANA 301",
+      "name": "Neuroanatomy",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 401",
+      "name": "Quantum Mechanics I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 510",
+      "name": "Nuclear and Particle Physics I",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "PHY 514",
+      "name": "Biophysics I",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "PHY 530",
+      "name": "Medical Nuclear Physics",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MPH 529",
+      "name": "Radiation Biology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MPH 555",
+      "name": "Research Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "CHM 210",
+      "name": "Physical Chemistry 1",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 211",
+      "name": "Organic Chemistry 1",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 213",
+      "name": "Analytical Chemistry 1",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MCM 211",
+      "name": "Fundamentals of Medicinal Chemistry",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "PHS 211",
+      "name": "Introduction and General Physiology",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "MTH 201",
+      "name": "Mathematical Methods 1",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 327",
+      "name": "Research Methodology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHA 311",
+      "name": "Pharmacology I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHA 321",
+      "name": "Pharmacology II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CHM 414",
+      "name": "Natural Product Chemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CHM 419",
+      "name": "Organic Synthesis",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCM 490",
+      "name": "Seminar",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCM 499",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "GEO 109",
+      "name": "Introduction to Hydrology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MET 101",
+      "name": "Introduction to Meteorology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GEO 205",
+      "name": "Introduction to Climatology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MET 403",
+      "name": "Agro-Meteorology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MET 415",
+      "name": "Hydrometeorology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MET 499",
+      "name": "Industrial Training (24 Weeks)",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "MET 501",
+      "name": "Research Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "MET 503",
+      "name": "West African Meteorology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MET 504",
+      "name": "Meso-Scale Weather Systems",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MCB 307",
+      "name": "Immunology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MCB 309",
+      "name": "Food Microbiology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MCB 322",
+      "name": "Bacterial Diversity",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MCB 324",
+      "name": "Microbial Ecology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MCB 407",
+      "name": "Pathogenic Microbiology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MCB 431",
+      "name": "Petroleum Microbiology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCB 412",
+      "name": "Microbial Genetics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MCB 423",
+      "name": "Industrial Microbiology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MCB 425",
+      "name": "Environmental Microbiology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MCB 482",
+      "name": "Virology & Tissue Culture",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCB 491",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "CHM 201",
+      "name": "Practical Chemistry II",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "PCM 203",
+      "name": "Natural Gas I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCM 204",
+      "name": "Petroleum Chemistry Lab I",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "PCM 205",
+      "name": "Petroleum Chemistry Lab II",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "PCM 303",
+      "name": "Polymer Chemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCM 304",
+      "name": "Petroleum Chemistry Lab II",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "PCM 305",
+      "name": "Petroleum Refining",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCM 307",
+      "name": "Natural Gas II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCM 308",
+      "name": "Petroleum Products",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "PCM 309",
+      "name": "Oil Production Chemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CHM 319",
+      "name": "Environmental Chemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICH 305",
+      "name": "Petroleum Chemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCM 400",
+      "name": "Seminar",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 401",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "PCM 403",
+      "name": "Introduction to Catalysis",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 404",
+      "name": "Petrochemicals I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 405",
+      "name": "Petrochemicals II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 406",
+      "name": "Coal & Oil Shale Chemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 408",
+      "name": "Corrosion Chemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCM 409",
+      "name": "Gas Hydrates",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "PHY 312",
+      "name": "Analogue Electronics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 315",
+      "name": "Electronics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 316",
+      "name": "Circuit Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 317",
+      "name": "Experimental physics V",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "PHY 325",
+      "name": "Measurement and Instrumentation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHY 399",
+      "name": "Industrial Attachment",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PHY 403",
+      "name": "Mathematical Methods in Physics I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 404",
+      "name": "Mathematical Methods in Physics II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 413",
+      "name": "Digital Systems",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 415",
+      "name": "Digital Communication Systems",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 417",
+      "name": "Advanced Electronics Lab",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "PHY 422",
+      "name": "Digital Electronics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 499",
+      "name": "Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "PHY 318",
+      "name": "Semiconductor Devices",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PHY 402",
+      "name": "Quantum Physics II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 405",
+      "name": "Physics Entrepreneurship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 455",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "PHY 214",
+      "name": "Classical Physics II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 414",
+      "name": "Solid State Physics I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 418",
+      "name": "Semiconductor Devices",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 421",
+      "name": "Biophysics I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHY 502",
+      "name": "Quantum Mechanics II",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "PHY 513",
+      "name": "Physics of Solar Systems",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "PHY 527",
+      "name": "Introduction to Photonics",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "PHY 555",
+      "name": "Research Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "GLT 508",
+      "name": "Photography and Illustrations",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "SLT 501",
+      "name": "Seminar",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "SLT 502",
+      "name": "Research Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "BTG 204",
+      "name": "Practical in Biotechnology",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "SLT 331",
+      "name": "Bioinformatics for SLT 1",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MCB 403",
+      "name": "Pharmaceutical Microbiology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CHM 207",
+      "name": "General Chemistry Practical III",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "CHM 208",
+      "name": "General Chemistry Practical IV",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "GLT 201",
+      "name": "Instrument Maintenance I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CHM 202",
+      "name": "Analytical Chemistry I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 205",
+      "name": "Physical Chemistry I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 222",
+      "name": "Organic Chemistry II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CHM 301",
+      "name": "Physical Chemistry II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "COS 201",
+      "name": "Computer Programming I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "PHY 210",
+      "name": "Physics of Solid Earth",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHY 307",
+      "name": "Practical Physics IV",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "PHY 308",
+      "name": "Practical Physics V",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "PHY 314",
+      "name": "Solid State Physics I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 407",
+      "name": "Computational Physics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "GEY 203",
+      "name": "Introduction to Petrology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GEY 207",
+      "name": "Principles of Stratigraphy",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GEY 209",
+      "name": "Introduction to Surveying",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GEY 212",
+      "name": "Introduction to Field Mapping",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GEY 313",
+      "name": "Structural Geology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GEY 409",
+      "name": "Applied Geophysics",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GEY 410",
+      "name": "Engineering Geology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GEY 411",
+      "name": "Hydrogeology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCM 306",
+      "name": "Instrumental Method of Analysis",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PIO 201",
+      "name": "Introductory Physiology & Blood",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PIO 212",
+      "name": "Renal & Body fluids Physiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PIO 216",
+      "name": "Gastrointestinal Physiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHA 304",
+      "name": "Autonomic Pharmacology II",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "PIO 309",
+      "name": "Practical Physiology II",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "PHA 405",
+      "name": "Ethnopharmacology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHA 409",
+      "name": "Quantitative Pharmacology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "STA 411",
+      "name": "Probability IV",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STA 412",
+      "name": "Distribution Theory II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STA 413",
+      "name": "Statistical Inference IV",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STA 499",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "ZOO 101",
+      "name": "The Mammalian Body",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ZOO 102",
+      "name": "Animal Diversity",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ZOO 211",
+      "name": "Invertebrate Zoology I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ZOO 212",
+      "name": "Invertebrate Zoology II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ZOO 301",
+      "name": "Vertebrate Zoology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ZOO 313",
+      "name": "Arthropod Diversity",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ZOO 316",
+      "name": "Histology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ZOO 411",
+      "name": "Entomology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ZOO 499",
+      "name": "Project",
+      "units": 6,
+      "level": 100
+    },
+    {
+      "code": "ZOO 412",
+      "name": "Parasitology",
+      "units": 2,
+      "level": 100
+    }
+  ],
+  "Social Sciences": [
+    {
+      "code": "GST 111",
+      "name": "Communication Skills in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CSS 101",
+      "name": "Introduction to Criminology   and",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "SOC 101",
+      "name": "Introduction to Sociology",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "CSS 102",
+      "name": "Introduction to Criminal Justice",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "CSS 103",
+      "name": "Deviant Behaviours   and Social",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "CSS 104",
+      "name": "Social Sciences and Human",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Philosophy, Logic and Human",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSS 201",
+      "name": "Nigerian Law   Enforcement and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSS 203",
+      "name": "Comparative Police and Policing",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSS 204",
+      "name": "Applied Statistics in Criminology and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSS 206",
+      "name": "Conflict   Resolution   and   Peace-",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "CSS 202",
+      "name": "Nigerian Criminal Procedure and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "SSC 202",
+      "name": "Introduction to Computer and its",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "CSS 205",
+      "name": "Human  Rights  and Criminal  Justice",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CSS 207",
+      "name": "Prisons and Correction Services",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolution",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CSS 303",
+      "name": "Research Methods in  Criminology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CSS 305",
+      "name": "Forensic Science",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CSS 302",
+      "name": "Theoretical Perspectives on Security",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CSS 402",
+      "name": "Democracy and Governance of",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "CSS 405",
+      "name": "National and Transnational",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "DSS 101",
+      "name": "Introduction to Population Studies",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DSS 103",
+      "name": "Mathematics for Social Sciences I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DSS 105",
+      "name": "Introduction to Sociology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DSS 102",
+      "name": "Introduction to Demography and",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DSS 104",
+      "name": "Mathematics for Social Sciences II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 201",
+      "name": "Population Growth (theories and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 203",
+      "name": "Social and Economic Statistics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 205",
+      "name": "Demographic Data Evaluation and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 202",
+      "name": "Concepts of Population",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 204",
+      "name": "Census Principles, Editing and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 206",
+      "name": "Introduction to Cartography",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "DSS 301",
+      "name": "Measures of Population Change",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 303",
+      "name": "Social Statistics for Demographers",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 305",
+      "name": "Social Investigation (nature,",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 307",
+      "name": "Labour Force – Concepts,",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 309",
+      "name": "Population and Cartography",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 302",
+      "name": "The Quality of Population and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 304",
+      "name": "Computer Applications in",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 306",
+      "name": "Data Collection and Analysis",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 308",
+      "name": "Labour Force –Theoretical",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SSC 301",
+      "name": "Innovation in the Social Sciences",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SSC 302",
+      "name": "Research Method I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DSS 401",
+      "name": "Demographic Data Evaluation",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "DSS 403",
+      "name": "Population Theories",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DSS 405",
+      "name": "Advanced Social Statistics I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DSS 407",
+      "name": "Sexual and Reproductive Health",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "DSS 402",
+      "name": "Demographic Estimation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DSS 404",
+      "name": "Population Trends and Policies",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "DSS 406",
+      "name": "Advanced Social Statistics II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DSS 408",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "SSC 401",
+      "name": "Research Method II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DES 101",
+      "name": "Introduction to Development",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DES 103",
+      "name": "Economics for Development",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 101",
+      "name": "Introduction to Political Science",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DES 104",
+      "name": "Psychological Perspectives on",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "DES 303",
+      "name": "Development Policy and Planning",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DES 304",
+      "name": "Project  Management, monitoring",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "DES 403",
+      "name": "Globalization and development",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DES 405",
+      "name": "Ecology and Sustainable",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "DES 404",
+      "name": "International Relations and",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ECO 101",
+      "name": "Principles of Economics l",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ECO 103",
+      "name": "Introductory Mathematics l",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ECO 102",
+      "name": "Principles of Economics ll",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ECO 104",
+      "name": "Introductory Mathematics ll",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ECO 201",
+      "name": "Introduction to Microeconomics l",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 205",
+      "name": "Structure of the Nigerian",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 207",
+      "name": "Mathematics for Economists",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 202",
+      "name": "Introduction to Microeconomics ll",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 204",
+      "name": "Introduction to Macroeconomics ll",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 206",
+      "name": "Statistics for Economists",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 301",
+      "name": "Intermediate Microeconomics l",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 303",
+      "name": "Intermediate Macroeconomics l",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 305",
+      "name": "History of Economic Thought",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 307",
+      "name": "Project Evaluation",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "ECO 302",
+      "name": "Intermediate Microeconomics ll",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 304",
+      "name": "Intermediate Macroeconomics ll",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 306",
+      "name": "Introductory Econometrics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "ECO 310",
+      "name": "Public Sector Economics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ECO 401",
+      "name": "Advanced Microeconomics l",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ECO 403",
+      "name": "Advanced Macroeconomics l",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ECO 405",
+      "name": "Economic Planning",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ECO 407",
+      "name": "Fiscal Policy and Analysis",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ECO 402",
+      "name": "Advanced Microeconomics ll",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ECO 404",
+      "name": "Advanced Macroeconomics ll",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ECO 406",
+      "name": "Monetary Theory and Policy",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ECO 499",
+      "name": "Research Project/Original Essay",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "IRS 102",
+      "name": "Evolution  of  the  Contemporary",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "IRS 104",
+      "name": "The Rise of Nation States",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "IRS 101",
+      "name": "Ancestors of the Contemporary",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "IRS 103",
+      "name": "Introduction to African Politics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "IRS 202",
+      "name": "Structure of International Society",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 204",
+      "name": "Political Thought Plato-Machiavelli",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 206",
+      "name": "Foundation of Political Economy",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 203",
+      "name": "Introduction to Political analysis",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 205",
+      "name": "Political Thought Since Hobbes",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 207",
+      "name": "New States In World Politics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "IRS 301",
+      "name": "International Economic Relations",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 303",
+      "name": "The International Political System",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 305",
+      "name": "Law of Nations (International Law)",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 307",
+      "name": "Intentional Politics in the Post-",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 311",
+      "name": "Theory and Practice of",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 304",
+      "name": "Diplomacy",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 306",
+      "name": "Logic  and  Methods  of  Political",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 308",
+      "name": "International Politics of Africa",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 310",
+      "name": "Theories of International Relations",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 312",
+      "name": "Integration Theories and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IRS 404",
+      "name": "Contemporary Strategic Studies",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IRS 406",
+      "name": "International Institutions",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "IRS 401",
+      "name": "Foreign Policy Analysis",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IRS 403",
+      "name": "Human Rights",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IRS 405",
+      "name": "Foreign Policies of the Powers",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "IRS 407",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "LIS 112",
+      "name": "Basic Skills for Library and Information Work",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "LIS 211",
+      "name": "Introduction to ICT in LIS",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "LIS 212",
+      "name": "Philosophy of Library and Information Science",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "LIS 311",
+      "name": "Organisation of Knowledge II",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "LIS 326",
+      "name": "Research and Statistical Methods in LIS",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "LIS 413",
+      "name": "Indexing and Abstracting",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 416",
+      "name": "Introduction   to   Archives   and   Records",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 417",
+      "name": "Publishing, Book Production and Trade",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 418",
+      "name": "Preservation,  Conservation  and  Security  of",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 421",
+      "name": "Database Design and Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 423",
+      "name": "Infopreneurship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "LIS 424",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "PCR 101",
+      "name": "Introduction to Peace Studies",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PCR 103",
+      "name": "Introduction to Psychology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PCR 105",
+      "name": "Introduction to Political Science",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PCR 102",
+      "name": "Socio- cultural Factors in Conflict",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PCR 104",
+      "name": "Introduction to the History of Nigeria",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PCR 201",
+      "name": "Fundamental Human Rights in Peace",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 203",
+      "name": "Peace Keeping and Conflict Resolution",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 207",
+      "name": "Culture, Values and Conflicts in Nigeria",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 202",
+      "name": "International Organisations and Conflict",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 204",
+      "name": "Social Alternatives",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 206",
+      "name": "Globalisation and Equity",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PCR 303",
+      "name": "Resource Access and Conflicts",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCR 305",
+      "name": "International Systems of Peace and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCR 309",
+      "name": "Peace Building, Monitoring and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCR 321",
+      "name": "Internship",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCR 401",
+      "name": "Negotiation and Conflict Resolution",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCR 403",
+      "name": "Weapons Proliferation and Conflicts",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PCR 405",
+      "name": "War and Society in the Middle East",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PCR 402",
+      "name": "Conflict Modelling and Peace Building",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PCR 404",
+      "name": "The Nigerian Civil War",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCR 499",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "PEP 400",
+      "name": "Petroleum Economics Research C",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "POL 103",
+      "name": "Organisation of Government",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 105",
+      "name": "Nigerian Constitutional Development",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 102",
+      "name": "Introduction to African Politics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 104",
+      "name": "Nigerian Legal Systems",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 201",
+      "name": "Nigerian Government and Politics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 203",
+      "name": "Political Ideas",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 205",
+      "name": "Introduction to International",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 202",
+      "name": "Introduction to Political Analysis",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 204",
+      "name": "Foundations of Political Economy",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 206",
+      "name": "Introduction to Public Administration",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 301",
+      "name": "History of Political thought",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 309",
+      "name": "Theories of International Relations",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 302",
+      "name": "Logic   and   Methods   of   Political",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 308",
+      "name": "Politics of development and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 403",
+      "name": "Contemporary Defence and Strategic",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "POL 405",
+      "name": "Nigerian Foreign Policy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "POL 407",
+      "name": "Research Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "POL 404",
+      "name": "Nigerian Local Government System",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "POL 406",
+      "name": "International Law and Organisation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "POL 410",
+      "name": "Political Parties and Pressure Groups",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "POL 106",
+      "name": "Nigerian Government and Politics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 107",
+      "name": "Introduction to international",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHL 101",
+      "name": "Introduction to Philosophy",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHL 103",
+      "name": "History of Philosophy",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHL 104",
+      "name": "Arguments and Critical Thinking",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "POL 207",
+      "name": "Ideas and Ideologies of Politics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHL 203",
+      "name": "Social and Political Philosophy",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PHL 204",
+      "name": "Theories of Ethics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ECO 203",
+      "name": "Macroeconomics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "POL 303",
+      "name": "Contemporary Political Analysis",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 307",
+      "name": "Statistics for Political Science",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHL 301",
+      "name": "Early Modern Philosophy",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHL 302",
+      "name": "Epistemology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHL 306",
+      "name": "Metaphysics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PHL 305",
+      "name": "Professional Ethics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "POL 408",
+      "name": "Political Parties and Pressure",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHL 403",
+      "name": "Existentialism  and",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PHL 405",
+      "name": "Contemporary  Issues in  African",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PSY 104",
+      "name": "Quantitative Methods in Psychology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PSY 201",
+      "name": "General Experimental Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 203",
+      "name": "Industrial /Organisational Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 205",
+      "name": "Developmental Psychology I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 207",
+      "name": "Psychology of Personality and",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 209",
+      "name": "Health Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 202",
+      "name": "Physiological Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 204",
+      "name": "Introduction to Social Psychology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 206",
+      "name": "Developmental Psychology II",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PSY 301",
+      "name": "Clinical Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 303",
+      "name": "Gender Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 305",
+      "name": "Psychological Testing   and Test",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 307",
+      "name": "Statistical Methods in Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 309",
+      "name": "Cognitive Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 302",
+      "name": "Psychology of Mental Challenge",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 304",
+      "name": "Psychology of Substance use",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 306",
+      "name": "Research Methods in Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 308",
+      "name": "Environmental Psychology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 310",
+      "name": "Field Experience",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PSY 401",
+      "name": "Psychology of Terrorism and Trauma",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PSY 402",
+      "name": "Advanced Psycho-Biological Study of",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PSY 404",
+      "name": "Advanced Clinical Psychology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SST 101",
+      "name": "National Values & Orientation",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SST 105",
+      "name": "Introduction to Social Institutions",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SST 301",
+      "name": "Social Standards Concepts and",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SST 302",
+      "name": "Social Standards and Development",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SST 303",
+      "name": "Social Standards and Political",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SST 304",
+      "name": "Social Dialogue and Collective",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SST 307",
+      "name": "Social Standards and Reproductive",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SST 406",
+      "name": "Land Law and Land Use Planning",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SWK 111",
+      "name": "Introduction to Social Work",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SWK 112",
+      "name": "Introduction   to Indigenous Social",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SOC 111",
+      "name": "Introduction to Sociology",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "PSY 111",
+      "name": "Introduction to Psychology",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "SWK 122",
+      "name": "Social Deviance and Social Organisation",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SWK 211",
+      "name": "History of Social Work",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "SWK 212",
+      "name": "Social Work Theories",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "SWK 314",
+      "name": "Social Problems and Social Work",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SWK 325",
+      "name": "Social Policy, Legislation and",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "SWK 412",
+      "name": "Social Work Intervention with Individuals,",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SWK 414",
+      "name": "SocialGroupWorkandYouth",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SWK 421",
+      "name": "Social Policy Legislation and",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SWK 426",
+      "name": "Case  Conference  and  Integrative  Social",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SOC 102",
+      "name": "Introduction to Anthropology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SOC 103",
+      "name": "Introduction to African Societies and",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SOC 104",
+      "name": "Introduction to Psychology",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SOC 105",
+      "name": "Elements of Scientific Thought",
+      "units": 4,
+      "level": 100
+    },
+    {
+      "code": "SOC 106",
+      "name": "Introduction to Sociology II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "SOC 301",
+      "name": "Methods   of   Social   Research   &",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "SOC 306",
+      "name": "Formal Organisations",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SOC 401",
+      "name": "Classical and Contemporary",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SOC 406",
+      "name": "Models in Sociological Analysis",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SOC 407",
+      "name": "Sociology of Development",
+      "units": 3,
+      "level": 400
+    }
+  ],
+  "Engineering": [
+    {
+      "code": "GST 111",
+      "name": "Communication in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Cultures",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 101",
+      "name": "General Chemistry I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 102",
+      "name": "General Chemistry II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 107",
+      "name": "General Practical Chemistry I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 108",
+      "name": "General Practical Chemistry II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "MTH 101",
+      "name": "Elementary Mathematics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 102",
+      "name": "Elementary Mathematics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 101",
+      "name": "General Physics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 103",
+      "name": "General Physics III",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 107",
+      "name": "General Practical Physics I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "PHY 108",
+      "name": "General Practical Physics II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GET 101",
+      "name": "Engineer in Society",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "AAE 101",
+      "name": "Introduction to Aerospace Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Philosophy, Logic and Human Existence",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GET 202",
+      "name": "Engineering Materials",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GET 204",
+      "name": "Students Workshop Practice",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GET 205",
+      "name": "Fundamental of Fluid Mechanics",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GET 206",
+      "name": "Fundamentals of Thermodynamics",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GET 209",
+      "name": "Engineering Mathematics I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GET 210",
+      "name": "Engineering Mathematics II",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "GET 211",
+      "name": "Computing and Software Engineering",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "AAE 204",
+      "name": "Aircraft Flight Principle/Flight Mechanics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolution",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "GET 301",
+      "name": "Engineering Mathematics III",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GET 302",
+      "name": "Engineering Mathematics IV",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GET 304",
+      "name": "Technical Writing and Communication",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GET 305",
+      "name": "Engineering Statistics and Data Analytics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GET 306",
+      "name": "Renewable Energy Systems and Technology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "AAE 301",
+      "name": "Aircraft Structural Materials and Fracture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AAE 302",
+      "name": "Aerospace Technology Lab II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AAE 403",
+      "name": "Computer Aided Design and Manufacturing",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AAE 405",
+      "name": "Aircraft/Rocket Propulsion Technology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "GET 402",
+      "name": "Engineering Project I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "GET 404",
+      "name": "Engineering Valuation and Costing",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "GET 299",
+      "name": "SIWES I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "GET 399",
+      "name": "SIWES II",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "GET 499",
+      "name": "SIWES III",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "GET 501",
+      "name": "Engineering Project Management",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "GET 502",
+      "name": "Engineering Law",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "AAE 501",
+      "name": "Aircraft/Spacecraft Design",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "AAE 503",
+      "name": "Aerodynamics of V/STOL Aircraft",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "AAE 504",
+      "name": "Aircraft Maintenance Management",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "AAE 506",
+      "name": "Engineering Project II",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "GET 102",
+      "name": "Engineering Graphics and Solid Modelling I",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "GET 201",
+      "name": "Applied Electricity I",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "ABE 302",
+      "name": "Animal Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ABE 303",
+      "name": "Crop Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ABE 305",
+      "name": "Soil Science",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ABE 307",
+      "name": "Biosystems Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ABE 308",
+      "name": "Rural Infrastructural Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ABE 503",
+      "name": "Livestock Production Engineering",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ABE 504",
+      "name": "Greenhouse Technology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ABE 599",
+      "name": "Final Year Project",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "MTH 103",
+      "name": "Elementary Mathematics III",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "TAE 102",
+      "name": "Introduction to Automotive Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GET 208",
+      "name": "Strength of Materials",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "TAE 403",
+      "name": "Automobile System Design",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "TAE 405",
+      "name": "Finite Element Analysis of Structures",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TAE 407",
+      "name": "Applied Aerodynamics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "TAE 409",
+      "name": "Dynamics and Control",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TAE 502",
+      "name": "Automotive Materials and Structures",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "TAE 505",
+      "name": "Automobile Vehicle Dynamics and Safety",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "TAE 555",
+      "name": "Project",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "BIO 101",
+      "name": "General Biology I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BIO 107",
+      "name": "General Practical Biology I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "BME 102",
+      "name": "Introduction to Biomedical engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BME 214",
+      "name": "General Biochemistry I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BME 215",
+      "name": "Human Genetic I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BME 211",
+      "name": "Human Anatomy I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BME 213",
+      "name": "Human Physiology I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "BME 334",
+      "name": "Biomedical Instrumentation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BME 351",
+      "name": "Biomaterials Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BME 332",
+      "name": "Biomedical Electronics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BME 316",
+      "name": "General Pharmacology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "BME 401",
+      "name": "Biomedical Systems Analysis",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BME 435",
+      "name": "Biomedical Informatics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BME 453",
+      "name": "Human Biotechnology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BME 461",
+      "name": "Clinical Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BME 481",
+      "name": "Rehabilitation Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "BME 521",
+      "name": "Biomedical Engineering Design",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "BME 523",
+      "name": "Biomedical Imaging Systems",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "BME 524",
+      "name": "Biomedical Signal Processing",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "TCH 202",
+      "name": "Material Science",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "TCH 301",
+      "name": "Transfer Processes I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TCH 303",
+      "name": "Separation Processes  I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TCH 304",
+      "name": "Process Instrumentation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TCH 307",
+      "name": "Biochemical Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TCH 501",
+      "name": "Plant Design II",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "TCH 401",
+      "name": "Chemical Product Design",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "TCH 402",
+      "name": "Chemical Reaction Engineering I",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "TCH 404",
+      "name": "Plant Design and Economics",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "TCH 405",
+      "name": "Process Control",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "TCH 406",
+      "name": "Process Modelling and Simulation",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CEE 201",
+      "name": "Civil Engineering Drawing",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CEE 301",
+      "name": "Fluid Mechanics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CEE 303",
+      "name": "Engineering Geology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CEE 304",
+      "name": "Civil Engineering materials",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "CEE 506",
+      "name": "Construction Engineering",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "CEE 599",
+      "name": "Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "GET 207",
+      "name": "Applied Mechanics",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "EEE 321",
+      "name": "Analogue Electronic Circuits",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EEE 322",
+      "name": "Digital Electronic Circuits",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPE 403",
+      "name": "Control System",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CPE 413",
+      "name": "Research Methods",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CPE 501",
+      "name": "Testing, Reliability and Maintainability",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "CPE 502",
+      "name": "Digital Signal Processing",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "CPE 505",
+      "name": "Digital System Design with VHDL",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "CPE 511",
+      "name": "Machine Learning and Applications",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "CPE 514",
+      "name": "Professional Practice and Ethics",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "CPE 599",
+      "name": "Final Year Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "TEL 100",
+      "name": "Introduction to Electrical Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "TEL 202",
+      "name": "Applied Electricity II",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "EEE 208",
+      "name": "Electrical Engineering Materials",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "TEL 303",
+      "name": "Electric Circuit Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TEL 304",
+      "name": "Measurements and Instrumentations",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TEL 305",
+      "name": "Electrical Machines",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "TEL 324",
+      "name": "Electromagnetic Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TEL 322",
+      "name": "Electrical Energy Systems",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TEL 421",
+      "name": "Control Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TEL 423",
+      "name": "Power Electronics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TEL 401",
+      "name": "Advanced Renewable Energy Systems",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TEL 502",
+      "name": "Electrical Services Design",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "TEL 503",
+      "name": "Energy Economy",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ELE 313",
+      "name": "Analog Electronic circuits",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "ELE 318",
+      "name": "Digital Electronic",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ELE 324",
+      "name": "Communication Principles",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "ELE 305",
+      "name": "Circuit Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ELE 403",
+      "name": "Engineering Mathematics IV",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ELE 411",
+      "name": "Advanced Electronic Circuits Design",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ELE 512",
+      "name": "Industrial Electronic Design",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "ELE 519",
+      "name": "Final Year Project I",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ELE 529",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "EEE 202",
+      "name": "Applied Electricity II",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "EEE 204",
+      "name": "Electrical Engineering Materials",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "EEE 311",
+      "name": "Electric Circuit Theory I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EEE 324",
+      "name": "Electromagnetic Fields and Waves I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EEE 326",
+      "name": "Electric Circuit Theory II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EEE 593",
+      "name": "Final Year Project I",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "EEE 594",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "CEE 305",
+      "name": "Soil Mechanics I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EVE 302",
+      "name": "Risk Assessment",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EVE 501",
+      "name": "Water Treatment & Supply",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "EVE 502",
+      "name": "Wastewater Treatment",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "FDE 102",
+      "name": "Introduction to Food Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "FDE 300",
+      "name": "Gen. Food Engineering Laboratory",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FDE 301",
+      "name": "Food Chemistry for Engineers",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FDE 302",
+      "name": "Food Chemistry for Engineers Laboratory",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FDE 304",
+      "name": "Separation Operation In Food Processing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FDE 305",
+      "name": "Principles of Food Preservation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FDE 401",
+      "name": "Technology of Fresh Food Products",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 403",
+      "name": "Technology of Plant Food Products",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 407",
+      "name": "Food Quality Control",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 409",
+      "name": "Food Process Design",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 423",
+      "name": "Food Analyses",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 501",
+      "name": "Food Machinery and Equipment Design",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FDE 502",
+      "name": "Food Plant Design and Economics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "GET 203",
+      "name": "Solid Modeling & Design Engineering",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "HND 212",
+      "name": "Human Biochemistry for Nutrition",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MCB 201",
+      "name": "General Microbiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FST 304",
+      "name": "Food Chemistry",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FST 306",
+      "name": "Food Analysis",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FST 333",
+      "name": "Food Process Engineering 1",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FST 334",
+      "name": "Food Process Engineering II",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FST 403",
+      "name": "Grains Technology and Storage",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FST 404",
+      "name": "Brewing Science and Technology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FST 405",
+      "name": "Food Process Machinery",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FST 415",
+      "name": "Sensory evaluation",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "FST 425",
+      "name": "Fish Processing Technology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FST 508",
+      "name": "Food Product Development",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "FST 511",
+      "name": "Food Quality Control",
+      "units": 1,
+      "level": 500
+    },
+    {
+      "code": "FST 515",
+      "name": "Final Year Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "ICE 101",
+      "name": "Introduction to ICE and Applications",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ICE 221",
+      "name": "Electronics I Physical  and Analogue",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "ICE 311",
+      "name": "Communication Engineering Principles I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICE 312",
+      "name": "Signal and System",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICE 322",
+      "name": "Electric Circuit Theory",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICE 324",
+      "name": "Electronics II Digital",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ICE 411",
+      "name": "ICE Laboratory Practical I",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "ICE 413",
+      "name": "Antenna and Wave Propagation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ICE 417",
+      "name": "Electromagnetic Field and Waves",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ICE 512",
+      "name": "Research Methodology",
+      "units": 1,
+      "level": 500
+    },
+    {
+      "code": "ICE 513",
+      "name": "Digital Signal Processing",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ICE 515",
+      "name": "Satellite Communication",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ICE 519",
+      "name": "Final Year Project I",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ICE 530",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "IPE 301",
+      "name": "Manufacturing Technology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IPE 311",
+      "name": "Design of Machine Elements",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IPE 317",
+      "name": "Systems Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "IPE 431",
+      "name": "Automation and Control",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IPE 461",
+      "name": "Industrial Engineering Techniques",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "IPE 531",
+      "name": "Production Management I",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "IPE 532",
+      "name": "Production Management II",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "MAR 201",
+      "name": "Navigation and Meteorology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "MAR 311",
+      "name": "Marine Diesel Engines I",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MAR 314",
+      "name": "Marine Steam and Gas Turbines",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MAR 323",
+      "name": "Naval Architecture I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MAR 431",
+      "name": "Marine Auxiliary Machinery",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MAR 534",
+      "name": "Engineering Design Project II",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "MAR 421",
+      "name": "Ship Resistance and Propulsion",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MAR 423",
+      "name": "Ship Structures and Strength",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MAR 525",
+      "name": "Shipyard Technology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MAR 465",
+      "name": "Offshore and Coastal Engineering",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MAR 561",
+      "name": "Basic Drilling Engineering",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MME 301",
+      "name": "Thermodynamics of Materials",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MME 304",
+      "name": "Chemistry of Materials",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MME 312",
+      "name": "Physical Metallurgy I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MME 413",
+      "name": "Chemical Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MME 501",
+      "name": "Analytical Methods for Materials",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MME 504",
+      "name": "Solidification and Foundry Technology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MME 505",
+      "name": "Nanoscience and Nanotechnology",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MME 507",
+      "name": "Composite Materials",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "MME 510",
+      "name": "Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "GST 211",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GET 308",
+      "name": "Entrepreneurship and Start-up for Engineers",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MPE 301",
+      "name": "Sustainable Mineral Resources Development",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "MPE 302",
+      "name": "Metallurgical Thermodynamics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MPE 303",
+      "name": "Transport Phenomena and Kinetics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MPE 403",
+      "name": "Metallurgical Fuels, Refractories and Furnaces",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MPE 405",
+      "name": "Mineral Processing Technology 1",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MPE 409",
+      "name": "Chemical Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MPE 411",
+      "name": "Ferrous Extractive Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MPE 501",
+      "name": "Research Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "MPE 502",
+      "name": "Non-Ferrous Extractive Metallurgy",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MEE 101",
+      "name": "Introduction to Mechanical Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MEE 402",
+      "name": "Theory (Mechanics) of Machines I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MEE 403",
+      "name": "Applied (Engineering) Thermodynamics I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MEE 501",
+      "name": "Applied Design",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "MEE 590",
+      "name": "B.Eng. Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "MEE 404",
+      "name": "Applied Fluid Mechanics",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MEE 405",
+      "name": "Heat and Mass Transfer",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "MEE 407",
+      "name": "Advanced Mechanics of Materials",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 113",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PYH 108",
+      "name": "General Practical Physics II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "MEE 207",
+      "name": "Applied Mechanics",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "MCE 405",
+      "name": "Control Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCE 407",
+      "name": "Industrial Automation & Control",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCE 409",
+      "name": "Sensors and Actuators",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MCE 590",
+      "name": "BEng Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "MTE 303",
+      "name": "Mineral Processing Technology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MTE 305",
+      "name": "Physical Metallurgy I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MTE 307",
+      "name": "Mechanical Working of Metals",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "MTE 403",
+      "name": "Ferrous Extractive Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTE 405",
+      "name": "Non-Ferrous Extractive Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTE 407",
+      "name": "Joining and Welding Technology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTE 409",
+      "name": "Foundry Technology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTE 411",
+      "name": "Corrosion Engineering",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MTE 415",
+      "name": "Metallurgical Engineering Lab. II",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "MTE 501",
+      "name": "Research Project",
+      "units": 6,
+      "level": 100
+    },
+    {
+      "code": "MTE 507",
+      "name": "Production Metallurgy",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MSE 301",
+      "name": "Mineral Processing Engineering I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 303",
+      "name": "Materials Thermodynamics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 305",
+      "name": "Mechanics of Materials",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MSE 401",
+      "name": "Ferrous Extraction Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 403",
+      "name": "Ceramic, Glass and Polymers",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 405",
+      "name": "Corrosion Science and Engineering I",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 501",
+      "name": "Non-Ferrous Extraction Metallurgy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 503",
+      "name": "Composite Materials",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "MSE 520",
+      "name": "Final Year Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "MNE 102",
+      "name": "Introduction to Mining Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MNE 104",
+      "name": "Physical Geology and Earth History",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "MNE 304",
+      "name": "Mineral Processing Technology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "MNE 401",
+      "name": "Rock Mechanics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "MNE 502",
+      "name": "Mine Surveying",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "MNE 503",
+      "name": "Mine Ventilation",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "GNG 203",
+      "name": "Rock and Fluid Properties",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PNG 308",
+      "name": "Drilling and Well Design I",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "GNG 409",
+      "name": "Natural Gas Process Plant Design",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "GNG 413",
+      "name": "Natural Gas Engineering",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "PHY 102",
+      "name": "General Physics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "NUE 102",
+      "name": "Fundamentals of Nuclear Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 213",
+      "name": "Peace and Conflict Studies",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "NUE 201",
+      "name": "Nuclear Reactions and Radiation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ENT 311",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "NUE 301",
+      "name": "Nuclear Materials",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "NUE 401",
+      "name": "Nuclear Reactors Thermal Hydraulics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "NUE 407",
+      "name": "Radiation Dosimetry Lab",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "NUE 411",
+      "name": "Nuclear Engineering Lab",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "NUE 501",
+      "name": "Nuclear Engineering Plant Design",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "NUE 502",
+      "name": "Introduction to Controlled Fusion",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "NUE 504",
+      "name": "Technical Seminar",
+      "units": 1,
+      "level": 500
+    },
+    {
+      "code": "NUE 599",
+      "name": "Final Year Project",
+      "units": 5,
+      "level": 500
+    },
+    {
+      "code": "PCE 301",
+      "name": "Chemical Thermodynamics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PCE 401",
+      "name": "Petroleum Refining",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCE 409",
+      "name": "Heat and Mass Transfer",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "PCE 506",
+      "name": "Final Year Project",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "PGE 301",
+      "name": "Rock and Fluid Properties",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PGE 302",
+      "name": "Petroleum Engineering Lab 1",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PGE 303",
+      "name": "Drilling and Well Design  I",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "PGE 304",
+      "name": "Fundamentals  of  Reservoir",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PGE 403",
+      "name": "Natural Gas Engineering",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "PEE 201",
+      "name": "Petroleum Geology",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "PEE 304",
+      "name": "Drilling Technology   I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PEE 306",
+      "name": "Rock and Fluid Properties",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PEE 309",
+      "name": "Petroleum Production 1",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "RAE 102",
+      "name": "Introduction Railway Engineering",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "RAE 201",
+      "name": "Railway Communications and Signal",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "RAE 301",
+      "name": "Introduction to Railway",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "RAE 303",
+      "name": "Railway Train Operations Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "RAE 304",
+      "name": "Railway Infrastructure Engineering",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "RAE 401",
+      "name": "Railway Passenger Transportation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "RAE 403",
+      "name": "Railway Freight Transportation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "RAE 502",
+      "name": "Train Operation Control system",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "RAE 503",
+      "name": "Railway Station and Terminal",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "RAE 599",
+      "name": "Project",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "STE 303",
+      "name": "Structural Mechanics",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "STE 304",
+      "name": "Construction Technology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "STE 405",
+      "name": "Structural Dynamics",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STE 407",
+      "name": "Finite Element Method",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "STE 501",
+      "name": "Steel Structures",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "SSG 203",
+      "name": "Solid Modelling and Design",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "SSG 321",
+      "name": "Continuum Mechanics I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SSG 322",
+      "name": "Control Theory I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SSG 415",
+      "name": "Mechatronics & Robotics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SSG 431",
+      "name": "Continuum Mechanics II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SSG 435",
+      "name": "Control Systems",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "SSG 518",
+      "name": "Machine Learning & AI",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "SSG 560",
+      "name": "Final Year Project II",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "TEE 301",
+      "name": "Communication Principles",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "TEE 401",
+      "name": "Digital Systems Design with VHDL",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "TEE 403",
+      "name": "Assembly Language Programming",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "EEE 403",
+      "name": "Digital Signal processing",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TEE 405",
+      "name": "Digital Communication Systems",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "TEE 501",
+      "name": "Telecommunications Systems Planning",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "TEE 502",
+      "name": "Optical Communication Systems",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "TEE 503",
+      "name": "Mobile Communication System",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "WRE 301",
+      "name": "Public Health Engineering",
+      "units": 3,
+      "level": 200
+    },
+    {
+      "code": "WRE 303",
+      "name": "Hydraulics and Hydrology I",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WRE 308",
+      "name": "Engineering Geology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WRE 403",
+      "name": "Hydraulics and Hydrology II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WRE 501",
+      "name": "Engineering Project II",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "WRE 503",
+      "name": "Design of Treatment Plants",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "WPE 305",
+      "name": "Silviculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WPE 306",
+      "name": "Basic Properties of Wood",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WPE 307",
+      "name": "Wood Harvesting",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WPE 311",
+      "name": "Wood Workshop Practice",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "WPE 403",
+      "name": "Wood Physics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "WPE 409",
+      "name": "Sawmilling",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "WPE 511",
+      "name": "Final year Project",
+      "units": 6,
+      "level": 500
+    }
+  ],
+  "Law": [
+    {
+      "code": "GST 111",
+      "name": "Communication in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PUL 101",
+      "name": "Legal Methods I",
+      "units": 4,
+      "level": 100
+    },
+    {
+      "code": "PUL 102",
+      "name": "Legal Methods II",
+      "units": 4,
+      "level": 100
+    },
+    {
+      "code": "LAW 101",
+      "name": "English for Legal Writing",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "LAW 102",
+      "name": "Introduction to Logic",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "PUL 201",
+      "name": "Constitutional Law I",
+      "units": 4,
+      "level": 200
+    },
+    {
+      "code": "PUL 202",
+      "name": "Constitutional Law II",
+      "units": 4,
+      "level": 200
+    },
+    {
+      "code": "PUL 203",
+      "name": "Nigerian Legal System I",
+      "units": 4,
+      "level": 200
+    },
+    {
+      "code": "PUL 204",
+      "name": "Nigerian Legal System II",
+      "units": 4,
+      "level": 200
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolution",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "PUL 301",
+      "name": "Criminal Law I",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "PUL 302",
+      "name": "Criminal Law II",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "PPL 301",
+      "name": "Law of Torts I",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "PPL 302",
+      "name": "Law of Torts II",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "CIL 303",
+      "name": "Commercial Law I",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "CIL 304",
+      "name": "Commercial Law II",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "PUL 401",
+      "name": "Law of Evidence I",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "PUL 402",
+      "name": "Law of Evidence II",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "PPL 403",
+      "name": "Equity and Trusts I",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "PPL 404",
+      "name": "Equity and Trusts II",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "PPL 405",
+      "name": "Property Law I",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "PPL 406",
+      "name": "Property Law II",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "CLE 401",
+      "name": "Clinical and Moot Court Practice",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "CLE 402",
+      "name": "Clinical and Moot Court Practice",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "JIL 501",
+      "name": "Jurisprudence and Legal Theory I",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "JIL 502",
+      "name": "Jurisprudence and Legal Theory II",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "PPL 501",
+      "name": "Company Law I",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "PPL 502",
+      "name": "Company Law II",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "LAW 599",
+      "name": "Long Essay",
+      "units": 6,
+      "level": 500
+    },
+    {
+      "code": "ICL 104",
+      "name": "Arabic Language for Legal Studies",
+      "units": 3,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Logic, Philosophy and Human Existence",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ICL 401",
+      "name": "Islamic Property Law",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICL 402",
+      "name": "Islamic Company Law",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "ICL 501",
+      "name": "UsulFiqh (Islamic Jurisprudence) I",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "ICL 505",
+      "name": "Application of Sharia in Nigeria",
+      "units": 3,
+      "level": 500
+    }
+  ],
+  "Agriculture": [
+    {
+      "code": "GST 111",
+      "name": "Communication in English",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "GST 112",
+      "name": "Nigerian Peoples and Culture",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "AGG 102",
+      "name": "Introduction to Agriculture I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "AGG 112",
+      "name": "Introduction to Agriculture II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "BIO 101",
+      "name": "General Biology I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "BIO 107",
+      "name": "General Biology Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 101",
+      "name": "General Chemistry I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 102",
+      "name": "General Chemistry II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "CHM 107",
+      "name": "General Chemistry Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "CHM 108",
+      "name": "General Chemistry Practical II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "MTH 101",
+      "name": "Elementary Mathematics 1",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "MTH 102",
+      "name": "Elementary Mathematics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 101",
+      "name": "General Physics I",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 102",
+      "name": "General Physics II",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "PHY 107",
+      "name": "General Physics Practical I",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "PHY 108",
+      "name": "General Physics Practical II",
+      "units": 1,
+      "level": 100
+    },
+    {
+      "code": "GST 212",
+      "name": "Philosophy, Logic and Human Existence",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ENT 211",
+      "name": "Entrepreneurship and Innovation",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "AGR 201",
+      "name": "Introduction to Crop Production",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "AGR 204",
+      "name": "Introduction to Animal Production",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "AGR 205",
+      "name": "Introduction to Fisheries and Aquaculture",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "AGB 201",
+      "name": "Introduction to Business",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "AGB 203",
+      "name": "Business Law",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "SOS 207",
+      "name": "Principles of Soil Science",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "GST 312",
+      "name": "Peace and Conflict Resolution",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ENT 312",
+      "name": "Venture Creation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 301",
+      "name": "Agribusiness Communication Skills",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 302",
+      "name": "Quantitative Analysis",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 303",
+      "name": "Agribusiness Marketing & Cooperative",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 304",
+      "name": "Agribusiness Management Theory & Practice",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 305",
+      "name": "Management Accounting I",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGB 401",
+      "name": "Research Method and Statistics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGB 403",
+      "name": "Financial Mgt. & Policy I & II",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGB 406",
+      "name": "Econometrics for Agribusiness",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "AGB 498",
+      "name": "Seminar in Agribusiness Mgt.",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "AGB 499",
+      "name": "Research Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "AGE 305",
+      "name": "Data Science and Statistical Computing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGE 306",
+      "name": "Application of Computer to Agriculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGX 311",
+      "name": "Principles of Rural Sociology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 302",
+      "name": "Introduction to Animal Breeding and Genetics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 304",
+      "name": "Non-Ruminant Animal Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 305",
+      "name": "Ruminant Animal Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 301",
+      "name": "Arable Crops Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 302",
+      "name": "Permanent Crops Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 304",
+      "name": "Crop Genetics and Breeding",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SOS 302",
+      "name": "Introduction to Agric. Mechanization",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SOS 303",
+      "name": "Introductory Pedology and Soil Physics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGE 404",
+      "name": "Farm Records and Accounting",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "CPS 401",
+      "name": "Crop Production Techniques I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "CPS 403",
+      "name": "Crop Protection I",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "CPS 406",
+      "name": "Farm Mechanization Practices",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGR 499",
+      "name": "SIWES Report",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 501",
+      "name": "Agricultural Production Economics",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "AGE 505",
+      "name": "Research and Statistical Methods",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "AGX 504",
+      "name": "Programme Planning and Evaluation",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "ANS 599",
+      "name": "Project",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "CPS 505",
+      "name": "Methods of Field Experimentation",
+      "units": 2,
+      "level": 100
+    },
+    {
+      "code": "AGE 301",
+      "name": "Research and Statistical Methods",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGE 304",
+      "name": "Economics of Climate Change",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGE 399",
+      "name": "Practical Field Year Report",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "AGE 407",
+      "name": "Microeconomic theory",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 408",
+      "name": "Macroeconomic Theory",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 401",
+      "name": "Econometrics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 403",
+      "name": "Agricultural Development and Policy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 406",
+      "name": "Seminar",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGE 499",
+      "name": "Research Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "AGE 202",
+      "name": "Introduction to Agricultural Economics",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "CPS 201",
+      "name": "Principles of Crop Production",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ANS 204",
+      "name": "Introduction to Animal Production",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FAA 205",
+      "name": "Introduction to Fisheries and Aquaculture",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ANS 303",
+      "name": "Entrepreneurship in Agriculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGX 301",
+      "name": "Community Agricultural Extension",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGX 303",
+      "name": "Systems Thinking for Changing Agriculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "AGR 399",
+      "name": "Field Practical Year Report",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "AGX 401",
+      "name": "Programme Planning and Evaluation",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "AGR 404",
+      "name": "Seminar",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "ANS 306",
+      "name": "Principles of Animal Health and Diseases",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 308",
+      "name": "Livestock Statistics and Data Processing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 309",
+      "name": "Nigerian Feed and Feeding Stuffs",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "ANS 399",
+      "name": "Field Practical Year Report",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "ANS 405",
+      "name": "Animal Husbandry Techniques",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ANS 406",
+      "name": "Animal Breeding and genetics",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "ANS 499",
+      "name": "Project Report",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "CPS 205",
+      "name": "Principles of Crop Physiology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "ENT 311",
+      "name": "Enterprise Appreciation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 303",
+      "name": "Crop Pests and Diseases",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 305",
+      "name": "Farm Mechanization practices",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "CPS 306",
+      "name": "Crop processing and Storage",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "CPS 307",
+      "name": "Vegetables and orchard management",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "CPS 308",
+      "name": "Statistics and data processing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 402",
+      "name": "Seed production Technology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 404",
+      "name": "Advanced crop protection",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 405",
+      "name": "Weed science and control",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 407",
+      "name": "Irrigation practices in crop production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 408",
+      "name": "Post-harvest physiology and produce storage",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "CPS 498",
+      "name": "Seminar",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "CPS 499",
+      "name": "Final year project",
+      "units": 4,
+      "level": 300
+    },
+    {
+      "code": "FCS 301",
+      "name": "Research Methods",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 411",
+      "name": "Org. of Family & Child Welfare Programmes",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 412",
+      "name": "Parent-Child Relationship",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 413",
+      "name": "Family Dynamics and Change",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 414",
+      "name": "Adolescence and Adulthood",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 415",
+      "name": "Family Life Education &Family Planning",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 402",
+      "name": "Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "FCS 302",
+      "name": "Report and Seminar on Industrial Training",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FCS 321",
+      "name": "Introduction to Clothing and Textiles",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 323",
+      "name": "Basic and Fabric Designs",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 325",
+      "name": "Clothing Construction",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 421",
+      "name": "Pattern Drafting and Design",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 424",
+      "name": "Interior Decoration and Design",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 331",
+      "name": "Household Resource Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 333",
+      "name": "Consumer Education",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FCS 431",
+      "name": "Advanced Resource Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FCS 433",
+      "name": "Personal & Family Finance Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FAA 301",
+      "name": "Fisheries Biology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 302",
+      "name": "Fish Nutrition",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 303",
+      "name": "Ichthyology (Systematics of Fish",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 304",
+      "name": "Fish Gear Design and Production",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 305",
+      "name": "Limnology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 306",
+      "name": "Fisheries Ecology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 307",
+      "name": "Principles of Aquaculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 308",
+      "name": "Fisheries Stock Assessment",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FAA 399",
+      "name": "SIWES",
+      "units": 6,
+      "level": 300
+    },
+    {
+      "code": "FAA 499",
+      "name": "Project and Seminar",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "FST 301",
+      "name": "Food Microbiology",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FST 302",
+      "name": "Basic Food Chemistry",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FST 303",
+      "name": "Food Process Engineering",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FST 304",
+      "name": "Principles of Food Analysis",
+      "units": 3,
+      "level": 300
+    },
+    {
+      "code": "FST 305",
+      "name": "Principles of Sensory evaluation",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FST 306",
+      "name": "Unit Operations in Food Processing",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FST 401",
+      "name": "Food Quality Control & Plant Sanitation",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "FST 403",
+      "name": "Fruits and Vegetables Technology",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "FST 501",
+      "name": "Cereals and Tubers Technology",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "FST 502",
+      "name": "Meat Science & Fish Science & Technology",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "FST 503",
+      "name": "Fats and Oils technology",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "FST 504",
+      "name": "Milk and Dairy Technology",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "FST 505",
+      "name": "Food Products Development",
+      "units": 3,
+      "level": 500
+    },
+    {
+      "code": "FST 598",
+      "name": "Seminar",
+      "units": 2,
+      "level": 500
+    },
+    {
+      "code": "FST 599",
+      "name": "Research Project",
+      "units": 4,
+      "level": 500
+    },
+    {
+      "code": "FWM 202",
+      "name": "Natural Ecosystems",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FWM 205",
+      "name": "Principles of Silviculture",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FWM 206",
+      "name": "Introduction to Wildlife Ecology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "FWM 301",
+      "name": "Forest Inventory and Mensuration",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FWM 303",
+      "name": "Environmental Impact Assessment",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 304",
+      "name": "Wildlife resources management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FWM 305",
+      "name": "Forest and Wildlife Biometrics",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "FWM 306",
+      "name": "Wood Formation, Anatomy & Properties",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 307",
+      "name": "Wildlife Population Analysis",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 308",
+      "name": "Urban Forestry Development",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 309",
+      "name": "Ethno Forestry",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 310",
+      "name": "Zoo & Parks Management Techniques",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 311",
+      "name": "Training in Firearms and Ballistics",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "FWM 401",
+      "name": "Multiple Land Use",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FWM 402",
+      "name": "Forest Soils",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FWM 405",
+      "name": "Museum and Herbarium Techniques",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FWM 406",
+      "name": "Forest Operations and Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FWM 409",
+      "name": "Game Ranching and Domestication",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "FWM 410",
+      "name": "Report Writing",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "FWM 498",
+      "name": "Seminar",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "FWM 499",
+      "name": "Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "HLM 302",
+      "name": "Greenhouse Use and Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "HLM 306",
+      "name": "Element of Landscape Agriculture",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "HLM 308",
+      "name": "Ornamental gardening/Landscaping",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "HLM 398",
+      "name": "Field Practical Year Report",
+      "units": 1,
+      "level": 300
+    },
+    {
+      "code": "HLM 405",
+      "name": "Ornamental Gardening",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "HLM 498",
+      "name": "Seminar",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "HLM 499",
+      "name": "Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "SOS 301",
+      "name": "Soil Chemistry and Soil Microbiology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SOS 307",
+      "name": "Soil fertility Management and Plant Nutrition",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "SOS 403",
+      "name": "Soil Irrigation and Drainage",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SOS 404",
+      "name": "Soil Physics and Hydrology",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SOS 406",
+      "name": "Soil Chemistry and Mineralogy",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SOS 407",
+      "name": "Soil Testing and Plant Tissue Analysis",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SOS 408",
+      "name": "Research Methods and Scientific Writing",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "SOS 409",
+      "name": "Soil Biology and Biochemistry",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "SOS 498",
+      "name": "Final Year Seminar",
+      "units": 1,
+      "level": 400
+    },
+    {
+      "code": "SOS 499",
+      "name": "Final Year  Research Project",
+      "units": 4,
+      "level": 400
+    },
+    {
+      "code": "WMA 202",
+      "name": "Elements of Geo-sciences",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 203",
+      "name": "Principles of Weather Forecasting",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 301",
+      "name": "Surface Hydrology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 302",
+      "name": "Groundwater Hydrology",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 303",
+      "name": "Hydro-Met Instrumentation and Network Design",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 304",
+      "name": "Tropical Weather Systems, Analysis and Predictions",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 305",
+      "name": "Principles of Dam Development and Management",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 306",
+      "name": "Agricultural Irrigation and Drainage",
+      "units": 2,
+      "level": 200
+    },
+    {
+      "code": "WMA 307",
+      "name": "Practical Year Experience Report",
+      "units": 1,
+      "level": 200
+    },
+    {
+      "code": "WMA 308",
+      "name": "Agro-Meteorology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WMA 309",
+      "name": "Agro-Meteorology and Ecology",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WMA 310",
+      "name": "Hydro-Met Instrumentation and Network Design",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "WMA 311",
+      "name": "Weather Forecasting for Agricultural Management",
+      "units": 2,
+      "level": 300
+    },
+    {
+      "code": "EMT 401",
+      "name": "Environmental Law",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "EMT 404",
+      "name": "Waste Water Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "WMA 401",
+      "name": "Hydro-Meteorological Forecasting",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WMA 402",
+      "name": "Water Resources Planning and Management",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WMA 403",
+      "name": "Watershed Management",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "WMA 404",
+      "name": "Water Resources and Public Health",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WMA 499",
+      "name": "Project",
+      "units": 6,
+      "level": 400
+    },
+    {
+      "code": "WMA 405",
+      "name": "Hydro-Meteorological forecasting",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WMA 406",
+      "name": "Agro–Meteorological Methods and Applications",
+      "units": 2,
+      "level": 400
+    },
+    {
+      "code": "WMA 408",
+      "name": "Tropical Weather Systems II",
+      "units": 3,
+      "level": 400
+    },
+    {
+      "code": "WMA 490",
+      "name": "Project",
+      "units": 6,
+      "level": 400
+    }
+  ]
+}

@@ -372,6 +372,7 @@ model Department {
   university_id String
   university    University @relation(fields: [university_id], references: [id])
   faculty       String
+  courses       Course[]
   created_at    DateTime   @default(now())
 
   @@unique([name, university_id])
@@ -483,4 +484,21 @@ model Notification {
 
   @@index([user_id])
   @@map("notifications")
+}
+
+model Course {
+  id            String     @id @default(uuid())
+  code          String
+  name          String
+  level         Int
+  credit_units  Int?
+  department_id String
+  department    Department @relation(fields: [department_id], references: [id])
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  @@unique([code, department_id])
+  @@index([department_id])
+  @@index([code])
+  @@map("courses")
 }
