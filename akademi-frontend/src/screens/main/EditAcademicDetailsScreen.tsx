@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useNavigation } from "@react-navigation/native";
 import { userService, UserProfile } from "../../services/user";
-import { GraduationCap, Landmark, BookOpen, Layers } from "lucide-react-native";
+import { GraduationCap, Landmark, BookOpen, Layers, Calendar } from "lucide-react-native";
 
 export const EditAcademicDetailsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
