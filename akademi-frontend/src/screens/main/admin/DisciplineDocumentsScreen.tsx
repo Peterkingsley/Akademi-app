@@ -62,7 +62,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       <View style={styles.rightContent}>
         <Badge
           label={`v${item.version}.0`}
-          variant="outline"
+          variant="course"
           style={{ marginRight: spacing.sm }}
         />
         <ChevronRight size={18} color={colors.textMuted} />
@@ -73,7 +73,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   return (
     <Screen
       title="Discipline Documents"
-      headerRight={
+      rightAction={
         <TouchableOpacity onPress={() => navigation.navigate("CoverageMap")}>
           <Map size={24} color={colors.textPrimary} />
         </TouchableOpacity>

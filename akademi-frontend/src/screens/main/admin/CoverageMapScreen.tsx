@@ -51,7 +51,7 @@ export const CoverageMapScreen: React.FC = () => {
     const Icon = getStatusIcon(item.status);
 
     return (
-      <Card style={[styles.coverageCard, { borderColor: color + "40" }]}>
+      <Card style={StyleSheet.flatten([styles.coverageCard, { borderColor: color + "40" }])}>
         <View style={[styles.statusIndicator, { backgroundColor: color }]} />
         <View style={styles.cardHeader}>
           <Icon size={20} color={color} />

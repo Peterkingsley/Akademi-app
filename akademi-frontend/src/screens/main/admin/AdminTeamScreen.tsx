@@ -147,7 +147,7 @@ export const AdminTeamScreen: React.FC = () => {
     const isSuspended = admin.status === 'suspended';
 
     return (
-      <Card style={[styles.adminCard, { borderColor: colors.border }]}>
+      <Card style={StyleSheet.flatten([styles.adminCard, { borderColor: colors.border }])}>
         <View style={styles.cardHeader}>
           <View style={styles.nameSection}>
             <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>{admin.name}</Text>
@@ -183,7 +183,7 @@ export const AdminTeamScreen: React.FC = () => {
   return (
     <Screen
       title="Admin Team"
-      rightElement={
+      rightAction={
         <TouchableOpacity onPress={() => setInviteModalVisible(true)} style={styles.addBtn}>
           <Plus size={20} color={colors.primary} />
         </TouchableOpacity>
@@ -193,7 +193,7 @@ export const AdminTeamScreen: React.FC = () => {
         data={loading ? Array(5).fill({}) : admins}
         keyExtractor={(item, index) => item.id || index.toString()}
         renderItem={({ item }) => loading ? (
-          <Card style={[styles.adminCard, { borderColor: colors.border }]}>
+          <Card style={StyleSheet.flatten([styles.adminCard, { borderColor: colors.border }])}>
             <Skeleton width="60%" height={16} />
             <Skeleton width="40%" height={12} style={{ marginTop: 8 }} />
             <View style={{ flexDirection: 'row', marginTop: 16, gap: 8 }}>
@@ -241,7 +241,6 @@ export const AdminTeamScreen: React.FC = () => {
                 label="Email Address"
                 placeholder="e.g. john@akademi.com"
                 keyboardType="email-address"
-                autoCapitalize="none"
                 value={inviteForm.email}
                 onChangeText={(text) => setInviteForm(prev => ({ ...prev, email: text }))}
               />
@@ -281,11 +280,11 @@ export const AdminTeamScreen: React.FC = () => {
 
       {/* Management BottomSheet */}
       <BottomSheet
-        visible={bottomSheetVisible}
+        index={bottomSheetVisible ? 0 : -1}
         onClose={() => setBottomSheetVisible(false)}
-        title="Manage Admin"
       >
         <View style={styles.sheetContent}>
+          <Text style={[typography.h3, { color: colors.textPrimary, marginBottom: 16, textAlign: 'center' }]}>Manage Admin</Text>
           <View style={styles.selectedAdminInfo}>
              <ShieldCheck size={40} color={colors.primary} />
              <Text style={[typography.h4, { color: colors.textPrimary, marginTop: 12 }]}>{selectedAdmin?.name}</Text>

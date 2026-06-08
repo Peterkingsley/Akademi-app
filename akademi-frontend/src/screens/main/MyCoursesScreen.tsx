@@ -35,7 +35,7 @@ export const MyCoursesScreen: React.FC = () => {
         <Book size={20} color={colors.primary} />
       </View>
       <View style={styles.courseInfo}>
-        <Text style={styles.course_code}>{item}</Text>
+        <Text style={styles.courseCode}>{item}</Text>
         <Text style={styles.courseStatus}>Active Session History</Text>
       </View>
       <ChevronRight size={20} color={colors.textMuted} />

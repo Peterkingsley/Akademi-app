@@ -126,7 +126,6 @@ export const SystemMonitoringScreen: React.FC = () => {
                   <Badge
                     label={job.status}
                     variant={job.status === 'success' ? 'success' : 'error'}
-                    size="small"
                   />
                   <TouchableOpacity
                     style={[styles.retryBtn, { borderColor: colors.border }]}

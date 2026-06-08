@@ -6,6 +6,7 @@ import {
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
+  RefreshControlProps,
 } from "react-native";
 import { SafeArea } from "./SafeArea";
 import { Header } from "./Header";
@@ -20,6 +21,7 @@ interface ScreenProps {
   scrollable?: boolean;
   style?: ViewStyle;
   hideHeader?: boolean;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -31,9 +33,9 @@ export const Screen: React.FC<ScreenProps> = ({
   scrollable = false,
   style,
   hideHeader = false,
+  refreshControl,
 }) => {
   const { colors } = useTheme();
-  const Content = scrollable ? ScrollView : View;
 
   return (
     <SafeArea style={{ backgroundColor: colors.background }}>
@@ -49,13 +51,22 @@ export const Screen: React.FC<ScreenProps> = ({
             rightAction={rightAction}
           />
         )}
-        <Content
-          style={[styles.content, { backgroundColor: colors.background }, style]}
-          contentContainerStyle={scrollable ? styles.scrollContent : undefined}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-        </Content>
+        {scrollable ? (
+          <ScrollView
+            style={[styles.content, { backgroundColor: colors.background }, style]}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View
+            style={[styles.content, { backgroundColor: colors.background }, style]}
+          >
+            {children}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeArea>
   );

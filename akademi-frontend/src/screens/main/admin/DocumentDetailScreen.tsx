@@ -111,6 +111,7 @@ export const DocumentDetailScreen: React.FC = () => {
             <Button
               title="View Raw Source"
               variant="outline"
+              onPress={() => {}}
               style={{ marginTop: 24 }}
             />
           </Card>
@@ -133,7 +134,7 @@ export const DocumentDetailScreen: React.FC = () => {
                       Version {entry.version}.0
                     </Text>
                     {entry.is_active ? (
-                      <Badge label="Active" variant="success" size="small" />
+                      <Badge label="Active" variant="success" />
                     ) : (
                       <TouchableOpacity
                         onPress={() => handleRollback(doc.id, entry.version)}

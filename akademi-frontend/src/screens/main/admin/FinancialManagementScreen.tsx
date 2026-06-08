@@ -88,7 +88,6 @@ export const FinancialManagementScreen: React.FC = () => {
                         <Badge
                           label={log.status}
                           variant={log.status === 'processed' ? 'success' : 'error'}
-                          size="small"
                           style={{ marginLeft: 8 }}
                         />
                       </View>

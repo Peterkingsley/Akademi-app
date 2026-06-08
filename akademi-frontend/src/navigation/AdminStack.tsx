@@ -28,44 +28,44 @@ const MoreStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AdminMore" component={AdminMoreScreen} />
       <Stack.Screen name="PlatformAnalytics">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <PlatformAnalyticsScreen {...props} />
+            <PlatformAnalyticsScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
       <Stack.Screen name="FinancialManagement">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <FinancialManagementScreen {...props} />
+            <FinancialManagementScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
       <Stack.Screen name="SystemMonitoring">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <SystemMonitoringScreen {...props} />
+            <SystemMonitoringScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
       <Stack.Screen name="AdminTeam">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <AdminTeamScreen {...props} />
+            <AdminTeamScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
       <Stack.Screen name="AuditTrail">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <AuditTrailScreen {...props} />
+            <AuditTrailScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
       <Stack.Screen name="SecuritySettings">
-        {(props) => (
+        {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
-            <SecuritySettingsScreen {...props} />
+            <SecuritySettingsScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>
