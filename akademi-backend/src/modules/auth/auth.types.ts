@@ -18,8 +18,17 @@ export interface RegisterRequest {
   faculty: string;
   department: string;
   level: number;
+  semester?: number;
+  semesterStart?: string;
+  semesterEnd?: string;
   password?: string;
   courses?: string[];
+  academicCourses?: Array<{
+    code: string;
+    name?: string;
+    level?: number;
+    semester?: number;
+  }>;
 }
 
 export interface LoginRequest {

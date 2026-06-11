@@ -55,6 +55,37 @@ export class AuthService {
       throw new Error("Invalid email format");
     }
 
+    const semester = Number(data.semester);
+    if (![1, 2].includes(semester)) {
+      throw new Error("Semester is required");
+    }
+
+    if (!data.semesterStart || !data.semesterEnd) {
+      throw new Error("Semester start and end dates are required");
+    }
+
+    const semesterStart = new Date(data.semesterStart);
+    const semesterEnd = new Date(data.semesterEnd);
+    if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime()) || semesterEnd <= semesterStart) {
+      throw new Error("Enter valid semester start and end dates");
+    }
+
+    const rawAcademicCourses: Array<{ code: string; name?: string; level?: number; semester?: number }> =
+      data.academicCourses || data.courses?.map((code) => ({ code })) || [];
+
+    const academicCourses = rawAcademicCourses
+      .map((course) => ({
+        code: course.code?.trim().toUpperCase(),
+        name: course.name?.trim() || null,
+        level: course.level || data.level,
+        semester: course.semester || semester,
+      }))
+      .filter((course) => !!course.code);
+
+    if (academicCourses.length === 0) {
+      throw new Error("At least one course code is required");
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
       throw new Error('Email already registered');
@@ -69,31 +100,63 @@ export class AuthService {
     const verificationTokenExpiresAt = new Date();
     verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 
-    const user = await prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password_hash: passwordHash,
-        university: data.university,
+    const department = await prisma.department.findFirst({
+      where: {
+        name: data.department,
         faculty: data.faculty,
-        department: data.department,
-        level: data.level,
-        courses: data.courses || [],
-        auth_provider: AuthProvider.EMAIL,
-        is_verified: false,
-        verification_token: verificationToken,
-        verification_token_expires_at: verificationTokenExpiresAt,
+        university: {
+          name: data.university,
+        },
       },
     });
 
-    await prisma.learningProfile.create({
-      data: {
-        user_id: user.id,
-        subject_strengths: {},
-        subject_weaknesses: {},
-        question_patterns: {},
-        vocabulary_level: VocabularyLevel.BASIC,
-      },
+    if (!department) {
+      throw new Error("Selected department could not be found");
+    }
+
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: data.name,
+          email: data.email,
+          password_hash: passwordHash,
+          university: data.university,
+          faculty: data.faculty,
+          department: data.department,
+          level: data.level,
+          courses: academicCourses.map((course) => course.code),
+          auth_provider: AuthProvider.EMAIL,
+          is_verified: false,
+          verification_token: verificationToken,
+          verification_token_expires_at: verificationTokenExpiresAt,
+        },
+      });
+
+      await tx.studentCourse.createMany({
+        data: academicCourses.map((course) => ({
+          user_id: createdUser.id,
+          department_id: department.id,
+          code: course.code,
+          name: course.name,
+          level: course.level,
+          semester: course.semester,
+          semester_start: semesterStart,
+          semester_end: semesterEnd,
+        })),
+        skipDuplicates: true,
+      });
+
+      await tx.learningProfile.create({
+        data: {
+          user_id: createdUser.id,
+          subject_strengths: {},
+          subject_weaknesses: {},
+          question_patterns: {},
+          vocabulary_level: VocabularyLevel.BASIC,
+        },
+      });
+
+      return createdUser;
     });
 
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {

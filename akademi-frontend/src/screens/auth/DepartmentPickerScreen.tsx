@@ -35,7 +35,7 @@ export const DepartmentPickerScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
-  const [selectedDept, setSelectedDept] = useState<string | null>(null);
+  const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [selectedLevel, setSelectedLevel] = useState("100L");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -81,9 +81,10 @@ export const DepartmentPickerScreen: React.FC = () => {
     if (selectedDept) {
       navigation.navigate("CoursePicker", {
         universityId,
+        departmentId: selectedDept.id,
         university: universityName,
-        faculty: selectedFaculty,
-        department: selectedDept,
+        faculty: selectedDept.faculty,
+        department: selectedDept.name,
         level: selectedLevel,
       });
     }
@@ -166,7 +167,7 @@ export const DepartmentPickerScreen: React.FC = () => {
               <View style={styles.deptList}>
                 {filteredDepts.length > 0 ? (
                   filteredDepts.map((dept) => {
-                    const isSelected = selectedDept === dept.name;
+                    const isSelected = selectedDept?.id === dept.id;
                     return (
                       <TouchableOpacity
                         key={dept.id}
@@ -174,7 +175,7 @@ export const DepartmentPickerScreen: React.FC = () => {
                           styles.deptItem,
                           isSelected && styles.selectedDeptItem,
                         ]}
-                        onPress={() => setSelectedDept(dept.name)}
+                        onPress={() => setSelectedDept(dept)}
                       >
                         <Text style={styles.deptName}>{dept.name}</Text>
                         <View

@@ -22,4 +22,16 @@ export class UniversitiesController {
       res.status(500).json({ message: 'Failed to fetch departments' });
     }
   }
+
+  async getCourseSuggestions(req: Request, res: Response) {
+    try {
+      const { departmentId } = req.params;
+      const level = req.query.level ? Number(req.query.level) : undefined;
+      const semester = req.query.semester ? Number(req.query.semester) : undefined;
+      const courses = await universitiesService.getCourseSuggestions(departmentId, level, semester);
+      res.status(200).json(courses);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch course suggestions' });
+    }
+  }
 }

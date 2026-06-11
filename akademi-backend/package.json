@@ -10,6 +10,7 @@
     "migrate": "prisma migrate deploy && npm run seed:admin && npm run seed:universities",
     "seed:universities": "tsx prisma/seed-universities.ts",
     "seed:courses": "tsx prisma/seed-courses.ts",
+    "scrape:courses": "tsx src/scripts/scrape-courses.ts",
     "sync:typesense": "tsx src/shared/search/sync-all.ts",
     "migrate:dev": "prisma migrate dev",
     "test": "jest --runInBand",

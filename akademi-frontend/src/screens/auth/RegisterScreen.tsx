@@ -13,7 +13,17 @@ import { typography } from "../../theme/typography";
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { university, faculty, department, level, selectedCourses = [] } = route.params || {};
+  const {
+    university,
+    faculty,
+    department,
+    level,
+    semester,
+    semesterStart,
+    semesterEnd,
+    selectedCourses = [],
+    academicCourses = [],
+  } = route.params || {};
 
   const [form, setForm] = useState({
     name: "",
@@ -23,7 +33,7 @@ export const RegisterScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasAcademicProfile = !!university && !!department;
+  const hasAcademicProfile = !!university && !!department && !!semester && !!semesterStart && !!semesterEnd && selectedCourses.length > 0;
 
   useEffect(() => {
     if (!hasAcademicProfile) {
@@ -57,11 +67,15 @@ export const RegisterScreen: React.FC = () => {
         email: form.email.trim(),
         password: form.password,
         university,
-        faculty,
-        department,
-        level: levelInt,
-        courses: selectedCourses,
-      });
+          faculty,
+          department,
+          level: levelInt,
+          semester,
+          semesterStart,
+          semesterEnd,
+          courses: selectedCourses,
+          academicCourses,
+        });
 
       navigation.navigate("EmailVerification", { email: form.email.trim() });
     } catch (err: any) {
@@ -111,10 +125,10 @@ export const RegisterScreen: React.FC = () => {
           <View style={styles.academicCopy}>
             <Text style={styles.cardLabel}>Studying as</Text>
             <Text style={styles.academicTitle} numberOfLines={2}>
-              {hasAcademicProfile ? `${department} / ${level || "Level"}` : "Academic profile missing"}
+              {hasAcademicProfile ? `${department} / ${level || "Level"} / Semester ${semester}` : "Academic profile missing"}
             </Text>
             <Text style={styles.academicMeta} numberOfLines={2}>
-              {hasAcademicProfile ? `${university}${selectedCourses.length ? ` - ${selectedCourses.length} courses selected` : ""}` : "Go back and choose your school details."}
+              {hasAcademicProfile ? `${university} - ${selectedCourses.length} course codes - ${semesterStart} to ${semesterEnd}` : "Go back and choose your school details."}
             </Text>
           </View>
         </View>

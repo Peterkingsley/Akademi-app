@@ -7,11 +7,22 @@ export type AuthStackParamList = {
     faculty: string;
     department: string;
     level: string;
+    semester: number;
+    semesterStart: string;
+    semesterEnd: string;
     selectedCourses?: string[];
+    academicCourses?: Array<{
+      code: string;
+      name?: string | null;
+      level: number;
+      semester: number;
+    }>;
   };
   UniversityPicker: undefined;
   DepartmentPicker: { universityId: string; universityName: string };
   CoursePicker: {
+    universityId: string;
+    departmentId: string;
     university: string;
     faculty: string;
     department: string;
