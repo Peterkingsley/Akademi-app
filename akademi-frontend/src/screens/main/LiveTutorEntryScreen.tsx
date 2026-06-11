@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -15,7 +16,6 @@ import {
   Settings,
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Avatar } from "../../components/ui/Avatar";
 import { Button } from "../../components/ui/Button";
@@ -24,6 +24,7 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Session, LearningProfile } from "../../services/session";
 import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
+import { useTheme } from "../../theme/ThemeContext";
 
 const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
@@ -35,6 +36,8 @@ export const LiveTutorEntryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const params = route.params || {};
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -66,13 +69,22 @@ export const LiveTutorEntryScreen: React.FC = () => {
   };
 
   const handleStartSession = async () => {
-    if (!topic || selectedCourse === "Select Course" || starting) return;
+    const trimmedTopic = topic.trim();
+    const courseCode = selectedCourse === "Select Course" ? null : selectedCourse;
+
+    if (!trimmedTopic) {
+      Alert.alert("Add a topic", "Type what you want the Live Tutor to teach you before starting.");
+      return;
+    }
+
+    if (starting) return;
+
     setStarting(true);
     try {
       const session = await sessionService.createSession({
         session_type: "TUTOR",
-        course_code: selectedCourse,
-        topic,
+        course_code: courseCode,
+        topic: trimmedTopic,
         duration: selectedDuration === "Open-ended" ? undefined : parseInt(selectedDuration),
         metadata: params.materialId ? {
           materialId: params.materialId,
@@ -88,8 +100,12 @@ export const LiveTutorEntryScreen: React.FC = () => {
       }
 
       navigation.navigate("LiveTutorSession", { sessionId: session.id });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting session:", error);
+      Alert.alert(
+        "Could not start session",
+        error?.response?.data?.message || "Please check your connection and try again.",
+      );
     } finally {
       setStarting(false);
     }
@@ -194,7 +210,9 @@ export const LiveTutorEntryScreen: React.FC = () => {
             >
               <View style={styles.courseSelectorLeft}>
                 <GraduationCap size={20} color={colors.primary} />
-                <Text style={[styles.courseText, typography.body]}>{selectedCourse}</Text>
+                <Text style={[styles.courseText, typography.body]}>
+                  {selectedCourse === "Select Course" ? "General topic" : selectedCourse}
+                </Text>
               </View>
               <ChevronDown size={20} color={colors.textMuted} />
             </TouchableOpacity>
@@ -238,7 +256,7 @@ export const LiveTutorEntryScreen: React.FC = () => {
             onPress={handleStartSession}
             style={styles.startBtn}
             loading={starting}
-            disabled={!topic || selectedCourse === "Select Course" || starting}
+            disabled={!topic.trim() || starting}
           />
         </View>
 
@@ -256,7 +274,7 @@ export const LiveTutorEntryScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     padding: 20,
     paddingTop: 10,

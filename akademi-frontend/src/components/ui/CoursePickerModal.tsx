@@ -44,7 +44,7 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
         activeOpacity={0.82}
       >
         <Text style={[styles.courseText, typography.body, isSelected && styles.selectedText]}>
-          {item === "Select Course" ? "No course context" : item}
+          {item === "Select Course" ? "General topic" : item}
         </Text>
         {isSelected && <Check size={20} color={colors.primary} />}
       </TouchableOpacity>
