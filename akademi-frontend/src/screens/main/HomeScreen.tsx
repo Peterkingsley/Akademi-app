@@ -33,6 +33,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { notificationService } from "../../services/notificationService";
 import api from "../../services/api";
+import { userService, ProgressSummary } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -172,6 +173,7 @@ export const HomeScreen: React.FC = () => {
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [exams, setExams] = useState<ExamPrepPlan[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -187,15 +189,17 @@ export const HomeScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [sessionsRes, profileRes, examsRes, notificationsRes] = await Promise.all([
+      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes] = await Promise.all([
         api.get("/users/me/sessions?limit=4"),
         api.get("/users/me/learning-profile"),
+        userService.getProgress(),
         api.get("/exam-prep"),
         notificationService.list(),
       ]);
 
       setSessions(sessionsRes.data || []);
       setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
+      setProgress(progressRes);
       setExams(examsRes.data || []);
       setUnreadNotifications(notificationsRes.filter((item) => !item.read).length);
     } catch (error) {
@@ -247,7 +251,8 @@ export const HomeScreen: React.FC = () => {
   const firstName = user?.name?.split(" ")[0] || "Student";
   const nextExam = exams[0];
   const nextExamDays = getDaysLeft(nextExam?.exam_date);
-  const sessionCount = learningProfile?.session_count || 0;
+  const sessionCount = progress?.summary.sessions ?? sessions.length;
+  const examPlanCount = progress?.summary.examPlans ?? exams.length;
 
   const heroSubtext = useMemo(() => {
     if (nextExam && nextExamDays !== null) {
@@ -451,7 +456,7 @@ export const HomeScreen: React.FC = () => {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{exams.length}</Text>
+              <Text style={styles.statValue}>{examPlanCount}</Text>
               <Text style={styles.statLabel}>exam plans</Text>
             </View>
             <View style={styles.statDivider} />
