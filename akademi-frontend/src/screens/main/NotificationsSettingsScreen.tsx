@@ -1,119 +1,210 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
+  Platform,
+  ScrollView,
   StyleSheet,
   Switch,
+  Text,
   TouchableOpacity,
-  ScrollView,
-  Platform,
+  View,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { Clock, BellOff } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation } from "@react-navigation/native";
+import {
+  Bell,
+  BellOff,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  FileCheck2,
+  Flame,
+  LineChart,
+  Sparkles,
+} from "lucide-react-native";
+
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Badge } from "../../components/ui/Badge";
 
 const STORAGE_KEY = "@notification_settings";
 
+type CountdownPeriod = "3days" | "1week" | "both";
+
+type NotificationSettings = {
+  dailyStudyReminder: boolean;
+  studyReminderTime: string;
+  examCountdown: boolean;
+  examCountdownPeriod: CountdownPeriod;
+  weeklySummary: boolean;
+  streakAtRisk: boolean;
+  newMaterial: boolean;
+  uploadVerified: boolean;
+  tutorSummary: boolean;
+  pauseAll: boolean;
+};
+
+const defaultSettings: NotificationSettings = {
+  dailyStudyReminder: true,
+  studyReminderTime: "07:00 PM",
+  examCountdown: true,
+  examCountdownPeriod: "both",
+  weeklySummary: true,
+  streakAtRisk: true,
+  newMaterial: true,
+  uploadVerified: true,
+  tutorSummary: true,
+  pauseAll: false,
+};
+
+const reminderTimes = ["06:00 PM", "07:00 PM", "08:00 PM", "09:00 PM"];
+
 export const NotificationsSettingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-
-  const [settings, setSettings] = useState({
-    dailyStudyReminder: true,
-    studyReminderTime: "07:00 PM",
-    examCountdown: true,
-    examCountdownPeriod: "both" as "3days" | "1week" | "both",
-    weeklySummary: false,
-    streakAtRisk: true,
-    newMaterial: true,
-    uploadVerified: false,
-    pauseAll: false,
-  });
+  const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  const activeCount = useMemo(() => {
+    if (settings.pauseAll) return 0;
+    return [
+      settings.dailyStudyReminder,
+      settings.examCountdown,
+      settings.weeklySummary,
+      settings.streakAtRisk,
+      settings.newMaterial,
+      settings.uploadVerified,
+      settings.tutorSummary,
+    ].filter(Boolean).length;
+  }, [settings]);
+
   const loadSettings = async () => {
     try {
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setSettings(JSON.parse(saved));
+      const savedSettings = await AsyncStorage.getItem(STORAGE_KEY);
+      if (savedSettings) {
+        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
       }
-    } catch (e) {
-      console.error("Failed to load settings", e);
+    } catch (error) {
+      console.error("Failed to load notification settings", error);
     }
   };
 
-  const saveSettings = async (newSettings: typeof settings) => {
+  const persistSettings = async (nextSettings: NotificationSettings) => {
+    setSettings(nextSettings);
+    setSaved(true);
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-    } catch (e) {
-      console.error("Failed to save settings", e);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextSettings));
+    } catch (error) {
+      console.error("Failed to save notification settings", error);
+    } finally {
+      setTimeout(() => setSaved(false), 1200);
     }
   };
 
-  const toggleSetting = (key: keyof typeof settings) => {
-    const newSettings = { ...settings, [key]: !settings[key] };
-    setSettings(newSettings);
-    saveSettings(newSettings);
+  const toggleSetting = (key: keyof NotificationSettings) => {
+    persistSettings({ ...settings, [key]: !settings[key] });
   };
 
-  const updateSetting = (key: keyof typeof settings, value: any) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    saveSettings(newSettings);
+  const updateSetting = <K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) => {
+    persistSettings({ ...settings, [key]: value });
   };
 
   return (
-    <Screen
-      title="Notifications"
-      onBack={() => navigation.goBack()}
-      scrollable
-      style={{ flex: 1 }}
-    >
+    <Screen title="Notifications" onBack={() => navigation.goBack()} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            {settings.pauseAll ? (
+              <BellOff size={28} color={colors.warning} />
+            ) : (
+              <Bell size={28} color={colors.primary} />
+            )}
+          </View>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroKicker}>Preference center</Text>
+            <Text style={styles.heroTitle}>
+              {settings.pauseAll ? "Notifications are paused" : `${activeCount} alerts enabled`}
+            </Text>
+            <Text style={styles.heroText}>
+              Control study nudges, approvals, new materials, tutor summaries, and exam reminders.
+            </Text>
+          </View>
+        </View>
 
-        {/* STUDY REMINDERS */}
-        <Section label="STUDY REMINDERS">
+        {saved && (
+          <View style={styles.savedRow}>
+            <CheckCircle2 size={16} color={colors.success} />
+            <Text style={styles.savedText}>Saved on this device</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.pauseCard, settings.pauseAll && styles.pauseCardActive]}
+          activeOpacity={0.86}
+          onPress={() => toggleSetting("pauseAll")}
+        >
+          <View style={styles.rowIconWarning}>
+            <BellOff size={20} color={settings.pauseAll ? colors.warning : colors.textMuted} />
+          </View>
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowTitle}>Pause all notifications</Text>
+            <Text style={styles.rowSubtitle}>Silence every alert until you turn this off.</Text>
+          </View>
+          <Toggle value={settings.pauseAll} onValueChange={() => toggleSetting("pauseAll")} />
+        </TouchableOpacity>
+
+        <Section title="Study">
           <SettingRow
-            label="Daily study reminder"
-            subtext="'Hey [Name], time to study!'"
+            icon={<Clock size={20} color={colors.primary} />}
+            title="Daily study reminder"
+            subtitle={`Send a reminder around ${settings.studyReminderTime}.`}
             value={settings.dailyStudyReminder}
+            disabled={settings.pauseAll}
             onToggle={() => toggleSetting("dailyStudyReminder")}
           />
-          {settings.dailyStudyReminder && (
-            <View style={styles.subRow}>
-              <View style={styles.timePickerRow}>
-                <Clock size={16} color={colors.textSecondary} />
-                <Text style={styles.timePickerLabel}>Scheduled for</Text>
-                <TouchableOpacity style={styles.timePill}>
-                  <Text style={styles.timePillText}>{settings.studyReminderTime}</Text>
-                </TouchableOpacity>
-              </View>
+          {settings.dailyStudyReminder && !settings.pauseAll && (
+            <View style={styles.inlineOptions}>
+              {reminderTimes.map((time) => (
+                <OptionPill
+                  key={time}
+                  label={time}
+                  active={settings.studyReminderTime === time}
+                  onPress={() => updateSetting("studyReminderTime", time)}
+                />
+              ))}
             </View>
           )}
+          <SettingRow
+            icon={<Flame size={20} color={colors.warning} />}
+            title="Streak at risk"
+            subtitle="Warn students before they lose study momentum."
+            value={settings.streakAtRisk}
+            disabled={settings.pauseAll}
+            badge="Important"
+            onToggle={() => toggleSetting("streakAtRisk")}
+          />
         </Section>
 
-        {/* EXAM & PROGRESS */}
-        <Section label="EXAM & PROGRESS">
+        <Section title="Exams and progress">
           <SettingRow
-            label="Exam countdown alerts"
+            icon={<CalendarClock size={20} color={colors.primary} />}
+            title="Exam countdown"
+            subtitle="Notify before scheduled exam plans."
             value={settings.examCountdown}
+            disabled={settings.pauseAll}
             onToggle={() => toggleSetting("examCountdown")}
           />
-          {settings.examCountdown && (
-            <View style={styles.optionsRow}>
+          {settings.examCountdown && !settings.pauseAll && (
+            <View style={styles.inlineOptions}>
               <OptionPill
-                label="3 days before"
+                label="3 days"
                 active={settings.examCountdownPeriod === "3days"}
                 onPress={() => updateSetting("examCountdownPeriod", "3days")}
               />
               <OptionPill
-                label="1 week before"
+                label="1 week"
                 active={settings.examCountdownPeriod === "1week"}
                 onPress={() => updateSetting("examCountdownPeriod", "1week")}
               />
@@ -125,227 +216,236 @@ export const NotificationsSettingsScreen: React.FC = () => {
             </View>
           )}
           <SettingRow
-            label="Weekly progress summary"
+            icon={<LineChart size={20} color={colors.primary} />}
+            title="Weekly progress summary"
+            subtitle="Summarize solved questions, tutor time, uploads, and mocks."
             value={settings.weeklySummary}
+            disabled={settings.pauseAll}
             onToggle={() => toggleSetting("weeklySummary")}
-          />
-          <SettingRow
-            label="Streak at risk alerts"
-            value={settings.streakAtRisk}
-            onToggle={() => toggleSetting("streakAtRisk")}
-            rightElement={<Badge label="CRUCIAL" variant="warning" style={styles.crucialBadge} />}
           />
         </Section>
 
-        {/* COMMUNITY & CONTENT */}
-        <Section label="COMMUNITY & CONTENT">
+        <Section title="Content and tutor">
           <SettingRow
-            label="New verified material"
-            subtext="Get notified when study guides for your enrolled courses are updated"
+            icon={<Sparkles size={20} color={colors.primary} />}
+            title="New verified material"
+            subtitle="Alert when approved materials match your courses."
             value={settings.newMaterial}
+            disabled={settings.pauseAll}
             onToggle={() => toggleSetting("newMaterial")}
           />
           <SettingRow
-            label="Upload verified notification"
+            icon={<FileCheck2 size={20} color={colors.primary} />}
+            title="Upload approval"
+            subtitle="Tell you when an uploaded material becomes public."
             value={settings.uploadVerified}
+            disabled={settings.pauseAll}
             onToggle={() => toggleSetting("uploadVerified")}
+          />
+          <SettingRow
+            icon={<Sparkles size={20} color={colors.primary} />}
+            title="Tutor session summary"
+            subtitle="Notify when Live Tutor generates a session recap."
+            value={settings.tutorSummary}
+            disabled={settings.pauseAll}
+            onToggle={() => toggleSetting("tutorSummary")}
           />
         </Section>
 
-        {/* PAUSE ALL */}
-        <TouchableOpacity
-          style={styles.pauseCard}
-          activeOpacity={0.8}
-          onPress={() => toggleSetting("pauseAll")}
-        >
-          <View style={styles.pauseLeft}>
-            <View style={styles.pauseIconWrapper}>
-              <BellOff size={20} color={colors.textMuted} />
-            </View>
-            <View>
-              <Text style={styles.pauseTitle}>Pause all notifications</Text>
-              <Text style={styles.pauseSubtext}>Silence all study and alert activity</Text>
-            </View>
-          </View>
-          <Switch
-            value={settings.pauseAll}
-            onValueChange={() => toggleSetting("pauseAll")}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : settings.pauseAll ? colors.primary : '#F4F3F4'}
-          />
-        </TouchableOpacity>
-
+        <View style={styles.footerNote}>
+          <Text style={styles.footerText}>
+            These preferences are saved on this device for MVP. Push delivery uses the backend notification feed and your registered device token.
+          </Text>
+        </View>
       </ScrollView>
     </Screen>
   );
 };
 
-const Section: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+const Toggle = ({ value, onValueChange, disabled }: { value: boolean; onValueChange: () => void; disabled?: boolean }) => (
+  <Switch
+    value={value}
+    disabled={disabled}
+    onValueChange={onValueChange}
+    trackColor={{ false: colors.border, true: colors.primary }}
+    thumbColor={Platform.OS === "ios" ? "#FFFFFF" : value ? "#FFFFFF" : "#F4F3F4"}
+  />
+);
+
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <View style={styles.section}>
-    <Text style={styles.sectionLabel}>{label}</Text>
-    <View style={styles.sectionContent}>
-      {children}
-    </View>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.sectionCard}>{children}</View>
   </View>
 );
 
-const SettingRow: React.FC<{
-  label: string;
-  subtext?: string;
+const SettingRow = ({
+  icon,
+  title,
+  subtitle,
+  value,
+  onToggle,
+  disabled,
+  badge,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
   value: boolean;
   onToggle: () => void;
-  rightElement?: React.ReactNode;
-}> = ({ label, subtext, value, onToggle, rightElement }) => (
-  <View style={styles.settingRow}>
-    <View style={styles.settingLeft}>
-      <View style={styles.settingTitleRow}>
-        <Text style={styles.settingLabel}>{label}</Text>
-        {rightElement}
+  disabled?: boolean;
+  badge?: string;
+}) => (
+  <View style={[styles.settingRow, disabled && styles.settingRowDisabled]}>
+    <View style={styles.rowIcon}>{icon}</View>
+    <View style={styles.rowCopy}>
+      <View style={styles.rowTitleLine}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        {badge ? <Text style={styles.badge}>{badge}</Text> : null}
       </View>
-      {subtext && <Text style={styles.settingSubtext}>{subtext}</Text>}
+      <Text style={styles.rowSubtitle}>{subtitle}</Text>
     </View>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
-      trackColor={{ false: colors.border, true: colors.primary }}
-      thumbColor={Platform.OS === 'ios' ? '#FFFFFF' : value ? colors.primary : '#F4F3F4'}
-    />
+    <Toggle value={value} disabled={disabled} onValueChange={onToggle} />
   </View>
 );
 
-const OptionPill: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({ label, active, onPress }) => (
-  <TouchableOpacity
-    style={[styles.optionPill, active && styles.optionPillActive]}
-    onPress={onPress}
-  >
-    <Text style={[styles.optionPillText, active && styles.optionPillTextActive]}>{label}</Text>
+const OptionPill = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
+  <TouchableOpacity style={[styles.optionPill, active && styles.optionPillActive]} onPress={onPress}>
+    <Text style={[styles.optionText, active && styles.optionTextActive]}>{label}</Text>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 40,
+  screen: { backgroundColor: colors.background },
+  container: { padding: 20, paddingBottom: 36 },
+  hero: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: "rgba(34,197,94,0.22)",
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 12,
+    padding: 16,
   },
-  section: {
-    marginBottom: 32,
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    height: 52,
+    justifyContent: "center",
+    marginRight: 14,
+    width: 52,
   },
-  sectionLabel: {
-    fontFamily: "SpaceMono-Regular",
-    fontSize: 9,
-    color: colors.textMuted,
+  heroCopy: { flex: 1 },
+  heroKicker: { ...typography.label, color: colors.primary, fontSize: 9, marginBottom: 4 },
+  heroTitle: { ...typography.h3, color: colors.textPrimary, fontSize: 18 },
+  heroText: { ...typography.body, color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  savedRow: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.1)",
+    borderRadius: 8,
+    flexDirection: "row",
     marginBottom: 16,
-    marginLeft: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  sectionContent: {
-    gap: 20,
+  savedText: { ...typography.bodySmall, color: colors.success, fontSize: 11, marginLeft: 8 },
+  pauseCard: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginBottom: 24,
+    padding: 14,
+  },
+  pauseCardActive: { backgroundColor: "#1C1710", borderColor: "rgba(245,158,11,0.35)" },
+  rowIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.1)",
+    borderRadius: 8,
+    height: 40,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 40,
+  },
+  rowIconWarning: {
+    alignItems: "center",
+    backgroundColor: "rgba(245,158,11,0.1)",
+    borderRadius: 8,
+    height: 40,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 40,
+  },
+  rowCopy: { flex: 1, marginRight: 12 },
+  rowTitleLine: { alignItems: "center", flexDirection: "row", flexWrap: "wrap" },
+  rowTitle: { ...typography.h4, color: colors.textPrimary, fontSize: 13, lineHeight: 19 },
+  rowSubtitle: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 3 },
+  badge: {
+    backgroundColor: "rgba(245,158,11,0.16)",
+    borderRadius: 8,
+    color: colors.warning,
+    fontSize: 9,
+    fontWeight: "700",
+    marginLeft: 8,
+    overflow: "hidden",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  section: { marginBottom: 22 },
+  sectionTitle: {
+    color: colors.textMuted,
+    fontFamily: "SpaceMono-Regular",
+    fontSize: 10,
+    letterSpacing: 1.2,
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: "hidden",
   },
   settingRow: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  settingLeft: {
-    flex: 1,
-    marginRight: 16,
-  },
-  settingTitleRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    alignItems: "center",
+    minHeight: 76,
+    padding: 14,
   },
-  settingLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  settingSubtext: {
-    fontSize: 9.75,
-    color: colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  subRow: {
-    marginTop: -8,
-    marginLeft: 0,
-  },
-  timePickerRow: {
+  settingRowDisabled: { opacity: 0.48 },
+  inlineOptions: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    alignItems: "center",
-  },
-  timePickerLabel: {
-    fontSize: 10.5,
-    color: colors.textSecondary,
-    marginLeft: 8,
-    marginRight: 12,
-  },
-  timePill: {
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  timePillText: {
-    color: colors.textPrimary,
-    fontSize: 10.5,
-    fontWeight: "600",
-  },
-  optionsRow: {
-    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
-    marginTop: -8,
+    paddingBottom: 14,
+    paddingHorizontal: 14,
   },
   optionPill: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
+  },
+  optionPillActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  optionText: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, fontWeight: "700" },
+  optionTextActive: { color: colors.background },
+  footerNote: {
+    backgroundColor: colors.surface,
     borderColor: colors.border,
-  },
-  optionPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  optionPillText: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  optionPillTextActive: {
-    color: "#FFFFFF",
-  },
-  crucialBadge: {
-    marginLeft: 8,
-    backgroundColor: "#F59E0B",
-  },
-  pauseCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1C1A10",
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#374151",
-    padding: 16,
-    marginTop: 8,
+    padding: 14,
   },
-  pauseLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 16,
-  },
-  pauseIconWrapper: {
-    marginRight: 12,
-  },
-  pauseTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  pauseSubtext: {
-    fontSize: 9.75,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
+  footerText: { ...typography.bodySmall, color: colors.textMuted, fontSize: 11, lineHeight: 17 },
 });

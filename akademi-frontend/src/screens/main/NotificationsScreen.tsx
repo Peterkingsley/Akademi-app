@@ -37,6 +37,14 @@ const getTimeAgo = (dateString: string) => {
   return `${Math.floor(diffInHours / 24)}d ago`;
 };
 
+const getFriendlyError = (message?: string) => {
+  if (!message) return "We could not reach your activity feed. Check your connection and try again.";
+  if (message.includes("does not exist") || message.includes("Prisma") || message.includes("invocation")) {
+    return "Activity is not ready on the server yet. Please retry after the latest backend deploy finishes.";
+  }
+  return message;
+};
+
 const getNotificationTone = (type: Notification["type"]) => {
   switch (type) {
     case "success":
@@ -72,7 +80,7 @@ export const NotificationsScreen: React.FC = () => {
       const data = await notificationService.list();
       setNotifications(data);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Could not load your notifications.");
+      setError(getFriendlyError(err?.response?.data?.message));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -169,7 +177,7 @@ export const NotificationsScreen: React.FC = () => {
         >
           <Check size={16} color={unreadCount === 0 ? colors.textMuted : colors.primary} />
           <Text style={[styles.markAllText, unreadCount === 0 && styles.markAllTextDisabled]}>
-            All
+            Read all
           </Text>
         </TouchableOpacity>
       </View>
@@ -212,7 +220,7 @@ export const NotificationsScreen: React.FC = () => {
               </View>
               <Text style={styles.emptyTitle}>No activity yet</Text>
               <Text style={styles.emptySubtext}>
-                Upload approvals, tutor summaries, and study alerts will appear here when they are ready.
+                Upload approvals, new course materials, exam reminders, tutor summaries, and progress alerts will appear here.
               </Text>
             </View>
           }
