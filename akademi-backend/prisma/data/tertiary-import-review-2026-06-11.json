@@ -3,12 +3,14 @@
   "notes": [
     "approved=true entries are strong missing candidates from regulator lists and can be imported automatically.",
     "approved=false entries need human review because they may be duplicates, renamed institutions, abbreviations, or spelling variants.",
-    "One duplicate approved candidate was demoted to duplicate_in_review_file so imports stay idempotent."
+    "One duplicate approved candidate was demoted to duplicate_in_review_file so imports stay idempotent.",
+    "Owner approved importing the previous manual-review institutions on 2026-06-11; possibleMatches are retained for traceability."
   ],
   "summary": {
-    "approvedForImport": 189,
-    "manualReview": 98,
-    "duplicateInReviewFile": 1
+    "approvedForImport": 287,
+    "manualReview": 0,
+    "duplicateInReviewFile": 1,
+    "promotedAfterOwnerApproval": 98
   },
   "candidates": [
     {
@@ -2871,8 +2873,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Michael Okpara University of Agriculture, Umudike"
       ],
@@ -2888,8 +2890,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Nigerian Army University, Borno"
       ],
@@ -2905,8 +2907,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Delta State University, Abraka"
       ],
@@ -2922,8 +2924,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal University of Agriculture, Abeokuta"
       ],
@@ -2939,8 +2941,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "The Federal University of Health Sciences , Otukpo"
       ],
@@ -2956,8 +2958,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Adeyemi College Of Education, Ondo(Affliated to OAU, Ile-Ife)"
       ],
@@ -2973,8 +2975,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "The Federal University of Health Sciences , Otukpo"
       ],
@@ -2990,8 +2992,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal University of Agriculture, Abeokuta"
       ],
@@ -3007,8 +3009,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal college of Education Kontagora\t (Affiliated to Amadu Bello university)"
       ],
@@ -3024,8 +3026,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal University of Agriculture, Abeokuta"
       ],
@@ -3041,8 +3043,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Confluence University Of Science and Technology"
       ],
@@ -3058,8 +3060,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/federal-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Confluence University Of Science and Technology"
       ],
@@ -3075,8 +3077,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Confluence University Of Science and Technology"
       ],
@@ -3092,8 +3094,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Confluence University Of Science and Technology"
       ],
@@ -3109,8 +3111,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Delta State University Of Science And Technology"
       ],
@@ -3126,8 +3128,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Shehu Shagari College Of Education, Sokoto"
       ],
@@ -3143,8 +3145,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "University of Medical Sciences, Ondo State"
       ],
@@ -3160,8 +3162,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/state-univerisity/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Niger State College Of Agriculture, Mokwa"
       ],
@@ -3177,8 +3179,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Edo State University Uzairue (Formerly Edo University Iyamho)"
       ],
@@ -3194,8 +3196,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Delta State University, Abraka"
       ],
@@ -3211,8 +3213,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Delta State University, Abraka"
       ],
@@ -3228,8 +3230,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3245,8 +3247,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Enugu State University Of Science And Technology"
       ],
@@ -3262,8 +3264,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3279,8 +3281,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Capital City University, Kano State"
       ],
@@ -3296,8 +3298,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3313,8 +3315,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "University of Africa Toru Orua, Bayelsa State"
       ],
@@ -3330,8 +3332,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3347,8 +3349,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Edo State University Uzairue (Formerly Edo University Iyamho)"
       ],
@@ -3364,8 +3366,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3381,8 +3383,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3398,8 +3400,8 @@
       "ownership": null,
       "state": null,
       "sourceUrl": "https://www.nuc.edu.ng/nigerian-univerisities/private-univeristies/",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Trinity University Ogun State"
       ],
@@ -3415,8 +3417,8 @@
       "ownership": "Bauchi",
       "state": "none.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Adamu Tafawa Balewa College of Education, Kangere"
       ],
@@ -3432,8 +3434,8 @@
       "ownership": "Kwara",
       "state": "www.adesinacollege.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Kwara State College Of Education (Technical), Lafiagi (Affiliated to Ahmadu Bello University)"
       ],
@@ -3449,8 +3451,8 @@
       "ownership": "Private College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -3466,8 +3468,8 @@
       "ownership": "Private College of Education",
       "state": "Plateau",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Al-Ibadan College of Education"
       ],
@@ -3483,8 +3485,8 @@
       "ownership": "Kano",
       "state": "mcekano.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -3500,8 +3502,8 @@
       "ownership": "Private College of Education",
       "state": "Kaduna",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ameer Shehu Idris College of Advance Studies"
       ],
@@ -3517,8 +3519,8 @@
       "ownership": "Private College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -3534,8 +3536,8 @@
       "ownership": "Private College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -3551,8 +3553,8 @@
       "ownership": "Private College of Education",
       "state": "Gombe",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education (Technical), Gombe\t(Affiliated to Abubakar Tafawa Balewa University)"
       ],
@@ -3568,8 +3570,8 @@
       "ownership": "Bauchi",
       "state": "NULL",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Jibwis College of Education Bauchi"
       ],
@@ -3585,8 +3587,8 @@
       "ownership": "Yobe",
       "state": "coelsnguru.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "A.D Rufa'i College of Education, Legal & General Studies (ND)"
       ],
@@ -3602,8 +3604,8 @@
       "ownership": "State College of Education",
       "state": "Abia",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Abia State College Of Education"
       ],
@@ -3619,8 +3621,8 @@
       "ownership": "State College of Education",
       "state": "Cross River",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Cross River State College Of Education (Affiliated to University of Calabar)"
       ],
@@ -3636,8 +3638,8 @@
       "ownership": "Private College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -3653,8 +3655,8 @@
       "ownership": "Private College of Education",
       "state": "Osun",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Osun State College of Technology"
       ],
@@ -3670,8 +3672,8 @@
       "ownership": "State College of Education",
       "state": "Enugu",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Enugu State College Of Education, Technical\t(Affiliated to Nnamdi Azikiwe University)"
       ],
@@ -3687,8 +3689,8 @@
       "ownership": "Borno",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3704,8 +3706,8 @@
       "ownership": "Federal College of Education",
       "state": "Ebonyi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ebonyi State College of Education, Ikwo (Affiliated to EBSU)"
       ],
@@ -3721,8 +3723,8 @@
       "ownership": "Kebbi",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3738,8 +3740,8 @@
       "ownership": "Federal College of Education",
       "state": "Bauchi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3755,8 +3757,8 @@
       "ownership": "Federal College of Education",
       "state": "Edo",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3772,8 +3774,8 @@
       "ownership": "Ekiti",
       "state": "none.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education (Special), Oyo-  DEG"
       ],
@@ -3789,8 +3791,8 @@
       "ownership": "Abia",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education (Special), Oyo-  DEG"
       ],
@@ -3806,8 +3808,8 @@
       "ownership": "Osun",
       "state": "www.fceiwo.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3823,8 +3825,8 @@
       "ownership": "Federal College of Education",
       "state": "Sokoto",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3840,8 +3842,8 @@
       "ownership": "Akwa Ibom",
       "state": "www.none.com",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3857,8 +3859,8 @@
       "ownership": "Nasarawa",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Alvan Ikoku Federal College Of Education (Affliated to University of Nigeria Nsukka)"
       ],
@@ -3874,8 +3876,8 @@
       "ownership": "Private College of Education",
       "state": "Osun",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Hamzainab College Of Education, Osogbo"
       ],
@@ -3891,8 +3893,8 @@
       "ownership": "Private College of Education",
       "state": "kogi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "College Of Education, Moro-ife"
       ],
@@ -3908,8 +3910,8 @@
       "ownership": "Private College of Education",
       "state": "Plateau",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "ECWA College of Education, Jos"
       ],
@@ -3925,8 +3927,8 @@
       "ownership": "Private College of Education",
       "state": "Bauchi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Jibwis College Of Arabic And Islamic Education, Gombe"
       ],
@@ -3942,8 +3944,8 @@
       "ownership": "Osun",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Osun State College Of Education, Ila-orangun (Affiliated to Ekiti State University)"
       ],
@@ -3959,8 +3961,8 @@
       "ownership": "Private College of Education",
       "state": "Kogi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Kogi State College of Education (Technical)"
       ],
@@ -3976,8 +3978,8 @@
       "ownership": "Private College of Education",
       "state": "Nasarawa",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Metro College of Education Adogi-Lafia"
       ],
@@ -3993,8 +3995,8 @@
       "ownership": "Private College of Education",
       "state": "Oyo",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Al-Ibadan College of Education"
       ],
@@ -4010,8 +4012,8 @@
       "ownership": "NTI and Other NCE Awarding Institutions",
       "state": "Borno",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Mohammed Goni College Of Legal And Islamic Studies"
       ],
@@ -4027,8 +4029,8 @@
       "ownership": "Private College of Education",
       "state": "Kwara",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Nana Aishat Memorial College Of Education"
       ],
@@ -4044,8 +4046,8 @@
       "ownership": "Abia",
       "state": "none.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "National Institute for Nigeria Languages"
       ],
@@ -4061,8 +4063,8 @@
       "ownership": "Lagos",
       "state": "panafricaninstitute.org",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Pan African College of Education"
       ],
@@ -4078,8 +4080,8 @@
       "ownership": "Enugu",
       "state": "www.peaceland.edu,ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Enugu State College Of Education, Technical\t(Affiliated to Nnamdi Azikiwe University)"
       ],
@@ -4095,8 +4097,8 @@
       "ownership": "Oyo",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Al-Ibadan College of Education"
       ],
@@ -4112,8 +4114,8 @@
       "ownership": "Private College of Education",
       "state": "Ogun",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Abia State College Of Education"
       ],
@@ -4129,8 +4131,8 @@
       "ownership": "Kano",
       "state": "nodomain.edu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education, Kano (Affiliated to Ahmadu Bello University)"
       ],
@@ -4146,8 +4148,8 @@
       "ownership": "State College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Saadatu Rimi College of Education, Kumbotso (Affiliated to Ahmadu Bello University)"
       ],
@@ -4163,8 +4165,8 @@
       "ownership": "Private College of Education",
       "state": "Bauchi",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "sarkin yamma community college of education"
       ],
@@ -4180,8 +4182,8 @@
       "ownership": "Private College of Education",
       "state": "Kaduna",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Federal College Of Education Zaria (Affiliated to Ahmadu Bello University)"
       ],
@@ -4197,8 +4199,8 @@
       "ownership": "Private College of Education",
       "state": "Anambra",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "St. Augustine College Of Education"
       ],
@@ -4214,8 +4216,8 @@
       "ownership": "Kwara",
       "state": "SomethingEdu.ng",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Kwara State College Of Education (Technical), Lafiagi (Affiliated to Ahmadu Bello University)"
       ],
@@ -4231,8 +4233,8 @@
       "ownership": "Private College of Education",
       "state": "Kano",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Kashim-ibrahim College Of Education, Maiduguri (Affiliated to UNIMAID)"
       ],
@@ -4248,8 +4250,8 @@
       "ownership": "Private College of Education",
       "state": "Kaduna",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Umar Bun Khattab College of Education"
       ],
@@ -4265,8 +4267,8 @@
       "ownership": "NTI and Other NCE Awarding Institutions",
       "state": "Kaduna",
       "sourceUrl": "https://ncce.gov.ng/AccreditedColleges",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Flyingdove Institute Of Information Technology, Abuja"
       ],
@@ -4282,8 +4284,8 @@
       "ownership": "Private",
       "state": "Details",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Abia State College of Health Sciences and Management Technology"
       ],
@@ -4299,8 +4301,8 @@
       "ownership": "State",
       "state": "Details",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "City Gate Institute Of Innovation And Technology"
       ],
@@ -4316,8 +4318,8 @@
       "ownership": "Private",
       "state": "Abia",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ihechukwu Madubuike Institute of Technology"
       ],
@@ -4333,8 +4335,8 @@
       "ownership": "Private",
       "state": "Abia",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "UMA UKPAI POLYTECHNIC, ASAGA"
       ],
@@ -4350,8 +4352,8 @@
       "ownership": "Private",
       "state": "Abia",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Bartholomew College of Health Technology"
       ],
@@ -4367,8 +4369,8 @@
       "ownership": "Private",
       "state": "Benue",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Osun State College of Technology"
       ],
@@ -4384,8 +4386,8 @@
       "ownership": "State",
       "state": "Delta",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Delta State Polytechnic, Ogwashi-Uku"
       ],
@@ -4401,8 +4403,8 @@
       "ownership": "State",
       "state": "Edo",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Auchi Polytechnic, Edo State (Affiliated to Nnamdi  Azikiwe University, Awka)"
       ],
@@ -4418,8 +4420,8 @@
       "ownership": "Private",
       "state": "Enugu",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Institute of Management and Technology Enugu (Affiliated to University of Nigeria)"
       ],
@@ -4435,8 +4437,8 @@
       "ownership": "Private",
       "state": "Kano",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ambassador College Of Management And Technology"
       ],
@@ -4452,8 +4454,8 @@
       "ownership": "Private",
       "state": "Lagos",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ambassador College Of Management And Technology"
       ],
@@ -4469,8 +4471,8 @@
       "ownership": "State",
       "state": "Ogun",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ken Saro-Wiwa Polytechnic"
       ],
@@ -4486,8 +4488,8 @@
       "ownership": "Private",
       "state": "Ogun",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ambassador College Of Management And Technology"
       ],
@@ -4503,8 +4505,8 @@
       "ownership": "State",
       "state": "Yobe",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "College Of Agriculture And Animal Science"
       ],
@@ -4520,8 +4522,8 @@
       "ownership": "State",
       "state": "Yobe",
       "sourceUrl": "https://www.digitalnbte.nbte.gov.ng/Public/PUCPolytechnics",
-      "approved": false,
-      "decision": "manual_review_required",
+      "approved": true,
+      "decision": "import_after_owner_approval",
       "possibleMatches": [
         "Ambassador College Of Management And Technology"
       ],
