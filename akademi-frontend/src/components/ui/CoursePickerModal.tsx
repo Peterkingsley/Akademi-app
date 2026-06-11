@@ -29,7 +29,7 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
   selectedCourse,
 }) => {
   const { user } = useAuthStore();
-  const courses = (user as any)?.courses || [];
+  const courses = ["Select Course", ...((user as any)?.courses || [])];
 
   const renderItem = ({ item }: { item: string }) => {
     const isSelected = selectedCourse === item;
@@ -42,7 +42,7 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
         }}
       >
         <Text style={[styles.courseText, typography.body, isSelected && styles.selectedText]}>
-          {item}
+          {item === "Select Course" ? "No course context" : item}
         </Text>
         {isSelected && <Check size={20} color={colors.primary} />}
       </TouchableOpacity>

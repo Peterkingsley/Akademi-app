@@ -31,6 +31,8 @@ export const CropConfirmScreen: React.FC = () => {
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const hasCourse = course !== "Select Course";
+  const courseCode = hasCourse ? course : null;
 
   const getPhotoErrorMessage = (error: any) => {
     const serverMessage = error?.response?.data?.message;
@@ -46,20 +48,20 @@ export const CropConfirmScreen: React.FC = () => {
   };
 
   const handleSolve = async () => {
-    if (!imageUri || course === "Select Course") return;
+    if (!imageUri) return;
 
     setErrorMessage("");
     setLoading(true);
     try {
       const replyMode = strategy === "quick" ? "DIRECT" : "STUDY";
-      const session = await createAssignmentSession(replyMode, course);
+      const session = await createAssignmentSession(replyMode, courseCode);
       await submitPhotoQuestion(session.id, imageUri, replyMode);
 
       navigation.navigate("AIProcessing", {
         type: "assignment",
         sessionId: session.id,
         reply_mode: replyMode,
-        courseCode: course,
+        courseCode,
         imageUri,
       });
     } catch (error) {
@@ -127,10 +129,12 @@ export const CropConfirmScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, typography.mono]}>SUBJECT CONTEXT</Text>
+          <Text style={[styles.sectionLabel, typography.mono]}>SUBJECT CONTEXT OPTIONAL</Text>
           <TouchableOpacity style={styles.coursePill} onPress={() => setIsCoursePickerVisible(true)}>
             <GraduationCap size={16} color={colors.primary} />
-            <Text style={[styles.courseText, typography.bodySmall]}>Course: {course}</Text>
+            <Text style={[styles.courseText, typography.bodySmall]}>
+              {hasCourse ? `Course: ${course}` : "No course selected"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -166,7 +170,7 @@ export const CropConfirmScreen: React.FC = () => {
           label="Solve This"
           onPress={handleSolve}
           loading={loading}
-          disabled={!imageUri || course === "Select Course"}
+          disabled={!imageUri || loading}
           style={styles.solveBtn}
         />
 

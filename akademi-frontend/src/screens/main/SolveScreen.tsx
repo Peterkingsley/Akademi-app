@@ -52,6 +52,7 @@ export const SolveScreen: React.FC = () => {
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
+  const courseCode = hasCourse ? course : null;
 
   useEffect(() => {
     if (photoUri) {
@@ -60,11 +61,6 @@ export const SolveScreen: React.FC = () => {
   }, [photoUri]);
 
   const handleSolve = async () => {
-    if (!hasCourse) {
-      Alert.alert("Choose a course", "Select the course this question belongs to before solving.");
-      return;
-    }
-
     if (!hasQuestion) {
       Alert.alert("Enter the question", "Type or paste the assignment question, then tap Solve assignment again.");
       return;
@@ -80,7 +76,7 @@ export const SolveScreen: React.FC = () => {
       const { data: session } = await api.post("/sessions", {
         session_type: "ASSIGNMENT",
         reply_mode: answerMode,
-        course_code: course,
+        course_code: courseCode,
         metadata: {
           cause: selectedCause,
           type: selectedType,
@@ -96,7 +92,7 @@ export const SolveScreen: React.FC = () => {
         type: "assignment",
         sessionId: session.id,
         reply_mode: answerMode,
-        courseCode: course,
+        courseCode,
       });
     } catch (error: any) {
       Alert.alert(
@@ -155,7 +151,7 @@ export const SolveScreen: React.FC = () => {
           <View style={styles.courseCopy}>
             <Text style={styles.panelLabel}>Solving for</Text>
             <Text style={styles.courseText} numberOfLines={1}>
-              {course}
+              {hasCourse ? course : "General question"}
             </Text>
           </View>
           <TouchableOpacity
@@ -211,11 +207,16 @@ export const SolveScreen: React.FC = () => {
         <View style={styles.toggleRow}>
           <View style={styles.toggleCopy}>
             <Text style={styles.toggleTitle}>Use my course context</Text>
-            <Text style={styles.toggleSubtext}>Akademi can consider your selected course while answering.</Text>
+            <Text style={styles.toggleSubtext}>
+              {hasCourse
+                ? "Akademi can consider your selected course while answering."
+                : "Optional. Select a course only when the question needs course context."}
+            </Text>
           </View>
           <Switch
             value={includeContext}
             onValueChange={setIncludeContext}
+            disabled={!hasCourse}
             trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor="#FFFFFF"
           />
