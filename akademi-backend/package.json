@@ -9,6 +9,7 @@
     "start": "node dist/app.js",
     "migrate": "prisma migrate deploy && npm run seed:admin && npm run seed:universities",
     "seed:universities": "tsx prisma/seed-universities.ts",
+    "import:tertiary": "tsx prisma/import-tertiary-institutions.ts",
     "seed:courses": "tsx prisma/seed-courses.ts",
     "scrape:courses": "tsx src/scripts/scrape-courses.ts",
     "sync:typesense": "tsx src/shared/search/sync-all.ts",
@@ -70,6 +71,7 @@
     "socket.io-client": "^4.8.3",
     "supertest": "^7.0.0",
     "ts-jest": "^29.4.11",
+    "tsx": "^4.20.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.3"
