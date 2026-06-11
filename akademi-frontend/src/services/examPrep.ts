@@ -19,6 +19,8 @@ export interface ExamPrepPlan {
   id: string;
   course_code: string;
   course_name: string;
+  assessment_type?: "TEST" | "EXAM";
+  assessment_label?: string;
   exam_date: string;
   progress: number;
   readiness_score: number;
@@ -100,10 +102,11 @@ const examPrepService = {
     return data;
   },
 
-  createPlan: async (course_code: string, exam_date: string) => {
+  createPlan: async (course_code: string, exam_date: string, assessment_type: "TEST" | "EXAM" = "EXAM") => {
     const { data } = await api.post<ExamPrepPlan>("/exam-prep", {
       course_code,
       exam_date,
+      assessment_type,
     });
     return data;
   },

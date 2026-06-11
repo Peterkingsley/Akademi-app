@@ -1,5 +1,5 @@
 import prisma from '../../config/db';
-import { Difficulty } from '@prisma/client';
+import { Difficulty, VerificationStatus } from '@prisma/client';
 
 const TASK_TYPE_BY_INDEX = ['revision', 'practice', 'quiz'] as const;
 
@@ -18,6 +18,14 @@ function toAnswerMap(answers: { questionId: string; answer: string }[] | Record<
 }
 
 export class ExamPrepService {
+  private normalizeAssessmentType(value?: string | null) {
+    return value?.toUpperCase() === 'TEST' ? 'TEST' : 'EXAM';
+  }
+
+  private getAssessmentLabel(value?: string | null) {
+    return this.normalizeAssessmentType(value) === 'TEST' ? 'Test' : 'Exam';
+  }
+
   private getDaysLeft(examDate: Date) {
     const msPerDay = 1000 * 60 * 60 * 24;
     return Math.max(0, Math.ceil((examDate.getTime() - Date.now()) / msPerDay));
@@ -61,6 +69,8 @@ export class ExamPrepService {
 
     return {
       ...plan,
+      assessment_type: this.normalizeAssessmentType(plan.assessment_type),
+      assessment_label: this.getAssessmentLabel(plan.assessment_type),
       course_name: plan.course_code,
       subject: plan.course_code,
       days_left: this.getDaysLeft(plan.exam_date),
@@ -109,20 +119,70 @@ export class ExamPrepService {
     };
   }
 
-  async createPlan(userId: string, courseCode: string, examDate: string) {
+  async createPlan(userId: string, courseCode: string, examDate: string, assessmentType = 'EXAM') {
+    const normalizedCourseCode = courseCode?.trim().toUpperCase();
+    const normalizedAssessmentType = this.normalizeAssessmentType(assessmentType);
+    const assessmentLabel = this.getAssessmentLabel(normalizedAssessmentType);
+
+    if (!normalizedCourseCode) {
+      throw new Error('Select a course before creating a prep plan');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { university: true, department: true },
+    });
+
+    if (!user) throw new Error('User not found');
+
+    const usableMaterials = await prisma.material.findMany({
+      where: {
+        course_code: normalizedCourseCode,
+        university: user.university,
+        department: user.department,
+        OR: [
+          { verification_status: VerificationStatus.VERIFIED },
+          { uploaded_by: userId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const questionCount = await prisma.question.count({
+      where: {
+        course_code: normalizedCourseCode,
+        correct_answer: { not: null },
+      },
+    });
+
     const plan = await prisma.examPrepPlan.create({
       data: {
         user_id: userId,
-        course_code: courseCode,
+        course_code: normalizedCourseCode,
+        assessment_type: normalizedAssessmentType,
         exam_date: new Date(examDate),
       },
     });
 
     // Generate initial tasks
     const tasksData = [
-      { title: 'Material Review', description: 'Review lecture notes and summaries', due_date: new Date() },
-      { title: 'Practice Questions', description: 'Complete 10 easy questions', due_date: new Date() },
-      { title: 'Weak Area Focus', description: 'Deep dive into weak topics', due_date: new Date() },
+      {
+        title: `${assessmentLabel} Course Sweep`,
+        description: `Review all ${usableMaterials.length || 'available'} ${normalizedCourseCode} material${usableMaterials.length === 1 ? '' : 's'} before the ${assessmentLabel.toLowerCase()}.`,
+        due_date: new Date(),
+      },
+      {
+        title: 'Course Practice Questions',
+        description: questionCount > 0
+          ? `Practice from ${questionCount} generated ${normalizedCourseCode} question${questionCount === 1 ? '' : 's'}.`
+          : `Generate or approve questions from ${normalizedCourseCode} materials, then practice.`,
+        due_date: new Date(),
+      },
+      {
+        title: `${assessmentLabel} Weak Area Focus`,
+        description: `Use mock results and tutor sessions to focus on weak ${normalizedCourseCode} topics.`,
+        due_date: new Date(),
+      },
     ];
 
     await prisma.prepTask.createMany({

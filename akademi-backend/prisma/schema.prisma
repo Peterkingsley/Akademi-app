@@ -386,6 +386,7 @@ model ExamPrepPlan {
   user_id      String
   user         User       @relation(fields: [user_id], references: [id])
   course_code  String?
+  assessment_type String   @default("EXAM")
   exam_date    DateTime
   created_at   DateTime   @default(now())
   updated_at   DateTime   @updatedAt

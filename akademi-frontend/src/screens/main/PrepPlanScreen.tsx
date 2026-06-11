@@ -51,7 +51,8 @@ export const PrepPlanScreen: React.FC = () => {
   const aiSuggestion = useMemo(() => {
     if (!plan) return "";
 
-    const courseLabel = plan.course_code || plan.course_name || plan.subject || "this exam";
+    const courseLabel = plan.course_code || plan.course_name || plan.subject || "this course";
+    const prepLabel = plan.assessment_label || "Exam";
     const todayGroup = dailyTasks[0];
     const pendingTask = dailyTasks
       .flatMap(group => group.tasks)
@@ -62,7 +63,7 @@ export const PrepPlanScreen: React.FC = () => {
     }
 
     if (todayGroup?.focus) {
-      return `AI SUGGESTION: ${courseLabel} - review ${todayGroup.focus} today, then unlock a mock exam when ready.`;
+      return `AI SUGGESTION: ${courseLabel} ${prepLabel} Prep - review ${todayGroup.focus} today, then unlock a course mock when ready.`;
     }
 
     return `AI SUGGESTION: ${courseLabel} - keep your prep streak moving and refresh readiness after each study block.`;
@@ -274,7 +275,7 @@ export const PrepPlanScreen: React.FC = () => {
   return (
     <SafeArea style={styles.safeArea}>
       <Header
-        title={`${plan?.course_code || ""} Prep Plan`}
+        title={`${plan?.course_code || ""} ${plan?.assessment_label || "Exam"} Prep`}
         onBack={() => navigation.goBack()}
         rightAction={
           <TouchableOpacity>
@@ -321,7 +322,7 @@ export const PrepPlanScreen: React.FC = () => {
               </Text>
             </View>
             <Button
-              label="Take Mock Exam"
+              label={`Take Mock ${plan.assessment_label || "Exam"}`}
               icon={<TrendingUp size={18} color="white" />}
               onPress={startMockExam}
               disabled={plan.progress < 60}

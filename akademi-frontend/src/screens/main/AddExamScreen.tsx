@@ -18,6 +18,7 @@ import { SafeArea } from "../../components/layout/SafeArea";
 import { useAuthStore } from "../../store/useAuthStore";
 
 const { width } = Dimensions.get("window");
+type AssessmentType = "TEST" | "EXAM";
 
 export const AddExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -30,6 +31,7 @@ export const AddExamScreen: React.FC = () => {
     return date;
   }, []);
   const [selectedCourse, setSelectedCourse] = useState(courses[0] || "");
+  const [assessmentType, setAssessmentType] = useState<AssessmentType>("EXAM");
   const [selectedDate, setSelectedDate] = useState<Date>(tomorrow);
   const [loading, setLoading] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1));
@@ -50,7 +52,7 @@ export const AddExamScreen: React.FC = () => {
     setLoading(true);
     try {
       const dateString = selectedDate.toISOString().split('T')[0];
-      const plan = await examPrepService.createPlan(selectedCourse, dateString);
+      const plan = await examPrepService.createPlan(selectedCourse, dateString, assessmentType);
       navigation.replace("PrepPlan", { examId: plan.id });
     } catch (error: any) {
       console.error("Failed to add exam:", error);
@@ -128,11 +130,11 @@ export const AddExamScreen: React.FC = () => {
         <View style={styles.metaRow}>
           <View style={styles.metaPill}>
             <Clock size={16} color={colors.textSecondary} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.bodySmall]}>120 Mins</Text>
+            <Text style={[styles.metaText, typography.bodySmall]}>{assessmentType === "EXAM" ? "120 Mins" : "45 Mins"}</Text>
           </View>
           <View style={[styles.metaPill, styles.formatPill]}>
             <FileText size={16} color={colors.warning} style={styles.metaIcon} />
-            <Text style={[styles.formatText, typography.bodySmall]}>MCQ + Essay</Text>
+            <Text style={[styles.formatText, typography.bodySmall]}>Course-wide prep</Text>
           </View>
         </View>
       </View>
@@ -145,11 +147,42 @@ export const AddExamScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <X size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.title, typography.h3]}>Add an Exam</Text>
+        <Text style={[styles.title, typography.h3]}>Plan Course Prep</Text>
         <View style={styles.closeButton} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.introCard}>
+          <Text style={[styles.introTitle, typography.h3]}>Prepare from the whole course</Text>
+          <Text style={[styles.introText, typography.bodySmall]}>
+            Choose a course and Akademi will use all available materials for that course to prepare practice, weak-area review, and mock questions.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, typography.mono]}>PREP TYPE</Text>
+          <View style={styles.typeRow}>
+            {(["TEST", "EXAM"] as AssessmentType[]).map((type) => {
+              const selected = assessmentType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  style={[styles.typeCard, selected && styles.typeCardSelected]}
+                  activeOpacity={0.82}
+                  onPress={() => setAssessmentType(type)}
+                >
+                  <Text style={[styles.typeTitle, typography.bodySmall, selected && styles.typeTitleSelected]}>
+                    {type === "TEST" ? "Test" : "Exam"}
+                  </Text>
+                  <Text style={[styles.typeDescription, typography.caption, selected && styles.typeDescriptionSelected]}>
+                    {type === "TEST" ? "Shorter course revision" : "Full course preparation"}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={styles.section}>
           <View style={styles.labelRow}>
             <Text style={[styles.label, typography.mono]}>SELECT COURSE</Text>
@@ -188,7 +221,7 @@ export const AddExamScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.label, typography.mono]}>EXAMINATION DATE</Text>
+          <Text style={[styles.label, typography.mono]}>{assessmentType === "TEST" ? "TEST DATE" : "EXAMINATION DATE"}</Text>
           {renderCalendar()}
         </View>
 
@@ -201,7 +234,7 @@ export const AddExamScreen: React.FC = () => {
 
       <View style={styles.footer}>
         <Button
-          label="Add Exam"
+          label={`Create ${assessmentType === "TEST" ? "Test" : "Exam"} Prep`}
           icon={<Plus size={20} color="white" />}
           onPress={handleAddExam}
           loading={loading}
@@ -237,8 +270,59 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 120,
   },
+  introCard: {
+    backgroundColor: colors.surface,
+    borderColor: "rgba(34,197,94,0.24)",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 24,
+    padding: 16,
+  },
+  introTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  introText: {
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
   section: {
     marginBottom: 32,
+  },
+  typeRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 14,
+  },
+  typeCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 88,
+    padding: 14,
+  },
+  typeCardSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  typeTitle: {
+    color: colors.textPrimary,
+    fontWeight: "800",
+    marginBottom: 7,
+  },
+  typeTitleSelected: {
+    color: colors.background,
+  },
+  typeDescription: {
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
+  typeDescriptionSelected: {
+    color: colors.background,
+    opacity: 0.76,
   },
   labelRow: {
     flexDirection: "row",

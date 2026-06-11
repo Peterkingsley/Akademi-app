@@ -83,7 +83,7 @@ export const ExamPrepScreen: React.FC = () => {
         <View style={styles.urgentContent}>
           <Flame size={20} color={colors.warning} style={styles.urgentIcon} />
           <Text style={[styles.urgentText, typography.bodySmall]}>
-            {urgentPlan.course_code} Exam in {urgentPlan.days_left} days!
+            {urgentPlan.course_code} {urgentPlan.assessment_label || "Exam"} in {urgentPlan.days_left} days!
           </Text>
         </View>
         <TouchableOpacity
@@ -109,7 +109,7 @@ export const ExamPrepScreen: React.FC = () => {
                 {plan.course_code}
               </Text>
               <Text style={[styles.examDate, typography.caption]}>
-                EXAM ON {new Date(plan.exam_date).toLocaleDateString()}
+                {(plan.assessment_label || "Exam").toUpperCase()} ON {new Date(plan.exam_date).toLocaleDateString()}
               </Text>
             </View>
             <Badge label={`${plan.days_left}D LEFT`} variant="warning" />
@@ -172,10 +172,10 @@ export const ExamPrepScreen: React.FC = () => {
       <History size={48} color={colors.textMuted} style={styles.emptyIcon} />
       <Text style={[styles.emptyTitle, typography.h3]}>No Active Plans</Text>
       <Text style={[styles.emptySubtitle, typography.body]}>
-        Add your upcoming exams to start your AI-powered preparation journey.
+        Choose a course, then prepare for a test or exam using all materials available for that course.
       </Text>
       <Button
-        label="Add Exam"
+        label="Plan Course Prep"
         icon={<PlusCircle size={20} color="white" />}
         onPress={() => navigation.navigate("AddExam")}
         style={styles.addBtnLarge}
@@ -203,7 +203,7 @@ export const ExamPrepScreen: React.FC = () => {
             <>
               {renderUrgentBanner()}
               <View style={styles.insight}>
-                <AIInsightBanner text="Focus on your weakest prep tasks first. Mock exams unlock once your plan reaches 60% mastery." />
+        <AIInsightBanner text="Exam Prep works by course. Akademi uses all available materials and questions for the selected course." />
               </View>
               <Text style={[styles.sectionTitle, typography.mono]}>
                 ACTIVE PREP PLANS
@@ -216,7 +216,7 @@ export const ExamPrepScreen: React.FC = () => {
               >
                 <PlusCircle size={24} color={colors.primary} />
                 <Text style={[styles.addNewText, typography.bodySmall]}>
-                    Plan for another exam
+                    Plan another course prep
                 </Text>
               </TouchableOpacity>
             </>
