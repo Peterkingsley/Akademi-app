@@ -35,8 +35,7 @@ import {
 } from "lucide-react-native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
-import { userService } from "../../services/user";
-import { LinearGradient } from "expo-linear-gradient";
+import { ProgressSummary, userService } from "../../services/user";
 import * as ImagePicker from "expo-image-picker";
 
 export const ProfileScreen: React.FC = () => {
@@ -46,16 +45,24 @@ export const ProfileScreen: React.FC = () => {
   const [loading, setLoading] = useState(!user);
   const [refreshing, setRefreshing] = useState(false);
   const [featureAccess, setFeatureAccess] = useState<any>(null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = async () => {
     try {
-      const data = await userService.getProfile();
+      setError(null);
+      const [data, access, progressData] = await Promise.all([
+        userService.getProfile(),
+        userService.getFeatureAccess(),
+        userService.getProgress(),
+      ]);
       setProfile(data);
       updateUser(data);
-      const access = await userService.getFeatureAccess();
       setFeatureAccess(access);
+      setProgress(progressData);
     } catch (error) {
       console.error("Error fetching profile:", error);
+      setError("Could not refresh profile data.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,8 +90,9 @@ export const ProfileScreen: React.FC = () => {
       try {
         setLoading(true);
         const updated = await userService.updateAvatar(result.assets[0].uri);
-        setProfile((prev: any) => ({ ...prev, avatar_url: updated.avatar_url }));
-        updateUser({ avatar_url: updated.avatar_url });
+        const avatarUrl = updated.avatar_url || updated.profile_photo_url || (updated as any).photoUrl;
+        setProfile((prev: any) => ({ ...prev, avatar_url: avatarUrl, profile_photo_url: avatarUrl }));
+        updateUser({ avatar_url: avatarUrl, profile_photo_url: avatarUrl });
       } catch (error) {
         Alert.alert("Error", "Failed to update avatar");
       } finally {
@@ -98,6 +106,10 @@ export const ProfileScreen: React.FC = () => {
         .filter(Boolean)
         .join(" / ")
     : "";
+  const avatarUrl = profile?.avatar_url || profile?.profile_photo_url;
+  const planName = Array.isArray(featureAccess) && featureAccess.some((item: any) => item?.payment_ref && item.payment_ref !== "BYPASS")
+    ? "Active Pass"
+    : "Free Beta";
 
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -164,29 +176,18 @@ export const ProfileScreen: React.FC = () => {
           <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8}>
             <Avatar
               name={profile?.name || "User"}
-              uri={profile?.avatar_url}
-              size={80}
+              uri={avatarUrl}
+              size={72}
               style={styles.avatar}
             />
           </TouchableOpacity>
           <Text style={styles.studentName}>{profile?.name}</Text>
           <Text style={styles.academicDetails}>{academicLabel}</Text>
 
-          {featureAccess?.plan === "pro" ? (
-            <LinearGradient
-              colors={["#4338CA", "#7C3AED"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.proPill}
-            >
-              <Sparkles size={14} color="#FFFFFF" style={styles.pillIcon} />
-              <Text style={styles.proPillText}>Akademi Pro +</Text>
-            </LinearGradient>
-          ) : (
-            <View style={styles.freePill}>
-              <Text style={styles.freePillText}>Free Plan</Text>
-            </View>
-          )}
+          <View style={styles.freePill}>
+            <Sparkles size={13} color={colors.primary} style={styles.pillIcon} />
+            <Text style={styles.freePillText}>{planName}</Text>
+          </View>
 
           <View style={styles.heroButtons}>
             <TouchableOpacity
@@ -209,10 +210,16 @@ export const ProfileScreen: React.FC = () => {
         </View>
 
         {/* Stats Row */}
+        {error && (
+          <TouchableOpacity style={styles.errorBanner} onPress={onRefresh} activeOpacity={0.8}>
+            <Text style={styles.errorBannerText}>{error} Tap to retry.</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.statsRow}>
-          <StatTile value={profile?.stats?.assignments || 0} label="ASSIGNMENTS" />
-          <StatTile value={profile?.stats?.sessions || 0} label="SESSIONS" />
-          <StatTile value={profile?.stats?.uploads || 0} label="UPLOADS" />
+          <StatTile value={progress?.summary.solved || 0} label="SOLVED" />
+          <StatTile value={progress?.summary.sessions || 0} label="SESSIONS" />
+          <StatTile value={progress?.summary.uploads || 0} label="UPLOADS" />
         </View>
 
         {/* Menu Sections */}
@@ -370,7 +377,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   container: {
-    padding: 20,
+    padding: 18,
     paddingBottom: 100,
   },
   heroSection: {
@@ -378,12 +385,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    padding: 20,
+    padding: 18,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatar: {
-    marginBottom: 16,
+    marginBottom: 13,
     borderWidth: 2,
     borderColor: colors.border,
   },
@@ -399,25 +406,15 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     maxWidth: "86%",
     textAlign: "center",
-    marginBottom: 16,
-  },
-  proPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 24,
+    marginBottom: 13,
   },
   pillIcon: {
     marginRight: 6,
   },
-  proPillText: {
-    color: "#FFFFFF",
-    fontSize: 9.75,
-    fontWeight: "700",
-  },
   freePill: {
+    alignItems: "center",
     backgroundColor: colors.surfaceElevated,
+    flexDirection: "row",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 24,
@@ -430,7 +427,21 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 32,
+    marginBottom: 26,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(245,158,11,0.12)",
+    borderColor: "rgba(245,158,11,0.28)",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 12,
+  },
+  errorBannerText: {
+    ...typography.bodySmall,
+    color: colors.warning,
+    fontSize: 11,
+    lineHeight: 16,
   },
   statTile: {
     flex: 1,
@@ -494,7 +505,7 @@ const styles = StyleSheet.create({
   },
   heroButtons: {
     flexDirection: "row",
-    marginTop: 20,
+    marginTop: 16,
     gap: 12,
   },
   heroButton: {
