@@ -8,6 +8,23 @@ export interface UpdateProfileRequest {
   courses?: string[];
 }
 
+export interface AcademicCourseInput {
+  code: string;
+  name?: string | null;
+  level: number;
+  semester: number;
+  semester_start: string;
+  semester_end: string;
+}
+
+export interface UpdateAcademicProfileRequest {
+  university?: string;
+  faculty?: string;
+  department?: string;
+  level?: number;
+  courses?: AcademicCourseInput[];
+}
+
 export interface UserProfileResponse {
   id: string;
   name: string;

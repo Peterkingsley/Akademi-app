@@ -27,6 +27,8 @@ router.delete('/me', usersController.deleteMe);
 router.get('/me/learning-profile', usersController.getLearningProfile);
 router.get('/me/sessions', usersController.getSessions);
 router.get('/me/progress', usersController.getProgress);
+router.get('/me/academic-profile', usersController.getAcademicProfile);
+router.patch('/me/academic-profile', usersController.updateAcademicProfile);
 router.get('/me/devices', usersController.getDevices);
 router.delete('/me/devices/:deviceId', usersController.logoutDevice);
 router.get('/me/feature-access', usersController.getFeatureAccess);

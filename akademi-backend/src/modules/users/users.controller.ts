@@ -70,6 +70,24 @@ export class UsersController {
     }
   }
 
+  async getAcademicProfile(req: Request, res: Response) {
+    try {
+      const profile = await usersService.getAcademicProfile(req.user!.userId);
+      res.status(200).json(profile);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async updateAcademicProfile(req: Request, res: Response) {
+    try {
+      const profile = await usersService.updateAcademicProfile(req.user!.userId, req.body);
+      res.status(200).json(profile);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async getDevices(req: Request, res: Response) {
     try {
       const devices = await usersService.getDevices(req.user!.userId);

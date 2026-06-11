@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
-import { UpdateProfileRequest } from './users.types';
+import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.types';
 import { Feature, AccessType } from '@prisma/client';
 
 const s3Client = new S3Client({
@@ -124,6 +124,163 @@ export class UsersService {
   async getLearningProfile(userId: string) {
     return prisma.learningProfile.findUnique({
       where: { user_id: userId },
+    });
+  }
+
+  async getAcademicProfile(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId, is_deleted: false },
+      select: {
+        id: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        courses: true,
+        student_courses: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            level: true,
+            semester: true,
+            semester_start: true,
+            semester_end: true,
+            source: true,
+          },
+          orderBy: [{ level: 'asc' }, { semester: 'asc' }, { code: 'asc' }],
+        },
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
+
+  async updateAcademicProfile(userId: string, data: UpdateAcademicProfileRequest) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId, is_deleted: false },
+      select: { university: true, faculty: true, department: true, level: true },
+    });
+
+    if (!currentUser) {
+      throw new Error('User not found');
+    }
+
+    const universityName = data.university?.trim() || currentUser.university;
+    const faculty = data.faculty?.trim() || currentUser.faculty;
+    const departmentName = data.department?.trim() || currentUser.department;
+    const level = data.level || currentUser.level;
+    const courseInputs = (data.courses || [])
+      .map((course) => ({
+        code: course.code?.trim().toUpperCase(),
+        name: course.name?.trim() || null,
+        level: course.level || level,
+        semester: course.semester,
+        semester_start: new Date(course.semester_start),
+        semester_end: new Date(course.semester_end),
+      }))
+      .filter((course) => !!course.code);
+
+    if (!universityName || !faculty || !departmentName || !level) {
+      throw new Error('University, faculty, department, and level are required');
+    }
+
+    if (courseInputs.length === 0) {
+      throw new Error('Add at least one course code');
+    }
+
+    for (const course of courseInputs) {
+      if (![1, 2].includes(course.semester)) {
+        throw new Error('Semester must be 1 or 2');
+      }
+      if (Number.isNaN(course.semester_start.getTime()) || Number.isNaN(course.semester_end.getTime())) {
+        throw new Error('Enter valid semester start and end dates');
+      }
+      if (course.semester_start >= course.semester_end) {
+        throw new Error('Semester end date must be after start date');
+      }
+    }
+
+    const uniqueCourseInputs = Array.from(
+      new Map(courseInputs.map((course) => [`${course.code}-${course.level}-${course.semester}`, course])).values(),
+    );
+
+    return prisma.$transaction(async (tx) => {
+      const university = await tx.university.upsert({
+        where: { name: universityName },
+        update: {},
+        create: { name: universityName, location: 'Nigeria' },
+      });
+
+      const department = await tx.department.upsert({
+        where: {
+          name_university_id: {
+            name: departmentName,
+            university_id: university.id,
+          },
+        },
+        update: { faculty },
+        create: {
+          name: departmentName,
+          university_id: university.id,
+          faculty,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          university: universityName,
+          faculty,
+          department: departmentName,
+          level,
+          courses: uniqueCourseInputs.map((course) => course.code),
+        },
+      });
+
+      await tx.studentCourse.deleteMany({ where: { user_id: userId } });
+      await tx.studentCourse.createMany({
+        data: uniqueCourseInputs.map((course) => ({
+          user_id: userId,
+          department_id: department.id,
+          code: course.code,
+          name: course.name,
+          level: course.level,
+          semester: course.semester,
+          semester_start: course.semester_start,
+          semester_end: course.semester_end,
+          source: 'student',
+        })),
+      });
+
+      return tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          university: true,
+          faculty: true,
+          department: true,
+          level: true,
+          courses: true,
+          student_courses: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              level: true,
+              semester: true,
+              semester_start: true,
+              semester_end: true,
+              source: true,
+            },
+            orderBy: [{ level: 'asc' }, { semester: 'asc' }, { code: 'asc' }],
+          },
+        },
+      });
     });
   }
 

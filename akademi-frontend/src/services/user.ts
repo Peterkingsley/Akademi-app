@@ -120,6 +120,27 @@ export interface ProgressSummary {
   insight: string;
 }
 
+export interface StudentAcademicCourse {
+  id?: string;
+  code: string;
+  name?: string | null;
+  level: number;
+  semester: number;
+  semester_start: string;
+  semester_end: string;
+  source?: string;
+}
+
+export interface AcademicProfile {
+  id: string;
+  university: string;
+  faculty: string;
+  department: string;
+  level: number;
+  courses: string[];
+  student_courses: StudentAcademicCourse[];
+}
+
 export const userService = {
   getProfile: async () => {
     const response = await api.get<UserProfile>("/users/me");
@@ -128,6 +149,22 @@ export const userService = {
 
   updateProfile: async (data: Partial<UserProfile>) => {
     const response = await api.patch<UserProfile>("/users/me", data);
+    return response.data;
+  },
+
+  getAcademicProfile: async () => {
+    const response = await api.get<AcademicProfile>("/users/me/academic-profile");
+    return response.data;
+  },
+
+  updateAcademicProfile: async (data: Partial<AcademicProfile> & { student_courses?: StudentAcademicCourse[]; courses?: StudentAcademicCourse[] }) => {
+    const response = await api.patch<AcademicProfile>("/users/me/academic-profile", {
+      university: data.university,
+      faculty: data.faculty,
+      department: data.department,
+      level: data.level,
+      courses: data.student_courses || data.courses || [],
+    });
     return response.data;
   },
 
