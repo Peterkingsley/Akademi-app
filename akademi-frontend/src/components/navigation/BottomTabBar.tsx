@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import { House, Camera, Library, User } from "lucide-react-native";
+import { BarChart3, Clock3, House, Camera, Library, User } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import * as Haptics from "expo-haptics";
@@ -30,6 +30,10 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
         return <Camera size={24} color={color} />;
       case "Library":
         return <Library size={24} color={color} />;
+      case "SessionsMain":
+        return <Clock3 size={24} color={color} />;
+      case "Progress":
+        return <BarChart3 size={24} color={color} />;
       case "Profile":
         return <User size={24} color={color} />;
       default:
