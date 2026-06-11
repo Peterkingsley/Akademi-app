@@ -1,785 +1,625 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import {
-  Settings,
+  AlertCircle,
+  BarChart3,
+  BookOpen,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  ShieldCheck,
-  AlertTriangle,
+  Clock3,
+  FileText,
+  GraduationCap,
+  RotateCcw,
   Sparkles,
-  Lock,
+  Target,
+  Trophy,
 } from "lucide-react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
+import { Avatar } from "../../components/ui/Avatar";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Avatar } from "../../components/ui/Avatar";
-import { useNavigation } from "@react-navigation/native";
-import { userService, UserProfile } from "../../services/user";
+import { ProgressSummary, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface CoursePerformance {
-  id: string;
-  code: string;
-  name: string;
-  solved: number;
-  sessions: number;
-  mocks: number;
-  strongest: string;
-  needsWork: string;
-}
-
-interface Badge {
-  id: string;
-  emoji: string;
-  title: string;
-  description: string;
-  unlocked: boolean;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const WEEK_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-
-const SOLVER_BADGES: Badge[] = [
-  { id: "1", emoji: "🎯", title: "Problem Pro", description: "Solved 10 assignments", unlocked: true },
-  { id: "2", emoji: "⚡", title: "Quick Thinker", description: "Finish quiz in <1 min", unlocked: true },
-  { id: "3", emoji: "🧩", title: "Logic Master", description: "50 Perfect Scores", unlocked: false },
-  { id: "4", emoji: "🏆", title: "Tournament King", description: "Win a weekly contest", unlocked: false },
-];
-
-const SCHOLAR_BADGES: Badge[] = [
-  { id: "5", emoji: "📖", title: "Bookworm", description: "Read 20 chapters", unlocked: true },
-  { id: "6", emoji: "✍️", title: "Note Taker", description: "Created 15 study sets", unlocked: false },
-  { id: "7", emoji: "🧠", title: "Scholar", description: "Maintain 7-day streak", unlocked: false },
-  { id: "8", emoji: "🌟", title: "Top 1%", description: "Rank high in department", unlocked: false },
-];
+const formatDate = (value?: string | null) => {
+  if (!value) return "Not completed yet";
+  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
 
 export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user: authUser } = useAuthStore();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const loadProgress = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const [userProfile, userSessions] = await Promise.all([
-        userService.getProfile(),
-        userService.getSessions(),
-      ]);
-      setProfile(userProfile);
-      setSessions(userSessions);
-    } catch (error) {
-      console.error("Failed to fetch progress data", error);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+      const data = await userService.getProgress();
+      setProgress(data);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not load your progress right now.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // ─── Logic ───────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    loadProgress();
+  }, []);
 
-  const getStreakData = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const weekStatus: (boolean | "today")[] = [false, false, false, false, false, false, false];
-
-    // Get days of current week (Mon-Sun)
-    const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday
-    const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - diffToMonday);
-
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(monday);
-      dayDate.setDate(monday.getDate() + i);
-
-      const hasSession = sessions.some(s => {
-        const sDate = new Date(s.created_at);
-        return sDate.toDateString() === dayDate.toDateString();
-      });
-
-      if (dayDate.toDateString() === today.toDateString()) {
-        weekStatus[i] = hasSession ? true : "today";
-      } else {
-        weekStatus[i] = hasSession;
-      }
-    }
-
-    return weekStatus;
-  };
-
-  const getBarData = () => {
-    const today = new Date();
-    const bars = [];
-    const labels = ["M", "T", "W", "T", "F", "S", "S"];
-
-    const currentDay = today.getDay();
-    const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - diffToMonday);
-
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(monday);
-      dayDate.setDate(monday.getDate() + i);
-
-      const daySessions = sessions.filter(s => {
-        const sDate = new Date(s.created_at);
-        return sDate.toDateString() === dayDate.toDateString();
-      });
-
-      // Mock value based on session count for visualization
-      const value = Math.min(daySessions.length / 5, 1.0);
-      bars.push({ day: labels[i], value });
-    }
-    return bars;
-  };
-
-  const getCoursePerformance = (): CoursePerformance[] => {
-    // Group sessions by course code
-    const grouped = sessions.reduce((acc: any, s) => {
-      if (!acc[s.course_code]) acc[s.course_code] = { solved: 0, sessions: 0, mocks: 0 };
-      acc[s.course_code].sessions++;
-      return acc;
-    }, {});
-
-    return Object.keys(grouped).map(code => ({
-      id: code,
-      code,
-      name: "Course Overview",
-      solved: grouped[code].solved,
-      sessions: grouped[code].sessions,
-      mocks: grouped[code].mocks,
-      strongest: "General Concepts",
-      needsWork: "Advanced Application",
-    }));
-  };
-
-  const calculateStreak = () => {
-    if (sessions.length === 0) return 0;
-
-    const sorted = [...sessions].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  const maxActivity = useMemo(() => {
+    if (!progress) return 1;
+    return Math.max(
+      1,
+      ...progress.weeklyActivity.map((day) => day.sessions + day.solved + day.mocks + day.uploads),
     );
+  }, [progress]);
 
-    let streak = 0;
-    let lastDate = new Date();
-    lastDate.setHours(0,0,0,0);
-
-    // If no session today, check if there was one yesterday
-    const todaySession = sorted.find(s => new Date(s.created_at).toDateString() === lastDate.toDateString());
-
-    if (!todaySession) {
-        lastDate.setDate(lastDate.getDate() - 1);
-        const yesterdaySession = sorted.find(s => new Date(s.created_at).toDateString() === lastDate.toDateString());
-        if (!yesterdaySession) return 0;
-    }
-
-    const uniqueDates = Array.from(new Set(sorted.map(s => new Date(s.created_at).toDateString())));
-
-    let checkDate = new Date(lastDate);
-    for (const dateStr of uniqueDates) {
-        if (dateStr === checkDate.toDateString()) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-            break;
-        }
-    }
-
-    return streak;
-  };
-
-  const weekStatus = getStreakData();
-  const barData = getBarData();
-  const courses = getCoursePerformance();
-  const currentStreak = calculateStreak();
-
-  // ─── Components ───────────────────────────────────────────────────────────────
-
-  const BadgeCard = ({ badge }: { badge: Badge }) => (
-    <View style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
-      {!badge.unlocked && (
-        <View style={styles.lockOverlay}>
-          <Lock size={12} color={colors.textMuted} />
-        </View>
-      )}
-      <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-      <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTitleLocked]}>
-        {badge.title}
-      </Text>
-      <Text style={[styles.badgeDesc, !badge.unlocked && styles.badgeDescLocked]}>
-        {badge.description}
-      </Text>
-    </View>
-  );
+  const hasActivity = progress
+    ? progress.summary.sessions + progress.summary.solved + progress.summary.uploads + progress.summary.mockAttempts > 0
+    : false;
 
   return (
-    <Screen style={styles.scroll}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+    <Screen style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            tintColor={colors.primary}
+            refreshing={refreshing}
+            onRefresh={() => loadProgress(true)}
+          />
+        }
+      >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Avatar
-              size={36}
-              name={authUser?.name || 'Student'}
+              size={38}
+              name={authUser?.name || progress?.user.name || "Student"}
               uri={authUser?.avatar_url || undefined}
-              style={styles.avatar}
             />
-            <Text style={styles.headerBrand}>Akademi</Text>
+            <View>
+              <Text style={styles.eyebrow}>PROGRESS</Text>
+              <Text style={styles.title}>Your learning pulse</Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate("AppearanceSettings")}>
-            <Settings size={20} color={colors.textSecondary} />
+          <TouchableOpacity style={styles.iconButton} onPress={() => loadProgress(true)}>
+            <RotateCcw size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {loading ? (
-          <View style={[styles.center, { marginTop: 100 }]}>
+          <View style={styles.centerState}>
             <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.stateText}>Loading your progress...</Text>
           </View>
-        ) : (
+        ) : error ? (
+          <View style={styles.centerState}>
+            <AlertCircle size={34} color={colors.warning} />
+            <Text style={styles.stateTitle}>Could not load progress</Text>
+            <Text style={styles.stateText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => loadProgress()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : progress ? (
           <>
-            {/* Page Title */}
-            <View style={styles.pageTitleRow}>
-              <Text style={styles.pageTitle}>Progress</Text>
-              <Text style={styles.pageSubtitle}>
-                {profile?.university?.toUpperCase() || "ACADEMIC OVERVIEW"}
-              </Text>
-            </View>
-
-            {/* Streak Card */}
-            <View style={styles.streakCard}>
-              <Text style={styles.streakTitle}>{currentStreak} Day Streak!</Text>
-              <Text style={styles.streakSubtext}>
-                {currentStreak > 0
-                  ? "Great job! You have an active streak. Keep it going!"
-                  : "You don't have an active streak. Study today to start it up!"}
-              </Text>
-              <View style={styles.weekRow}>
-                {WEEK_DAYS.map((day, idx) => (
-                  <View key={day} style={styles.dayCol}>
-                    <View
-                      style={[
-                        styles.dayCircle,
-                        weekStatus[idx] === true && styles.dayCircleDone,
-                        weekStatus[idx] === "today" && styles.dayCircleToday,
-                      ]}
-                    >
-                      {weekStatus[idx] === true ? (
-                        <Text style={styles.checkMark}>✓</Text>
-                      ) : weekStatus[idx] === "today" ? (
-                        <View style={styles.todayDot} />
-                      ) : null}
-                    </View>
-                    <Text
-                      style={[
-                        styles.dayLabel,
-                        weekStatus[idx] && styles.dayLabelActive,
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Weekly Activity */}
-            <View style={styles.sectionCard}>
-              <View style={styles.activityHeader}>
-                <View>
-                  <Text style={styles.sectionTitle}>Weekly Activity</Text>
-                  <Text style={styles.activitySubtext}>Based on your sessions</Text>
+            <View style={styles.heroCard}>
+              <View style={styles.heroTop}>
+                <View style={styles.heroIcon}>
+                  <Trophy size={24} color={colors.primary} />
                 </View>
-                <View style={styles.minsBadge}>
-                  <View style={styles.minsDot} />
-                  <Text style={styles.minsText}>{sessions.length} SESSIONS</Text>
+                <View style={styles.streakBadge}>
+                  <Text style={styles.streakBadgeText}>{progress.summary.streak} day streak</Text>
                 </View>
               </View>
-
-              <View style={styles.barChart}>
-                {barData.map((d, i) => (
-                  <View key={i} style={styles.barCol}>
-                    <View style={[styles.barTrack, { backgroundColor: colors.surfaceElevated }]}>
-                      <View
-                        style={[
-                          styles.bar,
-                          {
-                            height: `${d.value * 100}%`,
-                            backgroundColor: colors.primary,
-                          },
-                        ]}
-                      />
-                    </View>
-                    <Text style={styles.barLabel}>{d.day}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.heroTitle}>
+                {hasActivity ? "You are building momentum." : "Start your first tracked study action."}
+              </Text>
+              <Text style={styles.heroText}>{progress.insight}</Text>
             </View>
 
-            {/* Course Breakdown */}
-            <Text style={styles.sectionHeading}>Course Breakdown</Text>
-            {courses.length > 0 ? (
-                courses.map((course) => (
-                    <TouchableOpacity
-                      key={course.id}
-                      style={styles.courseCard}
-                      onPress={() =>
-                        setExpandedCourse(expandedCourse === course.id ? null : course.id)
-                      }
-                      activeOpacity={0.9}
-                    >
-                      <View style={styles.courseHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.courseTitle}>{course.code}</Text>
-                          <Text style={styles.courseMeta}>
-                            {course.sessions} sessions • {course.solved} problems solved
-                          </Text>
-                        </View>
-                        {expandedCourse === course.id ? (
-                          <ChevronUp size={20} color={colors.textMuted} />
-                        ) : (
-                          <ChevronDown size={20} color={colors.textMuted} />
-                        )}
+            <View style={styles.statsGrid}>
+              <StatCard icon={BookOpen} label="Solved" value={progress.summary.solved} sub={`${progress.summary.accuracy}% accuracy`} />
+              <StatCard icon={Clock3} label="Sessions" value={progress.summary.sessions} sub={`${progress.summary.totalTutorMinutes} tutor min`} />
+              <StatCard icon={FileText} label="Uploads" value={progress.summary.uploads} sub={`${progress.summary.approvedUploads} approved`} />
+              <StatCard icon={Target} label="Mocks" value={progress.summary.mockAttempts} sub={`${progress.summary.examPlans} exam plans`} />
+            </View>
+
+            <SectionCard title="This Week" subtitle="Sessions, solves, mocks, and uploads">
+              <View style={styles.weekChart}>
+                {progress.weeklyActivity.map((item) => {
+                  const total = item.sessions + item.solved + item.mocks + item.uploads;
+                  return (
+                    <View key={item.date} style={styles.weekColumn}>
+                      <View style={styles.barTrack}>
+                        <View style={[styles.barFill, { height: `${Math.max(8, (total / maxActivity) * 100)}%` }]} />
                       </View>
+                      <Text style={styles.weekLabel}>{item.day.slice(0, 1)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </SectionCard>
 
-                      {expandedCourse === course.id && (
-                        <View style={styles.courseExpanded}>
-                          <View style={styles.performancePill}>
-                            <ShieldCheck size={16} color={colors.success} />
-                            <View style={styles.performanceTexts}>
-                              <Text style={styles.performanceLabel}>STRONGEST AREA</Text>
-                              <Text style={styles.performanceValue}>{course.strongest}</Text>
-                            </View>
-                          </View>
-                          <View style={styles.performancePill}>
-                            <AlertTriangle size={16} color={colors.warning} />
-                            <View style={styles.performanceTexts}>
-                              <Text style={styles.performanceLabel}>NEEDS WORK</Text>
-                              <Text style={styles.performanceValue}>{course.needsWork}</Text>
-                            </View>
-                          </View>
-                        </View>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Course Breakdown</Text>
+              <Text style={styles.sectionSubtitle}>Based on real activity</Text>
+            </View>
+
+            {progress.courses.length > 0 ? (
+              progress.courses.map((course) => {
+                const isOpen = expandedCourse === course.code;
+                return (
+                  <TouchableOpacity
+                    key={course.code}
+                    style={styles.courseCard}
+                    activeOpacity={0.9}
+                    onPress={() => setExpandedCourse(isOpen ? null : course.code)}
+                  >
+                    <View style={styles.courseTop}>
+                      <View style={styles.courseIcon}>
+                        <GraduationCap size={18} color={colors.primary} />
+                      </View>
+                      <View style={styles.courseInfo}>
+                        <Text style={styles.courseCode}>{course.code}</Text>
+                        <Text style={styles.courseName}>{course.name || "Course activity"}</Text>
+                      </View>
+                      {isOpen ? (
+                        <ChevronUp size={20} color={colors.textMuted} />
+                      ) : (
+                        <ChevronDown size={20} color={colors.textMuted} />
                       )}
-                    </TouchableOpacity>
-                  ))
+                    </View>
+
+                    {isOpen && (
+                      <View style={styles.courseDetails}>
+                        <Metric label="Sessions" value={course.sessions} />
+                        <Metric label="Solved" value={course.solved} />
+                        <Metric label="Mocks" value={course.mocks} />
+                        <Metric label="Uploads" value={course.uploads} />
+                        <Metric label="Accuracy" value={course.solved ? `${Math.round((course.correct / course.solved) * 100)}%` : "-"} />
+                        <Metric label="Avg mock" value={course.averageMockScore === null ? "-" : `${course.averageMockScore}%`} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })
             ) : (
-                <View style={[styles.courseCard, { alignItems: "center", paddingVertical: 32 }]}>
-                    <Text style={styles.courseMeta}>No course data available yet.</Text>
-                </View>
+              <EmptyCard
+                title="No course activity yet"
+                text="Solve a question, start a tutor session, upload a material, or take a mock exam to see course progress here."
+              />
             )}
 
-            {/* Solver Badges */}
-            <View style={[styles.badgeSectionHeader, { marginTop: 24 }]}>
-              <Text style={styles.badgeSectionIcon}>🎯</Text>
-              <Text style={styles.badgeSectionTitle}>Solver Badges</Text>
-            </View>
-            <View style={styles.badgeGrid}>
-              {SOLVER_BADGES.map((b) => (
-                <BadgeCard key={b.id} badge={b} />
-              ))}
-            </View>
-
-            {/* Scholar Badges */}
-            <View style={styles.badgeSectionHeader}>
-              <Text style={styles.badgeSectionIcon}>📖</Text>
-              <Text style={styles.badgeSectionTitle}>Scholar Badges</Text>
-            </View>
-            <View style={styles.badgeGrid}>
-              {SCHOLAR_BADGES.map((b) => (
-                <BadgeCard key={b.id} badge={b} />
-              ))}
-            </View>
-
-            {/* AI Insight */}
-            <View style={styles.insightCard}>
-              <View style={styles.insightLeft}>
-                <Sparkles size={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.insightLabel}>AI Insight</Text>
-                <Text style={styles.insightText}>
-                  "Students with a 7-day streak are 84% more likely to pass
-                  their final exams. Keep the momentum!"
-                </Text>
-              </View>
-            </View>
+            <SectionCard title="Recent Activity" subtitle="Latest tracked work">
+              {progress.recent.sessions.length === 0 && progress.recent.mocks.length === 0 ? (
+                <Text style={styles.emptyInline}>Nothing tracked yet.</Text>
+              ) : (
+                <>
+                  {progress.recent.sessions.map((session) => (
+                    <ActivityRow
+                      key={session.id}
+                      icon={Clock3}
+                      title={session.topic || "Tutor session"}
+                      meta={`${session.courseCode || "General"} - ${session.messageCount} messages - ${formatDate(session.createdAt)}`}
+                    />
+                  ))}
+                  {progress.recent.mocks.map((mock) => (
+                    <ActivityRow
+                      key={mock.id}
+                      icon={CheckCircle2}
+                      title={`Mock result: ${Math.round(mock.score)}%`}
+                      meta={`${mock.courseCode || "General"} - ${formatDate(mock.completedAt)}`}
+                    />
+                  ))}
+                </>
+              )}
+            </SectionCard>
           </>
-        )}
+        ) : null}
       </ScrollView>
     </Screen>
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+const StatCard = ({ icon: Icon, label, value, sub }: { icon: any; label: string; value: number; sub: string }) => (
+  <View style={styles.statCard}>
+    <Icon size={18} color={colors.primary} />
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{label}</Text>
+    <Text style={styles.statSub}>{sub}</Text>
+  </View>
+);
+
+const SectionCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
+  <View style={styles.card}>
+    <View style={styles.cardHeader}>
+      <View>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+      </View>
+      <BarChart3 size={18} color={colors.textMuted} />
+    </View>
+    {children}
+  </View>
+);
+
+const Metric = ({ label, value }: { label: string; value: string | number }) => (
+  <View style={styles.metric}>
+    <Text style={styles.metricValue}>{value}</Text>
+    <Text style={styles.metricLabel}>{label}</Text>
+  </View>
+);
+
+const ActivityRow = ({ icon: Icon, title, meta }: { icon: any; title: string; meta: string }) => (
+  <View style={styles.activityRow}>
+    <View style={styles.activityIcon}>
+      <Icon size={16} color={colors.primary} />
+    </View>
+    <View style={styles.activityText}>
+      <Text style={styles.activityTitle}>{title}</Text>
+      <Text style={styles.activityMeta}>{meta}</Text>
+    </View>
+  </View>
+);
+
+const EmptyCard = ({ title, text }: { title: string; text: string }) => (
+  <View style={styles.emptyCard}>
+    <Sparkles size={22} color={colors.primary} />
+    <Text style={styles.emptyTitle}>{title}</Text>
+    <Text style={styles.emptyText}>{text}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
-  scroll: {
+  screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingBottom: 40,
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 36,
   },
-  center: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-
-  // Header
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    justifyContent: "space-between",
+    marginBottom: 18,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
+    flex: 1,
   },
-  avatar: {
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  headerBrand: {
-    ...typography.h3,
-    color: colors.primary,
-  },
-  iconBtn: {
-    padding: 6,
-  },
-
-  // Page title
-  pageTitleRow: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 20,
-  },
-  pageTitle: {
-    fontSize: 32,
-    fontFamily: "Inter-Bold",
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  pageSubtitle: {
+  eyebrow: {
     fontSize: 11,
     fontFamily: "SpaceMono-Regular",
-    color: "#D97706",
+    color: colors.primary,
+    marginBottom: 2,
   },
-
-  // Streak Card
-  streakCard: {
-    marginHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+  title: {
+    ...typography.h3,
+    color: colors.textPrimary,
   },
-  streakTitle: {
-    fontSize: 18,
-    fontFamily: "Inter-Bold",
-    color: "#D97706",
-    marginBottom: 6,
-  },
-  streakSubtext: {
-    fontSize: 12,
-    fontFamily: "Inter-Regular",
-    color: colors.textSecondary,
-    marginBottom: 20,
-    lineHeight: 18,
-  },
-  weekRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  dayCol: {
-    alignItems: "center",
-    gap: 6,
-  },
-  dayCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceElevated,
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    justifyContent: "center",
     alignItems: "center",
-  },
-  dayCircleDone: {
-    backgroundColor: "#D97706",
-    borderColor: "#D97706",
-  },
-  dayCircleToday: {
-    borderColor: "#D97706",
-    borderWidth: 2,
-    backgroundColor: "transparent",
-  },
-  checkMark: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  todayDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#D97706",
-  },
-  dayLabel: {
-    fontSize: 8,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.textMuted,
-  },
-  dayLabelActive: {
-    color: "#D97706",
-  },
-
-  // Weekly Activity
-  sectionCard: {
-    marginHorizontal: 16,
+    justifyContent: "center",
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 28,
   },
-  activityHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
+  centerState: {
+    minHeight: 420,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
   },
-  sectionTitle: {
-    fontSize: 16,
+  stateTitle: {
+    fontSize: 18,
     fontFamily: "Inter-SemiBold",
     color: colors.textPrimary,
-    marginBottom: 4,
   },
-  activitySubtext: {
+  stateText: {
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  retryText: {
+    color: colors.background,
+    fontFamily: "Inter-SemiBold",
+    fontSize: 14,
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.12)",
+    padding: 20,
+    marginBottom: 16,
+  },
+  heroTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  streakBadge: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  streakBadgeText: {
     fontSize: 11,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+  },
+  heroTitle: {
+    fontSize: 25,
+    lineHeight: 31,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  heroText: {
+    fontSize: 14,
+    lineHeight: 21,
     fontFamily: "Inter-Regular",
     color: colors.textSecondary,
   },
-  minsBadge: {
+  statsGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceElevated,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statCard: {
+    width: "48%",
+    backgroundColor: colors.surface,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    padding: 14,
+    minHeight: 122,
   },
-  minsDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  statValue: {
+    fontSize: 27,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+    marginTop: 12,
   },
-  minsText: {
-    fontSize: 9,
-    fontFamily: "SpaceMono-Regular",
+  statLabel: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  statSub: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 18,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontFamily: "Inter-SemiBold",
     color: colors.textPrimary,
   },
-  barChart: {
+  cardSubtitle: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 3,
+  },
+  weekChart: {
+    height: 112,
     flexDirection: "row",
-    height: 100,
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
-  barCol: {
-    flex: 1,
+  weekColumn: {
     alignItems: "center",
-    gap: 6,
+    gap: 8,
+    flex: 1,
   },
   barTrack: {
-    width: 28,
-    height: 80,
-    justifyContent: "flex-end",
-    borderRadius: 6,
+    width: 24,
+    height: 82,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 8,
     overflow: "hidden",
+    justifyContent: "flex-end",
   },
-  bar: {
+  barFill: {
     width: "100%",
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
   },
-  barLabel: {
-    fontSize: 9,
+  weekLabel: {
+    fontSize: 11,
     fontFamily: "SpaceMono-Regular",
     color: colors.textMuted,
   },
-
-  // Section Heading
-  sectionHeading: {
-    fontSize: 18,
+  sectionHeader: {
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  courseCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 15,
+    marginBottom: 12,
+  },
+  courseTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  courseIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  courseInfo: {
+    flex: 1,
+  },
+  courseCode: {
+    fontSize: 15,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  courseName: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 3,
+  },
+  courseDetails: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+  },
+  metric: {
+    width: "30%",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    padding: 10,
+  },
+  metricValue: {
+    fontSize: 16,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  metricLabel: {
+    fontSize: 10,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  emptyCard: {
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    padding: 18,
+    gap: 8,
+    marginBottom: 18,
+  },
+  emptyTitle: {
+    fontSize: 16,
     fontFamily: "Inter-SemiBold",
     color: colors.textPrimary,
-    paddingHorizontal: 20,
-    marginBottom: 12,
   },
-
-  // Course Cards
-  courseCard: {
-    marginHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+  emptyText: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: "Inter-Regular",
+    color: colors.textSecondary,
   },
-  courseHeader: {
+  emptyInline: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+  },
+  activityRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    gap: 12,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  courseTitle: {
+  activityIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityText: {
+    flex: 1,
+  },
+  activityTitle: {
     fontSize: 14,
     fontFamily: "Inter-SemiBold",
     color: colors.textPrimary,
-    marginBottom: 4,
   },
-  courseMeta: {
-    fontSize: 11,
-    fontFamily: "Inter-Regular",
-    color: colors.textSecondary,
-    lineHeight: 16,
-  },
-  courseExpanded: {
-    marginTop: 14,
-    gap: 8,
-  },
-  performancePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
-    padding: 12,
-  },
-  performanceTexts: {
-    flex: 1,
-  },
-  performanceLabel: {
-    fontSize: 8,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  performanceValue: {
-    fontSize: 13,
-    fontFamily: "Inter-SemiBold",
-    color: colors.textPrimary,
-  },
-
-  // Badge Section
-  badgeSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 20,
-    marginBottom: 14,
-  },
-  badgeSectionIcon: {
-    fontSize: 18,
-  },
-  badgeSectionTitle: {
-    fontSize: 18,
-    fontFamily: "Inter-SemiBold",
-    color: colors.textPrimary,
-  },
-  badgeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 28,
-  },
-  badgeCard: {
-    width: "47%",
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-    gap: 6,
-    position: "relative",
-  },
-  badgeCardLocked: {
-    opacity: 0.5,
-  },
-  lockOverlay: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-  },
-  badgeEmoji: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  badgeTitle: {
-    fontSize: 13,
-    fontFamily: "Inter-Bold",
-    color: colors.textPrimary,
-    textAlign: "center",
-  },
-  badgeTitleLocked: {
-    color: colors.textMuted,
-  },
-  badgeDesc: {
-    fontSize: 11,
-    fontFamily: "Inter-Regular",
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 16,
-  },
-  badgeDescLocked: {
-    color: colors.textMuted,
-  },
-
-  // AI Insight
-  insightCard: {
-    marginHorizontal: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: "row",
-    gap: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    marginBottom: 20,
-  },
-  insightLeft: {
-    paddingTop: 2,
-  },
-  insightLabel: {
-    fontSize: 9,
-    fontFamily: "SpaceMono-Regular",
-    color: colors.primary,
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  insightText: {
+  activityMeta: {
     fontSize: 12,
     fontFamily: "Inter-Regular",
-    color: colors.textSecondary,
-    lineHeight: 18,
+    color: colors.textMuted,
+    marginTop: 3,
   },
 });

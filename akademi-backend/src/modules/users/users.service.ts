@@ -134,6 +134,224 @@ export class UsersService {
     });
   }
 
+  async getProgress(userId: string) {
+    const [user, sessions, uploads, questionAttempts, mockAttempts, examPlans, studentCourses] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId, is_deleted: false },
+        select: {
+          id: true,
+          name: true,
+          university: true,
+          faculty: true,
+          department: true,
+          level: true,
+          courses: true,
+        },
+      }),
+      prisma.session.findMany({
+        where: { user_id: userId },
+        select: {
+          id: true,
+          course_code: true,
+          topic: true,
+          duration: true,
+          created_at: true,
+          ended_at: true,
+          session_type: true,
+          messages: {
+            select: { id: true },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.material.findMany({
+        where: { uploaded_by: userId },
+        select: {
+          id: true,
+          course_code: true,
+          verification_status: true,
+          created_at: true,
+        },
+      }),
+      prisma.questionAttempt.findMany({
+        where: { user_id: userId },
+        select: {
+          id: true,
+          is_correct: true,
+          created_at: true,
+          question: {
+            select: { course_code: true },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.mockAttempt.findMany({
+        where: { user_id: userId },
+        select: {
+          id: true,
+          score: true,
+          started_at: true,
+          completed_at: true,
+          mock_exam: {
+            select: {
+              plan: {
+                select: { course_code: true },
+              },
+            },
+          },
+        },
+        orderBy: { started_at: 'desc' },
+      }),
+      prisma.examPrepPlan.findMany({
+        where: { user_id: userId },
+        select: { id: true, course_code: true, exam_date: true, created_at: true },
+      }),
+      prisma.studentCourse.findMany({
+        where: { user_id: userId },
+        select: { code: true, name: true, level: true, semester: true },
+        orderBy: [{ level: 'asc' }, { semester: 'asc' }, { code: 'asc' }],
+      }),
+    ]);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const now = new Date();
+    const weekStart = new Date(now);
+    const day = weekStart.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - diffToMonday);
+
+    const activityDates = [
+      ...sessions.map((session) => session.created_at),
+      ...questionAttempts.map((attempt) => attempt.created_at),
+      ...mockAttempts.map((attempt) => attempt.completed_at || attempt.started_at),
+      ...uploads.map((upload) => upload.created_at),
+    ];
+
+    const dayKeys = new Set(activityDates.map((date) => this.toDayKey(date)));
+    const weeklyActivity = Array.from({ length: 7 }).map((_, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+      const dateKey = this.toDayKey(date);
+
+      return {
+        day: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][index],
+        date: dateKey,
+        sessions: sessions.filter((session) => this.toDayKey(session.created_at) === dateKey).length,
+        solved: questionAttempts.filter((attempt) => this.toDayKey(attempt.created_at) === dateKey).length,
+        mocks: mockAttempts.filter((attempt) => this.toDayKey(attempt.completed_at || attempt.started_at) === dateKey).length,
+        uploads: uploads.filter((upload) => this.toDayKey(upload.created_at) === dateKey).length,
+      };
+    });
+
+    const courseMap = new Map<string, {
+      code: string;
+      name?: string | null;
+      sessions: number;
+      solved: number;
+      correct: number;
+      mocks: number;
+      uploads: number;
+      averageMockScore: number | null;
+    }>();
+
+    const ensureCourse = (code?: string | null) => {
+      const safeCode = code?.trim() || 'General';
+      if (!courseMap.has(safeCode)) {
+        const registered = studentCourses.find((course) => course.code.toLowerCase() === safeCode.toLowerCase());
+        courseMap.set(safeCode, {
+          code: safeCode,
+          name: registered?.name,
+          sessions: 0,
+          solved: 0,
+          correct: 0,
+          mocks: 0,
+          uploads: 0,
+          averageMockScore: null,
+        });
+      }
+      return courseMap.get(safeCode)!;
+    };
+
+    for (const course of studentCourses) ensureCourse(course.code);
+    for (const session of sessions) ensureCourse(session.course_code).sessions += 1;
+    for (const attempt of questionAttempts) {
+      const course = ensureCourse(attempt.question.course_code);
+      course.solved += 1;
+      if (attempt.is_correct) course.correct += 1;
+    }
+    for (const upload of uploads) ensureCourse(upload.course_code).uploads += 1;
+
+    const mockScores = new Map<string, number[]>();
+    for (const attempt of mockAttempts) {
+      const code = attempt.mock_exam.plan.course_code || 'General';
+      ensureCourse(code).mocks += 1;
+      const scores = mockScores.get(code) || [];
+      scores.push(attempt.score);
+      mockScores.set(code, scores);
+    }
+
+    for (const [code, scores] of mockScores.entries()) {
+      ensureCourse(code).averageMockScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+    }
+
+    const correctAnswers = questionAttempts.filter((attempt) => attempt.is_correct).length;
+    const solvedCount = questionAttempts.length;
+    const completedMocks = mockAttempts.filter((attempt) => attempt.completed_at).length;
+    const activeDays = dayKeys.size;
+
+    return {
+      user,
+      summary: {
+        sessions: sessions.length,
+        solved: solvedCount,
+        correct: correctAnswers,
+        accuracy: solvedCount ? Math.round((correctAnswers / solvedCount) * 100) : 0,
+        uploads: uploads.length,
+        approvedUploads: uploads.filter((upload) => upload.verification_status === 'VERIFIED').length,
+        examPlans: examPlans.length,
+        mockAttempts: mockAttempts.length,
+        completedMocks,
+        activeDays,
+        streak: this.calculateStreak(dayKeys),
+        totalTutorMinutes: sessions.reduce((sum, session) => sum + (session.duration || 0), 0),
+      },
+      weeklyActivity,
+      courses: Array.from(courseMap.values()).sort((a, b) => {
+        const aActivity = a.sessions + a.solved + a.mocks + a.uploads;
+        const bActivity = b.sessions + b.solved + b.mocks + b.uploads;
+        return bActivity - aActivity || a.code.localeCompare(b.code);
+      }),
+      recent: {
+        sessions: sessions.slice(0, 3).map((session) => ({
+          id: session.id,
+          courseCode: session.course_code,
+          topic: session.topic,
+          duration: session.duration,
+          messageCount: session.messages.length,
+          createdAt: session.created_at,
+        })),
+        mocks: mockAttempts.slice(0, 3).map((attempt) => ({
+          id: attempt.id,
+          courseCode: attempt.mock_exam.plan.course_code,
+          score: attempt.score,
+          completedAt: attempt.completed_at,
+        })),
+      },
+      insight: this.buildProgressInsight({
+        sessions: sessions.length,
+        solved: solvedCount,
+        accuracy: solvedCount ? Math.round((correctAnswers / solvedCount) * 100) : 0,
+        streak: this.calculateStreak(dayKeys),
+        uploads: uploads.length,
+        mockAttempts: mockAttempts.length,
+      }),
+    };
+  }
+
   async getDevices(userId: string) {
     return prisma.refreshToken.findMany({
       where: { user_id: userId, is_active: true },
@@ -180,5 +398,54 @@ export class UsersService {
     return prisma.material.findMany({
       where: { uploaded_by: userId },
     });
+  }
+
+  private toDayKey(date: Date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  private calculateStreak(dayKeys: Set<string>) {
+    let streak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    while (dayKeys.has(this.toDayKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    if (streak > 0) return streak;
+
+    cursor.setDate(cursor.getDate() - 1);
+    while (dayKeys.has(this.toDayKey(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return streak;
+  }
+
+  private buildProgressInsight(input: { sessions: number; solved: number; accuracy: number; streak: number; uploads: number; mockAttempts: number }) {
+    if (input.streak >= 3) {
+      return `You are on a ${input.streak}-day streak. Keep one small study action today so the chain stays alive.`;
+    }
+
+    if (input.solved >= 5 && input.accuracy < 60) {
+      return `You have attempted ${input.solved} questions. Accuracy is ${input.accuracy}%, so review weak answers before starting another mock.`;
+    }
+
+    if (input.mockAttempts > 0) {
+      return 'Your mock exam history is now part of progress. Revisit weak areas after each attempt to raise your next score.';
+    }
+
+    if (input.sessions > 0) {
+      return 'Your tutor sessions are being tracked. Add a mock or CBT attempt next so Akademi can spot stronger weak areas.';
+    }
+
+    if (input.uploads > 0) {
+      return 'Your uploads are saved. Open one material, study it, then practice CBT to start building measurable progress.';
+    }
+
+    return 'Start with one material, one tutor question, or one assignment solve. Your progress screen will fill up as you work.';
   }
 }

@@ -59,6 +59,67 @@ export interface FeatureProduct {
   scope_type: "MATERIAL" | "COURSE" | "GLOBAL";
 }
 
+export interface ProgressSummary {
+  user: {
+    id: string;
+    name: string;
+    university: string;
+    faculty: string;
+    department: string;
+    level: number;
+    courses: string[];
+  };
+  summary: {
+    sessions: number;
+    solved: number;
+    correct: number;
+    accuracy: number;
+    uploads: number;
+    approvedUploads: number;
+    examPlans: number;
+    mockAttempts: number;
+    completedMocks: number;
+    activeDays: number;
+    streak: number;
+    totalTutorMinutes: number;
+  };
+  weeklyActivity: Array<{
+    day: string;
+    date: string;
+    sessions: number;
+    solved: number;
+    mocks: number;
+    uploads: number;
+  }>;
+  courses: Array<{
+    code: string;
+    name?: string | null;
+    sessions: number;
+    solved: number;
+    correct: number;
+    mocks: number;
+    uploads: number;
+    averageMockScore: number | null;
+  }>;
+  recent: {
+    sessions: Array<{
+      id: string;
+      courseCode?: string | null;
+      topic?: string | null;
+      duration?: number | null;
+      messageCount: number;
+      createdAt: string;
+    }>;
+    mocks: Array<{
+      id: string;
+      courseCode?: string | null;
+      score: number;
+      completedAt?: string | null;
+    }>;
+  };
+  insight: string;
+}
+
 export const userService = {
   getProfile: async () => {
     const response = await api.get<UserProfile>("/users/me");
@@ -135,6 +196,11 @@ export const userService = {
 
   getSessions: async () => {
     return sessionService.getRecentSessions(100);
+  },
+
+  getProgress: async () => {
+    const response = await api.get<ProgressSummary>("/users/me/progress");
+    return response.data;
   },
 
   getUploads: async () => {

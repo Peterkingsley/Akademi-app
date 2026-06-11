@@ -61,6 +61,15 @@ export class UsersController {
     }
   }
 
+  async getProgress(req: Request, res: Response) {
+    try {
+      const progress = await usersService.getProgress(req.user!.userId);
+      res.status(200).json(progress);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async getDevices(req: Request, res: Response) {
     try {
       const devices = await usersService.getDevices(req.user!.userId);
