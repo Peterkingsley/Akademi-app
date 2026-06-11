@@ -16,10 +16,27 @@ const PLACEHOLDER_KEYWORDS = [
   'sk-placeholder',
 ];
 
+const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+
 function isPlaceholder(key: string | undefined | null): boolean {
   if (!key) return true;
   const lowerKey = key.toLowerCase();
   return PLACEHOLDER_KEYWORDS.some(keyword => lowerKey.includes(keyword));
+}
+
+function uniqueModels(primary?: string) {
+  return Array.from(new Set([primary, ...GEMINI_FALLBACK_MODELS].filter(Boolean))) as string[];
+}
+
+function isRetryableGeminiError(message: string) {
+  return (
+    message.includes('503') ||
+    message.includes('Service Unavailable') ||
+    message.includes('overloaded') ||
+    message.includes('429') ||
+    message.includes('RESOURCE_EXHAUSTED')
+  );
 }
 
 export class AIProvider {
@@ -57,7 +74,7 @@ export class AIProvider {
     options: AIRequestOptions = {}
   ): Promise<string> {
     const {
-      model = 'claude-sonnet-4-20250514',
+      model = DEFAULT_CLAUDE_MODEL,
       maxTokens = 1000,
       systemPrompt,
     } = options;
@@ -65,9 +82,38 @@ export class AIProvider {
     let claudeError: string | null = null;
     let geminiError: string | null = null;
 
-    const anthropicClient = this.getAnthropic();
+    const geminiClient = this.getGemini();
+    if (geminiClient) {
+      const combinedPrompt = systemPrompt
+        ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
+        : prompt;
 
-    // 1. Try Claude if API key is present
+      for (const geminiModelName of uniqueModels(config.geminiModel)) {
+        try {
+          const geminiModel = geminiClient.getGenerativeModel({ model: geminiModelName });
+          const result = await geminiModel.generateContent(combinedPrompt);
+          const response = await result.response;
+          const text = response.text();
+
+          if (!text) {
+            throw new Error('Gemini returned empty response');
+          }
+
+          return text;
+        } catch (error: any) {
+          const errorMessage = error.message || 'Unknown Gemini error';
+          geminiError = errorMessage;
+          console.error(`Gemini API error on ${geminiModelName}:`, error);
+          if (!isRetryableGeminiError(errorMessage)) {
+            break;
+          }
+        }
+      }
+    } else {
+      geminiError = 'Gemini API key is missing or invalid';
+    }
+
+    const anthropicClient = this.getAnthropic();
     if (anthropicClient) {
       try {
         const response = await anthropicClient.messages.create({
@@ -79,42 +125,14 @@ export class AIProvider {
         return (response.content[0] as any).text;
       } catch (error: any) {
         claudeError = error.message || 'Unknown Claude error';
-        console.error('Claude API error, falling back to Gemini:', error);
+        console.error('Claude API error:', error);
       }
     } else {
       claudeError = 'Claude API key is missing or invalid';
-      console.warn('Claude API key missing or placeholder, using Gemini fallback');
     }
 
-    // 2. Fallback to Gemini
-    const geminiClient = this.getGemini();
-    if (geminiClient) {
-      try {
-        const geminiModel = geminiClient.getGenerativeModel({ model: config.geminiModel });
-
-        const combinedPrompt = systemPrompt
-          ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
-          : prompt;
-
-        const result = await geminiModel.generateContent(combinedPrompt);
-        const response = await result.response;
-        const text = response.text();
-
-        if (!text) {
-          throw new Error('Gemini returned empty response');
-        }
-
-        return text;
-      } catch (error: any) {
-        geminiError = error.message || 'Unknown Gemini error';
-        console.error('Gemini API error:', error);
-        throw new Error(`AI providers failed: [Claude: ${claudeError}] [Gemini: ${geminiError}]`);
-      }
-    } else {
-      geminiError = 'Gemini API key is missing or invalid';
-    }
-
-    throw new Error(`No AI provider configured or available. [Claude: ${claudeError}] [Gemini: ${geminiError}]`);
+    console.error('AI providers failed', { geminiError, claudeError });
+    throw new Error('AI tutor is temporarily busy. Please try again in a moment.');
   }
 }
 

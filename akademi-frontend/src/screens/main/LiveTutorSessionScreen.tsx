@@ -142,7 +142,16 @@ export const LiveTutorSessionScreen: React.FC = () => {
       setIsTyping(false);
       setIsEnding(false);
       console.error("Live Tutor socket error:", data);
-      Alert.alert("Live Tutor", data?.message || "Something went wrong. Please try again.");
+      const rawMessage = data?.message || "";
+      const safeMessage =
+        rawMessage.includes("Claude") ||
+        rawMessage.includes("Gemini") ||
+        rawMessage.includes("GoogleGenerativeAI") ||
+        rawMessage.includes("AI providers failed") ||
+        rawMessage.includes("503")
+          ? "AI tutor is temporarily busy. Please try again in a moment."
+          : rawMessage || "Something went wrong. Please try again.";
+      Alert.alert("Live Tutor", safeMessage);
     };
 
     socket.off("connect", joinSession);

@@ -8,6 +8,25 @@ import { SessionType } from '@prisma/client';
 
 const sessionsService = new SessionsService();
 
+const getClientSafeError = (error: any) => {
+  const message = error?.message || '';
+  console.error('WebSocket handler error:', error);
+
+  if (
+    message.includes('AI tutor is temporarily busy') ||
+    message.includes('AI providers failed') ||
+    message.includes('Gemini') ||
+    message.includes('Claude') ||
+    message.includes('GoogleGenerativeAI') ||
+    message.includes('503') ||
+    message.includes('Service Unavailable')
+  ) {
+    return 'AI tutor is temporarily busy. Please try again in a moment.';
+  }
+
+  return message || 'Something went wrong. Please try again.';
+};
+
 export const registerHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>,
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
@@ -28,18 +47,16 @@ export const registerHandlers = (
         return;
       }
 
-      if (!courseCode) {
-        throw new Error('courseCode is required to start a tutor session');
-      }
+      const normalizedCourseCode = courseCode?.trim() || null;
 
       // Check for active session first for reconnection support
       const sessions = await sessionsService.listSessions(userId);
       // Handle optional course code when finding active session
-      let session = sessions.find(s => !s.ended_at && s.course_code === courseCode);
+      let session = sessions.find(s => !s.ended_at && (s.course_code || null) === normalizedCourseCode);
 
       if (!session) {
         session = await sessionsService.startSession(userId, {
-          course_code: courseCode,
+          course_code: normalizedCourseCode,
           session_type: sessionType || SessionType.TUTOR,
           reply_mode: replyMode,
         });
@@ -51,7 +68,7 @@ export const registerHandlers = (
       // Clear any disconnection timer if re-starting or joining
       await redisClient.del(`session:disconnected:${session.id}`);
     } catch (error: any) {
-      socket.emit('error', { message: error.message });
+      socket.emit('error', { message: getClientSafeError(error) });
     }
   });
 
@@ -70,7 +87,7 @@ export const registerHandlers = (
         await streamAudio(socket, aiMessage.content);
       }
     } catch (error: any) {
-      socket.emit('error', { message: error.message });
+      socket.emit('error', { message: getClientSafeError(error) });
     }
   });
 
@@ -81,7 +98,7 @@ export const registerHandlers = (
       socket.emit('audio:stop');
       socket.emit('session:paused', { position: pausePosition });
     } catch (error: any) {
-      socket.emit('error', { message: error.message });
+      socket.emit('error', { message: getClientSafeError(error) });
     }
   });
 
@@ -91,7 +108,7 @@ export const registerHandlers = (
       const resumeFrom = position ? parseInt(position) : 0;
       socket.emit('session:resumed', { resumeFrom });
     } catch (error: any) {
-      socket.emit('error', { message: error.message });
+      socket.emit('error', { message: getClientSafeError(error) });
     }
   });
 
@@ -103,7 +120,7 @@ export const registerHandlers = (
       socket.emit('session:ended');
       socket.leave(sessionId);
     } catch (error: any) {
-      socket.emit('error', { message: error.message });
+      socket.emit('error', { message: getClientSafeError(error) });
     }
   });
 
