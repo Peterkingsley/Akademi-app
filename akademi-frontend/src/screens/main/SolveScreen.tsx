@@ -339,8 +339,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   coursePanel: {
     alignItems: "center",
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
+    backgroundColor: colors.surface,
+    borderColor: "rgba(34,197,94,0.24)",
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",

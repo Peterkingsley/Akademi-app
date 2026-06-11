@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ import {
   Sparkles,
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
 import { sessionService } from "../../services/session";
 
@@ -58,6 +58,9 @@ const getSessionTitle = (session: any, type: SessionUI["type"]) => {
 
 const SessionIcon: React.FC<{ type: SessionUI["type"] }> = ({ type }) => {
   const bg = TYPE_COLORS[type];
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={[styles.sessionIcon, { backgroundColor: bg + "22" }]}>
       {type === "SOLVE ASSIGNMENT" && <Camera size={20} color={bg} />}
@@ -67,17 +70,24 @@ const SessionIcon: React.FC<{ type: SessionUI["type"] }> = ({ type }) => {
   );
 };
 
-const TypeBadge: React.FC<{ type: SessionUI["type"]; course: string }> = ({ type, course }) => (
-  <View style={styles.badgeRow}>
-    <View style={[styles.courseBadge, { backgroundColor: colors.surfaceElevated }]}>
-      <Text style={[styles.courseText, { color: colors.primary }]}>{course}</Text>
+const TypeBadge: React.FC<{ type: SessionUI["type"]; course: string }> = ({ type, course }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.badgeRow}>
+      <View style={[styles.courseBadge, { backgroundColor: colors.surfaceElevated }]}>
+        <Text style={[styles.courseText, { color: colors.primary }]}>{course}</Text>
+      </View>
+      <Text style={styles.typeText}>{type}</Text>
     </View>
-    <Text style={styles.typeText}>{type}</Text>
-  </View>
-);
+  );
+};
 
 export const SessionsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<FilterTab>("All");
   const [sessions, setSessions] = useState<SessionUI[]>([]);
   const [loading, setLoading] = useState(true);
@@ -269,7 +279,7 @@ export const SessionsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: colors.background,

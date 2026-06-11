@@ -646,8 +646,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     width: 8,
   },
   heroPanel: {
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
+    backgroundColor: colors.surface,
+    borderColor: "rgba(34,197,94,0.24)",
     borderRadius: 8,
     borderWidth: 1,
     marginBottom: 14,
@@ -687,8 +687,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   heroStats: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
@@ -717,7 +717,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   streakBanner: {
     alignItems: "center",
-    backgroundColor: "#181510",
+    backgroundColor: colors.surface,
     borderColor: "rgba(245,158,11,0.22)",
     borderRadius: 8,
     borderWidth: 1,
@@ -757,7 +757,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   actionTileTourTarget: {
     borderColor: colors.primary,
     borderWidth: 2,
-    backgroundColor: "#101a14",
+    backgroundColor: colors.surface,
   },
   actionIcon: {
     alignItems: "center",
@@ -925,7 +925,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   tipPanel: {
     alignItems: "center",
-    backgroundColor: "#0D1520",
+    backgroundColor: colors.surface,
     borderColor: "rgba(56,189,248,0.16)",
     borderRadius: 8,
     borderWidth: 1,
