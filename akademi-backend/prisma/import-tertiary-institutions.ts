@@ -122,15 +122,26 @@ async function main() {
     }
 
     await prisma.$transaction(async (tx) => {
-      const university = await tx.university.create({
-        data: {
+      const university = await tx.university.upsert({
+        where: { name: candidate.name },
+        update: {},
+        create: {
           name: candidate.name,
           location: getLocation(candidate),
         },
       });
 
-      await tx.department.create({
-        data: {
+      await tx.department.upsert({
+        where: {
+          name_university_id: {
+            name: getDefaultDepartment(candidate),
+            university_id: university.id,
+          },
+        },
+        update: {
+          faculty: getDefaultFaculty(candidate),
+        },
+        create: {
           name: getDefaultDepartment(candidate),
           faculty: getDefaultFaculty(candidate),
           university_id: university.id,
