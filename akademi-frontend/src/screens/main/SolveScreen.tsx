@@ -22,7 +22,6 @@ import {
   Zap,
 } from "lucide-react-native";
 
-import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import api from "../../services/api";
@@ -53,6 +52,9 @@ export const SolveScreen: React.FC = () => {
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
   const courseCode = hasCourse ? course : null;
+  const courseOptions = ["Select Course", ...Array.from(
+    new Set<string>(userCourses.filter((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)),
+  )];
 
   useEffect(() => {
     if (photoUri) {
@@ -156,13 +158,40 @@ export const SolveScreen: React.FC = () => {
           </View>
           <TouchableOpacity
             style={styles.changeButton}
-            onPress={() => setIsCoursePickerVisible(true)}
+            onPress={() => setIsCoursePickerVisible((visible) => !visible)}
             activeOpacity={0.8}
           >
             <Text style={styles.changeText}>Change</Text>
             <ChevronDown size={15} color={colors.primary} />
           </TouchableOpacity>
         </View>
+
+        {isCoursePickerVisible && (
+          <View style={styles.inlineCoursePicker}>
+            <Text style={styles.inlinePickerLabel}>Choose course context</Text>
+            <View style={styles.inlineCourseGrid}>
+              {courseOptions.map((item) => {
+                const selected = item === course;
+                return (
+                  <TouchableOpacity
+                    key={item}
+                    activeOpacity={0.82}
+                    style={[styles.inlineCourseChip, selected && styles.inlineCourseChipActive]}
+                    onPress={() => {
+                      setCourse(item);
+                      setIsCoursePickerVisible(false);
+                    }}
+                  >
+                    {selected && <Check size={13} color={colors.background} />}
+                    <Text style={[styles.inlineCourseText, selected && styles.inlineCourseTextActive]}>
+                      {item === "Select Course" ? "No course context" : item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         <View style={styles.modeGrid}>
           <TouchableOpacity activeOpacity={0.86} style={styles.primaryModeCard}>
@@ -262,13 +291,6 @@ export const SolveScreen: React.FC = () => {
           style={styles.solveButton}
         />
       </ScrollView>
-
-      <CoursePickerModal
-        visible={isCoursePickerVisible}
-        onClose={() => setIsCoursePickerVisible(false)}
-        onSelect={setCourse}
-        selectedCourse={course}
-      />
     </Screen>
   );
 };
@@ -357,6 +379,49 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     marginRight: 4,
+  },
+  inlineCoursePicker: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 12,
+  },
+  inlinePickerLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    letterSpacing: 0,
+    marginBottom: 10,
+  },
+  inlineCourseGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  inlineCourseChip: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  inlineCourseChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  inlineCourseText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  inlineCourseTextActive: {
+    color: colors.background,
+    marginLeft: 5,
   },
   modeGrid: {
     flexDirection: "row",
