@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,6 +15,8 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { useAuthStore } from "../../store/useAuthStore";
+
+const HOME_TOUR_PENDING_KEY = "home_tour_pending";
 
 const CoursePill = ({ course, delay }: { course: string; delay: number }) => {
   const opacity = useSharedValue(0);
@@ -39,6 +42,7 @@ export const SetupCompleteScreen: React.FC = () => {
   const route = useRoute<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
   const authPayload = route.params || {};
+  const firstName = authPayload.user?.name?.split(" ")[0] || "there";
   const courses: string[] =
     Array.isArray(authPayload.user?.courses) && authPayload.user.courses.length > 0
       ? authPayload.user.courses
@@ -64,8 +68,9 @@ export const SetupCompleteScreen: React.FC = () => {
     transform: [{ translateY: withTiming(contentOpacity.value === 1 ? 0 : 20, { duration: 600 }) }],
   }));
 
-  const handleGoHome = () => {
+  const handleGoHome = async () => {
     if (authPayload.user && authPayload.accessToken && authPayload.refreshToken) {
+      await AsyncStorage.setItem(HOME_TOUR_PENDING_KEY, "true");
       setAuth(authPayload.user, authPayload.accessToken, authPayload.refreshToken);
     } else {
       navigation.navigate("Login");
@@ -81,13 +86,13 @@ export const SetupCompleteScreen: React.FC = () => {
           </Animated.View>
 
           <Animated.View style={[styles.celebrationPill, contentStyle]}>
-            <Text style={styles.celebrationText}>Account Verified! 🎉</Text>
+            <Text style={styles.celebrationText}>Account ready</Text>
           </Animated.View>
 
           <Animated.View style={[styles.textContainer, contentStyle]}>
-            <Text style={styles.headline}>Setup Complete</Text>
+            <Text style={styles.headline}>Welcome, {firstName}</Text>
             <Text style={styles.body}>
-              Your personalized learning dashboard is ready. Time to smash those goals.
+              Akademi is ready for your courses. Next, we will show you where to solve assignments, study materials, meet the live tutor, and prepare for exams.
             </Text>
           </Animated.View>
 
@@ -103,7 +108,7 @@ export const SetupCompleteScreen: React.FC = () => {
 
         <View style={styles.footer}>
           <Button
-            label="Go to Home"
+            label="Start quick tour"
             onPress={handleGoHome}
             icon={<ArrowRight size={20} color={colors.textPrimary} />}
           />
@@ -210,3 +215,4 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
+

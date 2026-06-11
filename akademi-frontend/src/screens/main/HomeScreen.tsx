@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +39,7 @@ import { typography } from "../../theme/typography";
 import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types";
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
+const HOME_TOUR_PENDING_KEY = "home_tour_pending";
 
 const QUICK_ACTIONS = [
   {
@@ -71,6 +73,29 @@ const QUICK_ACTIONS = [
     icon: Target,
     tint: colors.warning,
     screen: "ExamPrep",
+  },
+];
+
+const HOME_TOUR_STEPS = [
+  {
+    id: "solve",
+    title: "Solve assignments",
+    body: "Use this when you want Akademi to solve a typed question or a photo from your assignment.",
+  },
+  {
+    id: "library",
+    title: "Study from your library",
+    body: "Open verified materials, ask Akademi questions, summarize passages, and practice CBT from real course content.",
+  },
+  {
+    id: "tutor",
+    title: "Meet the live tutor",
+    body: "Start a guided tutor session when you want a deeper explanation or one-on-one help on a topic.",
+  },
+  {
+    id: "exam",
+    title: "Prepare for exams",
+    body: "Create exam plans, take mock exams, review weak areas, and continue from your latest result.",
   },
 ];
 
@@ -108,14 +133,20 @@ type QuickAction = (typeof QUICK_ACTIONS)[number];
 const QuickActionTile = ({
   action,
   onPress,
+  isTourTarget = false,
 }: {
   action: QuickAction;
   onPress: () => void;
+  isTourTarget?: boolean;
 }) => {
   const Icon = action.icon;
 
   return (
-    <TouchableOpacity activeOpacity={0.82} onPress={onPress} style={styles.actionTile}>
+    <TouchableOpacity
+      activeOpacity={0.82}
+      onPress={onPress}
+      style={[styles.actionTile, isTourTarget && styles.actionTileTourTarget]}
+    >
       <View style={[styles.actionIcon, { backgroundColor: `${action.tint}22` }]}>
         <Icon size={22} color={action.tint} />
       </View>
@@ -140,10 +171,13 @@ export const HomeScreen: React.FC = () => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isStreakBannerDismissed, setIsStreakBannerDismissed] = useState(false);
+  const [isTourVisible, setIsTourVisible] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
 
   useEffect(() => {
     fetchData();
     checkStreakBanner();
+    checkHomeTour();
   }, []);
 
   const fetchData = async () => {
@@ -174,6 +208,28 @@ export const HomeScreen: React.FC = () => {
   const dismissStreakBanner = async () => {
     setIsStreakBannerDismissed(true);
     await AsyncStorage.setItem(STREAK_BANNER_HIDDEN_KEY, "true");
+  };
+
+  const checkHomeTour = async () => {
+    const pending = await AsyncStorage.getItem(HOME_TOUR_PENDING_KEY);
+    if (pending === "true") {
+      setTourStepIndex(0);
+      setIsTourVisible(true);
+    }
+  };
+
+  const finishHomeTour = async () => {
+    setIsTourVisible(false);
+    await AsyncStorage.removeItem(HOME_TOUR_PENDING_KEY);
+  };
+
+  const goToNextTourStep = async () => {
+    if (tourStepIndex >= HOME_TOUR_STEPS.length - 1) {
+      await finishHomeTour();
+      return;
+    }
+
+    setTourStepIndex((current) => current + 1);
   };
 
   const greeting = useMemo(() => {
@@ -263,6 +319,7 @@ export const HomeScreen: React.FC = () => {
 
   const showStreakBanner =
     !loading && sessionCount > 0 && !isStreakBannerDismissed;
+  const activeTourStep = HOME_TOUR_STEPS[tourStepIndex];
 
   const getSessionTitle = (item: Session) =>
     item.title || item.topic || item.course_code || `${item.session_type || item.type || "Study"} session`;
@@ -417,6 +474,7 @@ export const HomeScreen: React.FC = () => {
             <QuickActionTile
               key={action.id}
               action={action}
+              isTourTarget={isTourVisible && activeTourStep?.id === action.id}
               onPress={() => navigation.navigate(action.screen)}
             />
           ))}
@@ -491,6 +549,38 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.tipText}>{dailyTip}</Text>
         </View>
       </View>
+
+      <Modal transparent visible={isTourVisible} animationType="fade" onRequestClose={finishHomeTour}>
+        <View style={styles.tourOverlay} pointerEvents="box-none">
+          <View style={styles.tourScrim} />
+          <View style={styles.tourCard}>
+            <View style={styles.tourTopRow}>
+              <Text style={styles.tourStep}>
+                {tourStepIndex + 1} of {HOME_TOUR_STEPS.length}
+              </Text>
+              <TouchableOpacity onPress={finishHomeTour} style={styles.tourSkipButton}>
+                <Text style={styles.tourSkipText}>Skip</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.tourTitle}>{activeTourStep.title}</Text>
+            <Text style={styles.tourBody}>{activeTourStep.body}</Text>
+            <View style={styles.tourDots}>
+              {HOME_TOUR_STEPS.map((step, index) => (
+                <View
+                  key={step.id}
+                  style={[styles.tourDot, index === tourStepIndex && styles.tourDotActive]}
+                />
+              ))}
+            </View>
+            <TouchableOpacity style={styles.tourNextButton} onPress={goToNextTourStep}>
+              <Text style={styles.tourNextText}>
+                {tourStepIndex === HOME_TOUR_STEPS.length - 1 ? "Finish tour" : "Next"}
+              </Text>
+              <ChevronRight size={18} color={colors.background} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -658,6 +748,11 @@ const styles = StyleSheet.create({
     minHeight: 76,
     padding: 12,
     width: "48.5%",
+  },
+  actionTileTourTarget: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    backgroundColor: "#101a14",
   },
   actionIcon: {
     alignItems: "center",
@@ -847,5 +942,85 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     lineHeight: 18,
+  },
+  tourOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  tourScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.58)",
+  },
+  tourCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderWidth: 1,
+    padding: 20,
+    paddingBottom: 30,
+  },
+  tourTopRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  tourStep: {
+    ...typography.label,
+    color: colors.primary,
+    letterSpacing: 0,
+  },
+  tourSkipButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  tourSkipText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  tourTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  tourBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  tourDots: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 18,
+    marginBottom: 18,
+  },
+  tourDot: {
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  tourDotActive: {
+    backgroundColor: colors.primary,
+    width: 24,
+  },
+  tourNextButton: {
+    alignItems: "center",
+    alignSelf: "stretch",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    minHeight: 52,
+  },
+  tourNextText: {
+    ...typography.h4,
+    color: colors.background,
+    marginRight: 6,
   },
 });
