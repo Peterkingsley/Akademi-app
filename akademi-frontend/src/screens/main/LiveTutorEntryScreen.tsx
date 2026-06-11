@@ -13,6 +13,7 @@ import {
   Sparkles,
   ChevronRight,
   ChevronDown,
+  Check,
   Settings,
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -23,7 +24,6 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Session, LearningProfile } from "../../services/session";
-import { CoursePickerModal } from "../../components/ui/CoursePickerModal";
 import { useTheme } from "../../theme/ThemeContext";
 
 const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
@@ -47,6 +47,16 @@ export const LiveTutorEntryScreen: React.FC = () => {
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
+  const courseOptions = useMemo(() => {
+    const userCourses = Array.from(
+      new Set<string>(
+        ((user as any)?.courses || []).filter(
+          (course: unknown): course is string => typeof course === "string" && course.trim().length > 0,
+        ),
+      ),
+    );
+    return ["Select Course", ...userCourses];
+  }, [user]);
 
   useEffect(() => {
     fetchEntryData();
@@ -206,7 +216,8 @@ export const LiveTutorEntryScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.courseSelector}
-              onPress={() => setIsCoursePickerVisible(true)}
+              onPress={() => setIsCoursePickerVisible((visible) => !visible)}
+              activeOpacity={0.82}
             >
               <View style={styles.courseSelectorLeft}>
                 <GraduationCap size={20} color={colors.primary} />
@@ -216,6 +227,33 @@ export const LiveTutorEntryScreen: React.FC = () => {
               </View>
               <ChevronDown size={20} color={colors.textMuted} />
             </TouchableOpacity>
+
+            {isCoursePickerVisible && (
+              <View style={styles.inlineCoursePicker}>
+                <Text style={styles.inlinePickerLabel}>Choose course context</Text>
+                <View style={styles.inlineCourseGrid}>
+                  {courseOptions.map((item) => {
+                    const selected = selectedCourse === item;
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        activeOpacity={0.82}
+                        style={[styles.inlineCourseChip, selected && styles.inlineCourseChipActive]}
+                        onPress={() => {
+                          setSelectedCourse(item);
+                          setIsCoursePickerVisible(false);
+                        }}
+                      >
+                        {selected && <Check size={13} color={colors.background} />}
+                        <Text style={[styles.inlineCourseText, selected && styles.inlineCourseTextActive]}>
+                          {item === "Select Course" ? "General topic" : item}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             <TextInput
               style={[styles.topicInput, typography.body]}
@@ -264,12 +302,6 @@ export const LiveTutorEntryScreen: React.FC = () => {
         {renderRecentSessions()}
       </View>
 
-      <CoursePickerModal
-        visible={isCoursePickerVisible}
-        onClose={() => setIsCoursePickerVisible(false)}
-        onSelect={setSelectedCourse}
-        selectedCourse={selectedCourse}
-      />
     </Screen>
   );
 };
@@ -352,6 +384,49 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   courseText: {
     color: colors.textPrimary,
     marginLeft: 10,
+  },
+  inlineCoursePicker: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 12,
+  },
+  inlinePickerLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    letterSpacing: 0,
+    marginBottom: 10,
+  },
+  inlineCourseGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  inlineCourseChip: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  inlineCourseChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  inlineCourseText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  inlineCourseTextActive: {
+    color: colors.background,
+    marginLeft: 5,
   },
   topicInput: {
     color: colors.textPrimary,
