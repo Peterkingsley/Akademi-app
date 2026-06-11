@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: -18,
+    marginTop: 0,
     marginBottom: 14,
   },
   headerLeft: {
