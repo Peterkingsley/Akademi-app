@@ -21,6 +21,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Toast } from "../../components/ui/Toast";
 import { materialService, Material } from "../../services/material";
+import { AcademicProfile, StudentAcademicCourse, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -35,6 +36,7 @@ export const LibraryScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [academicProfile, setAcademicProfile] = useState<AcademicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -72,7 +74,25 @@ export const LibraryScreen: React.FC = () => {
 
   useEffect(() => {
     fetchMaterials();
+    fetchAcademicProfile();
   }, []);
+
+  const fetchAcademicProfile = async () => {
+    try {
+      const data = await userService.getAcademicProfile();
+      setAcademicProfile(data);
+    } catch (err) {
+      setAcademicProfile(null);
+    }
+  };
+
+  const courseLookup = useMemo(() => {
+    const map = new Map<string, StudentAcademicCourse>();
+    for (const course of academicProfile?.student_courses || []) {
+      map.set(course.code.toUpperCase(), course);
+    }
+    return map;
+  }, [academicProfile]);
 
   useEffect(() => {
     if (!uploadCourseCode && defaultCourseCode) {
@@ -132,6 +152,8 @@ export const LibraryScreen: React.FC = () => {
     setUploading(true);
     try {
       const file = selectedFile.assets[0];
+      const normalizedCourseCode = uploadCourseCode.trim().toUpperCase();
+      const selectedCourseMeta = courseLookup.get(normalizedCourseCode);
       const fileExtension = file.name.split(".").pop()?.toUpperCase();
       const fileType =
         fileExtension === "PDF"
@@ -142,11 +164,14 @@ export const LibraryScreen: React.FC = () => {
 
       const { materialId, presignedUrl } = await materialService.uploadMaterial({
         title: uploadTitle.trim(),
-        course_code: uploadCourseCode.trim().toUpperCase(),
+        course_code: normalizedCourseCode,
         university: user?.university || "",
         faculty: user?.faculty || "",
         department: user?.department || "",
         level: userLevel,
+        semester: selectedCourseMeta?.semester || null,
+        semester_start: selectedCourseMeta?.semester_start || null,
+        semester_end: selectedCourseMeta?.semester_end || null,
         file_type: fileType,
       });
 
@@ -369,6 +394,14 @@ export const LibraryScreen: React.FC = () => {
             <InfoRow label="Faculty" value={user?.faculty || "Not set"} />
             <InfoRow label="Department" value={user?.department || "Not set"} />
             <InfoRow label="Level" value={user?.level ? `${user.level}L` : "Not set"} />
+            <InfoRow
+              label="Semester"
+              value={
+                courseLookup.get(uploadCourseCode.trim().toUpperCase())?.semester
+                  ? `Semester ${courseLookup.get(uploadCourseCode.trim().toUpperCase())?.semester}`
+                  : "Matched after save"
+              }
+            />
           </View>
 
           <Button

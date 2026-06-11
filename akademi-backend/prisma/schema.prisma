@@ -172,6 +172,10 @@ model Material {
   faculty             String
   department          String
   level               Int
+  semester            Int?
+  semester_start      DateTime?
+  semester_end        DateTime?
+  academic_year       String?
   file_ref            String
   file_type           FileType
   verification_status VerificationStatus @default(PENDING)
@@ -193,6 +197,7 @@ model Material {
   @@index([university])
   @@index([department])
   @@index([level])
+  @@index([course_code, level, semester])
   @@index([verification_status])
   @@map("materials")
 }

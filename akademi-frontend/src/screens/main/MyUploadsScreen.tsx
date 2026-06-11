@@ -21,6 +21,11 @@ const getSemesterLabel = (course?: StudentAcademicCourse, fallbackLevel?: number
   return `${course.level}L - Semester ${course.semester}`;
 };
 
+const getUploadSemesterLabel = (upload: Material, course?: StudentAcademicCourse) => {
+  if (upload.semester) return `${upload.level}L - Semester ${upload.semester}`;
+  return getSemesterLabel(course, upload.level);
+};
+
 export const MyUploadsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -64,7 +69,7 @@ export const MyUploadsScreen: React.FC = () => {
     const groups = new Map<string, UploadGroup>();
     for (const upload of uploads) {
       const course = upload.course_code ? courseLookup.get(upload.course_code.toUpperCase()) : undefined;
-      const title = getSemesterLabel(course, upload.level);
+      const title = getUploadSemesterLabel(upload, course);
       const subtitle = course
         ? `${academicProfile?.department || upload.department} / ${course.code}`
         : `${upload.department || "Department"} / ${upload.course_code || "General"}`;

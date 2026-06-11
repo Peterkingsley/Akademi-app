@@ -25,6 +25,7 @@ export class MaterialsService {
         department: filter.department,
         course_code: filter.course_code,
         level: filter.level ? Number(filter.level) : undefined,
+        semester: filter.semester ? Number(filter.semester) : undefined,
         verification_status: VerificationStatus.VERIFIED,
       },
       orderBy: { created_at: 'desc' },
@@ -51,14 +52,39 @@ export class MaterialsService {
   }
 
   async createUpload(userId: string, data: UploadMaterialRequest) {
+    const courseCode = data.course_code?.trim().toUpperCase() || null;
+    const matchingStudentCourse = courseCode
+      ? await prisma.studentCourse.findFirst({
+          where: {
+            user_id: userId,
+            code: courseCode,
+            level: data.level,
+            ...(data.semester ? { semester: Number(data.semester) } : {}),
+          },
+          orderBy: [{ semester: 'asc' }, { created_at: 'desc' }],
+        })
+      : null;
+
+    const semester = data.semester ? Number(data.semester) : matchingStudentCourse?.semester || null;
+    const semesterStart = data.semester_start
+      ? new Date(data.semester_start)
+      : matchingStudentCourse?.semester_start || null;
+    const semesterEnd = data.semester_end
+      ? new Date(data.semester_end)
+      : matchingStudentCourse?.semester_end || null;
+
     const material = await prisma.material.create({
       data: {
         title: data.title,
-        course_code: data.course_code,
+        course_code: courseCode,
         university: data.university,
         faculty: data.faculty,
         department: data.department,
         level: data.level,
+        semester,
+        semester_start: semesterStart,
+        semester_end: semesterEnd,
+        academic_year: data.academic_year?.trim() || this.getAcademicYear(semesterStart),
         file_type: data.file_type,
         verification_status: VerificationStatus.PENDING,
         uploaded_by: userId,
@@ -186,5 +212,13 @@ export class MaterialsService {
       },
       orderBy: { created_at: 'desc' },
     });
+  }
+
+  private getAcademicYear(date?: Date | null) {
+    if (!date || Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const startsPreviousYear = date.getMonth() < 7;
+    const startYear = startsPreviousYear ? year - 1 : year;
+    return `${startYear}/${startYear + 1}`;
   }
 }

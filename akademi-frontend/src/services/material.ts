@@ -8,6 +8,10 @@ export interface Material {
   faculty: string;
   department: string;
   level: number;
+  semester?: number | null;
+  semester_start?: string | null;
+  semester_end?: string | null;
+  academic_year?: string | null;
   file_type: "PDF" | "IMAGE" | "DOC";
   verification_status: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   file_ref: string;
@@ -33,6 +37,7 @@ export const materialService = {
     university?: string;
     department?: string;
     course_code?: string;
+    semester?: number;
   }) => {
     const { data } = await api.get<Material[]>("/materials", { params });
     return data;
@@ -50,6 +55,10 @@ export const materialService = {
     faculty: string;
     department: string;
     level: number;
+    semester?: number | null;
+    semester_start?: string | null;
+    semester_end?: string | null;
+    academic_year?: string | null;
     file_type: string;
   }) => {
     const { data } = await api.post<{ materialId: string; presignedUrl: string }>(

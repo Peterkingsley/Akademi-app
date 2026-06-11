@@ -6,6 +6,7 @@ export interface MaterialFilter {
   department?: string;
   course_code?: string | null;
   level?: number;
+  semester?: number;
 }
 
 export interface UploadMaterialRequest {
@@ -15,6 +16,10 @@ export interface UploadMaterialRequest {
   faculty: string;
   department: string;
   level: number;
+  semester?: number | null;
+  semester_start?: string | null;
+  semester_end?: string | null;
+  academic_year?: string | null;
   file_type: FileType;
 }
 
