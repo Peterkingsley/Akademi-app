@@ -45,7 +45,7 @@ export const SolveScreen: React.FC = () => {
   const [answerMode, setAnswerMode] = useState<AnswerMode>("DIRECT");
   const [question, setQuestion] = useState("");
   const [includeContext, setIncludeContext] = useState(true);
-  const [course, setCourse] = useState(userCourses[0] || "Select Course");
+  const [course, setCourse] = useState("Select Course");
   const [selectedCause, setSelectedCause] = useState("Assignment");
   const [selectedType, setSelectedType] = useState("Theory");
   const [loading, setLoading] = useState(false);

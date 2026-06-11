@@ -108,7 +108,7 @@ export class SessionsService {
         user_id: userId,
         session_type: data.session_type,
         reply_mode: data.reply_mode,
-        course_code: data.course_code,
+        course_code: data.course_code?.trim() || null,
         topic: data.topic || null,
         duration: data.duration || null,
         university: user.university,

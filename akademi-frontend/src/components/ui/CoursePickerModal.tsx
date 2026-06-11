@@ -6,14 +6,12 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  Dimensions,
+  Pressable,
 } from "react-native";
 import { X, Check } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useAuthStore } from "../../store/useAuthStore";
-
-const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface CoursePickerModalProps {
   visible: boolean;
@@ -29,7 +27,10 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
   selectedCourse,
 }) => {
   const { user } = useAuthStore();
-  const courses = ["Select Course", ...((user as any)?.courses || [])];
+  const userCourses = Array.from(
+    new Set<string>(((user as any)?.courses || []).filter((course: unknown): course is string => typeof course === "string" && course.trim().length > 0)),
+  );
+  const courses = ["Select Course", ...userCourses];
 
   const renderItem = ({ item }: { item: string }) => {
     const isSelected = selectedCourse === item;
@@ -37,9 +38,10 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
       <TouchableOpacity
         style={[styles.courseItem, isSelected && styles.selectedItem]}
         onPress={() => {
-          onSelect(item);
           onClose();
+          requestAnimationFrame(() => onSelect(item));
         }}
+        activeOpacity={0.82}
       >
         <Text style={[styles.courseText, typography.body, isSelected && styles.selectedText]}>
           {item === "Select Course" ? "No course context" : item}
@@ -54,9 +56,12 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
       visible={visible}
       transparent
       animationType="slide"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={styles.overlay} pointerEvents="box-none">
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={[styles.title, typography.h3]}>Select Course</Text>
@@ -68,7 +73,7 @@ export const CoursePickerModal: React.FC<CoursePickerModalProps> = ({
           <FlatList
             data={courses}
             renderItem={renderItem}
-            keyExtractor={(item) => item}
+            keyExtractor={(item, index) => `${item}-${index}`}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
@@ -94,7 +99,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: SCREEN_HEIGHT * 0.6,
+    maxHeight: "68%",
+    minHeight: 260,
     paddingTop: 20,
   },
   header: {
