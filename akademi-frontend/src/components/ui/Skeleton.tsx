@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 
 const SHIMMER_DISTANCE = Dimensions.get("window").width;
 
@@ -24,6 +24,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   borderRadius = 4,
   style,
 }) => {
+  const { colors, isDark } = useTheme();
   const shimmerValue = useSharedValue(0);
 
   useEffect(() => {
@@ -58,7 +59,13 @@ export const Skeleton: React.FC<SkeletonProps> = ({
         style,
       ]}
     >
-      <Animated.View style={[styles.shimmer, animatedStyle]} />
+      <Animated.View
+        style={[
+          styles.shimmer,
+          { backgroundColor: isDark ? "#252F42" : "#E5E7EB" },
+          animatedStyle,
+        ]}
+      />
     </View>
   );
 };
@@ -69,7 +76,6 @@ const styles = StyleSheet.create({
   },
   shimmer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#252F42",
     opacity: 0.5,
   },
 });

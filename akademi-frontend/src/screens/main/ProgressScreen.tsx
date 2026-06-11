@@ -28,6 +28,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Avatar } from "../../components/ui/Avatar";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import { ProgressSummary, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
 
@@ -38,6 +39,8 @@ const formatDate = (value?: string | null) => {
 
 export const ProgressScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user: authUser } = useAuthStore();
   const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
@@ -240,56 +243,81 @@ export const ProgressScreen: React.FC = () => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, sub }: { icon: any; label: string; value: number; sub: string }) => (
-  <View style={styles.statCard}>
-    <Icon size={18} color={colors.primary} />
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-    <Text style={styles.statSub}>{sub}</Text>
-  </View>
-);
+const StatCard = ({ icon: Icon, label, value, sub }: { icon: any; label: string; value: number; sub: string }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const SectionCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
-  <View style={styles.card}>
-    <View style={styles.cardHeader}>
-      <View>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+  return (
+    <View style={styles.statCard}>
+      <Icon size={18} color={colors.primary} />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statSub}>{sub}</Text>
+    </View>
+  );
+};
+
+const SectionCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardSubtitle}>{subtitle}</Text>
+        </View>
+        <BarChart3 size={18} color={colors.textMuted} />
       </View>
-      <BarChart3 size={18} color={colors.textMuted} />
+      {children}
     </View>
-    {children}
-  </View>
-);
+  );
+};
 
-const Metric = ({ label, value }: { label: string; value: string | number }) => (
-  <View style={styles.metric}>
-    <Text style={styles.metricValue}>{value}</Text>
-    <Text style={styles.metricLabel}>{label}</Text>
-  </View>
-);
+const Metric = ({ label, value }: { label: string; value: string | number }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const ActivityRow = ({ icon: Icon, title, meta }: { icon: any; title: string; meta: string }) => (
-  <View style={styles.activityRow}>
-    <View style={styles.activityIcon}>
-      <Icon size={16} color={colors.primary} />
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
     </View>
-    <View style={styles.activityText}>
-      <Text style={styles.activityTitle}>{title}</Text>
-      <Text style={styles.activityMeta}>{meta}</Text>
+  );
+};
+
+const ActivityRow = ({ icon: Icon, title, meta }: { icon: any; title: string; meta: string }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.activityRow}>
+      <View style={styles.activityIcon}>
+        <Icon size={16} color={colors.primary} />
+      </View>
+      <View style={styles.activityText}>
+        <Text style={styles.activityTitle}>{title}</Text>
+        <Text style={styles.activityMeta}>{meta}</Text>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
-const EmptyCard = ({ title, text }: { title: string; text: string }) => (
-  <View style={styles.emptyCard}>
-    <Sparkles size={22} color={colors.primary} />
-    <Text style={styles.emptyTitle}>{title}</Text>
-    <Text style={styles.emptyText}>{text}</Text>
-  </View>
-);
+const EmptyCard = ({ title, text }: { title: string; text: string }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const styles = StyleSheet.create({
+  return (
+    <View style={styles.emptyCard}>
+      <Sparkles size={22} color={colors.primary} />
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyText}>{text}</Text>
+    </View>
+  );
+};
+
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,

@@ -36,6 +36,7 @@ import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types";
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
@@ -139,6 +140,8 @@ const QuickActionTile = ({
   onPress: () => void;
   isTourTarget?: boolean;
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const Icon = action.icon;
 
   return (
@@ -163,6 +166,8 @@ const QuickActionTile = ({
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -585,7 +590,7 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
   },

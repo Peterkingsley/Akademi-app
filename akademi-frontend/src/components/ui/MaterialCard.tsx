@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import {
   Book,
@@ -12,8 +12,8 @@ import {
   Star,
 } from "lucide-react-native";
 
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 export interface MaterialCardProps {
   title: string;
@@ -46,6 +46,9 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
     },
     ref
   ) => {
+    const { colors } = useTheme();
+    const styles = useMemo(() => createStyles(colors), [colors]);
+
     const getIconConfig = () => {
       switch (fileType) {
         case "PDF":
@@ -132,7 +135,7 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
   }
 );
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     alignItems: "center",
     backgroundColor: colors.surface,

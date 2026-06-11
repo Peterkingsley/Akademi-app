@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Image, Text, StyleSheet, ViewStyle } from "react-native";
-import { colors } from "../../theme/colors";
+import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 
 interface AvatarProps {
@@ -16,6 +16,8 @@ export const Avatar: React.FC<AvatarProps> = ({
   size = 40,
   style,
 }) => {
+  const { colors } = useTheme();
+
   const getInitials = () => {
     if (!name || !name.trim()) return "??";
 
@@ -37,6 +39,7 @@ export const Avatar: React.FC<AvatarProps> = ({
       style={[
         styles.container,
         {
+          backgroundColor: colors.surfaceElevated,
           width: size,
           height: size,
           borderRadius: size / 2,
@@ -67,7 +70,6 @@ export const Avatar: React.FC<AvatarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surfaceElevated,
     overflow: "hidden",
   },
   image: {

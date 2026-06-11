@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -37,9 +37,12 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
 import { ProgressSummary, userService } from "../../services/user";
 import * as ImagePicker from "expo-image-picker";
+import { useTheme } from "../../theme/ThemeContext";
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { clearAuth, user, updateUser } = useAuthStore();
   const [profile, setProfile] = useState<any>(user);
   const [loading, setLoading] = useState(!user);
@@ -324,24 +327,42 @@ export const ProfileScreen: React.FC = () => {
 };
 
 const StatTile: React.FC<{ value: number | string; label: string }> = ({ value, label }) => (
-  <View style={styles.statTile}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
+  <ThemedStatTile value={value} label={label} />
 );
 
-const MenuSection: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <View style={styles.menuSection}>
-    <Text style={styles.sectionLabel}>{label}</Text>
-    <View style={styles.menuGroup}>
-      {children}
+const ThemedStatTile: React.FC<{ value: number | string; label: string }> = ({ value, label }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.statTile}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
-  </View>
-);
+  );
+};
 
-const SectionDivider: React.FC = () => (
+const MenuSection: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <View style={styles.menuSection}>
+      <Text style={styles.sectionLabel}>{label}</Text>
+      <View style={styles.menuGroup}>
+        {children}
+      </View>
+    </View>
+  );
+};
+
+const SectionDivider: React.FC = () => {
+  const { colors } = useTheme();
+
+  return (
     <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, marginHorizontal: 20 }} />
-);
+  );
+};
 
 const MenuItem: React.FC<{
   icon: React.ReactNode;
@@ -349,17 +370,22 @@ const MenuItem: React.FC<{
   onPress: () => void;
   labelStyle?: any;
   hideChevron?: boolean;
-}> = ({ icon, label, onPress, labelStyle, hideChevron }) => (
-  <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-    <View style={styles.menuItemLeft}>
-      <View style={styles.menuIconWrapper}>{icon}</View>
-      <Text style={[styles.menuItemLabel, labelStyle]}>{label}</Text>
-    </View>
-    {!hideChevron && <ChevronRight size={20} color={colors.textMuted} />}
-  </TouchableOpacity>
-);
+}> = ({ icon, label, onPress, labelStyle, hideChevron }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const styles = StyleSheet.create({
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.menuItemLeft}>
+        <View style={styles.menuIconWrapper}>{icon}</View>
+        <Text style={[styles.menuItemLabel, labelStyle]}>{label}</Text>
+      </View>
+      {!hideChevron && <ChevronRight size={20} color={colors.textMuted} />}
+    </TouchableOpacity>
+  );
+};
+
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: "center",

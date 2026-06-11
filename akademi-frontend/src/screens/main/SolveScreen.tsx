@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -28,6 +28,7 @@ import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 type AnswerMode = "DIRECT" | "STUDY";
 
@@ -36,6 +37,8 @@ const TYPES = ["Calculation", "Theory", "Programming", "Case Study"];
 
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const route = useRoute<any>();
   const { photoUri } = route.params || {};
   const { user } = useAuthStore();
@@ -295,7 +298,7 @@ export const SolveScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,

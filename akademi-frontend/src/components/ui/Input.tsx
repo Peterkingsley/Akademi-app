@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   TextInput,
@@ -10,8 +10,8 @@ import {
   TextStyle,
 } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface InputProps {
   label: string;
@@ -38,6 +38,8 @@ export const Input: React.FC<InputProps> = ({
   style,
   labelStyle,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
 
@@ -90,7 +92,7 @@ export const Input: React.FC<InputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     marginBottom: 20,
     width: "100%",

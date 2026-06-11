@@ -7,8 +7,8 @@ import {
   Platform,
 } from "react-native";
 import { BarChart3, Clock3, House, Camera, Library, User } from "lucide-react-native";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import * as Haptics from "expo-haptics";
 
 interface BottomTabBarProps {
@@ -22,6 +22,8 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   descriptors,
   navigation,
 }) => {
+  const { colors } = useTheme();
+
   const getIcon = (name: string, color: string) => {
     switch (name) {
       case "Home":
@@ -42,7 +44,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.surface, borderTopColor: colors.border },
+      ]}
+    >
       {state.routes.map((route: any, index: number) => {
         const { options } = descriptors[route.key];
         const label =
@@ -89,7 +96,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             style={styles.tabItem}
             activeOpacity={0.8}
           >
-            {isFocused && <View style={styles.indicator} />}
+            {isFocused && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
             {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
             <Text
               style={[
@@ -111,9 +118,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     height: Platform.OS === "ios" ? 88 : 64,
-    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     paddingBottom: Platform.OS === "ios" ? 24 : 0,
   },
   tabItem: {
@@ -130,6 +135,5 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.primary,
   },
 });

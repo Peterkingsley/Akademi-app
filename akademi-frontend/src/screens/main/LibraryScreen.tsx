@@ -24,9 +24,12 @@ import { materialService, Material } from "../../services/material";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
@@ -391,16 +394,21 @@ export const LibraryScreen: React.FC = () => {
   );
 };
 
-const InfoRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue} numberOfLines={1}>
-      {value}
-    </Text>
-  </View>
-);
+const InfoRow = ({ label, value }: { label: string; value: string }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const styles = StyleSheet.create({
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+};
+
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,

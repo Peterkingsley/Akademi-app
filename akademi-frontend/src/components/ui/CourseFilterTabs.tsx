@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from "react-native";
 import { Search } from "lucide-react-native";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface CourseFilterTabsProps {
   courses: string[];
@@ -19,6 +19,9 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
   onSearchPress,
   contentPaddingHorizontal = 20,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -67,7 +70,7 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     marginVertical: 16,
   },

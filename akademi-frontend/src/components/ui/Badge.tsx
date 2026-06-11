@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
-import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 interface BadgeProps {
   label: string;
@@ -10,6 +10,9 @@ interface BadgeProps {
 }
 
 export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const getVariantStyle = (): ViewStyle => {
     switch (variant) {
       case "verified":
@@ -57,7 +60,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   base: {
     paddingHorizontal: 10,
     paddingVertical: 4,
