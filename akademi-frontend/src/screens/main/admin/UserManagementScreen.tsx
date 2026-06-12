@@ -39,7 +39,7 @@ export const UserManagementScreen: React.FC = () => {
         plan: selectedPlan !== "all" ? selectedPlan : undefined,
         status: selectedStatus !== "all" ? selectedStatus : undefined
       });
-      setUsers(data.users);
+      setUsers(Array.isArray(data) ? data : data?.users || []);
     } catch (error) {
       console.error("Failed to fetch users", error);
     } finally {
@@ -68,9 +68,17 @@ export const UserManagementScreen: React.FC = () => {
 
   const confirmBan = async () => {
     try {
-      // Logic for ban would go here via adminService
+      if (!selectedUser) return;
+      if (selectedUser.is_banned) {
+        await adminService.unbanUser(selectedUser.id);
+      } else {
+        await adminService.banUser(selectedUser.id);
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setToast({ message: `User ${selectedUser.name} has been banned.`, type: "success" });
+      setToast({
+        message: `User ${selectedUser.name} has been ${selectedUser.is_banned ? "unbanned" : "banned"}.`,
+        type: "success"
+      });
       setConfirmVisible(false);
       setSelectedUser(null);
       fetchUsers();
@@ -126,7 +134,7 @@ export const UserManagementScreen: React.FC = () => {
           <Mail size={18} color={colors.primary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('ban', user)}>
-          <UserX size={18} color={colors.error} />
+          <UserX size={18} color={user.is_banned ? colors.primary : colors.error} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('manage', user)}>
           <Settings size={18} color={colors.textSecondary} />
@@ -277,10 +285,14 @@ export const UserManagementScreen: React.FC = () => {
 
       <ConfirmDialog
         visible={confirmVisible}
-        title="Ban User"
-        message={`Are you sure you want to ban ${selectedUser?.name}? This will revoke their access immediately.`}
-        type="danger"
-        confirmText="Ban User"
+        title={selectedUser?.is_banned ? "Unban User" : "Ban User"}
+        message={
+          selectedUser?.is_banned
+            ? `Allow ${selectedUser?.name} to access Akademi again?`
+            : `Are you sure you want to ban ${selectedUser?.name}? This will revoke their access immediately.`
+        }
+        type={selectedUser?.is_banned ? "info" : "danger"}
+        confirmText={selectedUser?.is_banned ? "Unban User" : "Ban User"}
         onConfirm={confirmBan}
         onCancel={() => setConfirmVisible(false)}
       />
