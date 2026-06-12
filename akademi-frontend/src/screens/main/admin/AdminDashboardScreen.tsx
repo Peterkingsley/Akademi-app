@@ -14,6 +14,27 @@ import { Avatar } from "../../../components/ui/Avatar";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
+const formatRelativeTime = (value?: string) => {
+  if (!value) return "Time unavailable";
+
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return "Time unavailable";
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diffSeconds < 60) return "Just now";
+
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Date(value).toLocaleDateString();
+};
+
 export const AdminDashboardScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
   const navigation = useNavigation<StackNavigationProp<AdminStackParamList>>();
@@ -99,14 +120,14 @@ export const AdminDashboardScreen: React.FC = () => {
   return (
     <Screen title="Command Center" scrollable>
       <View style={styles.section}>
-        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>LIVE PLATFORM STATS</Text>
+        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>LIVE PLATFORM STATS - TODAY</Text>
         {loading ? (
           <StatSkeleton />
         ) : (
           <View style={styles.statsGrid}>
             <StatCard title="Active Users" value={stats?.activeUsersToday} icon={Users} color={colors.primary} />
             <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#10B981" />
-            <StatCard title="Revenue" value={`₦${stats?.revenueToday?.toLocaleString()}`} icon={DollarSign} color="#F59E0B" />
+            <StatCard title="Revenue" value={`NGN ${(stats?.revenueToday || 0).toLocaleString()}`} icon={DollarSign} color="#F59E0B" />
             <StatCard title="Pending Review" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
             <StatCard title="Flagged Content" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />
             <StatCard title="AI Requests" value={stats?.aiRequestsToday} icon={Cpu} color="#8B5CF6" />
@@ -157,7 +178,7 @@ export const AdminDashboardScreen: React.FC = () => {
           ) : (
             activity?.recentRegistrations.slice(0, 5).map((user: any, index: number) => (
               <TouchableOpacity
-                key={index}
+                key={user.id || index}
                 style={[styles.activityItem, { borderBottomColor: colors.border }]}
                 onPress={() => navigation.navigate("UserManagement")}
               >
@@ -170,7 +191,9 @@ export const AdminDashboardScreen: React.FC = () => {
                   </Text>
                   <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
                     <Clock size={12} color={colors.textSecondary} />
-                    <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>Just now</Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>
+                      {formatRelativeTime(user.created_at)}
+                    </Text>
                   </View>
                 </View>
                 <ChevronRight size={16} color={colors.textMuted} />
