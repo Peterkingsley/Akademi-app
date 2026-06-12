@@ -30,6 +30,19 @@ import {
 export class AdminService {
   private materialsService = new MaterialsService();
 
+  private async safeTransactionRead<T>(fallback: T, reader: () => Promise<T>): Promise<T> {
+    try {
+      return await reader();
+    } catch (error: any) {
+      const message = String(error?.message || '');
+      if (message.includes('public.transactions') || message.includes('transactions') || error?.code === 'P2021') {
+        console.warn('Transactions table unavailable; returning admin finance fallback.');
+        return fallback;
+      }
+      throw error;
+    }
+  }
+
   async login(data: AdminLoginRequest): Promise<AdminAuthResponse> {
     const admin = await prisma.admin.findUnique({ where: { email: data.email } });
     if (!admin) {
@@ -104,7 +117,13 @@ export class AdminService {
     return {
       activeUsersToday,
       newRegistrations,
-      revenueToday: await prisma.transaction.aggregate({ where: { status: "successful", created_at: { gte: today } }, _sum: { amount: true } }).then(res => res._sum.amount || 0),
+      revenueToday: await this.safeTransactionRead(
+        0,
+        () => prisma.transaction.aggregate({
+          where: { status: "successful", created_at: { gte: today } },
+          _sum: { amount: true }
+        }).then(res => res._sum.amount || 0)
+      ),
       materialsPending,
       flaggedContent,
       aiRequestsToday
@@ -121,11 +140,14 @@ export class AdminService {
       _count: { _all: true }
     });
 
-    const revenue = await prisma.transaction.groupBy({
-      by: ['created_at'],
-      where: { status: 'successful', created_at: { gte: sevenDaysAgo } },
-      _sum: { amount: true }
-    });
+    const revenue = await this.safeTransactionRead(
+      [] as Array<{ created_at: Date; _sum: { amount: number | null } }>,
+      async () => (await (prisma.transaction as any).groupBy({
+        by: ['created_at'],
+        where: { status: 'successful', created_at: { gte: sevenDaysAgo } },
+        _sum: { amount: true }
+      })) as Array<{ created_at: Date; _sum: { amount: number | null } }>
+    );
 
     const featureUsage = await prisma.session.groupBy({
       by: ['session_type'],
@@ -151,11 +173,14 @@ export class AdminService {
         take: 5,
         orderBy: { created_at: 'desc' }
       }),
-      prisma.transaction.findMany({
-        take: 5,
-        orderBy: { created_at: 'desc' },
-        include: { user: { select: { name: true } } }
-      })
+      this.safeTransactionRead(
+        [] as any[],
+        () => prisma.transaction.findMany({
+          take: 5,
+          orderBy: { created_at: 'desc' },
+          include: { user: { select: { name: true } } }
+        })
+      )
     ]);
 
     return { recentFlagged, recentRegistrations, recentPayments };
@@ -191,6 +216,8 @@ export class AdminService {
   // Pillar 2: User Management
   async listUsers(filter: UserListFilter) {
     const where: any = { is_deleted: false };
+    const limit = Math.min(Number(filter.limit) || 50, 100);
+    const page = Math.max(Number(filter.page) || 1, 1);
     if (filter.search) {
       where.OR = [
         { name: { contains: filter.search, mode: 'insensitive' } },
@@ -204,8 +231,8 @@ export class AdminService {
     return prisma.user.findMany({
       where,
       orderBy: { created_at: 'desc' },
-      take: filter.limit || 50,
-      skip: ((filter.page || 1) - 1) * (filter.limit || 50)
+      take: limit,
+      skip: (page - 1) * limit
     });
   }
 
@@ -714,11 +741,12 @@ export class AdminService {
     const startOfWeek = new Date(new Date().setDate(now.getDate() - now.getDay()));
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+    const emptyAggregate = { _sum: { amount: 0 } };
     const [total, monthly, weekly, today] = await Promise.all([
-      prisma.transaction.aggregate({ where: { status: 'successful' }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfMonth } }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfWeek } }, _sum: { amount: true } }),
-      prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfDay } }, _sum: { amount: true } })
+      this.safeTransactionRead(emptyAggregate, () => prisma.transaction.aggregate({ where: { status: 'successful' }, _sum: { amount: true } })),
+      this.safeTransactionRead(emptyAggregate, () => prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfMonth } }, _sum: { amount: true } })),
+      this.safeTransactionRead(emptyAggregate, () => prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfWeek } }, _sum: { amount: true } })),
+      this.safeTransactionRead(emptyAggregate, () => prisma.transaction.aggregate({ where: { status: 'successful', created_at: { gte: startOfDay } }, _sum: { amount: true } }))
     ]);
 
     return {
@@ -730,18 +758,18 @@ export class AdminService {
   }
 
   async getFinanceBreakdown(filter: FinanceFilter) {
-    const byFeature = await prisma.transaction.groupBy({
+    const byFeature = await this.safeTransactionRead([] as any[], async () => (await (prisma.transaction as any).groupBy({
       by: ['feature'],
       where: { status: 'successful' },
       _sum: { amount: true }
-    });
+    })) as any[]);
 
-    const byPlan = await prisma.transaction.groupBy({
+    const byPlan = await this.safeTransactionRead([] as any[], async () => (await (prisma.transaction as any).groupBy({
       by: ['plan'],
       where: { status: 'successful' },
       _sum: { amount: true },
       _count: { _all: true }
-    });
+    })) as any[]);
 
     return { byFeature, byPlan };
   }
@@ -752,19 +780,19 @@ export class AdminService {
     if (filter.feature) where.feature = filter.feature as Feature;
     if (filter.university) where.university = filter.university;
 
-    return prisma.transaction.findMany({
+    return this.safeTransactionRead([] as any[], () => prisma.transaction.findMany({
       where,
       include: { user: { select: { name: true, email: true } } },
       orderBy: { created_at: 'desc' }
-    });
+    }));
   }
 
   async getFailedPayments() {
-    return prisma.transaction.findMany({
+    return this.safeTransactionRead([] as any[], () => prisma.transaction.findMany({
       where: { status: 'failed' },
       include: { user: { select: { name: true, email: true } } },
       orderBy: { created_at: 'desc' }
-    });
+    }));
   }
 
   async getFinanceProjections() {
@@ -772,17 +800,18 @@ export class AdminService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    const emptyProjectionAggregate = { _sum: { amount: 0 }, _count: { _all: 0 } };
     const [currentMonthTransactions, last30DaysTransactions] = await Promise.all([
-      prisma.transaction.aggregate({
+      this.safeTransactionRead(emptyProjectionAggregate, () => prisma.transaction.aggregate({
         where: { status: 'successful', created_at: { gte: startOfMonth } },
         _sum: { amount: true },
         _count: { _all: true }
-      }),
-      prisma.transaction.aggregate({
+      })),
+      this.safeTransactionRead(emptyProjectionAggregate, () => prisma.transaction.aggregate({
         where: { status: 'successful', created_at: { gte: thirtyDaysAgo } },
         _sum: { amount: true },
         _count: { _all: true }
-      })
+      }))
     ]);
 
     const currentMonthRevenue = currentMonthTransactions._sum.amount || 0;
