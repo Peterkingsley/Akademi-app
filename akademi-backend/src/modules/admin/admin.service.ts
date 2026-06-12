@@ -3,6 +3,7 @@ import redisClient from '../../config/redis';
 import { AdminRole, VerificationStatus, Feature, AccessType, MessageRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { config } from '../../config/env';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { NotFoundException } from '../../shared/exceptions';
@@ -33,6 +34,10 @@ export class AdminService {
     const admin = await prisma.admin.findUnique({ where: { email: data.email } });
     if (!admin) {
       throw new Error('Invalid credentials');
+    }
+
+    if (admin.status === 'suspended') {
+      throw new Error('Admin account is suspended');
     }
 
     if (data.password) {
@@ -894,6 +899,206 @@ export class AdminService {
       console.error(`Failed to retry job ${jobId}:`, error);
       throw new Error(`Failed to retry job ${jobId}: ${error.message}`);
     }
+  }
+
+  async listAdmins() {
+    return prisma.admin.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+        last_login: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async inviteAdmin(data: { name: string; email: string; role: AdminRole }) {
+    const email = data.email?.trim().toLowerCase();
+    const name = data.name?.trim();
+    const role = data.role || AdminRole.MODERATOR;
+
+    if (!name || !email) {
+      throw new Error('Name and email are required');
+    }
+
+    if (!Object.values(AdminRole).includes(role)) {
+      throw new Error('Invalid admin role');
+    }
+
+    const tempPassword = crypto.randomBytes(9).toString('base64url');
+    const password_hash = await bcrypt.hash(tempPassword, 10);
+
+    const admin = await prisma.admin.create({
+      data: {
+        name,
+        email,
+        role,
+        password_hash,
+        status: 'active',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+      },
+    });
+
+    return {
+      admin,
+      tempPassword,
+      message: 'Admin created. Share the temporary password securely and ask them to change it after first login.',
+    };
+  }
+
+  async suspendAdmin(id: string, actingAdminId: string) {
+    if (id === actingAdminId) {
+      throw new Error('You cannot suspend your own admin account');
+    }
+
+    return prisma.admin.update({
+      where: { id },
+      data: { status: 'suspended' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async unsuspendAdmin(id: string) {
+    return prisma.admin.update({
+      where: { id },
+      data: { status: 'active' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async deleteAdmin(id: string, actingAdminId: string) {
+    if (id === actingAdminId) {
+      throw new Error('You cannot delete your own admin account');
+    }
+
+    await prisma.admin.delete({ where: { id } });
+    return { message: 'Admin deleted successfully' };
+  }
+
+  async getActivityLogs(filter: { limit?: number; page?: number }) {
+    const limit = Math.min(Number(filter.limit) || 30, 100);
+    const page = Number(filter.page) || 1;
+    const [materials, documents, admins] = await Promise.all([
+      prisma.material.findMany({
+        where: { admin_reviewed_by: { not: null } },
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy: { admin_reviewed_at: 'desc' },
+        include: { user: { select: { name: true } } },
+      }),
+      prisma.disciplineDocument.findMany({
+        take: limit,
+        orderBy: { updated_at: 'desc' },
+      }),
+      prisma.admin.findMany({
+        take: limit,
+        orderBy: { created_at: 'desc' },
+        select: { id: true, name: true, email: true, created_at: true, status: true },
+      }),
+    ]);
+
+    const logs = [
+      ...materials.map((material) => ({
+        id: `material-${material.id}`,
+        timestamp: (material.admin_reviewed_at || material.created_at).toISOString(),
+        admin_name: 'Admin',
+        action_verb:
+          material.verification_status === VerificationStatus.VERIFIED
+            ? 'approved material'
+            : material.verification_status === VerificationStatus.TAKEN_DOWN
+              ? 'took down material'
+              : 'reviewed material',
+        target: material.title,
+        type: material.verification_status === VerificationStatus.TAKEN_DOWN ? 'destructive' : 'standard',
+      })),
+      ...documents.map((document) => ({
+        id: `document-${document.id}`,
+        timestamp: document.updated_at.toISOString(),
+        admin_name: 'Admin',
+        action_verb: document.is_active ? 'published discipline document' : 'deactivated discipline document',
+        target: [document.department, document.course_code].filter(Boolean).join(' / '),
+        type: document.is_active ? 'standard' : 'destructive',
+      })),
+      ...admins.map((admin) => ({
+        id: `admin-${admin.id}`,
+        timestamp: admin.created_at.toISOString(),
+        admin_name: admin.name,
+        action_verb: admin.status === 'suspended' ? 'has suspended status' : 'admin account exists',
+        target: admin.email,
+        type: admin.status === 'suspended' ? 'destructive' : 'system',
+      })),
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, limit);
+
+    return { logs, hasMore: logs.length === limit };
+  }
+
+  async getIPLogs(adminId: string) {
+    const admin = await prisma.admin.findUnique({
+      where: { id: adminId },
+      select: { id: true, email: true, last_login: true },
+    });
+
+    if (!admin) {
+      throw new Error('Admin not found');
+    }
+
+    return [{
+      id: admin.id,
+      ip_address: 'Current device',
+      location: 'Active admin session',
+      timestamp: (admin.last_login || new Date()).toISOString(),
+      is_current: true,
+    }];
+  }
+
+  async toggle2FA(enabled: boolean) {
+    return {
+      enabled,
+      message: 'Two-factor enforcement is not yet enabled for MVP admin auth.',
+    };
+  }
+
+  async getSessionStatus(adminId: string) {
+    const admin = await prisma.admin.findUnique({
+      where: { id: adminId },
+      select: { id: true, email: true, role: true, status: true, last_login: true },
+    });
+
+    if (!admin) {
+      throw new Error('Admin not found');
+    }
+
+    return {
+      active: admin.status === 'active',
+      role: admin.role,
+      lastLogin: admin.last_login,
+      sessionExpiresInHours: 24,
+    };
   }
 }
 

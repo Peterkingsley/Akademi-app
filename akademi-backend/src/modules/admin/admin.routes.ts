@@ -71,4 +71,15 @@ router.get('/system/cache', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) =>
 router.get('/system/jobs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getJobsMonitoring(req, res));
 router.post('/system/jobs/:name/retry', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.retryJob(req, res));
 
+// Pillar 8: Admin Team & Security
+router.get('/team', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.listAdmins(req, res));
+router.post('/team/invite', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.inviteAdmin(req, res));
+router.patch('/team/:id/suspend', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.suspendAdmin(req, res));
+router.patch('/team/:id/unsuspend', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.unsuspendAdmin(req, res));
+router.delete('/team/:id', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.deleteAdmin(req, res));
+router.get('/team/activity-log', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getActivityLogs(req, res));
+router.get('/security/ip-logs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getIPLogs(req, res));
+router.patch('/security/2fa', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.toggle2FA(req, res));
+router.get('/security/session-status', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getSessionStatus(req, res));
+
 export default router;

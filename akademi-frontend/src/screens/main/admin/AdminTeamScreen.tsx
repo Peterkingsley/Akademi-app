@@ -76,8 +76,11 @@ export const AdminTeamScreen: React.FC = () => {
 
     try {
       setInviting(true);
-      await adminService.inviteAdmin(inviteForm);
-      Alert.alert("Success", "Invite sent successfully!");
+      const result = await adminService.inviteAdmin(inviteForm);
+      Alert.alert(
+        "Admin created",
+        `Temporary password: ${result.tempPassword || "Created"}\n\nShare it securely and ask the admin to change it after first login.`
+      );
       setInviteModalVisible(false);
       setInviteForm({ name: "", email: "", role: "ANALYST" });
       fetchAdmins();

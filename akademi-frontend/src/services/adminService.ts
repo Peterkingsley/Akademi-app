@@ -313,7 +313,7 @@ export const adminService = {
     return data;
   },
 
-  inviteAdmin: async (adminData: { name: string, email: string, role: string }) => {
+  inviteAdmin: async (adminData: { name: string, email: string, role: string }): Promise<{ admin: AdminAccount; tempPassword?: string; message?: string }> => {
     const { data } = await api.post("/admin/team/invite", adminData);
     return data;
   },

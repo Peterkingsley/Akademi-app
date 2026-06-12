@@ -425,4 +425,85 @@ export class AdminController {
       res.status(500).json({ message: error.message });
     }
   }
+
+  async listAdmins(req: Request, res: Response) {
+    try {
+      const admins = await adminService.listAdmins();
+      res.json(admins);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async inviteAdmin(req: Request, res: Response) {
+    try {
+      const result = await adminService.inviteAdmin(req.body);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async suspendAdmin(req: Request, res: Response) {
+    try {
+      const result = await adminService.suspendAdmin(req.params.id, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async unsuspendAdmin(req: Request, res: Response) {
+    try {
+      const result = await adminService.unsuspendAdmin(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async deleteAdmin(req: Request, res: Response) {
+    try {
+      const result = await adminService.deleteAdmin(req.params.id, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async getActivityLogs(req: Request, res: Response) {
+    try {
+      const result = await adminService.getActivityLogs(req.query as any);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getIPLogs(req: Request, res: Response) {
+    try {
+      const result = await adminService.getIPLogs(req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async toggle2FA(req: Request, res: Response) {
+    try {
+      const result = await adminService.toggle2FA(Boolean(req.body.enabled));
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getSessionStatus(req: Request, res: Response) {
+    try {
+      const result = await adminService.getSessionStatus(req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 }

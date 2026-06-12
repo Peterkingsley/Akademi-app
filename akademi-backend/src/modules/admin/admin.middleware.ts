@@ -30,6 +30,10 @@ export const adminAuthenticate = async (req: Request, res: Response, next: NextF
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
+    if (admin.status === 'suspended') {
+      return res.status(403).json({ message: 'Admin account is suspended' });
+    }
+
     req.admin = {
       adminId: admin.id,
       email: admin.email,

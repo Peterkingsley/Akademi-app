@@ -84,6 +84,11 @@ enum AdminRole {
   ANALYST
 }
 
+enum AdminStatus {
+  active
+  suspended
+}
+
 enum DeviceType {
   ANDROID
   IOS
@@ -322,6 +327,7 @@ model Admin {
   email         String    @unique
   password_hash String
   role          AdminRole @default(MODERATOR)
+  status        AdminStatus @default(active)
   created_at    DateTime  @default(now())
   last_login    DateTime?
   @@map("admins")
