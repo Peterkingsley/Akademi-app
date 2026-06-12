@@ -125,8 +125,9 @@ export const AdminDashboardScreen: React.FC = () => {
           <StatSkeleton />
         ) : (
           <View style={styles.statsGrid}>
-            <StatCard title="Active Users" value={stats?.activeUsersToday} icon={Users} color={colors.primary} />
-            <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#10B981" />
+            <StatCard title="Total Users" value={stats?.totalUsers} icon={Users} color={colors.primary} />
+            <StatCard title="Active Today" value={stats?.activeUsersToday} icon={Activity} color="#10B981" />
+            <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#38BDF8" />
             <StatCard title="Revenue" value={`NGN ${(stats?.revenueToday || 0).toLocaleString()}`} icon={DollarSign} color="#F59E0B" />
             <StatCard title="Pending Review" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
             <StatCard title="Flagged Content" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />

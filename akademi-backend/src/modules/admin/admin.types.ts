@@ -8,6 +8,7 @@ export interface AdminJwtPayload {
 }
 
 export interface DashboardStats {
+  totalUsers: number;
   activeUsersToday: number;
   newRegistrations: number;
   revenueToday: number;

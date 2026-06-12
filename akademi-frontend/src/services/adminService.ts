@@ -1,6 +1,7 @@
 import api from "./api";
 
 export interface AdminDashboardStats {
+  totalUsers: number;
   activeUsersToday: number;
   newRegistrations: number;
   revenueToday: number;

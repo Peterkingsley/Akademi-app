@@ -88,6 +88,7 @@ export class AdminService {
     today.setHours(0, 0, 0, 0);
 
     const [
+      totalUsers,
       activeSessionUsersToday,
       activeProfileUsersToday,
       newRegistrations,
@@ -95,6 +96,9 @@ export class AdminService {
       flaggedContent,
       aiRequestsToday
     ] = await Promise.all([
+      prisma.user.count({
+        where: { is_deleted: false }
+      }),
       prisma.session.findMany({
         where: { created_at: { gte: today } },
         distinct: ['user_id'],
@@ -121,6 +125,7 @@ export class AdminService {
     ]);
 
     return {
+      totalUsers,
       activeUsersToday: Math.max(activeSessionUsersToday.length, activeProfileUsersToday),
       newRegistrations,
       revenueToday: await this.safeTransactionRead(
