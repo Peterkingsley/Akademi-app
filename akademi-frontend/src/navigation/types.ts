@@ -66,6 +66,7 @@ export type AdminStackParamList = {
   AuditTrail: undefined;
   SecuritySettings: undefined;
   UserManagement: undefined;
+  AdminUserDetail: { userId: string };
   ContentModeration: undefined;
   DisciplineDocuments: undefined;
   DocumentDetail: { id: string };

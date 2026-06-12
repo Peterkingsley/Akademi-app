@@ -256,14 +256,228 @@ export class AdminService {
   }
 
   async getUserProfile(id: string) {
-    return prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findUnique({
+      where: { id, is_deleted: false },
       include: {
         learning_profile: true,
         feature_access: true,
-        transactions: { take: 10, orderBy: { created_at: 'desc' } }
+        refresh_tokens: {
+          where: { is_active: true },
+          orderBy: { created_at: 'desc' },
+          take: 5,
+        },
+        student_courses: {
+          orderBy: [{ level: 'asc' }, { semester: 'asc' }, { code: 'asc' }],
+        },
       }
     });
+
+    if (!user) return null;
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [sessions, uploads, questionAttempts, mockAttempts, examPlans, transactions] = await Promise.all([
+      prisma.session.findMany({
+        where: { user_id: id },
+        select: {
+          id: true,
+          session_type: true,
+          course_code: true,
+          topic: true,
+          duration: true,
+          started_at: true,
+          ended_at: true,
+          created_at: true,
+          messages: { select: { id: true, role: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.material.findMany({
+        where: { uploaded_by: id },
+        select: {
+          id: true,
+          title: true,
+          course_code: true,
+          verification_status: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.questionAttempt.findMany({
+        where: { user_id: id },
+        select: {
+          id: true,
+          is_correct: true,
+          created_at: true,
+          question: { select: { course_code: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.mockAttempt.findMany({
+        where: { user_id: id },
+        select: {
+          id: true,
+          score: true,
+          started_at: true,
+          completed_at: true,
+          mock_exam: {
+            select: {
+              title: true,
+              plan: { select: { course_code: true } },
+            },
+          },
+        },
+        orderBy: { started_at: 'desc' },
+      }),
+      prisma.examPrepPlan.findMany({
+        where: { user_id: id },
+        select: {
+          id: true,
+          course_code: true,
+          assessment_type: true,
+          exam_date: true,
+          created_at: true,
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      this.safeTransactionRead(
+        [] as any[],
+        () => prisma.transaction.findMany({
+          where: { user_id: id },
+          orderBy: { created_at: 'desc' },
+          take: 20,
+        })
+      ),
+    ]);
+
+    const allActivityDates = [
+      ...sessions.map((session) => session.created_at),
+      ...uploads.map((upload) => upload.created_at),
+      ...questionAttempts.map((attempt) => attempt.created_at),
+      ...mockAttempts.map((attempt) => attempt.completed_at || attempt.started_at),
+    ].filter(Boolean) as Date[];
+
+    const lastActivityAt = allActivityDates.length
+      ? new Date(Math.max(...allActivityDates.map((date) => date.getTime())))
+      : user.learning_profile?.last_active || null;
+
+    const activeDayKeys = new Set(allActivityDates.map((date) => date.toISOString().slice(0, 10)));
+    const sessionsLast7Days = sessions.filter((session) => session.created_at >= sevenDaysAgo).length;
+    const sessionsLast30Days = sessions.filter((session) => session.created_at >= thirtyDaysAgo).length;
+    const solvedLast30Days = questionAttempts.filter((attempt) => attempt.created_at >= thirtyDaysAgo).length;
+    const uploadsLast30Days = uploads.filter((upload) => upload.created_at >= thirtyDaysAgo).length;
+    const mocksLast30Days = mockAttempts.filter((attempt) => (attempt.completed_at || attempt.started_at) >= thirtyDaysAgo).length;
+    const aiMessages = sessions.reduce(
+      (sum, session) => sum + session.messages.filter((message) => message.role === MessageRole.AI).length,
+      0
+    );
+
+    const featureUsage = {
+      assignmentSolving: sessions.filter((session) => session.session_type === SessionType.ASSIGNMENT).length,
+      liveTutor: sessions.filter((session) => session.session_type === SessionType.TUTOR).length,
+      studyMode: sessions.filter((session) => session.session_type === SessionType.STUDY).length,
+      examPrep: examPlans.length + mockAttempts.length,
+      materialUploads: uploads.length,
+      cbtPractice: questionAttempts.length,
+    };
+
+    const courseUsage = new Map<string, { course: string; sessions: number; solves: number; uploads: number; mocks: number }>();
+    const ensureCourse = (code?: string | null) => {
+      const course = code || 'General';
+      if (!courseUsage.has(course)) {
+        courseUsage.set(course, { course, sessions: 0, solves: 0, uploads: 0, mocks: 0 });
+      }
+      return courseUsage.get(course)!;
+    };
+
+    sessions.forEach((session) => ensureCourse(session.course_code).sessions += 1);
+    questionAttempts.forEach((attempt) => ensureCourse(attempt.question.course_code).solves += 1);
+    uploads.forEach((upload) => ensureCourse(upload.course_code).uploads += 1);
+    mockAttempts.forEach((attempt) => ensureCourse(attempt.mock_exam.plan.course_code).mocks += 1);
+
+    const correctAnswers = questionAttempts.filter((attempt) => attempt.is_correct).length;
+    const successfulRevenue = transactions
+      .filter((transaction: any) => transaction.status === 'successful')
+      .reduce((sum: number, transaction: any) => sum + (transaction.amount || 0), 0);
+
+    const recentActivity = [
+      ...sessions.slice(0, 5).map((session) => ({
+        id: session.id,
+        type: session.session_type,
+        title: session.topic || session.course_code || `${session.session_type} session`,
+        meta: session.course_code || 'General',
+        timestamp: session.created_at,
+      })),
+      ...uploads.slice(0, 5).map((upload) => ({
+        id: upload.id,
+        type: 'UPLOAD',
+        title: upload.title,
+        meta: `${upload.course_code || 'General'} - ${upload.verification_status}`,
+        timestamp: upload.created_at,
+      })),
+      ...mockAttempts.slice(0, 5).map((attempt) => ({
+        id: attempt.id,
+        type: 'MOCK',
+        title: attempt.mock_exam.title,
+        meta: `${attempt.mock_exam.plan.course_code || 'General'} - ${attempt.score}%`,
+        timestamp: attempt.completed_at || attempt.started_at,
+      })),
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 8);
+
+    return {
+      user,
+      analytics: {
+        onlineStatus: lastActivityAt && now.getTime() - lastActivityAt.getTime() < 15 * 60 * 1000 ? 'online' : 'offline',
+        lastActivityAt,
+        registeredAt: user.created_at,
+        location: {
+          university: user.university,
+          faculty: user.faculty,
+          department: user.department,
+          level: user.level,
+        },
+        usageFrequency: {
+          activeDays: activeDayKeys.size,
+          sessionsLast7Days,
+          sessionsLast30Days,
+          avgSessionsPerWeek: Number(((sessionsLast30Days / 30) * 7).toFixed(1)),
+          solvedLast30Days,
+          uploadsLast30Days,
+          mocksLast30Days,
+        },
+        featureUsage,
+        performance: {
+          solvedQuestions: questionAttempts.length,
+          correctAnswers,
+          accuracy: questionAttempts.length ? Math.round((correctAnswers / questionAttempts.length) * 100) : 0,
+          averageMockScore: mockAttempts.length
+            ? Math.round(mockAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / mockAttempts.length)
+            : null,
+          aiMessages,
+        },
+        courseUsage: Array.from(courseUsage.values()).sort((a, b) => {
+          const aTotal = a.sessions + a.solves + a.uploads + a.mocks;
+          const bTotal = b.sessions + b.solves + b.uploads + b.mocks;
+          return bTotal - aTotal;
+        }).slice(0, 8),
+        payments: {
+          totalSpent: successfulRevenue,
+          successfulTransactions: transactions.filter((transaction: any) => transaction.status === 'successful').length,
+          recentTransactions: transactions.slice(0, 5),
+        },
+        access: user.feature_access,
+        devices: user.refresh_tokens.map((token) => ({
+          id: token.id,
+          deviceName: token.device_name,
+          deviceType: token.device_type,
+          createdAt: token.created_at,
+          expiresAt: token.expires_at,
+        })),
+        recentActivity,
+      },
+    };
   }
 
   async banUser(id: string) {

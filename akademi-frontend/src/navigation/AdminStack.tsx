@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AdminStackParamList } from "./types";
 import { AdminDashboardScreen } from "../screens/main/admin/AdminDashboardScreen";
 import { UserManagementScreen } from "../screens/main/admin/UserManagementScreen";
+import { AdminUserDetailScreen } from "../screens/main/admin/AdminUserDetailScreen";
 import { ContentModerationScreen } from "../screens/main/admin/ContentModerationScreen";
 import { DisciplineDocumentsScreen } from "../screens/main/admin/DisciplineDocumentsScreen";
 import { DocumentDetailScreen } from "../screens/main/admin/DocumentDetailScreen";
@@ -83,6 +84,15 @@ const DocumentsStack = () => {
   );
 };
 
+const UsersStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+      <Stack.Screen name="AdminUserDetail" component={AdminUserDetailScreen} />
+    </Stack.Navigator>
+  );
+};
+
 export const AdminStack = () => {
   const { colors } = useTheme();
 
@@ -109,7 +119,7 @@ export const AdminStack = () => {
       />
       <Tab.Screen
         name="Users"
-        component={UserManagementScreen}
+        component={UsersStack}
         options={{
           tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
         }}

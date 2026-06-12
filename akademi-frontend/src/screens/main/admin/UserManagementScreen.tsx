@@ -10,9 +10,13 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { Toast } from "../../../components/ui/Toast";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import * as Haptics from "expo-haptics";
+import { useNavigation } from "@react-navigation/native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { AdminStackParamList } from "../../../navigation/types";
 
 export const UserManagementScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
+  const navigation = useNavigation<StackNavigationProp<AdminStackParamList>>();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -89,6 +93,10 @@ export const UserManagementScreen: React.FC = () => {
   };
 
   const UserCard = ({ user }: { user: any }) => (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate("AdminUserDetail", { userId: user.id })}
+    >
     <Card style={StyleSheet.flatten([styles.userCard, { borderColor: colors.border }])}>
       <View style={styles.cardHeader}>
         <View style={styles.nameSection}>
@@ -141,6 +149,7 @@ export const UserManagementScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
     </Card>
+    </TouchableOpacity>
   );
 
   const UserSkeleton = () => (
