@@ -44,13 +44,23 @@ export interface UserListFilter {
   university?: string;
   department?: string;
   status?: 'active' | 'banned' | 'unverified';
-  plan?: 'free' | 'paid';
+  plan?: 'free' | 'paid' | 'pro' | 'premium';
   startDate?: string;
   endDate?: string;
+  joinedWithinDays?: string | number;
+  level?: string | number;
+  courseCode?: string;
+  featureUsed?: 'assignment' | 'tutor' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
   page?: number;
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface EmailCampaignRequest extends UserListFilter {
+  subject: string;
+  message: string;
+  previewOnly?: boolean;
 }
 
 export interface GrantAccessRequest {

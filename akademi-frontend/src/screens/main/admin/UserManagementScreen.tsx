@@ -21,6 +21,10 @@ export const UserManagementScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterVisible, setFilterVisible] = useState(false);
+  const [emailVisible, setEmailVisible] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [recipientPreview, setRecipientPreview] = useState<any>(null);
+  const [emailForm, setEmailForm] = useState({ subject: "", message: "" });
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -29,10 +33,13 @@ export const UserManagementScreen: React.FC = () => {
   // Filter states
   const [selectedPlan, setSelectedPlan] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [joinedWithinDays, setJoinedWithinDays] = useState("all");
+  const [featureUsed, setFeatureUsed] = useState("all");
+  const [courseCodeFilter, setCourseCodeFilter] = useState("");
 
   useEffect(() => {
     fetchUsers();
-  }, [search, selectedPlan, selectedStatus]);
+  }, [search, selectedPlan, selectedStatus, joinedWithinDays, featureUsed, courseCodeFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -41,13 +48,69 @@ export const UserManagementScreen: React.FC = () => {
         search,
         limit: 50,
         plan: selectedPlan !== "all" ? selectedPlan : undefined,
-        status: selectedStatus !== "all" ? selectedStatus : undefined
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        joinedWithinDays: joinedWithinDays !== "all" ? joinedWithinDays : undefined,
+        featureUsed: featureUsed !== "all" ? featureUsed : undefined,
+        courseCode: courseCodeFilter.trim() || undefined,
       });
       setUsers(Array.isArray(data) ? data : data?.users || []);
     } catch (error) {
       console.error("Failed to fetch users", error);
     } finally {
       setTimeout(() => setLoading(false), 500);
+    }
+  };
+
+  const currentFilters = (extra: Record<string, any> = {}) => ({
+    search: search || undefined,
+    plan: selectedPlan !== "all" ? selectedPlan : undefined,
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
+    joinedWithinDays: joinedWithinDays !== "all" ? joinedWithinDays : undefined,
+    featureUsed: featureUsed !== "all" ? featureUsed : undefined,
+    courseCode: courseCodeFilter.trim() || undefined,
+    ...extra,
+  });
+
+  const previewEmailRecipients = async () => {
+    if (!emailForm.subject.trim() || !emailForm.message.trim()) {
+      setToast({ message: "Add a subject and message first", type: "error" });
+      return;
+    }
+    try {
+      setEmailLoading(true);
+      const data = await adminService.sendUserEmailCampaign(currentFilters({
+        subject: emailForm.subject,
+        message: emailForm.message,
+        previewOnly: true,
+      }));
+      setRecipientPreview(data);
+      setToast({ message: `${data.recipientCount || 0} recipients match this campaign`, type: "success" });
+    } catch (error: any) {
+      setToast({ message: error?.response?.data?.message || "Could not preview recipients", type: "error" });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const sendEmailCampaign = async () => {
+    if (!recipientPreview) {
+      await previewEmailRecipients();
+      return;
+    }
+    try {
+      setEmailLoading(true);
+      const data = await adminService.sendUserEmailCampaign(currentFilters({
+        subject: emailForm.subject,
+        message: emailForm.message,
+      }));
+      setEmailVisible(false);
+      setRecipientPreview(null);
+      setEmailForm({ subject: "", message: "" });
+      setToast({ message: `Email sent to ${data.sent || 0} users`, type: "success" });
+    } catch (error: any) {
+      setToast({ message: error?.response?.data?.message || "Could not send email campaign", type: "error" });
+    } finally {
+      setEmailLoading(false);
     }
   };
 
@@ -178,6 +241,19 @@ export const UserManagementScreen: React.FC = () => {
 
   return (
     <Screen title="User Management">
+      <View style={styles.topActions}>
+        <TouchableOpacity
+          style={[styles.emailCampaignButton, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            setRecipientPreview(null);
+            setEmailVisible(true);
+          }}
+        >
+          <Mail size={18} color="#FFF" />
+          <Text style={[typography.bodySmall, { color: "#FFF", fontWeight: "700" }]}>Email users</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.header}>
         <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Search size={18} color={colors.textMuted} />
@@ -263,6 +339,77 @@ export const UserManagementScreen: React.FC = () => {
             </View>
 
             <View style={styles.filterSection}>
+              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>SIGNED UP</Text>
+              <View style={styles.chipContainer}>
+                {[
+                  { label: "Anytime", value: "all" },
+                  { label: "Today", value: "1" },
+                  { label: "7 days", value: "7" },
+                  { label: "30 days", value: "30" },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.chip,
+                      { borderColor: colors.border },
+                      joinedWithinDays === item.value && { backgroundColor: colors.primary, borderColor: colors.primary }
+                    ]}
+                    onPress={() => setJoinedWithinDays(item.value)}
+                  >
+                    <Text style={[
+                      typography.caption,
+                      { color: colors.textPrimary },
+                      joinedWithinDays === item.value && { color: '#FFF', fontWeight: 'bold' }
+                    ]}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>FEATURE USED</Text>
+              <View style={styles.chipContainer}>
+                {[
+                  { label: "Any", value: "all" },
+                  { label: "Assignment", value: "assignment" },
+                  { label: "Tutor", value: "tutor" },
+                  { label: "Study", value: "study" },
+                  { label: "Exam Prep", value: "exam_prep" },
+                  { label: "Uploads", value: "uploads" },
+                  { label: "CBT", value: "cbt" },
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.chip,
+                      { borderColor: colors.border },
+                      featureUsed === item.value && { backgroundColor: colors.primary, borderColor: colors.primary }
+                    ]}
+                    onPress={() => setFeatureUsed(item.value)}
+                  >
+                    <Text style={[
+                      typography.caption,
+                      { color: colors.textPrimary },
+                      featureUsed === item.value && { color: '#FFF', fontWeight: 'bold' }
+                    ]}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>COURSE CODE</Text>
+              <TextInput
+                style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="e.g. EEE 301"
+                placeholderTextColor={colors.textMuted}
+                value={courseCodeFilter}
+                onChangeText={setCourseCodeFilter}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={styles.filterSection}>
               <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>ACCOUNT STATUS</Text>
               {['all', 'active', 'unverified', 'banned'].map((status) => (
                 <TouchableOpacity
@@ -288,6 +435,83 @@ export const UserManagementScreen: React.FC = () => {
             >
               <Text style={[typography.body, { color: '#FFF', fontWeight: 'bold' }]}>Apply Filters</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={emailVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEmailVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[typography.h4, { color: colors.textPrimary }]}>Email users</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>Uses the current search and filters.</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEmailVisible(false)}>
+                <X size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>SUBJECT</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="What should students see first?"
+              placeholderTextColor={colors.textMuted}
+              value={emailForm.subject}
+              onChangeText={(subject) => {
+                setRecipientPreview(null);
+                setEmailForm((current) => ({ ...current, subject }));
+              }}
+            />
+
+            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8, marginTop: 16 }]}>MESSAGE</Text>
+            <TextInput
+              style={[styles.modalInput, styles.messageInput, { color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="Write the email body..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              textAlignVertical="top"
+              value={emailForm.message}
+              onChangeText={(message) => {
+                setRecipientPreview(null);
+                setEmailForm((current) => ({ ...current, message }));
+              }}
+            />
+
+            <View style={[styles.previewBox, { borderColor: colors.border }]}>
+              <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
+                {recipientPreview ? `${recipientPreview.recipientCount} matching recipients` : "Preview recipients before sending"}
+              </Text>
+              {!!recipientPreview?.sampleRecipients?.length && (
+                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 6 }]} numberOfLines={2}>
+                  {recipientPreview.sampleRecipients.map((user: any) => user.email).join(", ")}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.emailActions}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, { borderColor: colors.border }]}
+                onPress={previewEmailRecipients}
+                disabled={emailLoading}
+              >
+                <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>Preview</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: emailLoading ? 0.65 : 1 }]}
+                onPress={sendEmailCampaign}
+                disabled={emailLoading}
+              >
+                <Text style={[typography.bodySmall, { color: "#FFF", fontWeight: "700" }]}>
+                  {emailLoading ? "Working..." : "Send now"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -323,6 +547,18 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  topActions: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  emailCampaignButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 8,
+    height: 46,
+    justifyContent: "center",
+  },
   searchBar: {
     flex: 1,
     flexDirection: "row",
@@ -336,6 +572,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
+  },
+  modalInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    fontSize: 14,
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  messageInput: {
+    minHeight: 130,
+    paddingTop: 14,
   },
   filterButton: {
     width: 48,
@@ -445,5 +692,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
+  },
+  previewBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 12,
+  },
+  emailActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 18,
+  },
+  secondaryButton: {
+    alignItems: "center",
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    height: 50,
+    justifyContent: "center",
+  },
+  primaryButton: {
+    alignItems: "center",
+    borderRadius: 14,
+    flex: 1,
+    height: 50,
+    justifyContent: "center",
   }
 });

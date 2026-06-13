@@ -138,6 +138,11 @@ export const adminService = {
     return data;
   },
 
+  sendUserEmailCampaign: async (campaignData: any) => {
+    const { data } = await api.post("/admin/users/email-campaign", campaignData);
+    return data;
+  },
+
   // Pillar 3: Content Moderation
   getFlaggedMaterials: async () => {
     const { data } = await api.get("/admin/materials/flagged");

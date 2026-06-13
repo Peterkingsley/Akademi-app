@@ -20,6 +20,7 @@ router.get('/dashboard/system-health', (req, res) => adminController.getSystemHe
 
 // Pillar 2: User Management
 router.get('/users', (req, res) => adminController.listUsers(req, res));
+router.post('/users/email-campaign', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.emailUsers(req, res));
 router.get('/users/:id', (req, res) => adminController.getUserProfile(req, res));
 router.patch('/users/:id/ban', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.banUser(req, res));
 router.patch('/users/:id/unban', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.unbanUser(req, res));

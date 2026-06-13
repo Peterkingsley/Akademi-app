@@ -10,6 +10,7 @@ import { NotFoundException } from '../../shared/exceptions';
 import { SessionType } from '@prisma/client';
 import { MaterialsService } from '../materials/materials.service';
 import { notificationsService } from '../notifications/notifications.service';
+import { Resend } from 'resend';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -18,6 +19,7 @@ import {
   DashboardActivity,
   SystemHealth,
   UserListFilter,
+  EmailCampaignRequest,
   GrantAccessRequest,
   DisciplineDocumentListFilter,
   UploadDisciplineDocumentRequest,
@@ -25,6 +27,14 @@ import {
   FinanceFilter
 } from './admin.types';
 
+const resend = new Resend(config.resendApiKey);
+
+const escapeHtml = (value: string) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
 
 
 export class AdminService {
@@ -233,10 +243,13 @@ export class AdminService {
   }
 
   // Pillar 2: User Management
-  async listUsers(filter: UserListFilter) {
+  private isResendConfigured() {
+    return Boolean(config.resendApiKey && config.resendApiKey !== 're_dummy_key' && config.resendApiKey !== 'your_resend_api_key');
+  }
+
+  private buildUserWhere(filter: UserListFilter) {
     const where: any = { is_deleted: false };
-    const limit = Math.min(Number(filter.limit) || 50, 100);
-    const page = Math.max(Number(filter.page) || 1, 1);
+
     if (filter.search) {
       where.OR = [
         { name: { contains: filter.search, mode: 'insensitive' } },
@@ -245,7 +258,63 @@ export class AdminService {
     }
     if (filter.university) where.university = filter.university;
     if (filter.department) where.department = filter.department;
+    if (filter.level) where.level = Number(filter.level);
+    if (filter.courseCode) {
+      const code = String(filter.courseCode).trim().toUpperCase();
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { courses: { has: code } },
+            { student_courses: { some: { code } } },
+          ],
+        },
+      ];
+    }
+
     if (filter.status === 'banned') where.is_banned = true;
+    if (filter.status === 'unverified') where.is_verified = false;
+    if (filter.status === 'active') {
+      where.is_banned = false;
+      where.is_verified = true;
+    }
+
+    if (filter.startDate || filter.endDate || filter.joinedWithinDays) {
+      where.created_at = {};
+      if (filter.joinedWithinDays) {
+        const days = Math.max(Number(filter.joinedWithinDays) || 0, 0);
+        if (days > 0) {
+          where.created_at.gte = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        }
+      }
+      if (filter.startDate) where.created_at.gte = new Date(filter.startDate);
+      if (filter.endDate) where.created_at.lte = new Date(filter.endDate);
+    }
+
+    if (filter.plan === 'paid' || filter.plan === 'pro' || filter.plan === 'premium') {
+      where.feature_access = { some: {} };
+    }
+    if (filter.plan === 'free') {
+      where.feature_access = { none: {} };
+    }
+
+    if (filter.featureUsed) {
+      const feature = String(filter.featureUsed).toLowerCase();
+      if (feature === 'assignment') where.sessions = { some: { session_type: SessionType.ASSIGNMENT } };
+      if (feature === 'tutor') where.sessions = { some: { session_type: SessionType.TUTOR } };
+      if (feature === 'study') where.sessions = { some: { session_type: SessionType.STUDY } };
+      if (feature === 'exam_prep') where.exam_prep_plans = { some: {} };
+      if (feature === 'uploads') where.materials = { some: {} };
+      if (feature === 'cbt') where.question_attempts = { some: {} };
+    }
+
+    return where;
+  }
+
+  async listUsers(filter: UserListFilter) {
+    const where = this.buildUserWhere(filter);
+    const limit = Math.min(Number(filter.limit) || 50, 100);
+    const page = Math.max(Number(filter.page) || 1, 1);
 
     return prisma.user.findMany({
       where,
@@ -253,6 +322,68 @@ export class AdminService {
       take: limit,
       skip: (page - 1) * limit
     });
+  }
+
+  async emailUsers(filter: EmailCampaignRequest, adminId: string) {
+    const subject = String(filter.subject || '').trim();
+    const message = String(filter.message || '').trim();
+    if (!subject || !message) {
+      throw new Error('Email subject and message are required.');
+    }
+
+    const where = this.buildUserWhere(filter);
+    const recipients = await prisma.user.findMany({
+      where,
+      select: { id: true, name: true, email: true },
+      orderBy: { created_at: 'desc' },
+      take: 500,
+    });
+
+    if (filter.previewOnly) {
+      return {
+        previewOnly: true,
+        recipientCount: recipients.length,
+        sampleRecipients: recipients.slice(0, 10),
+      };
+    }
+
+    if (!this.isResendConfigured()) {
+      throw new Error('Resend is not configured. Add RESEND_API_KEY before sending campaigns.');
+    }
+
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
+    const html = `
+      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+        <h2 style="color:#16a34a;">${safeSubject}</h2>
+        <p>${safeMessage}</p>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px;">You are receiving this because you created an Akademi account.</p>
+      </div>
+    `;
+
+    let sent = 0;
+    const failed: Array<{ email: string; message: string }> = [];
+
+    for (const user of recipients) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <noreply@opengigs.pro>',
+          to: user.email,
+          subject,
+          html,
+        });
+        sent += 1;
+      } catch (error: any) {
+        failed.push({ email: user.email, message: error?.message || 'Failed to send' });
+      }
+    }
+
+    return {
+      recipientCount: recipients.length,
+      sent,
+      failedCount: failed.length,
+      failed: failed.slice(0, 10),
+    };
   }
 
   async getUserProfile(id: string) {

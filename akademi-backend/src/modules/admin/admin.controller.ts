@@ -60,6 +60,15 @@ export class AdminController {
     }
   }
 
+  async emailUsers(req: Request, res: Response) {
+    try {
+      const result = await adminService.emailUsers(req.body, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async getUserProfile(req: Request, res: Response) {
     try {
       const user = await adminService.getUserProfile(req.params.id);
