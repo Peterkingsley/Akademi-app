@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { BookOpen, CalendarDays, GraduationCap, Landmark, Layers, Plus, Trash2 } from "lucide-react-native";
+import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { BookOpen, CalendarDays, CheckCircle2, ChevronRight, GraduationCap, Landmark, Layers, Plus, Search, Trash2, X } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
@@ -9,8 +9,12 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { AcademicProfile, StudentAcademicCourse, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
+import api from "../../services/api";
 
 type CourseDraft = StudentAcademicCourse & { localId: string };
+type UniversityOption = { id: string; name: string; location?: string; type?: string };
+type DepartmentOption = { id: string; name: string; faculty: string };
+type PickerMode = "university" | "faculty" | "department";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const defaultEndIso = () => {
@@ -28,11 +32,30 @@ export const EditAcademicDetailsScreen: React.FC = () => {
   const [fetching, setFetching] = useState(true);
   const [profile, setProfile] = useState<AcademicProfile | null>(null);
   const [form, setForm] = useState({ university: "", faculty: "", department: "", level: "" });
+  const [selectedUniversityId, setSelectedUniversityId] = useState<string | null>(null);
+  const [universities, setUniversities] = useState<UniversityOption[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [schoolLoading, setSchoolLoading] = useState(false);
   const [courses, setCourses] = useState<CourseDraft[]>([]);
 
   useEffect(() => {
     fetchProfile();
+    fetchUniversities();
   }, []);
+
+  useEffect(() => {
+    if (selectedUniversityId) {
+      fetchDepartments(selectedUniversityId);
+    }
+  }, [selectedUniversityId]);
+
+  useEffect(() => {
+    if (!selectedUniversityId && form.university && universities.length > 0) {
+      matchUniversity(form.university, universities);
+    }
+  }, [form.university, selectedUniversityId, universities]);
 
   const fetchProfile = async () => {
     try {
@@ -44,6 +67,7 @@ export const EditAcademicDetailsScreen: React.FC = () => {
         department: data.department || "",
         level: data.level?.toString() || "",
       });
+      matchUniversity(data.university || "");
       setCourses(
         (data.student_courses || []).map((course) => ({
           ...course,
@@ -59,7 +83,110 @@ export const EditAcademicDetailsScreen: React.FC = () => {
     }
   };
 
+  const fetchUniversities = async () => {
+    try {
+      setSchoolLoading(true);
+      const response = await api.get<UniversityOption[]>("/universities");
+      const list = response.data || [];
+      setUniversities(list);
+      if (form.university) matchUniversity(form.university, list);
+    } catch (error) {
+      Alert.alert("School list unavailable", "Could not load universities. Please try again.");
+    } finally {
+      setSchoolLoading(false);
+    }
+  };
+
+  const matchUniversity = (name: string, source = universities) => {
+    const found = source.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    if (found) setSelectedUniversityId(found.id);
+  };
+
+  const fetchDepartments = async (universityId: string) => {
+    try {
+      setSchoolLoading(true);
+      const response = await api.get<DepartmentOption[]>(`/universities/${universityId}/departments`);
+      setDepartments(response.data || []);
+    } catch (error) {
+      setDepartments([]);
+      Alert.alert("Department list unavailable", "Could not load faculties and departments for this school.");
+    } finally {
+      setSchoolLoading(false);
+    }
+  };
+
   const parsedLevel = useMemo(() => parseInt(form.level.replace(/[^0-9]/g, ""), 10), [form.level]);
+  const faculties = useMemo(() => Array.from(new Set(departments.map((item) => item.faculty))).sort(), [departments]);
+  const filteredPickerItems = useMemo(() => {
+    const query = pickerSearch.trim().toLowerCase();
+
+    if (pickerMode === "university") {
+      return universities.filter((item) => !query || item.name.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query));
+    }
+
+    if (pickerMode === "faculty") {
+      return faculties.filter((item) => !query || item.toLowerCase().includes(query));
+    }
+
+    if (pickerMode === "department") {
+      return departments.filter((item) =>
+        item.faculty === form.faculty &&
+        (!query || item.name.toLowerCase().includes(query))
+      );
+    }
+
+    return [];
+  }, [departments, faculties, form.faculty, pickerMode, pickerSearch, universities]);
+
+  const openPicker = (mode: PickerMode) => {
+    if (mode !== "university" && !form.university) {
+      Alert.alert("Pick university first", "Select your school before choosing faculty or department.");
+      return;
+    }
+
+    if (mode === "department" && !form.faculty) {
+      Alert.alert("Pick faculty first", "Select your faculty before choosing department.");
+      return;
+    }
+
+    setPickerMode(mode);
+    setPickerSearch("");
+  };
+
+  const closePicker = () => {
+    setPickerMode(null);
+    setPickerSearch("");
+  };
+
+  const handleSelectPickerItem = (item: any) => {
+    if (pickerMode === "university") {
+      setSelectedUniversityId(item.id);
+      setForm((current) => ({
+        ...current,
+        university: item.name,
+        faculty: "",
+        department: "",
+      }));
+      setDepartments([]);
+    }
+
+    if (pickerMode === "faculty") {
+      setForm((current) => ({
+        ...current,
+        faculty: item,
+        department: "",
+      }));
+    }
+
+    if (pickerMode === "department") {
+      setForm((current) => ({
+        ...current,
+        department: item.name,
+      }));
+    }
+
+    closePicker();
+  };
 
   const addCourse = () => {
     setCourses((current) => [
@@ -149,9 +276,9 @@ export const EditAcademicDetailsScreen: React.FC = () => {
 
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>School details</Text>
-          <Input label="University" placeholder="e.g. University of Lagos" value={form.university} onChangeText={(text) => setForm({ ...form, university: text })} leftIcon={<Landmark size={20} color={colors.textMuted} />} />
-          <Input label="Faculty" placeholder="e.g. Engineering" value={form.faculty} onChangeText={(text) => setForm({ ...form, faculty: text })} leftIcon={<BookOpen size={20} color={colors.textMuted} />} />
-          <Input label="Department" placeholder="e.g. Computer Engineering" value={form.department} onChangeText={(text) => setForm({ ...form, department: text })} leftIcon={<BookOpen size={20} color={colors.textMuted} />} />
+          <PickerField label="University" value={form.university} placeholder="Pick your university" icon={<Landmark size={20} color={colors.textMuted} />} onPress={() => openPicker("university")} />
+          <PickerField label="Faculty" value={form.faculty} placeholder={form.university ? "Pick faculty" : "Pick university first"} icon={<BookOpen size={20} color={colors.textMuted} />} onPress={() => openPicker("faculty")} disabled={!form.university} />
+          <PickerField label="Department" value={form.department} placeholder={form.faculty ? "Pick department" : "Pick faculty first"} icon={<BookOpen size={20} color={colors.textMuted} />} onPress={() => openPicker("department")} disabled={!form.faculty} />
           <Input label="Current Level" placeholder="e.g. 300" value={form.level} onChangeText={(text) => setForm({ ...form, level: text })} keyboardType="numeric" leftIcon={<Layers size={20} color={colors.textMuted} />} />
         </View>
 
@@ -197,9 +324,104 @@ export const EditAcademicDetailsScreen: React.FC = () => {
 
         <Button label="Save Academic Structure" onPress={handleSave} loading={loading} style={styles.button} />
       </ScrollView>
+
+      <Modal visible={!!pickerMode} transparent animationType="slide" onRequestClose={closePicker}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <View>
+                <Text style={styles.pickerTitle}>
+                  {pickerMode === "university" ? "Pick university" : pickerMode === "faculty" ? "Pick faculty" : "Pick department"}
+                </Text>
+                <Text style={styles.pickerSubtitle}>
+                  {pickerMode === "university" ? "Choose from live Akademi school data." : form.university}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closePicker} style={styles.closeButton}>
+                <X size={20} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Search size={18} color={colors.textMuted} />
+              <TextInput
+                value={pickerSearch}
+                onChangeText={setPickerSearch}
+                placeholder="Search..."
+                placeholderTextColor={colors.textMuted}
+                style={styles.searchInput}
+              />
+            </View>
+
+            {schoolLoading ? (
+              <View style={styles.pickerLoading}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : (
+              <FlatList
+                data={filteredPickerItems}
+                keyExtractor={(item: any) => typeof item === "string" ? item : item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }: any) => {
+                  const title = typeof item === "string" ? item : item.name;
+                  const subtitle = typeof item === "string"
+                    ? `${departments.filter((department) => department.faculty === item).length} departments`
+                    : pickerMode === "university"
+                      ? [item.type, item.location].filter(Boolean).join(" / ")
+                      : item.faculty;
+                  const active =
+                    (pickerMode === "university" && title === form.university) ||
+                    (pickerMode === "faculty" && title === form.faculty) ||
+                    (pickerMode === "department" && title === form.department);
+
+                  return (
+                    <TouchableOpacity style={styles.pickerItem} onPress={() => handleSelectPickerItem(item)}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pickerItemTitle}>{title}</Text>
+                        {!!subtitle && <Text style={styles.pickerItemSubtitle}>{subtitle}</Text>}
+                      </View>
+                      {active ? <CheckCircle2 size={18} color={colors.primary} /> : <ChevronRight size={16} color={colors.textMuted} />}
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View style={styles.emptyPicker}>
+                    <Text style={styles.emptyPickerText}>No matching option found.</Text>
+                  </View>
+                }
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
+
+const PickerField = ({
+  label,
+  value,
+  placeholder,
+  icon,
+  onPress,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  icon: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+}) => (
+  <View style={styles.pickerFieldWrap}>
+    <Text style={styles.miniLabel}>{label}</Text>
+    <TouchableOpacity style={[styles.pickerField, disabled && styles.pickerFieldDisabled]} onPress={onPress} disabled={disabled} activeOpacity={0.78}>
+      {icon}
+      <Text style={[styles.pickerValue, !value && styles.pickerPlaceholder]} numberOfLines={1}>{value || placeholder}</Text>
+      <ChevronRight size={17} color={colors.textMuted} />
+    </TouchableOpacity>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: { padding: 18, paddingBottom: 42 },
@@ -225,4 +447,23 @@ const styles = StyleSheet.create({
   semesterText: { ...typography.h4, color: colors.textSecondary },
   semesterTextActive: { color: colors.background },
   button: { marginTop: 6 },
+  pickerFieldWrap: { marginBottom: 14 },
+  pickerField: { alignItems: "center", backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: "row", minHeight: 56, paddingHorizontal: 14 },
+  pickerFieldDisabled: { opacity: 0.55 },
+  pickerValue: { ...typography.body, color: colors.textPrimary, flex: 1, marginLeft: 12 },
+  pickerPlaceholder: { color: colors.textMuted },
+  modalOverlay: { backgroundColor: "rgba(0,0,0,0.62)", flex: 1, justifyContent: "flex-end" },
+  pickerSheet: { backgroundColor: colors.background, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: "82%", minHeight: "55%", padding: 18 },
+  pickerHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  pickerTitle: { ...typography.h3, color: colors.textPrimary },
+  pickerSubtitle: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, marginTop: 3 },
+  closeButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
+  searchBox: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: "row", height: 48, marginBottom: 12, paddingHorizontal: 12 },
+  searchInput: { color: colors.textPrimary, flex: 1, fontFamily: "Inter-Regular", fontSize: 14, marginLeft: 8 },
+  pickerLoading: { alignItems: "center", justifyContent: "center", minHeight: 180 },
+  pickerItem: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", minHeight: 62, paddingVertical: 10 },
+  pickerItemTitle: { ...typography.body, color: colors.textPrimary, fontWeight: "700" },
+  pickerItemSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 3 },
+  emptyPicker: { alignItems: "center", justifyContent: "center", padding: 32 },
+  emptyPickerText: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
 });
