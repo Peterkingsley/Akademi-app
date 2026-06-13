@@ -11,6 +11,7 @@ import { userService } from "../services/user";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef();
@@ -21,7 +22,7 @@ if (typeof window !== 'undefined') {
 
 export const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, hasSeenOnboarding, updateUser } = useAuthStore();
+  const { isAuthenticated, updateUser, clearAuth } = useAuthStore();
 
   const registerForPushNotificationsAsync = async () => {
     if (!Device.isDevice) return;
@@ -53,13 +54,21 @@ export const RootNavigator = () => {
 
       if (isAuthenticated) {
         try {
+          const accessToken = await AsyncStorage.getItem("accessToken");
+          const refreshToken = await AsyncStorage.getItem("refreshToken");
+
+          if (!accessToken || !refreshToken) {
+            clearAuth();
+            throw new Error("No stored login session");
+          }
+
           // Verify session validity on startup
           const profile = await userService.getProfile();
           updateUser(profile);
           // Register for push notifications
           registerForPushNotificationsAsync().catch(console.error);
         } catch (error) {
-          // If profile fetch fails, the API interceptor will have called clearAuth()
+          clearAuth();
           console.error("Auth verification failed on startup:", error);
         }
       }
@@ -74,7 +83,7 @@ export const RootNavigator = () => {
     };
 
     initializeAuth();
-  }, [isAuthenticated]);
+  }, [clearAuth, isAuthenticated, updateUser]);
 
   if (isLoading) {
     return <SplashScreen />;
@@ -91,9 +100,7 @@ export const RootNavigator = () => {
         <Stack.Screen
           name="Auth"
           component={AuthStack}
-          initialParams={
-            !hasSeenOnboarding ? { screen: "Onboarding" } : { screen: "Login" }
-          }
+          initialParams={{ screen: "Login" }}
         />
       )}
     </Stack.Navigator>
