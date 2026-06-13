@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef();
+const EAS_PROJECT_ID = "d1d7eb95-0f0a-44e4-b839-7f19fa7ef667";
 
 if (typeof window !== 'undefined') {
   (window as any).navigationRef = navigationRef;
@@ -25,26 +26,30 @@ export const RootNavigator = () => {
   const { isAuthenticated, updateUser, clearAuth } = useAuthStore();
 
   const registerForPushNotificationsAsync = async () => {
-    if (!Device.isDevice) return;
+    try {
+      if (!Device.isDevice) return;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") return;
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#22C55E",
+        });
+      }
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
-    await userService.updatePushToken(token);
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") return;
 
-    if (Platform.OS === "android") {
-      Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
+      const token = (await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID })).data;
+      await userService.updatePushToken(token);
+    } catch (error) {
+      console.warn("Push notifications are not configured for this build yet:", error);
     }
   };
 
