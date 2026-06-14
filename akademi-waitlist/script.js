@@ -37,7 +37,7 @@ form.addEventListener("submit", async (event) => {
       throw new Error(data.message || "Could not join waitlist.");
     }
 
-    setStatus("You're on the Akademi beta waitlist. We'll reach out when your school or department is ready.", "success");
+    setStatus("You're on the list. We'll email you the moment your school or department goes live.", "success");
     form.reset();
   } catch (error) {
     setStatus(error.message || "Something went wrong. Please try again.", "error");

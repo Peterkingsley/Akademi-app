@@ -357,6 +357,11 @@ h3 {
   color: var(--text);
 }
 
+.social-proof {
+  color: var(--text);
+  font-weight: 800;
+}
+
 .waitlist-section {
   align-items: start;
   display: grid;
@@ -380,6 +385,13 @@ label {
   font-size: 14px;
   font-weight: 800;
   gap: 8px;
+}
+
+.helper-text {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 input,
