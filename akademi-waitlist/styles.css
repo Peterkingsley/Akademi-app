@@ -334,8 +334,64 @@ h3 {
 }
 
 .product-preview {
-  min-height: 430px;
+  display: flex;
+  justify-content: center;
+  min-height: 520px;
   position: relative;
+}
+
+.iphone-frame {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 22%, rgba(255, 255, 255, 0.12)),
+    #050807;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 54px;
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.52),
+    inset 0 0 0 8px rgba(0, 0, 0, 0.72),
+    inset 0 0 0 10px rgba(255, 255, 255, 0.06);
+  max-width: 380px;
+  padding: 16px;
+  position: relative;
+  transform: rotate(-3deg);
+  width: 100%;
+}
+
+.iphone-notch {
+  background: #020403;
+  border-radius: 0 0 18px 18px;
+  height: 24px;
+  left: 50%;
+  position: absolute;
+  top: 14px;
+  transform: translateX(-50%);
+  width: 116px;
+  z-index: 4;
+}
+
+.iphone-screen {
+  background:
+    radial-gradient(circle at 86% 8%, rgba(156, 255, 0, 0.22), transparent 36%),
+    linear-gradient(160deg, rgba(39, 201, 103, 0.12), transparent 40%),
+    #020403;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 42px;
+  min-height: 500px;
+  overflow: hidden;
+  padding: 48px 18px 22px;
+  position: relative;
+}
+
+.iphone-screen::after {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  bottom: 10px;
+  content: "";
+  height: 4px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 112px;
 }
 
 .phone-card {
@@ -349,18 +405,17 @@ h3 {
 }
 
 .phone-main {
-  margin-left: auto;
-  max-width: 360px;
-  min-height: 430px;
-  transform: rotate(-5deg);
+  max-width: none;
+  min-height: 390px;
+  transform: none;
 }
 
 .phone-side {
-  bottom: 12px;
-  max-width: 250px;
+  bottom: 48px;
+  max-width: 230px;
   position: absolute;
-  right: 0;
-  transform: rotate(8deg);
+  right: 12px;
+  transform: rotate(5deg);
 }
 
 .phone-top,
@@ -667,7 +722,7 @@ input::placeholder {
   }
 
   .product-preview {
-    min-height: 360px;
+    min-height: 520px;
   }
 
   .phone-main {
@@ -762,19 +817,38 @@ input::placeholder {
   }
 
   .product-preview {
-    min-height: 430px;
+    min-height: 510px;
+  }
+
+  .iphone-frame {
+    border-radius: 46px;
+    max-width: 326px;
+    padding: 13px;
+    transform: rotate(-2deg);
+  }
+
+  .iphone-notch {
+    height: 20px;
+    top: 12px;
+    width: 94px;
+  }
+
+  .iphone-screen {
+    border-radius: 36px;
+    min-height: 484px;
+    padding: 42px 14px 20px;
   }
 
   .phone-main {
-    max-width: 280px;
-    min-height: 370px;
-    padding: 18px;
+    max-width: none;
+    min-height: 356px;
+    padding: 16px;
   }
 
   .phone-side {
-    bottom: 0;
-    max-width: 190px;
-    right: 2px;
+    bottom: 44px;
+    max-width: 174px;
+    right: 8px;
   }
 
   .question {
