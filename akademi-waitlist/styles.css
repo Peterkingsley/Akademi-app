@@ -156,24 +156,6 @@ h3 {
   margin-top: 22px;
 }
 
-.proof-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 24px;
-  max-width: 720px;
-}
-
-.proof-chips span {
-  background: rgba(39, 201, 103, 0.1);
-  border: 1px solid rgba(39, 201, 103, 0.28);
-  border-radius: 999px;
-  color: #c8f7d8;
-  font-size: 14px;
-  font-weight: 800;
-  padding: 10px 13px;
-}
-
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -203,22 +185,6 @@ h3 {
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--text);
-}
-
-.status-strip {
-  color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  font-size: 14px;
-  gap: 10px;
-  margin-top: 28px;
-}
-
-.status-strip span {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 9px 12px;
 }
 
 .school-proof {
@@ -598,36 +564,10 @@ select:focus {
     width: 100%;
   }
 
-  .proof-chips {
-    display: grid;
-    grid-template-columns: 1fr;
-    margin-top: 20px;
-  }
-
-  .proof-chips span {
-    font-size: 13px;
-    text-align: center;
-  }
-
   .cards,
   .steps,
   .waitlist-form {
     grid-template-columns: 1fr;
-  }
-
-  .status-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .status-strip span {
-    align-items: center;
-    display: flex;
-    font-size: 11px;
-    justify-content: center;
-    min-height: 40px;
-    padding: 8px;
-    text-align: center;
   }
 
   .demo-wrap {
@@ -720,7 +660,4 @@ select:focus {
     display: none;
   }
 
-  .status-strip {
-    grid-template-columns: 1fr;
-  }
 }
