@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #020403;
+  --bg: #07100d;
   --panel: rgba(9, 14, 12, 0.78);
   --panel-soft: rgba(255, 255, 255, 0.055);
   --text: #f7fbf8;
@@ -46,7 +46,7 @@ a {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.052) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.052) 1px, transparent 1px),
-    linear-gradient(#020403, #020403);
+    linear-gradient(#07100d, #07100d);
   background-size: 72px 72px, 72px 72px, auto;
   content: "";
   inset: 0;
@@ -55,7 +55,7 @@ a {
 }
 
 .page::after {
-  background: linear-gradient(180deg, rgba(2, 4, 3, 0), rgba(2, 4, 3, 0.2) 62%, #020403);
+  background: linear-gradient(180deg, rgba(7, 16, 13, 0), rgba(7, 16, 13, 0.18) 62%, #07100d);
   content: "";
   inset: 0;
   position: absolute;
