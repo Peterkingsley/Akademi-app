@@ -4,192 +4,105 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Join the Akademi beta waitlist for Nigerian students." />
-    <title>Akademi Beta Waitlist</title>
+    <title>Akademi Waitlist</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page">
-      <section class="hero">
-        <nav class="nav" aria-label="Main navigation">
-          <a class="brand" href="#top" aria-label="Akademi home">
-            <span class="brand-mark">Ak</span>
-            <span class="brand-copy">
-              <strong>Akademi</strong>
-              <small>Learn deeper</small>
-            </span>
-          </a>
-          <a class="nav-link" href="#waitlist">Join waitlist</a>
-        </nav>
+    <main class="page" id="top">
+      <div class="ambient ambient-one"></div>
+      <div class="ambient ambient-two"></div>
+      <div class="orbital orbital-one"></div>
+      <div class="orbital orbital-two"></div>
 
-        <div class="hero-grid" id="top">
-          <div class="hero-copy">
-            <p class="eyebrow">Beta access for Nigerian students</p>
-            <h1>The AI tutor built for Nigerian universities.</h1>
-            <p class="hero-text">
-              Solve assignments, study real materials from your department, and get a tutor that explains things the way your course needs, all in one app.
-            </p>
-            <div class="hero-actions">
-              <a class="button primary" href="#waitlist">Join the waitlist</a>
-              <a class="button secondary" href="#features">See what it does</a>
-            </div>
-            <p class="school-proof">Built for students from FUTIA, UNIUYO, UNILAG, FUTA, NOUN, and more.</p>
-          </div>
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="#top" aria-label="Akademi home">
+          <span class="brand-mark">Ak</span>
+          <span class="brand-copy">
+            <strong>Akademi</strong>
+            <small>Learn deeper</small>
+          </span>
+        </a>
+        <a class="nav-link" href="#waitlist">Waitlist</a>
+      </nav>
 
-          <div class="demo-wrap" aria-label="Akademi course-specific answer preview">
-            <div class="answer-demo">
-              <div class="demo-header">
-                <span class="course-pill">EEE 301</span>
-                <span class="mode-pill">Study Mode</span>
-              </div>
-              <div class="chat-bubble student">
-                <span>Student</span>
-                Explain Kirchhoff's Current Law.
-              </div>
-              <div class="chat-bubble akademi">
-                <span>Akademi</span>
-                In EEE 301, think of a junction like a meeting point for current. Kirchhoff's Current Law says the total current entering that point must equal the total current leaving it.
-              </div>
-              <div class="demo-proof">
-                <strong>Why this is different from a generic answer:</strong>
-                <p>Akademi can connect the explanation to your course, your level, your materials, and the topics you keep missing.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-pill">Beta access for Nigerian students</div>
+        <h1 id="hero-title">Coming soon</h1>
+        <p class="hero-text">
+          Akademi is the AI tutor built around your school, your department, and your course materials.
+        </p>
 
-      <section class="section how-section">
-        <div class="section-heading">
-          <p class="eyebrow">How Akademi works</p>
-          <h2>Four steps from confusion to course-specific help.</h2>
-        </div>
-        <div class="steps">
-          <article>
-            <span>1</span>
-            <h3>Select your school</h3>
-            <p>Start with the institution you actually attend.</p>
-          </article>
-          <article>
-            <span>2</span>
-            <h3>Select your department</h3>
-            <p>Akademi adjusts examples and materials to your discipline.</p>
-          </article>
-          <article>
-            <span>3</span>
-            <h3>Ask a question</h3>
-            <p>Type it, scan it, or open a material and ask from there.</p>
-          </article>
-          <article>
-            <span>4</span>
-            <h3>Get course-specific help</h3>
-            <p>Answers, tutor sessions, CBT practice, and exam prep stay tied to your course.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section" id="features">
-        <div class="section-heading">
-          <p class="eyebrow">What students get</p>
-          <h2>One app for the study moments that usually scatter everywhere.</h2>
-        </div>
-        <div class="cards">
-          <article class="card">
-            <span class="card-icon blue"></span>
-            <h3>Solve assignments</h3>
-            <p>Type your question or snap a photo. Get a clear, step-by-step explanation built for your course, not a generic answer.</p>
-          </article>
-          <article class="card">
-            <span class="card-icon green"></span>
-            <h3>Study materials</h3>
-            <p>Read verified materials for your department, ask questions about them, and turn what you read into CBT practice.</p>
-          </article>
-          <article class="card">
-            <span class="card-icon purple"></span>
-            <h3>Live tutor</h3>
-            <p>Start a live tutor session on any topic, course, or material right when you need it.</p>
-          </article>
-          <article class="card">
-            <span class="card-icon amber"></span>
-            <h3>Exam prep</h3>
-            <p>Build a plan for your tests and exams, take mock attempts, and see exactly which topics are weak.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section split">
-        <div>
-          <p class="eyebrow">Why it feels different</p>
-          <h2>Akademi knows your school, your course, and where you're stuck.</h2>
-        </div>
-        <div class="proof-list">
-          <p><strong>Your department:</strong> Studying Engineering? You get Engineering examples. Studying Law? You get Law examples. Akademi adjusts instead of giving generic answers.</p>
-          <p><strong>Your school:</strong> Akademi picks up on things specific to your school, so explanations feel familiar, not like a textbook written for nobody in particular.</p>
-          <p><strong>Your progress:</strong> Akademi remembers your course codes, your level, and the topics giving you trouble, so every session picks up where you left off.</p>
-        </div>
-      </section>
-
-      <section class="waitlist-section" id="waitlist">
-        <div class="waitlist-copy">
-          <p class="eyebrow">Join early</p>
-          <h2>Be first to know when Akademi opens for your school.</h2>
-          <p>
-            FUTIA students get first access. At another school? Join now, we're adding more schools fast.
+        <section class="glass-card" id="waitlist" aria-labelledby="waitlist-title">
+          <p class="card-kicker">Join early</p>
+          <h2 id="waitlist-title">Join the Akademi waitlist</h2>
+          <p class="card-text">
+            Get notified when your school or department goes live. FUTIA students get first access, then more Nigerian institutions follow.
           </p>
-          <p class="social-proof">Built for students from UNIUYO, FUTIA, UNILAG, FUTA, NOUN, and more.</p>
+
+          <form class="waitlist-form" id="waitlistForm">
+            <div class="primary-fields">
+              <label>
+                <span>Full name</span>
+                <input name="full_name" autocomplete="name" required placeholder="Kingsley Peter" />
+              </label>
+              <label>
+                <span>Email</span>
+                <input name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+              </label>
+              <button class="submit" type="submit">Join waitlist</button>
+            </div>
+
+            <div class="support-fields" aria-label="Optional waitlist details">
+              <label>
+                <span>School</span>
+                <input name="university" placeholder="e.g. FUTIA" />
+              </label>
+              <label>
+                <span>Department</span>
+                <input name="department" placeholder="e.g. Mechanical Engineering" />
+              </label>
+              <label>
+                <span>Level</span>
+                <select name="level">
+                  <option value="">Select level</option>
+                  <option value="100">100L</option>
+                  <option value="200">200L</option>
+                  <option value="300">300L</option>
+                  <option value="400">400L</option>
+                  <option value="500">500L</option>
+                  <option value="600">600L</option>
+                </select>
+              </label>
+              <label>
+                <span>Need most</span>
+                <select name="main_struggle">
+                  <option value="">Select one</option>
+                  <option value="assignments">Assignments</option>
+                  <option value="materials">Study materials</option>
+                  <option value="exams">Exam prep</option>
+                  <option value="tutor">Tutor</option>
+                  <option value="all">All of the above</option>
+                </select>
+              </label>
+            </div>
+
+            <p class="form-note" id="formStatus">No spam. We will email you once access opens for your school.</p>
+          </form>
+        </section>
+
+        <div class="social-links" aria-label="Akademi links">
+          <a href="mailto:peterkingslayer098@gmail.com" aria-label="Email Akademi">Mail</a>
+          <a href="#waitlist" aria-label="Join Akademi waitlist">Beta</a>
+          <a href="#waitlist" aria-label="Android waitlist">APK</a>
         </div>
 
-        <form class="waitlist-form" id="waitlistForm">
-          <label>
-            Full name
-            <input name="full_name" autocomplete="name" required placeholder="e.g. Kingsley Peter" />
-          </label>
-          <label>
-            Email
-            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
-          </label>
-          <label>
-            Phone number
-            <input name="phone" autocomplete="tel" placeholder="Optional" />
-            <span class="helper-text">We'll only use this to notify you about access, no calls.</span>
-          </label>
-          <label>
-            School
-            <input name="university" placeholder="e.g. Federal University of Technology Ikot Abasi" />
-          </label>
-          <label>
-            Department
-            <input name="department" placeholder="e.g. Mechanical Engineering" />
-          </label>
-          <label>
-            Level
-            <select name="level">
-              <option value="">Select level</option>
-              <option value="100">100L</option>
-              <option value="200">200L</option>
-              <option value="300">300L</option>
-              <option value="400">400L</option>
-              <option value="500">500L</option>
-              <option value="600">600L</option>
-            </select>
-          </label>
-          <label class="wide">
-            What do you need Akademi for most?
-            <select name="main_struggle">
-              <option value="">Select one</option>
-              <option value="assignments">Solving assignments</option>
-              <option value="materials">Finding/studying materials</option>
-              <option value="exams">Preparing for tests and exams</option>
-              <option value="tutor">Having a tutor explain topics</option>
-              <option value="all">All of the above</option>
-            </select>
-          </label>
-          <button class="submit" type="submit">Join the waitlist</button>
-          <p class="form-note" id="formStatus">We'll email you the moment your school or department goes live. No spam, just one message when it's your turn.</p>
-        </form>
+        <p class="school-proof">Built for students from FUTIA, UNIUYO, UNILAG, FUTA, NOUN, and more.</p>
       </section>
+
+      <p class="giant-word" aria-hidden="true">Akademi</p>
     </main>
     <script src="./script.js"></script>
   </body>
