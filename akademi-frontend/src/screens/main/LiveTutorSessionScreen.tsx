@@ -300,7 +300,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
   };
 
   return (
-    <Screen style={{ flex: 1 }}>
+    <Screen hideHeader style={{ flex: 1 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
@@ -409,7 +409,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingBottom: 10,
+    paddingTop: 4,
   },
   headerCenter: {
     alignItems: "center",
@@ -448,7 +449,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 8,
   },
   contextText: {
