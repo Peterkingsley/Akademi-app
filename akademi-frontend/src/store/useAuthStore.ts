@@ -55,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
+          hasSeenOnboarding: true,
         });
       },
       setOnboardingComplete: (complete) => set({ hasSeenOnboarding: complete }),

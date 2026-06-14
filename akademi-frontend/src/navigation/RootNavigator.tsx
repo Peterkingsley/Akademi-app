@@ -95,7 +95,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator key={isAuthenticated ? "authenticated" : "guest"} screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
         <>
           <Stack.Screen name="Main" component={MainStack} />
