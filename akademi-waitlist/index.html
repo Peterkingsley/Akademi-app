@@ -25,84 +25,186 @@
             <small>Learn deeper</small>
           </span>
         </a>
-        <a class="nav-link" href="#waitlist">Waitlist</a>
+        <div class="nav-menu" aria-label="Page sections">
+          <a href="#how">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#waitlist">Waitlist</a>
+        </div>
+        <a class="nav-link" href="#waitlist">Join beta</a>
       </nav>
 
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-pill">Beta access for Nigerian students</div>
-        <h1 id="hero-title">Coming soon</h1>
-        <p class="hero-text">
-          Akademi is the AI tutor built around your school, your department, and your course materials.
-        </p>
-
-        <section class="glass-card" id="waitlist" aria-labelledby="waitlist-title">
-          <p class="card-kicker">Join early</p>
-          <h2 id="waitlist-title">Join the Akademi waitlist</h2>
-          <p class="card-text">
-            Get notified when your school or department goes live. FUTIA students get first access, then more Nigerian institutions follow.
+      <section class="hero panel" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="hero-kicker">Beta access for Nigerian students</p>
+          <h1 id="hero-title">Study with AI built around your school.</h1>
+          <p class="hero-text">
+            Akademi helps you solve assignments, study verified materials, practice CBT, and learn with a tutor that understands your course.
           </p>
-
-          <form class="waitlist-form" id="waitlistForm">
-            <div class="primary-fields">
-              <label>
-                <span>Full name</span>
-                <input name="full_name" autocomplete="name" required placeholder="Kingsley Peter" />
-              </label>
-              <label>
-                <span>Email</span>
-                <input name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
-              </label>
-              <button class="submit" type="submit">Join waitlist</button>
-            </div>
-
-            <div class="support-fields" aria-label="Optional waitlist details">
-              <label>
-                <span>School</span>
-                <input name="university" placeholder="e.g. FUTIA" />
-              </label>
-              <label>
-                <span>Department</span>
-                <input name="department" placeholder="e.g. Mechanical Engineering" />
-              </label>
-              <label>
-                <span>Level</span>
-                <select name="level">
-                  <option value="">Select level</option>
-                  <option value="100">100L</option>
-                  <option value="200">200L</option>
-                  <option value="300">300L</option>
-                  <option value="400">400L</option>
-                  <option value="500">500L</option>
-                  <option value="600">600L</option>
-                </select>
-              </label>
-              <label>
-                <span>Need most</span>
-                <select name="main_struggle">
-                  <option value="">Select one</option>
-                  <option value="assignments">Assignments</option>
-                  <option value="materials">Study materials</option>
-                  <option value="exams">Exam prep</option>
-                  <option value="tutor">Tutor</option>
-                  <option value="all">All of the above</option>
-                </select>
-              </label>
-            </div>
-
-            <p class="form-note" id="formStatus">No spam. We will email you once access opens for your school.</p>
-          </form>
-        </section>
-
-        <div class="social-links" aria-label="Akademi links">
-          <a href="mailto:peterkingslayer098@gmail.com" aria-label="Email Akademi">Mail</a>
-          <a href="#waitlist" aria-label="Join Akademi waitlist">Beta</a>
-          <a href="#waitlist" aria-label="Android waitlist">APK</a>
+          <div class="hero-proof" aria-label="Akademi proof points">
+            <span>Course-aware answers</span>
+            <span>Verified materials</span>
+            <span>Android first</span>
+          </div>
+          <div class="hero-actions">
+            <a class="button primary" href="#waitlist">Join waitlist</a>
+            <a class="button secondary" href="#how">See how it works</a>
+          </div>
         </div>
 
-        <p class="school-proof">Built for students from FUTIA, UNIUYO, UNILAG, FUTA, NOUN, and more.</p>
+        <div class="product-preview" aria-label="Akademi product preview">
+          <div class="phone-card phone-main">
+            <div class="phone-top">
+              <span>EEE 301</span>
+              <strong>Study Mode</strong>
+            </div>
+            <p class="question">Explain Kirchhoff's Current Law.</p>
+            <div class="answer">
+              <span>Akademi</span>
+              Think of a junction as a meeting point for current. In EEE 301, current entering that point must equal current leaving it.
+            </div>
+            <div class="mini-stats">
+              <span><strong>CBT</strong> ready</span>
+              <span><strong>Tutor</strong> live</span>
+            </div>
+          </div>
+          <div class="phone-card phone-side">
+            <span class="small-label">Exam prep</span>
+            <strong>Weak topic found</strong>
+            <p>Ohm's Law and circuit current.</p>
+          </div>
+        </div>
       </section>
 
-      <p class="giant-word" aria-hidden="true">Akademi</p>
+      <section class="trust-row" aria-label="Akademi rollout">
+        <div>
+          <strong>FUTIA first</strong>
+          <span>Live departments are prepared first, then more schools follow.</span>
+        </div>
+        <div>
+          <strong>Free beta</strong>
+          <span>Students can join early while the Android MVP is being polished.</span>
+        </div>
+        <div>
+          <strong>Nigeria focused</strong>
+          <span>Built around Nigerian tertiary institutions, departments, and course codes.</span>
+        </div>
+      </section>
+
+      <section class="section intro-section" id="how">
+        <div class="section-copy">
+          <p class="section-kicker">Your trusted study partner</p>
+          <h2>One app for the study moments that usually scatter everywhere.</h2>
+        </div>
+        <p class="section-text">
+          Instead of giving generic AI answers, Akademi connects your school, department, level, course codes, materials, weak topics, and tutor sessions into one learning flow.
+        </p>
+      </section>
+
+      <section class="feature-band panel" id="features" aria-label="Akademi features">
+        <article class="feature-card">
+          <span>01.</span>
+          <h3>Solve assignments</h3>
+          <p>Type a question or snap a photo. Get structured answers that match your course, not random internet explanations.</p>
+        </article>
+        <article class="feature-card highlight">
+          <span>02.</span>
+          <h3>Study materials</h3>
+          <p>Open verified materials, ask questions from them, and turn any material into CBT practice.</p>
+          <a href="#waitlist">Join early</a>
+        </article>
+        <article class="feature-card">
+          <span>03.</span>
+          <h3>Exam prep</h3>
+          <p>Create test or exam plans by course, practice mock questions, and see the topics that need more work.</p>
+        </article>
+      </section>
+
+      <section class="growth-section panel">
+        <div class="metric-cloud" aria-hidden="true">
+          <div class="metric-card metric-one">
+            <strong>CBT</strong>
+            <span>Generated from materials</span>
+          </div>
+          <div class="metric-card metric-two">
+            <strong>Live Tutor</strong>
+            <span>Ask follow-up questions</span>
+          </div>
+          <div class="metric-card metric-three">
+            <strong>Progress</strong>
+            <span>Track weak topics</span>
+          </div>
+        </div>
+        <div class="growth-copy">
+          <p class="section-kicker">Built for real student life</p>
+          <h2>Learn anytime, from assignments to exams.</h2>
+          <p>
+            Start with a question, continue with a tutor, practice CBT from the same material, then track what you still need to revise.
+          </p>
+          <div class="stars" aria-label="Akademi strengths">Course aware - Material based - Progress driven</div>
+          <a class="button primary" href="#waitlist">Get early access</a>
+        </div>
+      </section>
+
+      <section class="waitlist-panel panel" id="waitlist" aria-labelledby="waitlist-title">
+        <div class="waitlist-copy">
+          <p class="section-kicker">Join early</p>
+          <h2 id="waitlist-title">Be first to know when Akademi opens for your school.</h2>
+          <p>
+            FUTIA students get first access. At another school? Join now, we are adding more Nigerian institutions fast.
+          </p>
+          <p class="school-proof">Built for students from FUTIA, UNIUYO, UNILAG, FUTA, NOUN, and more.</p>
+        </div>
+
+        <form class="waitlist-form" id="waitlistForm">
+          <div class="primary-fields">
+            <label>
+              <span>Full name</span>
+              <input name="full_name" autocomplete="name" required placeholder="Kingsley Peter" />
+            </label>
+            <label>
+              <span>Email</span>
+              <input name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+            </label>
+          </div>
+
+          <div class="support-fields" aria-label="Optional waitlist details">
+            <label>
+              <span>School</span>
+              <input name="university" placeholder="e.g. FUTIA" />
+            </label>
+            <label>
+              <span>Department</span>
+              <input name="department" placeholder="e.g. Mechanical Engineering" />
+            </label>
+            <label>
+              <span>Level</span>
+              <select name="level">
+                <option value="">Select level</option>
+                <option value="100">100L</option>
+                <option value="200">200L</option>
+                <option value="300">300L</option>
+                <option value="400">400L</option>
+                <option value="500">500L</option>
+                <option value="600">600L</option>
+              </select>
+            </label>
+            <label>
+              <span>Need most</span>
+              <select name="main_struggle">
+                <option value="">Select one</option>
+                <option value="assignments">Assignments</option>
+                <option value="materials">Study materials</option>
+                <option value="exams">Exam prep</option>
+                <option value="tutor">Tutor</option>
+                <option value="all">All of the above</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="submit" type="submit">Join waitlist</button>
+          <p class="form-note" id="formStatus">No spam. We will email you once access opens for your school.</p>
+        </form>
+      </section>
     </main>
     <script src="./script.js"></script>
   </body>
