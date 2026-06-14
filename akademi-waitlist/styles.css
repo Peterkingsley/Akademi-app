@@ -799,7 +799,9 @@ input::placeholder {
   }
 
   h2 {
-    font-size: 36px;
+    font-size: 31px;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
   }
 
   .hero-text,
