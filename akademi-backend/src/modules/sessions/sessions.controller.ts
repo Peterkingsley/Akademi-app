@@ -3,6 +3,12 @@ import { SessionsService } from './sessions.service';
 
 const sessionsService = new SessionsService();
 
+function statusForError(error: any, fallbackStatus = 400) {
+  const message = error?.message || '';
+  if (message.includes('AI tutor is temporarily busy')) return 503;
+  return fallbackStatus;
+}
+
 export class SessionsController {
   async start(req: Request, res: Response) {
     try {
@@ -54,7 +60,7 @@ export class SessionsController {
       const message = await sessionsService.sendMessage(req.user!.userId, req.params.id, req.body);
       res.status(201).json(message);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(statusForError(error)).json({ message: error.message });
     }
   }
 
@@ -68,7 +74,7 @@ export class SessionsController {
       );
       res.status(201).json(result);
     } catch (error: any) {
-      res.status(400).json({ message: error.message });
+      res.status(statusForError(error)).json({ message: error.message });
     }
   }
 

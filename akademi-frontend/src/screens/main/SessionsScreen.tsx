@@ -100,7 +100,7 @@ export const SessionsScreen: React.FC = () => {
       const mapped: SessionUI[] = data.map((s: any) => {
           let type: SessionUI["type"] = "STUDY";
           if (s.session_type === "TUTOR") type = "TUTOR";
-          else if (s.session_type === "ASSIGNMENT" || s.session_type === "SOCRATIC") type = "SOLVE ASSIGNMENT";
+          else if (s.session_type === "ASSIGNMENT") type = "SOLVE ASSIGNMENT";
 
           const date = new Date(s.created_at);
           const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });

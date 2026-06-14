@@ -9,7 +9,6 @@ import { SessionsTabs } from "./SessionsTabs";
 import { AssignmentResultScreen } from "../screens/main/AssignmentResultScreen";
 import { StudyModeScreen } from "../screens/main/StudyModeScreen";
 import { MaterialPracticeScreen } from "../screens/main/MaterialPracticeScreen";
-import { SocraticScreen } from "../screens/main/SocraticScreen";
 import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
 import { CameraScreen } from "../screens/main/CameraScreen";
 import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
@@ -57,7 +56,6 @@ export const MainStack = () => {
       />
       <Stack.Screen name="StudyMode" component={StudyModeScreen} />
       <Stack.Screen name="MaterialPractice" component={MaterialPracticeScreen} />
-      <Stack.Screen name="Socratic" component={SocraticScreen} />
       <Stack.Screen name="ChallengeResult" component={ChallengeResultScreen} />
       <Stack.Screen
         name="Camera"

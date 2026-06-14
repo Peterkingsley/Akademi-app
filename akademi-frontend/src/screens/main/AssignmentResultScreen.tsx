@@ -43,7 +43,6 @@ export const AssignmentResultScreen: React.FC = () => {
     STUDY: "Study Reply",
     QUESTION: "Practice First",
     WRONGLY: "Find The Mistake",
-    SOCRATIC: "Guide Me",
   };
 
   const cleanMarkdown = (value?: string | null) => {
@@ -239,7 +238,7 @@ export const AssignmentResultScreen: React.FC = () => {
             <Book size={24} color={colors.warning} />
             <View style={styles.bannerTextContainer}>
               <Text style={[styles.bannerTitle, typography.bodySmall, { fontWeight: "700" }]}>Want to truly understand this?</Text>
-              <Text style={[styles.bannerSubtext, typography.caption]}>Switch to Study Mode for a step-by-step Socratic walkthrough.</Text>
+              <Text style={[styles.bannerSubtext, typography.caption]}>Switch to Study Mode for a step-by-step learning walkthrough.</Text>
             </View>
           </View>
           <Text style={styles.bannerArrow}>→</Text>

@@ -17,7 +17,12 @@ const PLACEHOLDER_KEYWORDS = [
 ];
 
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
-const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+const GEMINI_FALLBACK_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+];
 
 function isPlaceholder(key: string | undefined | null): boolean {
   if (!key) return true;
@@ -30,12 +35,16 @@ function uniqueModels(primary?: string) {
 }
 
 function isRetryableGeminiError(message: string) {
+  const lowerMessage = message.toLowerCase();
   return (
     message.includes('503') ||
     message.includes('Service Unavailable') ||
-    message.includes('overloaded') ||
+    lowerMessage.includes('unavailable') ||
+    lowerMessage.includes('overloaded') ||
+    lowerMessage.includes('high demand') ||
     message.includes('429') ||
-    message.includes('RESOURCE_EXHAUSTED')
+    message.includes('RESOURCE_EXHAUSTED') ||
+    lowerMessage.includes('rate limit')
   );
 }
 

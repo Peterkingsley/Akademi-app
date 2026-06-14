@@ -57,6 +57,7 @@ export class AIService {
       orderBy: { version: 'desc' },
     });
 
+    const effectiveReplyMode = replyMode === ReplyMode.SOCRATIC ? ReplyMode.STUDY : replyMode;
     const recentMessages = session.messages.slice(-12);
     const conversationHistory = formatConversation(recentMessages);
     const isFollowUp = session.messages.length > 1;
@@ -74,7 +75,6 @@ Important:
 - Do not restart the explanation unless the student asks to restart.
 - If the previous Akademi message asked a question, evaluate the student's answer first.
 - If the student says they do not know or seem confused, explain the missing idea directly before asking anything else.
-- In Guide Me/Socratic mode, teach one small step first, then ask at most one short check question.
 - Do not trap the student in repeated questions. Move the explanation forward.`
       : studentMessage;
 
@@ -82,7 +82,7 @@ Important:
     const cacheKey = getAICacheKey(
       session.course_code || 'GENERAL',
       studentMessage,
-      replyMode,
+      effectiveReplyMode,
       disciplineDocument?.version || 1
     );
 
@@ -94,7 +94,7 @@ Important:
       disciplineDocument,
       learningProfile,
       communityPatterns,
-      replyMode
+      effectiveReplyMode
     );
 
     // 5. Call AI Provider (Claude with Gemini fallback)

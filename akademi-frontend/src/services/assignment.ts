@@ -8,7 +8,7 @@ export interface SessionResponse {
 }
 
 export const createAssignmentSession = async (
-  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC",
+  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY",
   course_code?: string | null
 ) => {
   const { data } = await api.post<SessionResponse>("/sessions", {
@@ -22,6 +22,8 @@ export const createAssignmentSession = async (
 export const submitQuestion = async (sessionId: string, content: string) => {
   const { data } = await api.post(`/sessions/${sessionId}/messages`, {
     content,
+  }, {
+    timeout: 90000,
   });
   return data;
 };
@@ -29,7 +31,7 @@ export const submitQuestion = async (sessionId: string, content: string) => {
 export const submitPhotoQuestion = async (
   sessionId: string,
   photoUri: string,
-  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC"
+  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY"
 ) => {
   const filename = photoUri.split("/").pop() || `assignment-${Date.now()}.jpg`;
   const extension = filename.split(".").pop()?.toLowerCase();
@@ -45,6 +47,7 @@ export const submitPhotoQuestion = async (
 
   const { data } = await api.post(`/sessions/${sessionId}/messages/photo`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: 90000,
   });
 
   return data;

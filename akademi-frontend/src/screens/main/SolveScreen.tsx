@@ -18,7 +18,6 @@ import {
   FileQuestion,
   Lightbulb,
   MessageSquareText,
-  Route,
   X,
   Zap,
 } from "lucide-react-native";
@@ -31,7 +30,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 
-type AnswerMode = "DIRECT" | "STUDY" | "SOCRATIC";
+type AnswerMode = "DIRECT" | "STUDY";
 
 const CAUSES = ["Assignment", "Personal Project", "Exam Practice", "General Interest"];
 const TYPES = ["Calculation", "Theory", "Programming", "Case Study"];
@@ -92,6 +91,8 @@ export const SolveScreen: React.FC = () => {
 
       await api.post(`/sessions/${session.id}/messages`, {
         content: question.trim(),
+      }, {
+        timeout: 90000,
       });
 
       navigation.navigate("AIProcessing", {
@@ -103,7 +104,9 @@ export const SolveScreen: React.FC = () => {
     } catch (error: any) {
       Alert.alert(
         "Could not start solving",
-        error?.response?.data?.message || "Please check your connection and try again."
+        error?.response?.status === 503
+          ? "Akademi is busy right now. Please wait a moment and tap Solve assignment again."
+          : error?.response?.data?.message || "Please check your connection and try again."
       );
     } finally {
       setLoading(false);
@@ -282,19 +285,6 @@ export const SolveScreen: React.FC = () => {
               </Text>
               <Text style={[styles.answerText, answerMode === "STUDY" && styles.activeAnswerSubtext]}>
                 Slower explanation for learning.
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.answerCard, answerMode === "SOCRATIC" && styles.activeAnswerCard]}
-              onPress={() => setAnswerMode("SOCRATIC")}
-              activeOpacity={0.85}
-            >
-              <Route size={18} color={answerMode === "SOCRATIC" ? colors.background : colors.primary} />
-              <Text style={[styles.answerTitle, answerMode === "SOCRATIC" && styles.activeAnswerText]}>
-                Guide me
-              </Text>
-              <Text style={[styles.answerText, answerMode === "SOCRATIC" && styles.activeAnswerSubtext]}>
-                Learn through questions.
               </Text>
             </TouchableOpacity>
           </View>
