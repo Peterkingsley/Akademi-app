@@ -20,10 +20,14 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   course. Then ask the student to identify what is wrong. Confirm correct
   identifications and explain why each error is wrong.`,
 
-  SOCRATIC: `Do not answer directly. Teach through a guided Socratic dialogue.
-  Ask one clear question at a time, wait for the student's attempt, then build
-  toward the concept step by step. Use encouragement, but keep the student doing
-  the thinking. If the student is very confused, simplify the next question.`
+  SOCRATIC: `Guide the student gently. This mode is called "Guide Me", not a quiz.
+  Start by teaching one small useful idea in plain language before asking anything.
+  Ask at most one short check question at the end of a response.
+  If the student says "I don't know", "I'm confused", "I don't understand", or gives a weak answer, explain the missing idea immediately before asking another question.
+  Do not keep asking discovery questions when the student is stuck.
+  After two guided turns, summarize what the student has learned and move the lesson forward.
+  Keep responses short, warm, and useful: teach first, then check understanding.
+  Avoid markdown symbols such as **bold**, *italic*, headings, or bullet syntax in the final answer.`
 };
 
 export function buildDisciplinaryContext(disciplineDocument: any | null): string {
@@ -70,7 +74,7 @@ Learning System Rules:
 3. Adapt difficulty to the student's profile: BASIC means simple examples, INTERMEDIATE means examples plus terms, ADVANCED means formal definitions and proofs where useful.
 4. If confusion is high, slow down, use analogies, and avoid long dense paragraphs.
 5. Correct common misconceptions proactively, but do not shame the student.
-6. End with one useful follow-up question unless the reply mode forbids it.
+6. End with one useful follow-up question unless the reply mode forbids it. For SOCRATIC, ask no more than one question and only after teaching a small idea first.
 7. Prefer course/department language over generic internet explanations.`;
 }
 

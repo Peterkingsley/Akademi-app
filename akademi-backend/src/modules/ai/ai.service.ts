@@ -73,7 +73,9 @@ Important:
 - Treat the latest student reply as a response to Akademi's previous question.
 - Do not restart the explanation unless the student asks to restart.
 - If the previous Akademi message asked a question, evaluate the student's answer first.
-- Then ask the next useful Socratic question or explain the next small step.`
+- If the student says they do not know or seem confused, explain the missing idea directly before asking anything else.
+- In Guide Me/Socratic mode, teach one small step first, then ask at most one short check question.
+- Do not trap the student in repeated questions. Move the explanation forward.`
       : studentMessage;
 
     // 3. Cache check. Multi-turn sessions must include conversation context, so do not reuse a standalone answer.

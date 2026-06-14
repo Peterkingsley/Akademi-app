@@ -46,6 +46,19 @@ export const AssignmentResultScreen: React.FC = () => {
     SOCRATIC: "Guide Me",
   };
 
+  const cleanMarkdown = (value?: string | null) => {
+    if (!value) return "";
+
+    return value
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/__(.*?)__/g, "$1")
+      .replace(/_(.*?)_/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/^#{1,6}\s+/gm, "")
+      .trim();
+  };
+
   const loadSession = async () => {
     if (!sessionId) {
       setLoading(false);
@@ -182,7 +195,7 @@ export const AssignmentResultScreen: React.FC = () => {
                 <Text style={[styles.threadRole, typography.caption]}>
                   {message.role === "STUDENT" ? "You" : "Akademi"}
                 </Text>
-                <Text style={[styles.threadText, typography.bodySmall]}>{message.content}</Text>
+                <Text style={[styles.threadText, typography.bodySmall]}>{cleanMarkdown(message.content)}</Text>
               </View>
             ))}
           </Card>
