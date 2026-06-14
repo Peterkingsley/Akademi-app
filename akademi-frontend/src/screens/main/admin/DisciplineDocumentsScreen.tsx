@@ -37,6 +37,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [schoolLoading, setSchoolLoading] = useState(false);
   const [docForm, setDocForm] = useState({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
   const [selectedDocFileName, setSelectedDocFileName] = useState("");
+  const [selectedDocFile, setSelectedDocFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
 
   const canUpload = user?.admin_role === 'SUPER_ADMIN' || user?.admin_role === 'CONTENT_MANAGER';
@@ -167,19 +168,27 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   };
 
   const handleSaveDocument = async () => {
-    if (!docForm.faculty.trim() || !docForm.department.trim() || !docForm.document_ref.trim()) {
-      Alert.alert("Missing details", "Faculty, department, and document content/reference are required.");
+    if (!docForm.faculty.trim() || !docForm.department.trim() || (!docForm.document_ref.trim() && !selectedDocFile)) {
+      Alert.alert("Missing details", "Faculty, department, and either a document file or pasted content are required.");
       return;
     }
 
     try {
       setSaving(true);
-      await adminService.uploadDisciplineDocument({
-        ...docForm,
-        version_notes: docForm.version_notes || "Updated department-wide discipline document.",
-      });
+      if (selectedDocFile) {
+        await adminService.uploadDisciplineDocumentFile({
+          ...docForm,
+          version_notes: docForm.version_notes || `Uploaded from ${selectedDocFile.name}`,
+        }, selectedDocFile);
+      } else {
+        await adminService.uploadDisciplineDocument({
+          ...docForm,
+          version_notes: docForm.version_notes || "Updated department-wide discipline document.",
+        });
+      }
       setDocForm({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
       setSelectedDocFileName("");
+      setSelectedDocFile(null);
       setSelectedDocUniversityId(null);
       closeModal();
       fetchDocuments();
@@ -193,7 +202,14 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const handlePickDocumentFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["text/plain", "text/markdown", "application/json", "text/csv"],
+        type: [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
+          "text/markdown",
+          "application/json",
+          "text/csv",
+        ],
         copyToCacheDirectory: true,
       });
 
@@ -202,18 +218,23 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       const asset = result.assets[0];
       const lowerName = asset.name.toLowerCase();
       const canReadAsText = [".txt", ".md", ".markdown", ".json", ".csv"].some(ext => lowerName.endsWith(ext));
-      if (!canReadAsText) {
-        Alert.alert("Unsupported file", "For now, upload .txt, .md, .json, or .csv files. PDF/DOCX extraction needs the server-side parser next.");
+      const canExtractOnServer = [".pdf", ".docx"].some(ext => lowerName.endsWith(ext));
+      if (!canReadAsText && !canExtractOnServer) {
+        Alert.alert("Unsupported file", "Upload PDF, DOCX, TXT, MD, JSON, or CSV files.");
         return;
       }
 
-      const content = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
-      if (!content.trim()) {
-        Alert.alert("Empty file", "This file does not contain readable text.");
-        return;
+      let content = "";
+      if (canReadAsText) {
+        content = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+        if (!content.trim()) {
+          Alert.alert("Empty file", "This file does not contain readable text.");
+          return;
+        }
       }
 
       setSelectedDocFileName(asset.name);
+      setSelectedDocFile(asset);
       setDocForm(prev => ({
         ...prev,
         document_ref: content.trim(),
@@ -455,7 +476,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                         {selectedDocFileName ? selectedDocFileName : "Upload text file"}
                       </Text>
                       <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                        Or paste/type the document below
+                        PDF/DOCX extracts on save. You can also paste/type below.
                       </Text>
                     </View>
                     <Plus size={18} color={colors.textMuted} />

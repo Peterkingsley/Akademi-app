@@ -2,9 +2,33 @@ import { Router } from 'express';
 import { AdminController } from './admin.controller';
 import { adminAuthenticate, authorizeRoles } from './admin.middleware';
 import { AdminRole } from '@prisma/client';
+import multer from 'multer';
 
 const router = Router();
 const adminController = new AdminController();
+const documentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = file.originalname.toLowerCase();
+    const allowedMimeTypes = new Set([
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'application/json',
+    ]);
+    const allowedExtensions = ['.pdf', '.docx', '.txt', '.md', '.markdown', '.csv', '.json'];
+
+    if (allowedMimeTypes.has(file.mimetype) || allowedExtensions.some(ext => name.endsWith(ext))) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error('Only PDF, DOCX, TXT, MD, JSON, and CSV documents are allowed'));
+  },
+});
 
 // Auth
 router.post('/login', (req, res) => adminController.login(req, res));
@@ -42,6 +66,7 @@ router.post('/materials/:id/force-verify', authorizeRoles(AdminRole.SUPER_ADMIN)
 // Pillar 4: Discipline Documents
 router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));
 router.get('/documents/coverage', (req, res) => adminController.getDepartmentCoverage(req, res));
+router.post('/documents/upload-file', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), documentUpload.single('document'), (req, res) => adminController.uploadDisciplineDocumentFile(req, res));
 router.get('/documents/:id', (req, res) => adminController.getDisciplineDocument(req, res));
 router.post('/documents', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadDisciplineDocument(req, res));
 router.post('/documents/:id/rollback', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.rollbackDisciplineDocument(req, res));

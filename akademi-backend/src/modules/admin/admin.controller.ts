@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
+import { extractDisciplineDocumentText } from './document-extraction';
 
 const adminService = new AdminService();
 
@@ -231,6 +232,33 @@ export class AdminController {
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  }
+
+  async uploadDisciplineDocumentFile(req: Request, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No document file uploaded' });
+      }
+
+      const extractedText = (await extractDisciplineDocumentText(req.file)).trim();
+      if (!extractedText) {
+        return res.status(400).json({ message: 'No readable text could be extracted from this document.' });
+      }
+
+      const result = await adminService.uploadDisciplineDocument({
+        ...req.body,
+        document_ref: extractedText,
+        version_notes: req.body.version_notes || `Uploaded from ${req.file.originalname}`,
+      }, req.admin!.adminId);
+
+      res.status(201).json({
+        ...result,
+        extractedTextLength: extractedText.length,
+        sourceFileName: req.file.originalname,
+      });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   }
 

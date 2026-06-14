@@ -218,6 +218,23 @@ export const adminService = {
     return data;
   },
 
+  uploadDisciplineDocumentFile: async (docData: any, file: { uri: string; name: string; mimeType?: string }) => {
+    const formData = new FormData();
+    formData.append("faculty", docData.faculty);
+    formData.append("department", docData.department);
+    if (docData.version_notes) formData.append("version_notes", docData.version_notes);
+    formData.append("document", {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || "application/octet-stream",
+    } as any);
+
+    const { data } = await api.post("/admin/documents/upload-file", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  },
+
   listCommunityPatterns: async (params?: any): Promise<CommunityPattern[]> => {
     const { data } = await api.get("/admin/community-patterns", { params });
     return data;
