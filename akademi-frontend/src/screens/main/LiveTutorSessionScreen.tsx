@@ -25,6 +25,17 @@ const QUICK_REPLIES = [
   "Test me on this",
 ];
 
+const normalizeMarkdownText = (value: string) =>
+  value
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .trim();
+
 export const LiveTutorSessionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -266,21 +277,16 @@ export const LiveTutorSessionScreen: React.FC = () => {
   );
 
   const renderMessageContent = (message: Message) => {
-    const parts = message.content.split(/(\*\*.*?\*\*)/g);
+    const content = normalizeMarkdownText(message.content);
 
     return (
       <View>
         <Text style={[
           styles.messageText,
           { color: colors.textPrimary },
-          message.type === "ai" ? { fontSize: 11.25, lineHeight: 24 } : {}
+          message.type === "ai" ? styles.aiMessageText : styles.studentMessageText
         ]}>
-          {parts.map((part, i) => {
-            if (part.startsWith("**") && part.endsWith("**")) {
-              return <Text key={i} style={{ fontWeight: "700" }}>{part.slice(2, -2)}</Text>;
-            }
-            return part;
-          })}
+          {content}
         </Text>
 
         {message.metadata?.academicInsight && (
@@ -346,12 +352,12 @@ export const LiveTutorSessionScreen: React.FC = () => {
           ))}
 
           {isTyping && (
-            <View style={styles.aiWrapper}>
+            <View style={[styles.messageWrapper, styles.aiWrapper]}>
                <View style={styles.aiAvatar}>
                   <Bot size={18} color={colors.textPrimary} />
                </View>
-               <View style={styles.aiBubble}>
-                 <Text style={{color: colors.textSecondary}}>AI is thinking...</Text>
+               <View style={[styles.messageBubble, styles.aiBubble]}>
+                 <Text style={[styles.messageText, styles.aiMessageText, { color: colors.textSecondary }]}>AI is thinking...</Text>
                </View>
             </View>
           )}
@@ -463,21 +469,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chatContent: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 32,
   },
   messageWrapper: {
     flexDirection: "row",
-    marginBottom: 20,
-    maxWidth: "85%",
+    marginBottom: 14,
   },
   aiWrapper: {
     alignSelf: "flex-start",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
+    maxWidth: "94%",
   },
   studentWrapper: {
     alignSelf: "flex-end",
     justifyContent: "flex-end",
+    maxWidth: "78%",
   },
   aiAvatar: {
     width: 32,
@@ -489,19 +497,31 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   messageBubble: {
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 12,
+    flexShrink: 1,
   },
   aiBubble: {
     backgroundColor: "#1E2D5E",
     borderBottomLeftRadius: 4,
+    maxWidth: "100%",
   },
   studentBubble: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
+    maxWidth: "100%",
   },
   messageText: {
-    fontSize: 11.25,
+    flexShrink: 1,
+  },
+  aiMessageText: {
+    fontSize: 13,
+    lineHeight: 24,
+  },
+  studentMessageText: {
+    fontSize: 13,
+    lineHeight: 21,
   },
   academicInsight: {
     backgroundColor: "#0F1F3D",
