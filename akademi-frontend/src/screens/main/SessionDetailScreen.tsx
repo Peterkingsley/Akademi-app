@@ -63,6 +63,22 @@ const formatTime = (value?: string) => {
 const formatType = (value?: string) =>
   (value || "study").replace(/_/g, " ").toLowerCase();
 
+const pluralize = (count: number, singular: string, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+const cleanMarkdown = (value?: string | null) => {
+  if (!value) return "";
+
+  return value
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .trim();
+};
+
 export const SessionDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -104,6 +120,7 @@ export const SessionDetailScreen: React.FC = () => {
   const studentMessages = messages.filter((message) => message.role === "STUDENT").length;
   const aiMessages = messages.filter((message) => message.role === "AI").length;
   const lastMessage = messages[messages.length - 1];
+  const latestActivity = cleanMarkdown(lastMessage?.content);
 
   return (
     <Screen hideHeader style={styles.screen}>
@@ -161,15 +178,15 @@ export const SessionDetailScreen: React.FC = () => {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Conversation</Text>
+              <Text style={styles.sectionTitle}>Message count</Text>
               <View style={styles.messageStats}>
                 <View style={styles.statPill}>
                   <MessageCircle size={14} color={colors.primary} />
-                  <Text style={styles.statText}>{studentMessages} student</Text>
+                  <Text style={styles.statText}>{pluralize(studentMessages, "student message")}</Text>
                 </View>
                 <View style={styles.statPill}>
                   <MessageCircle size={14} color={colors.primary} />
-                  <Text style={styles.statText}>{aiMessages} Akademi</Text>
+                  <Text style={styles.statText}>{pluralize(aiMessages, "Akademi reply", "Akademi replies")}</Text>
                 </View>
               </View>
             </View>
@@ -178,7 +195,7 @@ export const SessionDetailScreen: React.FC = () => {
           <View style={styles.insightCard}>
             <Text style={styles.insightTitle}>Latest activity</Text>
             <Text style={styles.insightBody}>
-              {lastMessage?.content || "No messages have been saved for this session yet."}
+              {latestActivity || "No messages have been saved for this session yet."}
             </Text>
           </View>
         </ScrollView>
