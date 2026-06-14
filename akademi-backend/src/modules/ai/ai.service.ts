@@ -10,6 +10,68 @@ function formatConversation(messages: Array<{ role: string; content: string; cre
     .join('\n\n');
 }
 
+const COMMUNITY_STOP_WORDS = new Set([
+  'about', 'again', 'answer', 'because', 'before', 'being', 'could', 'course',
+  'does', 'explain', 'from', 'have', 'into', 'just', 'know', 'learn', 'like',
+  'make', 'more', 'question', 'school', 'should', 'show', 'student', 'tell',
+  'that', 'their', 'them', 'then', 'there', 'these', 'they', 'thing', 'this',
+  'topic', 'understand', 'what', 'when', 'where', 'which', 'with', 'would',
+]);
+
+function tokenizeForRelevance(value: unknown): string[] {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4 && !COMMUNITY_STOP_WORDS.has(token));
+}
+
+function getPatternText(pattern: any): string {
+  const payload = pattern.question_pattern || {};
+  const tags = Array.isArray(payload.tags) ? payload.tags.join(' ') : '';
+  return [
+    pattern.university,
+    pattern.faculty,
+    pattern.department,
+    payload.title,
+    payload.story,
+    payload.context_type,
+    tags,
+  ].filter(Boolean).join(' ');
+}
+
+function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string, conversationHistory: string) {
+  if (!patterns || patterns.length === 0) return [];
+
+  const queryTokens = new Set(tokenizeForRelevance(`${studentMessage} ${conversationHistory.slice(-1200)}`));
+  if (queryTokens.size === 0) return patterns.filter((pattern) => (pattern.question_pattern || {}).type !== 'school_story').slice(0, 3);
+
+  const scored = patterns.map((pattern) => {
+    const payload = pattern.question_pattern || {};
+    const textTokens = new Set(tokenizeForRelevance(getPatternText(pattern)));
+    let score = 0;
+
+    queryTokens.forEach((token) => {
+      if (textTokens.has(token)) score += 1;
+    });
+
+    if (payload.type !== 'school_story') score += 1;
+    if (payload.type === 'school_story' && score > 0) score += 1;
+
+    return { pattern, score };
+  });
+
+  return scored
+    .filter(({ pattern, score }) => {
+      const payload = pattern.question_pattern || {};
+      return payload.type === 'school_story' ? score >= 2 : score > 0;
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map(({ pattern }) => pattern);
+}
+
 export class AIService {
   async getOrchestratedResponse(
     userId: string,
@@ -72,6 +134,11 @@ export class AIService {
     const effectiveReplyMode = replyMode === ReplyMode.SOCRATIC ? ReplyMode.STUDY : replyMode;
     const recentMessages = session.messages.slice(-12);
     const conversationHistory = formatConversation(recentMessages);
+    const relevantCommunityPatterns = filterRelevantCommunityPatterns(
+      communityPatterns,
+      studentMessage,
+      conversationHistory
+    );
     const isFollowUp = session.messages.length > 1;
     const prompt = isFollowUp
       ? `Continue this existing learning conversation.
@@ -105,7 +172,7 @@ Important:
     const systemPrompt = assembleSystemPrompt(
       disciplineDocument,
       learningProfile,
-      communityPatterns,
+      relevantCommunityPatterns,
       effectiveReplyMode
     );
 

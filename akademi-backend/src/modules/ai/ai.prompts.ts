@@ -56,14 +56,23 @@ export function buildCommunityContext(communityPatterns: any[]): string {
   const patterns = communityPatterns.map(p => {
     const payload = p.question_pattern || {};
     if (payload.type === 'school_story') {
-      return `- School story at ${p.university}: ${payload.title}. ${payload.story}`;
+      const tags = Array.isArray(payload.tags) && payload.tags.length > 0
+        ? ` Tags: ${payload.tags.join(', ')}.`
+        : '';
+      return `- Optional school story at ${p.university}: ${payload.title}. ${payload.story}${tags}`;
     }
     return `- ${JSON.stringify(payload)} (Frequency: ${p.frequency})`;
   }).join('\n');
   return `Community Context:
 ${patterns}
 
-Use school stories only when they help explain a concept with a familiar campus example. Do not force them into every answer.
+School Story Relevance Rules:
+- School stories are optional local examples, not mandatory context.
+- Use a school story only when it clearly matches the student's topic, question, or requested analogy.
+- If the story is about an unrelated campus incident, ignore it completely.
+- Do not mention that a story was ignored.
+- Never force school stories into medical, math, science, or technical answers unless the incident directly illustrates the concept.
+- Use at most one school story in an answer, and keep it brief.
 Use peer-learning intelligence to reassure the student briefly and explain prerequisites before advancing.`;
 }
 
