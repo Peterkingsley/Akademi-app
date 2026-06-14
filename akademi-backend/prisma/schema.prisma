@@ -544,3 +544,25 @@ model StudentCourse {
   @@index([code])
   @@map("student_courses")
 }
+
+model WaitlistEntry {
+  id             String   @id @default(uuid())
+  full_name      String
+  email          String   @unique
+  phone          String?
+  university     String?
+  department     String?
+  level          Int?
+  main_struggle  String?
+  source         String   @default("landing_page")
+  status         String   @default("WAITLISTED")
+  metadata       Json     @default("{}")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([email])
+  @@index([university])
+  @@index([department])
+  @@index([created_at])
+  @@map("waitlist_entries")
+}

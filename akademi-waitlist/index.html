@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Join the Akademi beta waitlist for Nigerian students." />
+    <title>Akademi Beta Waitlist</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <nav class="nav" aria-label="Main navigation">
+          <a class="brand" href="#top" aria-label="Akademi home">
+            <span class="brand-mark">A</span>
+            <span>Akademi</span>
+          </a>
+          <a class="nav-link" href="#waitlist">Join waitlist</a>
+        </nav>
+
+        <div class="hero-grid" id="top">
+          <div class="hero-copy">
+            <p class="eyebrow">Beta access for Nigerian students</p>
+            <h1>Study smarter with an AI built around your school, department, and courses.</h1>
+            <p class="hero-text">
+              Akademi helps you solve assignments, study verified materials, practice CBT, and learn with a tutor that understands your academic context.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#waitlist">Join the waitlist</a>
+              <a class="button secondary" href="#features">See what it does</a>
+            </div>
+            <div class="status-strip" aria-label="Launch status">
+              <span>FUTIA-first rollout</span>
+              <span>Free beta</span>
+              <span>Android MVP</span>
+            </div>
+          </div>
+
+          <div class="phone-wrap" aria-label="Akademi app preview">
+            <div class="phone">
+              <div class="phone-top">
+                <span class="avatar">AT</span>
+                <div>
+                  <span class="muted">GOOD EVENING</span>
+                  <strong>Akademi</strong>
+                </div>
+                <span class="bell"></span>
+              </div>
+              <div class="command-card">
+                <span class="mini-icon">🎓</span>
+                <span class="pill">MVP BETA</span>
+                <h2>Your study command center</h2>
+                <p>Pick one learning flow and keep moving.</p>
+                <div class="stats">
+                  <span><strong>0</strong> sessions</span>
+                  <span><strong>0</strong> exam plans</span>
+                  <span><strong>-</strong> days left</span>
+                </div>
+              </div>
+              <div class="feature-grid">
+                <span>Solve</span>
+                <span>Library</span>
+                <span>Tutor</span>
+                <span>Exam Prep</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="section-heading">
+          <p class="eyebrow">What students get</p>
+          <h2>One app for the study moments that usually scatter everywhere.</h2>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <span class="card-icon blue"></span>
+            <h3>Solve assignments</h3>
+            <p>Type or scan questions and get structured explanations that match your course context.</p>
+          </article>
+          <article class="card">
+            <span class="card-icon green"></span>
+            <h3>Study materials</h3>
+            <p>Open verified department materials, ask questions from them, and practice CBT from the content.</p>
+          </article>
+          <article class="card">
+            <span class="card-icon purple"></span>
+            <h3>Live tutor</h3>
+            <p>Start a tutoring session around a topic, course, weak area, or material you are reading.</p>
+          </article>
+          <article class="card">
+            <span class="card-icon amber"></span>
+            <h3>Exam prep</h3>
+            <p>Create course-based plans for tests and exams, then track mock attempts and weak topics.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split">
+        <div>
+          <p class="eyebrow">Why it feels different</p>
+          <h2>Akademi learns the academic world around the student.</h2>
+        </div>
+        <div class="proof-list">
+          <p><strong>Department context:</strong> discipline documents guide how Akademi explains topics for each department.</p>
+          <p><strong>School context:</strong> community stories help Akademi use familiar examples only when relevant.</p>
+          <p><strong>Student context:</strong> course codes, level, semester, weak topics, and progress shape the experience.</p>
+        </div>
+      </section>
+
+      <section class="waitlist-section" id="waitlist">
+        <div class="waitlist-copy">
+          <p class="eyebrow">Join early</p>
+          <h2>Get notified when your school or department is ready.</h2>
+          <p>
+            We are preparing FUTIA departments first, but students from any Nigerian tertiary institution can join the waitlist.
+          </p>
+        </div>
+
+        <form class="waitlist-form" id="waitlistForm">
+          <label>
+            Full name
+            <input name="full_name" autocomplete="name" required placeholder="e.g. Kingsley Peter" />
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label>
+            Phone number
+            <input name="phone" autocomplete="tel" placeholder="Optional" />
+          </label>
+          <label>
+            School
+            <input name="university" placeholder="e.g. Federal University of Technology Ikot Abasi" />
+          </label>
+          <label>
+            Department
+            <input name="department" placeholder="e.g. Mechanical Engineering" />
+          </label>
+          <label>
+            Level
+            <select name="level">
+              <option value="">Select level</option>
+              <option value="100">100L</option>
+              <option value="200">200L</option>
+              <option value="300">300L</option>
+              <option value="400">400L</option>
+              <option value="500">500L</option>
+              <option value="600">600L</option>
+            </select>
+          </label>
+          <label class="wide">
+            What do you need Akademi for most?
+            <select name="main_struggle">
+              <option value="">Select one</option>
+              <option value="assignments">Solving assignments</option>
+              <option value="materials">Finding/studying materials</option>
+              <option value="exams">Preparing for tests and exams</option>
+              <option value="tutor">Having a tutor explain topics</option>
+              <option value="all">All of the above</option>
+            </select>
+          </label>
+          <button class="submit" type="submit">Join the waitlist</button>
+          <p class="form-note" id="formStatus">Your details will be saved securely in Akademi's waitlist database.</p>
+        </form>
+      </section>
+    </main>
+    <script src="./script.js"></script>
+  </body>
+</html>
