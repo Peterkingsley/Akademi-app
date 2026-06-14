@@ -18,10 +18,10 @@ const PLACEHOLDER_KEYWORDS = [
 
 const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 const GEMINI_FALLBACK_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
 ];
 
 function isPlaceholder(key: string | undefined | null): boolean {
@@ -37,8 +37,11 @@ function uniqueModels(primary?: string) {
 function isRetryableGeminiError(message: string) {
   const lowerMessage = message.toLowerCase();
   return (
+    message.includes('404') ||
     message.includes('503') ||
     message.includes('Service Unavailable') ||
+    lowerMessage.includes('not found') ||
+    lowerMessage.includes('not supported') ||
     lowerMessage.includes('unavailable') ||
     lowerMessage.includes('overloaded') ||
     lowerMessage.includes('high demand') ||
@@ -46,6 +49,10 @@ function isRetryableGeminiError(message: string) {
     message.includes('RESOURCE_EXHAUSTED') ||
     lowerMessage.includes('rate limit')
   );
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export class AIProvider {
@@ -116,6 +123,7 @@ export class AIProvider {
           if (!isRetryableGeminiError(errorMessage)) {
             break;
           }
+          await sleep(350);
         }
       }
     } else {
