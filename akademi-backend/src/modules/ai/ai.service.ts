@@ -57,12 +57,13 @@ export class AIService {
       orderBy: { version: 'desc' },
     });
 
-    const conversationHistory = formatConversation(session.messages);
+    const recentMessages = session.messages.slice(-12);
+    const conversationHistory = formatConversation(recentMessages);
     const isFollowUp = session.messages.length > 1;
     const prompt = isFollowUp
       ? `Continue this existing learning conversation.
 
-Conversation so far:
+Recent conversation:
 ${conversationHistory}
 
 Latest student reply:

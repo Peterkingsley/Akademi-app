@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Share,
+  Alert,
 } from "react-native";
 import { ArrowLeft, Share2, Bookmark, RefreshCw, Book, Send } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -87,8 +88,16 @@ export const AssignmentResultScreen: React.FC = () => {
         reply_mode: (replyMode as any) || undefined,
       });
       await loadSession();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send follow-up:", error);
+      setFollowUp(content);
+      const tookTooLong = error?.code === "ECONNABORTED" || /timeout|network/i.test(error?.message || "");
+      Alert.alert(
+        "Could not send follow-up",
+        tookTooLong
+          ? "Akademi took too long to respond. Your reply is still here, so try again in a moment."
+          : "Please check your connection and try again."
+      );
     } finally {
       setSendingFollowUp(false);
     }

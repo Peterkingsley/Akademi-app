@@ -99,7 +99,9 @@ export const sessionService = {
       reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC";
     }
   ) => {
-    const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data);
+    const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data, {
+      timeout: 90000,
+    });
     return response.data;
   },
 };
