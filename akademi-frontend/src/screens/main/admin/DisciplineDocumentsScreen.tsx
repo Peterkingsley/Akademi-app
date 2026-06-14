@@ -11,6 +11,8 @@ import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useAuthStore } from "../../../store/useAuthStore";
 import api from "../../../services/api";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 
 type UniversityOption = { id: string; name: string; location?: string; type?: string };
 type DepartmentOption = { id: string; name: string; faculty: string };
@@ -34,6 +36,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [pickerSearch, setPickerSearch] = useState("");
   const [schoolLoading, setSchoolLoading] = useState(false);
   const [docForm, setDocForm] = useState({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
+  const [selectedDocFileName, setSelectedDocFileName] = useState("");
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
 
   const canUpload = user?.admin_role === 'SUPER_ADMIN' || user?.admin_role === 'CONTENT_MANAGER';
@@ -176,6 +179,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         version_notes: docForm.version_notes || "Updated department-wide discipline document.",
       });
       setDocForm({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
+      setSelectedDocFileName("");
       setSelectedDocUniversityId(null);
       closeModal();
       fetchDocuments();
@@ -183,6 +187,40 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       Alert.alert("Could not save document", error?.response?.data?.message || "Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePickDocumentFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/plain", "text/markdown", "application/json", "text/csv"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      const lowerName = asset.name.toLowerCase();
+      const canReadAsText = [".txt", ".md", ".markdown", ".json", ".csv"].some(ext => lowerName.endsWith(ext));
+      if (!canReadAsText) {
+        Alert.alert("Unsupported file", "For now, upload .txt, .md, .json, or .csv files. PDF/DOCX extraction needs the server-side parser next.");
+        return;
+      }
+
+      const content = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+      if (!content.trim()) {
+        Alert.alert("Empty file", "This file does not contain readable text.");
+        return;
+      }
+
+      setSelectedDocFileName(asset.name);
+      setDocForm(prev => ({
+        ...prev,
+        document_ref: content.trim(),
+        version_notes: prev.version_notes || `Uploaded from ${asset.name}`,
+      }));
+    } catch (error: any) {
+      Alert.alert("Could not read file", error?.message || "Please try another text file.");
     }
   };
 
@@ -407,6 +445,21 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                   <PickerField label="Reference school" value={docForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("docUniversity")} />
                   <PickerField label="Faculty" value={docForm.faculty} placeholder={docForm.university ? "Pick faculty" : "Pick school first"} onPress={() => openPicker("docFaculty")} disabled={!docForm.university} />
                   <PickerField label="Department" value={docForm.department} placeholder={docForm.faculty ? "Pick department" : "Pick faculty first"} onPress={() => openPicker("docDepartment")} disabled={!docForm.faculty} />
+                  <TouchableOpacity
+                    style={[styles.uploadFileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    onPress={handlePickDocumentFile}
+                  >
+                    <BookOpen size={18} color={colors.primary} />
+                    <View style={styles.docInfo}>
+                      <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
+                        {selectedDocFileName ? selectedDocFileName : "Upload text file"}
+                      </Text>
+                      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                        Or paste/type the document below
+                      </Text>
+                    </View>
+                    <Plus size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
                   <Field label="Document content/reference" value={docForm.document_ref} onChangeText={(document_ref: string) => setDocForm(prev => ({ ...prev, document_ref }))} placeholder="Paste the discipline instruction document or source reference" multiline />
                   <Field label="Version notes" value={docForm.version_notes} onChangeText={(version_notes: string) => setDocForm(prev => ({ ...prev, version_notes }))} placeholder="What changed in this version?" />
                 </>
@@ -625,6 +678,17 @@ const styles = StyleSheet.create({
   },
   formTextArea: {
     minHeight: 130,
+  },
+  uploadFileButton: {
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 14,
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   pickerInput: {
     alignItems: "center",
