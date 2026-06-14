@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, Alert, ScrollView } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
@@ -10,6 +10,11 @@ import { AdminStackParamList } from "../../../navigation/types";
 import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useAuthStore } from "../../../store/useAuthStore";
+import api from "../../../services/api";
+
+type UniversityOption = { id: string; name: string; location?: string; type?: string };
+type DepartmentOption = { id: string; name: string; faculty: string };
+type PickerMode = "storyUniversity" | "docUniversity" | "docFaculty" | "docDepartment";
 
 export const DisciplineDocumentsScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
@@ -22,14 +27,43 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"docs" | "stories">("docs");
   const [modalType, setModalType] = useState<"doc" | "story" | null>(null);
   const [saving, setSaving] = useState(false);
-  const [docForm, setDocForm] = useState({ faculty: "", department: "", document_ref: "", version_notes: "" });
+  const [universities, setUniversities] = useState<UniversityOption[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [selectedDocUniversityId, setSelectedDocUniversityId] = useState<string | null>(null);
+  const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [schoolLoading, setSchoolLoading] = useState(false);
+  const [docForm, setDocForm] = useState({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
 
   const canUpload = user?.admin_role === 'SUPER_ADMIN' || user?.admin_role === 'CONTENT_MANAGER';
 
   useEffect(() => {
     fetchDocuments();
+    fetchUniversities();
   }, []);
+
+  useEffect(() => {
+    if (selectedDocUniversityId) {
+      fetchDepartments(selectedDocUniversityId);
+    }
+  }, [selectedDocUniversityId]);
+
+  const faculties = useMemo(() => Array.from(new Set(departments.map(item => item.faculty))).sort(), [departments]);
+
+  const filteredPickerItems = useMemo(() => {
+    const query = pickerSearch.trim().toLowerCase();
+    if (pickerMode === "storyUniversity" || pickerMode === "docUniversity") {
+      return universities.filter(item => !query || item.name.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query));
+    }
+    if (pickerMode === "docFaculty") {
+      return faculties.filter(item => !query || item.toLowerCase().includes(query));
+    }
+    if (pickerMode === "docDepartment") {
+      return departments.filter(item => item.faculty === docForm.faculty && (!query || item.name.toLowerCase().includes(query)));
+    }
+    return [];
+  }, [departments, docForm.faculty, faculties, pickerMode, pickerSearch, universities]);
 
   const fetchDocuments = async () => {
     try {
@@ -44,6 +78,31 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       console.error("Failed to fetch documents", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUniversities = async () => {
+    try {
+      setSchoolLoading(true);
+      const response = await api.get<UniversityOption[]>("/universities");
+      setUniversities(response.data || []);
+    } catch (error) {
+      Alert.alert("School list unavailable", "Could not load schools from Akademi database.");
+    } finally {
+      setSchoolLoading(false);
+    }
+  };
+
+  const fetchDepartments = async (universityId: string) => {
+    try {
+      setSchoolLoading(true);
+      const response = await api.get<DepartmentOption[]>(`/universities/${universityId}/departments`);
+      setDepartments(response.data || []);
+    } catch (error) {
+      setDepartments([]);
+      Alert.alert("Department list unavailable", "Could not load faculties and departments for this school.");
+    } finally {
+      setSchoolLoading(false);
     }
   };
 
@@ -68,6 +127,42 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     setSaving(false);
   };
 
+  const openPicker = (mode: PickerMode) => {
+    if (mode === "docFaculty" && !docForm.university) {
+      Alert.alert("Pick school first", "Choose a school so Akademi can load real faculties.");
+      return;
+    }
+    if (mode === "docDepartment" && !docForm.faculty) {
+      Alert.alert("Pick faculty first", "Choose a faculty before selecting department.");
+      return;
+    }
+    setPickerMode(mode);
+    setPickerSearch("");
+  };
+
+  const closePicker = () => {
+    setPickerMode(null);
+    setPickerSearch("");
+  };
+
+  const handleSelectPickerItem = (item: any) => {
+    if (pickerMode === "storyUniversity") {
+      setStoryForm(prev => ({ ...prev, university: item.name }));
+    }
+    if (pickerMode === "docUniversity") {
+      setSelectedDocUniversityId(item.id);
+      setDocForm(prev => ({ ...prev, university: item.name, faculty: "", department: "" }));
+      setDepartments([]);
+    }
+    if (pickerMode === "docFaculty") {
+      setDocForm(prev => ({ ...prev, faculty: item, department: "" }));
+    }
+    if (pickerMode === "docDepartment") {
+      setDocForm(prev => ({ ...prev, department: item.name }));
+    }
+    closePicker();
+  };
+
   const handleSaveDocument = async () => {
     if (!docForm.faculty.trim() || !docForm.department.trim() || !docForm.document_ref.trim()) {
       Alert.alert("Missing details", "Faculty, department, and document content/reference are required.");
@@ -80,7 +175,8 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         ...docForm,
         version_notes: docForm.version_notes || "Updated department-wide discipline document.",
       });
-      setDocForm({ faculty: "", department: "", document_ref: "", version_notes: "" });
+      setDocForm({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
+      setSelectedDocUniversityId(null);
       closeModal();
       fetchDocuments();
     } catch (error: any) {
@@ -178,6 +274,26 @@ export const DisciplineDocumentsScreen: React.FC = () => {
           { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary },
         ]}
       />
+    </View>
+  );
+
+  const PickerField = ({ label, value, placeholder, onPress, disabled = false }: any) => (
+    <View style={styles.fieldGroup}>
+      <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>{label}</Text>
+      <TouchableOpacity
+        disabled={disabled}
+        onPress={onPress}
+        style={[
+          styles.formInput,
+          styles.pickerInput,
+          { backgroundColor: colors.surface, borderColor: colors.border, opacity: disabled ? 0.55 : 1 },
+        ]}
+      >
+        <Text style={[styles.pickerText, { color: value ? colors.textPrimary : colors.textMuted }]} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <ChevronRight size={18} color={colors.textMuted} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -288,8 +404,9 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                   <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
                     This will apply to every student in this department across all schools.
                   </Text>
-                  <Field label="Faculty" value={docForm.faculty} onChangeText={(faculty: string) => setDocForm(prev => ({ ...prev, faculty }))} placeholder="Engineering" />
-                  <Field label="Department" value={docForm.department} onChangeText={(department: string) => setDocForm(prev => ({ ...prev, department }))} placeholder="Mechanical Engineering" />
+                  <PickerField label="Reference school" value={docForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("docUniversity")} />
+                  <PickerField label="Faculty" value={docForm.faculty} placeholder={docForm.university ? "Pick faculty" : "Pick school first"} onPress={() => openPicker("docFaculty")} disabled={!docForm.university} />
+                  <PickerField label="Department" value={docForm.department} placeholder={docForm.faculty ? "Pick department" : "Pick faculty first"} onPress={() => openPicker("docDepartment")} disabled={!docForm.faculty} />
                   <Field label="Document content/reference" value={docForm.document_ref} onChangeText={(document_ref: string) => setDocForm(prev => ({ ...prev, document_ref }))} placeholder="Paste the discipline instruction document or source reference" multiline />
                   <Field label="Version notes" value={docForm.version_notes} onChangeText={(version_notes: string) => setDocForm(prev => ({ ...prev, version_notes }))} placeholder="What changed in this version?" />
                 </>
@@ -298,7 +415,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                   <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
                     This story will be available as context for every student in this school.
                   </Text>
-                  <Field label="University / school" value={storyForm.university} onChangeText={(university: string) => setStoryForm(prev => ({ ...prev, university }))} placeholder="University of Uyo" />
+                  <PickerField label="University / school" value={storyForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("storyUniversity")} />
                   <Field label="Story title" value={storyForm.title} onChangeText={(title: string) => setStoryForm(prev => ({ ...prev, title }))} placeholder="Campus power outage during practical week" />
                   <Field label="Story / incident" value={storyForm.story} onChangeText={(story: string) => setStoryForm(prev => ({ ...prev, story }))} placeholder="Describe what happened and how Akademi can use it as an explanation example." multiline />
                   <Field label="Tags" value={storyForm.tags} onChangeText={(tags: string) => setStoryForm(prev => ({ ...prev, tags }))} placeholder="electricity, hostel, practical" />
@@ -312,6 +429,71 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                 <Text style={styles.saveButtonText}>{saving ? "Saving..." : "Save context"}</Text>
               </TouchableOpacity>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={pickerMode !== null} animationType="slide" transparent onRequestClose={closePicker}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.pickerSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[typography.h3, { color: colors.textPrimary }]}>
+                  {pickerMode === "docFaculty" ? "Pick faculty" : pickerMode === "docDepartment" ? "Pick department" : "Pick school"}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+                  {pickerMode === "docFaculty" || pickerMode === "docDepartment" ? docForm.university : "Choose from live Akademi school data."}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closePicker}>
+                <X size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border, marginBottom: 12 }]}>
+              <Search size={18} color={colors.textMuted} />
+              <TextInput
+                placeholder="Search..."
+                placeholderTextColor={colors.textMuted}
+                style={[styles.searchInput, { color: colors.textPrimary }]}
+                value={pickerSearch}
+                onChangeText={setPickerSearch}
+              />
+            </View>
+
+            {schoolLoading ? (
+              <View style={styles.emptyState}>
+                <Text style={[typography.body, { color: colors.textSecondary }]}>Loading school data...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredPickerItems}
+                keyExtractor={(item: any) => typeof item === "string" ? item : item.id}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }: any) => {
+                  const title = typeof item === "string" ? item : item.name;
+                  const subtitle = typeof item === "string"
+                    ? `${departments.filter(dept => dept.faculty === item).length} departments`
+                    : pickerMode === "docDepartment"
+                      ? item.faculty
+                      : item.location || item.type || "Nigeria";
+                  return (
+                    <TouchableOpacity style={[styles.pickerRow, { borderBottomColor: colors.border }]} onPress={() => handleSelectPickerItem(item)}>
+                      <View style={styles.docInfo}>
+                        <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700" }]}>{title}</Text>
+                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 3 }]}>{subtitle}</Text>
+                      </View>
+                      <ChevronRight size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  );
+                }}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={[typography.body, { color: colors.textSecondary }]}>No matches found.</Text>
+                  </View>
+                }
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -443,6 +625,30 @@ const styles = StyleSheet.create({
   },
   formTextArea: {
     minHeight: 130,
+  },
+  pickerInput: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pickerText: {
+    flex: 1,
+    fontSize: 14,
+    marginRight: 10,
+  },
+  pickerSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    maxHeight: "78%",
+    padding: 18,
+  },
+  pickerRow: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    minHeight: 64,
+    paddingVertical: 12,
   },
   saveButton: {
     alignItems: "center",
