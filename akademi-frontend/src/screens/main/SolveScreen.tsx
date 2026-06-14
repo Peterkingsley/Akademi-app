@@ -18,6 +18,7 @@ import {
   FileQuestion,
   Lightbulb,
   MessageSquareText,
+  Route,
   X,
   Zap,
 } from "lucide-react-native";
@@ -30,7 +31,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 
-type AnswerMode = "DIRECT" | "STUDY";
+type AnswerMode = "DIRECT" | "STUDY" | "SOCRATIC";
 
 const CAUSES = ["Assignment", "Personal Project", "Exam Practice", "General Interest"];
 const TYPES = ["Calculation", "Theory", "Programming", "Case Study"];
@@ -281,6 +282,19 @@ export const SolveScreen: React.FC = () => {
               </Text>
               <Text style={[styles.answerText, answerMode === "STUDY" && styles.activeAnswerSubtext]}>
                 Slower explanation for learning.
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.answerCard, answerMode === "SOCRATIC" && styles.activeAnswerCard]}
+              onPress={() => setAnswerMode("SOCRATIC")}
+              activeOpacity={0.85}
+            >
+              <Route size={18} color={answerMode === "SOCRATIC" ? colors.background : colors.primary} />
+              <Text style={[styles.answerTitle, answerMode === "SOCRATIC" && styles.activeAnswerText]}>
+                Guide me
+              </Text>
+              <Text style={[styles.answerText, answerMode === "SOCRATIC" && styles.activeAnswerSubtext]}>
+                Learn through questions.
               </Text>
             </TouchableOpacity>
           </View>
@@ -573,6 +587,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   answerCards: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
   },
   answerCard: {
@@ -580,7 +595,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    flex: 1,
+    flexBasis: "31%",
+    flexGrow: 1,
     padding: 13,
   },
   activeAnswerCard: {

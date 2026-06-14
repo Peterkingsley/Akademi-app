@@ -8,7 +8,7 @@ export interface SessionResponse {
 }
 
 export const createAssignmentSession = async (
-  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY",
+  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC",
   course_code?: string | null
 ) => {
   const { data } = await api.post<SessionResponse>("/sessions", {
@@ -29,7 +29,7 @@ export const submitQuestion = async (sessionId: string, content: string) => {
 export const submitPhotoQuestion = async (
   sessionId: string,
   photoUri: string,
-  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY"
+  reply_mode: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC"
 ) => {
   const filename = photoUri.split("/").pop() || `assignment-${Date.now()}.jpg`;
   const extension = filename.split(".").pop()?.toLowerCase();

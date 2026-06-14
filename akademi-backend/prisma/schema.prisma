@@ -24,6 +24,7 @@ enum ReplyMode {
   STUDY
   QUESTION
   WRONGLY
+  SOCRATIC
 }
 
 enum SessionType {

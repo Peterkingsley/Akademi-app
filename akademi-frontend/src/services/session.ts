@@ -4,7 +4,7 @@ export interface Session {
   id: string;
   user_id: string;
   session_type: "ASSIGNMENT" | "STUDY" | "TUTOR" | "EXAM_PREP";
-  reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
+  reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC";
   course_code: string;
   university: string;
   department: string;
@@ -96,7 +96,7 @@ export const sessionService = {
     sessionId: string,
     data: {
       content: string;
-      reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
+      reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY" | "SOCRATIC";
     }
   ) => {
     const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data);
