@@ -45,6 +45,24 @@ export interface DisciplineDocument {
   history?: DisciplineDocument[];
 }
 
+export interface CommunityPattern {
+  id: string;
+  university: string;
+  faculty: string;
+  department: string;
+  course_code: string | null;
+  question_pattern: {
+    type?: string;
+    title?: string;
+    story?: string;
+    context_type?: string;
+    tags?: string[];
+    is_active?: boolean;
+  };
+  frequency: number;
+  updated_at: string;
+}
+
 export interface DepartmentCoverage {
   id: string;
   name: string;
@@ -197,6 +215,21 @@ export const adminService = {
 
   uploadDisciplineDocument: async (docData: any) => {
     const { data } = await api.post("/admin/documents", docData);
+    return data;
+  },
+
+  listCommunityPatterns: async (params?: any): Promise<CommunityPattern[]> => {
+    const { data } = await api.get("/admin/community-patterns", { params });
+    return data;
+  },
+
+  uploadCommunityPattern: async (patternData: any) => {
+    const { data } = await api.post("/admin/community-patterns", patternData);
+    return data;
+  },
+
+  deactivateCommunityPattern: async (id: string) => {
+    const { data } = await api.patch(`/admin/community-patterns/${id}/deactivate`);
     return data;
   },
 

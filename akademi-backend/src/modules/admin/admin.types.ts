@@ -95,13 +95,25 @@ export interface DisciplineDocumentListFilter {
 export interface UploadDisciplineDocumentRequest {
   faculty: string;
   department: string;
-  course_code?: string;
   document_ref: string;
   version_notes: string;
 }
 
 export interface RollbackDocumentRequest {
   version: number;
+}
+
+export interface CommunityPatternListFilter {
+  university?: string;
+  status?: 'active' | 'inactive';
+}
+
+export interface UploadCommunityPatternRequest {
+  university: string;
+  title: string;
+  story: string;
+  context_type?: string;
+  tags?: string[];
 }
 
 // Pillar 5: Analytics

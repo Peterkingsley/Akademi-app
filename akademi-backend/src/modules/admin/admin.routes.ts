@@ -46,6 +46,9 @@ router.get('/documents/:id', (req, res) => adminController.getDisciplineDocument
 router.post('/documents', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadDisciplineDocument(req, res));
 router.post('/documents/:id/rollback', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.rollbackDisciplineDocument(req, res));
 router.patch('/documents/:id/deactivate', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.deactivateDisciplineDocument(req, res));
+router.get('/community-patterns', (req, res) => adminController.listCommunityPatterns(req, res));
+router.post('/community-patterns', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadCommunityPattern(req, res));
+router.patch('/community-patterns/:id/deactivate', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.deactivateCommunityPattern(req, res));
 
 // Pillar 5: Platform Analytics
 router.get('/analytics/overview', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.ANALYST), (req, res) => adminController.getOverviewAnalytics(req, res));

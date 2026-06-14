@@ -43,15 +43,27 @@ export class AIService {
 
     const communityPatterns = await prisma.communityPattern.findMany({
       where: {
-        department: session.department,
-        course_code: session.course_code || undefined,
+        OR: [
+          {
+            university: session.university,
+            faculty: 'ALL',
+            department: 'ALL',
+            course_code: null,
+            question_pattern: { path: ['is_active'], equals: true },
+          },
+          {
+            department: session.department,
+            course_code: session.course_code || undefined,
+          },
+        ],
       },
+      orderBy: { updated_at: 'desc' },
+      take: 8,
     });
 
     const disciplineDocument = await prisma.disciplineDocument.findFirst({
       where: {
         department: session.department,
-        course_code: session.course_code || undefined,
         is_active: true,
       },
       orderBy: { version: 'desc' },

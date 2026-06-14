@@ -30,8 +30,9 @@ export function buildDisciplinaryContext(disciplineDocument: any | null): string
   return `Disciplinary Context (Version ${disciplineDocument.version}):
   Faculty: ${disciplineDocument.faculty}
   Department: ${disciplineDocument.department}
-  Course Code: ${disciplineDocument.course_code || 'N/A'}
-  Content Reference: ${disciplineDocument.document_ref}`;
+  Scope: Department-wide across all schools
+  Content Reference: ${disciplineDocument.document_ref}
+  Use this document for any student in this department, regardless of university.`;
 }
 
 export function buildStudentProfile(learningProfile: any): string {
@@ -52,11 +53,18 @@ export function buildStudentProfile(learningProfile: any): string {
 
 export function buildCommunityContext(communityPatterns: any[]): string {
   if (!communityPatterns || communityPatterns.length === 0) return 'No community patterns available.';
-  const patterns = communityPatterns.map(p => `- ${JSON.stringify(p.question_pattern)} (Frequency: ${p.frequency})`).join('\n');
-  return `Community Patterns for this department/course:
+  const patterns = communityPatterns.map(p => {
+    const payload = p.question_pattern || {};
+    if (payload.type === 'school_story') {
+      return `- School story at ${p.university}: ${payload.title}. ${payload.story}`;
+    }
+    return `- ${JSON.stringify(payload)} (Frequency: ${p.frequency})`;
+  }).join('\n');
+  return `Community Context:
 ${patterns}
 
-Use this as peer-learning intelligence. If many students struggle with the same prerequisite or misconception, reassure the student briefly and explain the prerequisite before advancing.`;
+Use school stories only when they help explain a concept with a familiar campus example. Do not force them into every answer.
+Use peer-learning intelligence to reassure the student briefly and explain prerequisites before advancing.`;
 }
 
 export function buildSessionInstruction(replyMode: ReplyMode): string {

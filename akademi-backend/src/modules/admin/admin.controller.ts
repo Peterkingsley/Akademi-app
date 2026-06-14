@@ -252,6 +252,33 @@ export class AdminController {
     }
   }
 
+  async listCommunityPatterns(req: Request, res: Response) {
+    try {
+      const patterns = await adminService.listCommunityPatterns(req.query as any);
+      res.json(patterns);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async uploadCommunityPattern(req: Request, res: Response) {
+    try {
+      const result = await adminService.uploadCommunityPattern(req.body, req.admin!.adminId);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async deactivateCommunityPattern(req: Request, res: Response) {
+    try {
+      const result = await adminService.deactivateCommunityPattern(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async getDepartmentCoverage(req: Request, res: Response) {
     try {
       const coverage = await adminService.getDepartmentCoverage();

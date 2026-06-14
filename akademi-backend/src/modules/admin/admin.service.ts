@@ -23,6 +23,8 @@ import {
   GrantAccessRequest,
   DisciplineDocumentListFilter,
   UploadDisciplineDocumentRequest,
+  CommunityPatternListFilter,
+  UploadCommunityPatternRequest,
   AnalyticsFilter,
   FinanceFilter
 } from './admin.types';
@@ -767,6 +769,7 @@ export class AdminService {
     if (filter.faculty) where.faculty = filter.faculty;
     if (filter.department) where.department = filter.department;
     if (filter.status === 'active') where.is_active = true;
+    if (filter.status === 'inactive') where.is_active = false;
 
     return prisma.disciplineDocument.findMany({
       where,
@@ -782,7 +785,7 @@ export class AdminService {
       where: {
         faculty: document.faculty,
         department: document.department,
-        course_code: document.course_code
+        course_code: null
       },
       orderBy: { version: 'desc' }
     });
@@ -797,7 +800,6 @@ export class AdminService {
         created_at: { gte: startOfMonth },
         session: {
           department: document.department,
-          course_code: document.course_code || undefined
         }
       }
     });
@@ -810,7 +812,7 @@ export class AdminService {
       where: {
         faculty: data.faculty,
         department: data.department,
-        course_code: data.course_code || null
+        course_code: null
       },
       orderBy: { version: 'desc' }
     });
@@ -819,7 +821,7 @@ export class AdminService {
       where: {
         faculty: data.faculty,
         department: data.department,
-        course_code: data.course_code || null
+        course_code: null
       },
       data: { is_active: false }
     });
@@ -830,7 +832,7 @@ export class AdminService {
       data: {
         faculty: data.faculty,
         department: data.department,
-        course_code: data.course_code || null,
+        course_code: null,
         document_ref: data.document_ref,
         version: newVersion,
         version_notes: data.version_notes,
@@ -856,7 +858,7 @@ export class AdminService {
       where: {
         faculty: target.faculty,
         department: target.department,
-        course_code: target.course_code,
+        course_code: null,
         version: version
       }
     });
@@ -867,7 +869,7 @@ export class AdminService {
       where: {
         faculty: target.faculty,
         department: target.department,
-        course_code: target.course_code
+        course_code: null
       },
       data: { is_active: false }
     });
@@ -884,6 +886,70 @@ export class AdminService {
     }
 
     return updated;
+  }
+
+  async listCommunityPatterns(filter: CommunityPatternListFilter) {
+    const where: any = {
+      faculty: 'ALL',
+      department: 'ALL',
+      course_code: null,
+    };
+    if (filter.university) where.university = filter.university;
+    if (filter.status === 'active') where.question_pattern = { path: ['is_active'], equals: true };
+    if (filter.status === 'inactive') where.question_pattern = { path: ['is_active'], equals: false };
+
+    return prisma.communityPattern.findMany({
+      where,
+      orderBy: { updated_at: 'desc' },
+    });
+  }
+
+  async uploadCommunityPattern(data: UploadCommunityPatternRequest, adminId: string) {
+    const university = String(data.university || '').trim();
+    const title = String(data.title || '').trim();
+    const story = String(data.story || '').trim();
+    if (!university || !title || !story) {
+      throw new Error('University, title, and story are required.');
+    }
+
+    return prisma.communityPattern.create({
+      data: {
+        university,
+        faculty: 'ALL',
+        department: 'ALL',
+        course_code: null,
+        frequency: 1,
+        question_pattern: {
+          type: 'school_story',
+          title,
+          story,
+          context_type: data.context_type || 'campus_context',
+          tags: data.tags || [],
+          is_active: true,
+          created_by: adminId,
+          created_at: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  async deactivateCommunityPattern(id: string) {
+    const pattern = await prisma.communityPattern.findUnique({ where: { id } });
+    if (!pattern) throw new Error('Community pattern not found');
+    const payload = typeof pattern.question_pattern === 'object' && pattern.question_pattern
+      ? pattern.question_pattern as any
+      : {};
+
+    return prisma.communityPattern.update({
+      where: { id },
+      data: {
+        question_pattern: {
+          ...payload,
+          is_active: false,
+          deactivated_at: new Date().toISOString(),
+        },
+      },
+    });
   }
 
   async deactivateDisciplineDocument(id: string) {
