@@ -68,9 +68,24 @@ a {
   border-radius: 12px;
   color: #041107;
   display: inline-flex;
+  font-size: 15px;
   height: 38px;
   justify-content: center;
   width: 38px;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1;
+}
+
+.brand-copy small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .nav-link {
@@ -141,6 +156,24 @@ h3 {
   margin-top: 22px;
 }
 
+.proof-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+  max-width: 720px;
+}
+
+.proof-chips span {
+  background: rgba(39, 201, 103, 0.1);
+  border: 1px solid rgba(39, 201, 103, 0.28);
+  border-radius: 999px;
+  color: #c8f7d8;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 10px 13px;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -188,112 +221,103 @@ h3 {
   padding: 9px 12px;
 }
 
-.phone-wrap {
+.school-proof {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.6;
+  margin: 18px 0 0;
+  max-width: 660px;
+}
+
+.demo-wrap {
   display: flex;
   justify-content: center;
 }
 
-.phone {
-  background: #080a09;
-  border: 1px solid var(--line);
-  border-radius: 42px;
+.answer-demo {
+  background:
+    radial-gradient(circle at top right, rgba(39, 201, 103, 0.18), transparent 34%),
+    #080a09;
+  border: 1px solid rgba(39, 201, 103, 0.24);
+  border-radius: 34px;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
-  max-width: 390px;
-  padding: 28px;
+  max-width: 470px;
+  padding: 24px;
   width: 100%;
 }
 
-.phone-top {
+.demo-header {
   align-items: center;
   display: flex;
-  gap: 12px;
   justify-content: space-between;
+  margin-bottom: 22px;
 }
 
-.avatar,
-.bell,
-.mini-icon {
-  align-items: center;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  display: inline-flex;
-  height: 52px;
-  justify-content: center;
-  width: 52px;
-}
-
-.muted {
-  color: var(--muted);
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-
-.command-card {
-  background: #101613;
-  border: 1px solid rgba(39, 201, 103, 0.25);
-  border-radius: 22px;
-  margin-top: 26px;
-  padding: 24px;
-  position: relative;
-}
-
-.command-card .pill {
-  color: var(--green);
+.course-pill,
+.mode-pill {
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
-  position: absolute;
-  right: 24px;
-  top: 36px;
+  letter-spacing: 0.04em;
+  padding: 9px 12px;
+  text-transform: uppercase;
 }
 
-.command-card h2 {
-  font-size: 34px;
-  margin-top: 28px;
+.course-pill {
+  background: rgba(39, 201, 103, 0.16);
+  color: var(--green);
 }
 
-.command-card p {
+.mode-pill {
+  background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
 }
 
-.stats {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: 24px;
-  padding: 14px;
-  text-align: center;
+.chat-bubble {
+  border-radius: 22px;
+  line-height: 1.65;
+  margin-top: 16px;
+  padding: 18px;
 }
 
-.stats span {
+.chat-bubble span {
   color: var(--muted);
-  font-size: 12px;
-}
-
-.stats strong {
-  color: var(--text);
   display: block;
-  font-size: 22px;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 8px;
+  text-transform: uppercase;
 }
 
-.feature-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, 1fr);
-  margin-top: 18px;
+.chat-bubble.student {
+  background: rgba(39, 201, 103, 0.2);
+  margin-left: 54px;
 }
 
-.feature-grid span {
+.chat-bubble.akademi {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  font-weight: 800;
-  padding: 22px;
+  margin-right: 34px;
+}
+
+.demo-proof {
+  background: rgba(67, 197, 245, 0.08);
+  border: 1px solid rgba(67, 197, 245, 0.18);
+  border-radius: 20px;
+  margin-top: 18px;
+  padding: 18px;
+}
+
+.demo-proof strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.demo-proof p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 8px 0 0;
 }
 
 .section,
@@ -305,6 +329,46 @@ h3 {
 
 .section-heading {
   max-width: 760px;
+}
+
+.how-section {
+  padding-top: 46px;
+}
+
+.steps {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 34px;
+}
+
+.steps article {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 22px;
+}
+
+.steps span {
+  align-items: center;
+  background: rgba(39, 201, 103, 0.14);
+  border-radius: 16px;
+  color: var(--green);
+  display: inline-flex;
+  font-weight: 900;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
+.steps h3 {
+  font-size: 20px;
+}
+
+.steps p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .cards {
@@ -450,11 +514,12 @@ select:focus {
     padding-top: 54px;
   }
 
-  .phone-wrap {
+  .demo-wrap {
     justify-content: flex-start;
   }
 
-  .cards {
+  .cards,
+  .steps {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -481,6 +546,10 @@ select:focus {
     border-radius: 10px;
     height: 40px;
     width: 40px;
+  }
+
+  .brand-copy small {
+    display: none;
   }
 
   .nav-link {
@@ -529,7 +598,19 @@ select:focus {
     width: 100%;
   }
 
+  .proof-chips {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 20px;
+  }
+
+  .proof-chips span {
+    font-size: 13px;
+    text-align: center;
+  }
+
   .cards,
+  .steps,
   .waitlist-form {
     grid-template-columns: 1fr;
   }
@@ -549,57 +630,35 @@ select:focus {
     text-align: center;
   }
 
-  .phone-wrap {
+  .demo-wrap {
     justify-content: center;
   }
 
-  .phone {
-    border-radius: 28px;
-    max-width: 350px;
+  .answer-demo {
+    border-radius: 26px;
+    padding: 18px;
+  }
+
+  .demo-header {
+    margin-bottom: 16px;
+  }
+
+  .chat-bubble {
+    border-radius: 18px;
+    font-size: 15px;
     padding: 16px;
   }
 
-  .phone-top {
-    gap: 10px;
+  .chat-bubble.student {
+    margin-left: 24px;
   }
 
-  .avatar,
-  .bell,
-  .mini-icon {
-    border-radius: 14px;
-    height: 42px;
-    width: 42px;
+  .chat-bubble.akademi {
+    margin-right: 0;
   }
 
-  .command-card {
-    margin-top: 16px;
-    padding: 18px;
-  }
-
-  .command-card .pill {
-    font-size: 10px;
-    right: 18px;
-    top: 28px;
-  }
-
-  .command-card h2 {
-    font-size: 27px;
-    margin-top: 20px;
-  }
-
-  .command-card p {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  .stats {
-    margin-top: 18px;
-    padding: 12px 8px;
-  }
-
-  .feature-grid span {
-    border-radius: 14px;
-    padding: 18px;
+  .demo-proof {
+    padding: 16px;
   }
 
   .section,
@@ -612,7 +671,8 @@ select:focus {
     margin-top: 24px;
   }
 
-  .card {
+  .card,
+  .steps article {
     border-radius: 18px;
     padding: 20px;
   }
@@ -656,7 +716,7 @@ select:focus {
     font-size: 42px;
   }
 
-  .brand span:last-child {
+  .brand-copy {
     display: none;
   }
 
