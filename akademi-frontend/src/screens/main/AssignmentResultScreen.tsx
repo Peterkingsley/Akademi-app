@@ -31,6 +31,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const [answer, setAnswer] = useState("");
   const [replyMode, setReplyMode] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [initialAiMessageId, setInitialAiMessageId] = useState<string | null>(null);
   const [followUp, setFollowUp] = useState("");
   const [sendingFollowUp, setSendingFollowUp] = useState(false);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
@@ -55,12 +56,14 @@ export const AssignmentResultScreen: React.FC = () => {
         sessionService.listMessages(sessionId),
       ]);
       const studentMsg = sessionMessages.find((m: Message) => m.role === "STUDENT");
-      const aiMsg = [...sessionMessages].reverse().find((m: Message) => m.role === "AI");
+      const firstAiMsg = sessionMessages.find((m: Message) => m.role === "AI");
+      const latestAiMsg = [...sessionMessages].reverse().find((m: Message) => m.role === "AI");
 
       setMessages(sessionMessages);
-      setReplyMode(session.reply_mode || aiMsg?.reply_mode || null);
+      setInitialAiMessageId(firstAiMsg?.id || null);
+      setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
       if (studentMsg) setQuestion(studentMsg.content);
-      if (aiMsg) setAnswer(aiMsg.content);
+      if (firstAiMsg) setAnswer(firstAiMsg.content);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
     } finally {
@@ -156,10 +159,10 @@ export const AssignmentResultScreen: React.FC = () => {
           </View>
         </Card>
 
-        {messages.length > 2 && (
+        {messages.filter((message) => message.id !== initialAiMessageId).slice(1).length > 0 && (
           <Card style={styles.threadCard}>
             <Text style={[styles.monoLabel, typography.mono]}>FOLLOW-UP THREAD</Text>
-            {messages.slice(2).map((message) => (
+            {messages.filter((message) => message.id !== initialAiMessageId).slice(1).map((message) => (
               <View
                 key={message.id}
                 style={[
