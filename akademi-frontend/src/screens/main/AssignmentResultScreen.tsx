@@ -4,11 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Share,
 } from "react-native";
-import { ArrowLeft, Share2, Bookmark, RefreshCw, Book } from "lucide-react-native";
+import { ArrowLeft, Share2, Bookmark, RefreshCw, Book, Send } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -28,31 +29,67 @@ export const AssignmentResultScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [replyMode, setReplyMode] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [followUp, setFollowUp] = useState("");
+  const [sendingFollowUp, setSendingFollowUp] = useState(false);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
 
+  const modeLabels: Record<string, string> = {
+    DIRECT: "Direct Answer",
+    STUDY: "Study Reply",
+    QUESTION: "Practice First",
+    WRONGLY: "Find The Mistake",
+    SOCRATIC: "Guide Me",
+  };
+
+  const loadSession = async () => {
+    if (!sessionId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const [session, sessionMessages] = await Promise.all([
+        sessionService.getSession(sessionId),
+        sessionService.listMessages(sessionId),
+      ]);
+      const studentMsg = sessionMessages.find((m: Message) => m.role === "STUDENT");
+      const aiMsg = [...sessionMessages].reverse().find((m: Message) => m.role === "AI");
+
+      setMessages(sessionMessages);
+      setReplyMode(session.reply_mode || aiMsg?.reply_mode || null);
+      if (studentMsg) setQuestion(studentMsg.content);
+      if (aiMsg) setAnswer(aiMsg.content);
+    } catch (error) {
+      console.error("Failed to fetch messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (!sessionId) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const messages = await sessionService.listMessages(sessionId);
-        const studentMsg = messages.find((m: Message) => m.role === "STUDENT");
-        const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
-
-        if (studentMsg) setQuestion(studentMsg.content);
-        if (aiMsg) setAnswer(aiMsg.content);
-      } catch (error) {
-        console.error("Failed to fetch messages:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMessages();
+    loadSession();
   }, [sessionId]);
+
+  const handleFollowUp = async () => {
+    const content = followUp.trim();
+    if (!content || !sessionId || sendingFollowUp) return;
+
+    setSendingFollowUp(true);
+    try {
+      setFollowUp("");
+      await sessionService.sendMessage(sessionId, {
+        content,
+        reply_mode: (replyMode as any) || undefined,
+      });
+      await loadSession();
+    } catch (error) {
+      console.error("Failed to send follow-up:", error);
+    } finally {
+      setSendingFollowUp(false);
+    }
+  };
 
   const handleShare = async () => {
     try {
@@ -88,7 +125,7 @@ export const AssignmentResultScreen: React.FC = () => {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, typography.h3]}>Assignment Result</Text>
         </View>
-        <Badge label="Direct Answer" variant="blue" />
+        <Badge label={modeLabels[replyMode || "DIRECT"] || "AI Reply"} variant="blue" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -116,6 +153,56 @@ export const AssignmentResultScreen: React.FC = () => {
               content={answer || "Thinking..."}
               onAskAkademi={(text) => { setSelectedText(text); setIsAskModalVisible(true); }}
             />
+          </View>
+        </Card>
+
+        {messages.length > 2 && (
+          <Card style={styles.threadCard}>
+            <Text style={[styles.monoLabel, typography.mono]}>FOLLOW-UP THREAD</Text>
+            {messages.slice(2).map((message) => (
+              <View
+                key={message.id}
+                style={[
+                  styles.threadBubble,
+                  message.role === "STUDENT" ? styles.studentBubble : styles.aiBubble,
+                ]}
+              >
+                <Text style={[styles.threadRole, typography.caption]}>
+                  {message.role === "STUDENT" ? "You" : "Akademi"}
+                </Text>
+                <Text style={[styles.threadText, typography.bodySmall]}>{message.content}</Text>
+              </View>
+            ))}
+          </Card>
+        )}
+
+        <Card style={styles.followUpCard}>
+          <Text style={[styles.followUpTitle, typography.bodySmall, { fontWeight: "700" }]}>
+            Continue this session
+          </Text>
+          <Text style={[styles.followUpHint, typography.caption]}>
+            Reply to Akademi, ask for another example, or answer the question it asked you.
+          </Text>
+          <View style={styles.followUpRow}>
+            <TextInput
+              value={followUp}
+              onChangeText={setFollowUp}
+              placeholder="Ask a follow-up..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.followUpInput}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!followUp.trim() || sendingFollowUp) && styles.sendButtonDisabled]}
+              onPress={handleFollowUp}
+              disabled={!followUp.trim() || sendingFollowUp}
+            >
+              {sendingFollowUp ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Send size={18} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
           </View>
         </Card>
 
@@ -232,6 +319,78 @@ const styles = StyleSheet.create({
   },
   answerContainer: {
     marginTop: 8,
+  },
+  threadCard: {
+    backgroundColor: colors.surface,
+    marginBottom: 24,
+    padding: 16,
+  },
+  threadBubble: {
+    borderRadius: 12,
+    marginTop: 12,
+    padding: 12,
+  },
+  studentBubble: {
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(34,197,94,0.18)",
+    maxWidth: "88%",
+  },
+  aiBubble: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceElevated,
+    maxWidth: "92%",
+  },
+  threadRole: {
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  threadText: {
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+  followUpCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    marginBottom: 24,
+    padding: 14,
+  },
+  followUpTitle: {
+    color: colors.textPrimary,
+  },
+  followUpHint: {
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  followUpRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  followUpInput: {
+    ...typography.bodySmall,
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.textPrimary,
+    flex: 1,
+    maxHeight: 110,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  sendButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  sendButtonDisabled: {
+    opacity: 0.45,
   },
   explanation: {
     color: "#FFFFFF",
