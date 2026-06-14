@@ -417,7 +417,55 @@ input::placeholder {
 
 @media (max-width: 560px) {
   .page {
-    padding: 18px;
+    background:
+      radial-gradient(circle at 86% 4%, rgba(39, 201, 103, 0.34), transparent 28%),
+      radial-gradient(circle at 10% 46%, rgba(39, 201, 103, 0.2), transparent 30%),
+      linear-gradient(155deg, #020403 0%, #04140c 42%, #020403 100%);
+    padding: 18px 16px 28px;
+  }
+
+  .page::before {
+    background:
+      radial-gradient(circle at 72% 16%, rgba(39, 201, 103, 0.38), transparent 20%),
+      radial-gradient(circle at 42% 20%, rgba(255, 255, 255, 0.11), transparent 14%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 44%);
+  }
+
+  .page::after {
+    background: linear-gradient(180deg, rgba(2, 4, 3, 0.04), rgba(2, 4, 3, 0.62) 72%, rgba(2, 4, 3, 0.98));
+  }
+
+  .ambient-one {
+    height: 210px;
+    left: -80px;
+    top: 260px;
+    width: 260px;
+  }
+
+  .ambient-two {
+    height: 240px;
+    right: -80px;
+    top: 18px;
+    width: 260px;
+  }
+
+  .orbital {
+    height: 250px;
+    top: 110px;
+    width: 620px;
+  }
+
+  .orbital-two {
+    top: 138px;
+    width: 520px;
+  }
+
+  .nav {
+    background: rgba(2, 4, 3, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    padding: 12px;
   }
 
   .brand-copy small {
@@ -434,7 +482,17 @@ input::placeholder {
   }
 
   .hero {
-    padding-top: 64px;
+    background:
+      radial-gradient(circle at 78% 0%, rgba(39, 201, 103, 0.32), transparent 34%),
+      linear-gradient(140deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 42%, rgba(39, 201, 103, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 34px;
+    box-shadow:
+      0 30px 90px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    margin-top: 24px;
+    overflow: hidden;
+    padding: 26px 18px 28px;
     text-align: left;
   }
 
@@ -445,16 +503,62 @@ input::placeholder {
     align-self: stretch;
   }
 
+  .hero-pill {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+    margin-bottom: 76px;
+    width: fit-content;
+  }
+
   h1 {
     align-self: stretch;
-    font-size: clamp(62px, 18vw, 92px);
+    font-size: clamp(64px, 19vw, 102px);
     letter-spacing: -0.06em;
+    line-height: 0.88;
+    max-width: 360px;
+    position: relative;
+    text-transform: uppercase;
+  }
+
+  h1::after {
+    color: rgba(255, 255, 255, 0.05);
+    content: "Akademi";
+    font-size: 0.72em;
+    font-weight: 900;
+    left: -6px;
+    letter-spacing: -0.08em;
+    position: absolute;
+    top: -62px;
+    z-index: -1;
+  }
+
+  .hero-text {
+    color: rgba(247, 251, 248, 0.78);
+    font-size: 18px;
+    line-height: 1.6;
+    margin-top: 18px;
   }
 
   .glass-card {
-    border-radius: 28px;
+    background:
+      radial-gradient(circle at 85% 0%, rgba(39, 201, 103, 0.28), transparent 34%),
+      rgba(4, 9, 7, 0.72);
+    border-color: rgba(255, 255, 255, 0.16);
+    border-radius: 30px;
+    box-shadow:
+      0 24px 70px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
     margin-top: 28px;
     padding: 22px;
+  }
+
+  .card-kicker {
+    color: var(--green);
+  }
+
+  h2 {
+    font-size: 31px;
+    line-height: 1.04;
   }
 
   .card-text {
@@ -464,7 +568,15 @@ input::placeholder {
   input,
   select,
   .submit {
+    box-shadow: 0 14px 38px rgba(39, 201, 103, 0.26);
     border-radius: 18px;
+  }
+
+  .support-fields {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 22px;
+    padding: 12px;
   }
 
   .social-links {
@@ -472,10 +584,23 @@ input::placeholder {
     width: 100%;
   }
 
+  .social-links a {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.13);
+  }
+
+  .school-proof {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    border-radius: 22px;
+    padding: 16px;
+  }
+
   .giant-word {
-    bottom: -28px;
-    font-size: 112px;
+    bottom: -12px;
+    font-size: 96px;
     left: 16px;
+    opacity: 0.22;
     text-align: left;
     transform: none;
   }
