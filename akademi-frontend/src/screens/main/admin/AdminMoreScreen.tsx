@@ -9,7 +9,8 @@ import {
   Users2,
   ShieldCheck,
   ChevronRight,
-  ShieldAlert
+  ShieldAlert,
+  Mail
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -69,6 +70,13 @@ export const AdminMoreScreen: React.FC = () => {
                   description="Service health, AI usage and logs"
                   onPress={() => navigation.navigate("SystemMonitoring")}
                   color="#8B5CF6"
+                />
+                <MenuItem
+                  icon={Mail}
+                  label="Waitlist"
+                  description="View landing page signups and email them"
+                  onPress={() => navigation.navigate("AdminWaitlist")}
+                  color="#22C55E"
                 />
               </>
             )}

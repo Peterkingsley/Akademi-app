@@ -14,6 +14,7 @@ import { FinancialManagementScreen } from "../screens/main/admin/FinancialManage
 import { SystemMonitoringScreen } from "../screens/main/admin/SystemMonitoringScreen";
 import { AdminMoreScreen } from "../screens/main/admin/AdminMoreScreen";
 import { AdminTeamScreen } from "../screens/main/admin/AdminTeamScreen";
+import { AdminWaitlistScreen } from "../screens/main/admin/AdminWaitlistScreen";
 import { AuditTrailScreen } from "../screens/main/admin/AuditTrailScreen";
 import { SecuritySettingsScreen } from "../screens/main/admin/SecuritySettingsScreen";
 
@@ -53,6 +54,13 @@ const MoreStack = () => {
         {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
             <AdminTeamScreen />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AdminWaitlist">
+        {() => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AdminWaitlistScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>

@@ -26,7 +26,9 @@ import {
   CommunityPatternListFilter,
   UploadCommunityPatternRequest,
   AnalyticsFilter,
-  FinanceFilter
+  FinanceFilter,
+  WaitlistFilter,
+  WaitlistEmailRequest
 } from './admin.types';
 
 const resend = new Resend(config.resendApiKey);
@@ -385,6 +387,133 @@ export class AdminService {
       sent,
       failedCount: failed.length,
       failed: failed.slice(0, 10),
+    };
+  }
+
+  private buildWaitlistWhere(filter: WaitlistFilter) {
+    const where: any = {};
+
+    if (filter.search) {
+      where.OR = [
+        { full_name: { contains: filter.search, mode: 'insensitive' } },
+        { email: { contains: filter.search, mode: 'insensitive' } },
+        { university: { contains: filter.search, mode: 'insensitive' } },
+        { department: { contains: filter.search, mode: 'insensitive' } },
+      ];
+    }
+    if (filter.university) where.university = { contains: filter.university, mode: 'insensitive' };
+    if (filter.department) where.department = { contains: filter.department, mode: 'insensitive' };
+    if (filter.status) where.status = String(filter.status).trim().toUpperCase();
+    if (filter.mainStruggle) where.main_struggle = String(filter.mainStruggle).trim();
+
+    if (filter.startDate || filter.endDate) {
+      where.created_at = {};
+      if (filter.startDate) where.created_at.gte = new Date(filter.startDate);
+      if (filter.endDate) where.created_at.lte = new Date(filter.endDate);
+    }
+
+    return where;
+  }
+
+  async listWaitlistEntries(filter: WaitlistFilter) {
+    const where = this.buildWaitlistWhere(filter);
+    const limit = Math.min(Number(filter.limit) || 50, 100);
+    const page = Math.max(Number(filter.page) || 1, 1);
+
+    const [entries, total, byNeed] = await Promise.all([
+      prisma.waitlistEntry.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      prisma.waitlistEntry.count({ where }),
+      prisma.waitlistEntry.groupBy({
+        by: ['main_struggle'],
+        where,
+        _count: { _all: true },
+      }),
+    ]);
+
+    return {
+      entries,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      summary: {
+        total,
+        byNeed: byNeed
+          .map(item => ({
+            need: item.main_struggle || 'not_set',
+            count: item._count._all,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6),
+      },
+    };
+  }
+
+  async emailWaitlistEntries(filter: WaitlistEmailRequest, adminId: string) {
+    const subject = String(filter.subject || '').trim();
+    const message = String(filter.message || '').trim();
+    if (!subject || !message) {
+      throw new Error('Email subject and message are required.');
+    }
+
+    const where = this.buildWaitlistWhere(filter);
+    const recipients = await prisma.waitlistEntry.findMany({
+      where,
+      select: { id: true, full_name: true, email: true },
+      orderBy: { created_at: 'desc' },
+      take: 1000,
+    });
+
+    if (filter.previewOnly) {
+      return {
+        previewOnly: true,
+        recipientCount: recipients.length,
+        sampleRecipients: recipients.slice(0, 10),
+      };
+    }
+
+    if (!this.isResendConfigured()) {
+      throw new Error('Resend is not configured. Add RESEND_API_KEY before sending waitlist emails.');
+    }
+
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
+    const html = `
+      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+        <h2 style="color:#16a34a;">${safeSubject}</h2>
+        <p>${safeMessage}</p>
+        <p style="margin-top:24px;color:#6b7280;font-size:13px;">You are receiving this because you joined the Akademi waitlist.</p>
+      </div>
+    `;
+
+    let sent = 0;
+    const failed: Array<{ email: string; message: string }> = [];
+
+    for (const recipient of recipients) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <noreply@opengigs.pro>',
+          to: recipient.email,
+          subject,
+          html,
+        });
+        sent += 1;
+      } catch (error: any) {
+        failed.push({ email: recipient.email, message: error?.message || 'Failed to send' });
+      }
+    }
+
+    return {
+      recipientCount: recipients.length,
+      sent,
+      failedCount: failed.length,
+      failed: failed.slice(0, 10),
+      sentBy: adminId,
     };
   }
 

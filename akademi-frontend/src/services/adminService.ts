@@ -98,6 +98,33 @@ export interface IPLog {
   is_current: boolean;
 }
 
+export interface WaitlistEntry {
+  id: string;
+  full_name: string;
+  email: string;
+  phone?: string | null;
+  university?: string | null;
+  department?: string | null;
+  level?: number | null;
+  main_struggle?: string | null;
+  source: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WaitlistResponse {
+  entries: WaitlistEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  summary: {
+    total: number;
+    byNeed: { need: string; count: number }[];
+  };
+}
+
 export const adminService = {
   // Pillar 1: Dashboard
   getStats: async (): Promise<AdminDashboardStats> => {
@@ -158,6 +185,16 @@ export const adminService = {
 
   sendUserEmailCampaign: async (campaignData: any) => {
     const { data } = await api.post("/admin/users/email-campaign", campaignData);
+    return data;
+  },
+
+  listWaitlistEntries: async (params: any = {}): Promise<WaitlistResponse> => {
+    const { data } = await api.get("/admin/waitlist", { params });
+    return data;
+  },
+
+  sendWaitlistEmailCampaign: async (campaignData: any) => {
+    const { data } = await api.post("/admin/waitlist/email-campaign", campaignData);
     return data;
   },
 

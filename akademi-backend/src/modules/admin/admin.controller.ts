@@ -171,6 +171,24 @@ export class AdminController {
     }
   }
 
+  async listWaitlistEntries(req: Request, res: Response) {
+    try {
+      const result = await adminService.listWaitlistEntries(req.query as any);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async emailWaitlistEntries(req: Request, res: Response) {
+    try {
+      const result = await adminService.emailWaitlistEntries(req.body, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async approveMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.approveMaterial(req.params.id, req.admin!.adminId);

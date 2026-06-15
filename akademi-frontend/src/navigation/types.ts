@@ -63,6 +63,7 @@ export type AdminStackParamList = {
   AdminDashboard: undefined;
   AdminMore: undefined;
   AdminTeam: undefined;
+  AdminWaitlist: undefined;
   AuditTrail: undefined;
   SecuritySettings: undefined;
   UserManagement: undefined;

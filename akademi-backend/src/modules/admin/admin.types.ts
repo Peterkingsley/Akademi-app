@@ -63,6 +63,24 @@ export interface EmailCampaignRequest extends UserListFilter {
   previewOnly?: boolean;
 }
 
+export interface WaitlistFilter {
+  search?: string;
+  university?: string;
+  department?: string;
+  status?: string;
+  mainStruggle?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface WaitlistEmailRequest extends WaitlistFilter {
+  subject: string;
+  message: string;
+  previewOnly?: boolean;
+}
+
 export interface GrantAccessRequest {
   feature: Feature;
   accessType: AccessType;

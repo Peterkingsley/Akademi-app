@@ -51,6 +51,8 @@ router.patch('/users/:id/unban', authorizeRoles(AdminRole.SUPER_ADMIN), (req, re
 router.patch('/users/:id/verify', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.verifyUser(req, res));
 router.delete('/users/:id', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.deleteUser(req, res));
 router.post('/users/:id/grant-access', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.grantAccess(req, res));
+router.get('/waitlist', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.listWaitlistEntries(req, res));
+router.post('/waitlist/email-campaign', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.emailWaitlistEntries(req, res));
 
 // Pillar 3: Content Moderation
 router.get('/materials/flagged', (req, res) => adminController.getFlaggedMaterials(req, res));
