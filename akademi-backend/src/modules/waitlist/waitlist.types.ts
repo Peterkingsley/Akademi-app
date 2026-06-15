@@ -3,6 +3,7 @@ export interface JoinWaitlistRequest {
   email: string;
   phone?: string;
   university?: string;
+  faculty?: string;
   department?: string;
   level?: number | string;
   main_struggle?: string;

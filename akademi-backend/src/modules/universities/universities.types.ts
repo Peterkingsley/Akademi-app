@@ -9,3 +9,8 @@ export interface DepartmentResponse {
   name: string;
   faculty: string;
 }
+
+export interface FacultyResponse {
+  name: string;
+  departmentCount: number;
+}

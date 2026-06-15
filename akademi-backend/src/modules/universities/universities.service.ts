@@ -2,7 +2,18 @@ import prisma from '../../config/db';
 import { typesenseService } from '../../shared/search/typesense.service';
 
 export class UniversitiesService {
-  async getAllUniversities() {
+  async getAllUniversities(search?: string, limit?: number) {
+    const query = typeof search === 'string' ? search.trim() : '';
+    const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+
+    if (query) {
+      return prisma.university.findMany({
+        where: { name: { contains: query, mode: 'insensitive' } },
+        orderBy: { name: 'asc' },
+        take,
+      });
+    }
+
     // We can use Typesense for faster discovery or Prisma for source of truth.
     // The ticket asks for /universities to return all supported universities.
     // Using Typesense:
@@ -17,15 +28,33 @@ export class UniversitiesService {
       // Fallback to Prisma if Typesense fails or is not initialized
       return prisma.university.findMany({
         orderBy: { name: 'asc' },
+        take,
       });
     }
   }
 
-  async getDepartmentsByUniversity(universityId: string) {
+  async getFacultiesByUniversity(universityId: string) {
+    const faculties = await prisma.department.groupBy({
+      by: ['faculty'],
+      where: { university_id: universityId },
+      _count: { faculty: true },
+      orderBy: { faculty: 'asc' },
+    });
+
+    return faculties.map((faculty) => ({
+      name: faculty.faculty,
+      departmentCount: faculty._count.faculty,
+    }));
+  }
+
+  async getDepartmentsByUniversity(universityId: string, faculty?: string) {
     // Departments are not indexed separately but linked to universities in Prisma.
     // If we want cross-school browsing, we fetch from Prisma.
     return prisma.department.findMany({
-      where: { university_id: universityId },
+      where: {
+        university_id: universityId,
+        ...(faculty ? { faculty } : {}),
+      },
       orderBy: { name: 'asc' },
     });
   }

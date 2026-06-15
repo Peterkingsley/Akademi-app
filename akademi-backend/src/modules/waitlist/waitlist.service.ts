@@ -19,7 +19,10 @@ export class WaitlistService {
   async join(data: JoinWaitlistRequest) {
     const fullName = clean(data.full_name);
     const email = clean(data.email)?.toLowerCase();
-    const metadata = (data.metadata || {}) as Prisma.InputJsonValue;
+    const metadata = {
+      ...(data.metadata || {}),
+      faculty: clean(data.faculty) || (data.metadata || {}).faculty || null,
+    } as Prisma.InputJsonValue;
 
     if (!fullName || fullName.length < 2) {
       throw new Error('Full name is required.');

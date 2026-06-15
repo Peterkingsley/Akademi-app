@@ -654,7 +654,8 @@ label span {
 }
 
 input,
-select {
+select,
+.select-trigger {
   background: rgba(2, 4, 3, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 18px;
@@ -666,12 +667,23 @@ select {
   width: 100%;
 }
 
+.select-trigger {
+  cursor: pointer;
+  text-align: left;
+}
+
+.select-trigger:disabled {
+  color: rgba(247, 251, 248, 0.36);
+  cursor: not-allowed;
+}
+
 select {
   appearance: none;
 }
 
 input:focus,
-select:focus {
+select:focus,
+.select-trigger:focus {
   border-color: var(--green-hot);
   box-shadow: 0 0 0 4px rgba(156, 255, 0, 0.12);
 }
@@ -687,6 +699,61 @@ input::placeholder {
 .submit:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+.lookup-field {
+  position: relative;
+}
+
+.lookup-results {
+  background: rgba(2, 4, 3, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.44);
+  display: none;
+  left: 0;
+  max-height: 238px;
+  overflow: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+}
+
+.lookup-results.open {
+  display: grid;
+  gap: 4px;
+}
+
+.lookup-option {
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 3px;
+  padding: 12px;
+  text-align: left;
+}
+
+.lookup-option:hover,
+.lookup-option:focus {
+  background: rgba(156, 255, 0, 0.1);
+  outline: none;
+}
+
+.lookup-option small {
+  color: var(--muted);
+}
+
+.lookup-empty {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 12px;
 }
 
 .form-note {

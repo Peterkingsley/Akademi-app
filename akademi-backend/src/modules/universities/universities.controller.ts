@@ -6,17 +6,30 @@ const universitiesService = new UniversitiesService();
 export class UniversitiesController {
   async getUniversities(req: Request, res: Response) {
     try {
-      const universities = await universitiesService.getAllUniversities();
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const universities = await universitiesService.getAllUniversities(search, limit);
       res.status(200).json(universities);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch universities' });
     }
   }
 
+  async getFaculties(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const faculties = await universitiesService.getFacultiesByUniversity(id);
+      res.status(200).json(faculties);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch faculties' });
+    }
+  }
+
   async getDepartments(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const departments = await universitiesService.getDepartmentsByUniversity(id);
+      const faculty = typeof req.query.faculty === 'string' ? req.query.faculty : undefined;
+      const departments = await universitiesService.getDepartmentsByUniversity(id, faculty);
       res.status(200).json(departments);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch departments' });

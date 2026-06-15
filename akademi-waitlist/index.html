@@ -177,13 +177,30 @@
           </div>
 
           <div class="support-fields" aria-label="Optional waitlist details">
-            <label>
+            <label class="lookup-field">
               <span>School</span>
-              <input name="university" placeholder="e.g. FUTIA" />
+              <input
+                id="schoolSearch"
+                name="university"
+                autocomplete="off"
+                placeholder="Search your school"
+                required
+              />
+              <input id="schoolId" name="school_id" type="hidden" />
+              <div class="lookup-results" id="schoolResults" role="listbox" aria-label="School suggestions"></div>
             </label>
-            <label>
+            <label class="lookup-field">
+              <span>Faculty</span>
+              <button class="select-trigger" id="facultyTrigger" type="button" disabled>Pick school first</button>
+              <input id="facultyValue" name="faculty" type="hidden" />
+              <div class="lookup-results" id="facultyResults" role="listbox" aria-label="Faculty suggestions"></div>
+            </label>
+            <label class="lookup-field">
               <span>Department</span>
-              <input name="department" placeholder="e.g. Mechanical Engineering" />
+              <button class="select-trigger" id="departmentTrigger" type="button" disabled>Pick faculty first</button>
+              <input id="departmentValue" name="department" type="hidden" />
+              <input id="departmentId" name="department_id" type="hidden" />
+              <div class="lookup-results" id="departmentResults" role="listbox" aria-label="Department suggestions"></div>
             </label>
             <label>
               <span>Level</span>
