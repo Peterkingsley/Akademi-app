@@ -78,8 +78,10 @@ export const materialService = {
     return data;
   },
 
-  getMaterialQuestions: async (id: string) => {
-    const { data } = await api.get<PracticeQuestion[]>(`/materials/${id}/questions`);
+  getMaterialQuestions: async (id: string, limit?: number) => {
+    const { data } = await api.get<PracticeQuestion[]>(`/materials/${id}/questions`, {
+      params: limit ? { limit } : undefined,
+    });
     return data;
   },
 };

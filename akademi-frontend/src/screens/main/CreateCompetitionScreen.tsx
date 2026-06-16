@@ -14,6 +14,8 @@ export const CreateCompetitionScreen: React.FC = () => {
   const [courseCode, setCourseCode] = useState("");
   const [format, setFormat] = useState<CompetitionFormat>("SHARED_COURSE");
   const [visibility, setVisibility] = useState<CompetitionVisibility>("PRIVATE");
+  const [questionCount, setQuestionCount] = useState("10");
+  const [questionTimerSec, setQuestionTimerSec] = useState("20");
   const [creating, setCreating] = useState(false);
 
   const createRoom = async () => {
@@ -25,6 +27,8 @@ export const CreateCompetitionScreen: React.FC = () => {
         visibility,
         shared_course_code: format === "SHARED_COURSE" ? courseCode.trim().toUpperCase() : undefined,
         host_course_code: courseCode.trim().toUpperCase(),
+        question_count: Number(questionCount) || 10,
+        question_timer_sec: Number(questionTimerSec) || 20,
       });
       navigation.replace("CompetitionLobby", { roomId: room.id });
     } catch (error: any) {
@@ -56,6 +60,26 @@ export const CreateCompetitionScreen: React.FC = () => {
             onChangeText={setCourseCode}
             autoCapitalize="characters"
           />
+          <View style={styles.inlineRow}>
+            <View style={styles.inlineField}>
+              <Input
+                label="Questions"
+                placeholder="10"
+                value={questionCount}
+                onChangeText={setQuestionCount}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={styles.inlineField}>
+              <Input
+                label="Seconds per question"
+                placeholder="20"
+                value={questionTimerSec}
+                onChangeText={setQuestionTimerSec}
+                keyboardType="number-pad"
+              />
+            </View>
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Format</Text>
@@ -126,6 +150,13 @@ const styles = StyleSheet.create({
   },
   formCard: {
     gap: 16,
+  },
+  inlineRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  inlineField: {
+    flex: 1,
   },
   section: {
     gap: 10,

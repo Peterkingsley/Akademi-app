@@ -5,7 +5,13 @@ import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { CompetitionParticipantStatus, CompetitionQuestion, CompetitionRoom, CompetitionScoreboardEntry, competitionService } from "../../services/competition";
+import {
+  CompetitionParticipantStatus,
+  CompetitionQuestion,
+  CompetitionRoom,
+  CompetitionScoreboardEntry,
+  competitionService,
+} from "../../services/competition";
 import { MainStackParamList } from "../../navigation/types";
 import { socketService } from "../../services/socket";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -26,7 +32,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
   const [winnerUserId, setWinnerUserId] = useState<string | null>(null);
   const [timerNow, setTimerNow] = useState(Date.now());
   const [timerRecovered, setTimerRecovered] = useState(false);
+  const [resultRevealAt, setResultRevealAt] = useState<number | null>(null);
   const wasDisconnectedRef = useRef(false);
+  const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const localStatus = useMemo(() => {
     if (!room) return null;
@@ -58,13 +66,17 @@ export const CompetitionLobbyScreen: React.FC = () => {
       setLoading(false);
       if (payload.room.status !== "LIVE") {
         setQuestion(null);
+      }
+      if (payload.room.status !== "FINISHED") {
         setWinnerUserId(null);
+        setResultRevealAt(null);
       }
     };
 
     const handleStarted = (payload: { roomId: string }) => {
       if (!mounted || payload.roomId !== route.params.roomId) return;
-      setRoom((current) => current ? { ...current, status: "LIVE" } : current);
+      setRoom((current) => (current ? { ...current, status: "LIVE" } : current));
+      setResultRevealAt(null);
     };
 
     const handleQuestion = (payload: { roomId: string; question: CompetitionQuestion }) => {
@@ -83,17 +95,26 @@ export const CompetitionLobbyScreen: React.FC = () => {
       setScoreboard(payload.scoreboard);
     };
 
-    const handleMatchEnded = (payload: { roomId: string; winner_user_id?: string | null; scoreboard: CompetitionScoreboardEntry[] }) => {
+    const handleMatchEnded = (payload: {
+      roomId: string;
+      winner_user_id?: string | null;
+      scoreboard: CompetitionScoreboardEntry[];
+    }) => {
       if (!mounted || payload.roomId !== route.params.roomId) return;
+      const revealAt = Date.now() + 20000;
       setWinnerUserId(payload.winner_user_id || null);
       setScoreboard(payload.scoreboard);
       setQuestion(null);
-      setRoom((current) => current ? { ...current, status: "FINISHED" } : current);
-      navigation.replace("CompetitionResult", {
-        roomId: route.params.roomId,
-        winnerUserId: payload.winner_user_id || null,
-        scoreboard: payload.scoreboard,
-      });
+      setSelectedAnswer(null);
+      setResultRevealAt(revealAt);
+      setRoom((current) => (current ? { ...current, status: "FINISHED" } : current));
+      revealTimeoutRef.current = setTimeout(() => {
+        navigation.replace("CompetitionResult", {
+          roomId: route.params.roomId,
+          winnerUserId: payload.winner_user_id || null,
+          scoreboard: payload.scoreboard,
+        });
+      }, 20000);
     };
 
     const setup = async () => {
@@ -118,7 +139,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
       socket.emit("competition:join-room", { roomId: route.params.roomId });
     };
 
-    setup();
+    setup().catch((error) => {
+      console.error("Competition lobby setup failed", error);
+    });
 
     return () => {
       mounted = false;
@@ -128,16 +151,19 @@ export const CompetitionLobbyScreen: React.FC = () => {
       socketService.off("competition:question", handleQuestion);
       socketService.off("competition:score-update", handleScoreUpdate);
       socketService.off("competition:match-ended", handleMatchEnded);
+      if (revealTimeoutRef.current) {
+        clearTimeout(revealTimeoutRef.current);
+      }
     };
-  }, [route.params.roomId]);
+  }, [navigation, route.params.roomId]);
 
   useEffect(() => {
-    if (!question) return;
+    if (!question && !resultRevealAt) return;
     const interval = setInterval(() => {
       setTimerNow(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-  }, [question?.id]);
+  }, [question?.id, resultRevealAt]);
 
   const updateStatus = async (status: CompetitionParticipantStatus) => {
     try {
@@ -160,15 +186,24 @@ export const CompetitionLobbyScreen: React.FC = () => {
     });
   };
 
-  const secondsLeft = question ? Math.max(0, Math.ceil((new Date(question.expires_at).getTime() - timerNow) / 1000)) : 0;
-  const orderedBoard = scoreboard.length > 0 ? scoreboard : (room?.participants || []).map((participant) => ({
-    user_id: participant.user_id,
-    name: participant.name,
-    score: participant.score,
-    correct_answers: participant.correct_answers,
-    wrong_answers: participant.wrong_answers,
-    hasAnsweredCurrent: false,
-  }));
+  const secondsLeft = question
+    ? Math.max(0, Math.ceil((new Date(question.expires_at).getTime() - timerNow) / 1000))
+    : 0;
+  const revealSecondsLeft = resultRevealAt
+    ? Math.max(0, Math.ceil((resultRevealAt - timerNow) / 1000))
+    : 0;
+  const answerLocked = !!selectedAnswer || secondsLeft <= 0;
+  const orderedBoard =
+    scoreboard.length > 0
+      ? scoreboard
+      : (room?.participants || []).map((participant) => ({
+          user_id: participant.user_id,
+          name: participant.name,
+          score: participant.score,
+          correct_answers: participant.correct_answers,
+          wrong_answers: participant.wrong_answers,
+          hasAnsweredCurrent: false,
+        }));
 
   if (loading || !room) {
     return (
@@ -184,15 +219,23 @@ export const CompetitionLobbyScreen: React.FC = () => {
     <Screen style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{room.title}</Text>
-        <Text style={styles.subtitle}>Share code <Text style={styles.code}>{room.code}</Text> with your opponent.</Text>
-        <Text style={styles.socketState}>{socketConnected ? "Live sync connected" : "Reconnecting live sync..."}</Text>
+        <Text style={styles.subtitle}>
+          Share code <Text style={styles.code}>{room.code}</Text> with your opponent.
+        </Text>
+        <Text style={styles.socketState}>
+          {socketConnected ? "Live sync connected" : "Reconnecting live sync..."}
+        </Text>
         {timerRecovered && question ? (
           <Text style={styles.resumeState}>Timer resumed from live server state.</Text>
         ) : null}
 
         <Card style={styles.metaCard}>
-          <Text style={styles.metaText}>Format: {room.format === "SHARED_COURSE" ? "Shared course" : "Dual course"}</Text>
-          <Text style={styles.metaText}>Course: {room.shared_course_code || "Host/participant picks"}</Text>
+          <Text style={styles.metaText}>
+            Format: {room.format === "SHARED_COURSE" ? "Shared course" : "Dual course"}
+          </Text>
+          <Text style={styles.metaText}>
+            Course: {room.shared_course_code || "Host/participant picks"}
+          </Text>
           <Text style={styles.metaText}>Questions: {room.question_count}</Text>
           <Text style={styles.metaText}>Timer: {room.question_timer_sec}s each</Text>
           <Text style={styles.metaText}>Status: {room.status}</Text>
@@ -207,7 +250,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
               <Text style={styles.playerName}>{participant.name}</Text>
               <Text style={styles.playerStatus}>{participant.status}</Text>
             </View>
-            <Text style={styles.playerMeta}>{participant.course_code || room.shared_course_code || "Course pending"}</Text>
+            <Text style={styles.playerMeta}>
+              {participant.course_code || room.shared_course_code || "Course pending"}
+            </Text>
           </Card>
         ))}
 
@@ -236,16 +281,26 @@ export const CompetitionLobbyScreen: React.FC = () => {
                 <>
                   <Text style={styles.liveText}>{question.text}</Text>
                   <Text style={styles.timerBadge}>{secondsLeft}s left</Text>
-                  <Text style={styles.timerMeta}>Ends at {new Date(question.expires_at).toLocaleTimeString()}</Text>
+                  <Text style={styles.timerMeta}>
+                    Ends at {new Date(question.expires_at).toLocaleTimeString()}
+                  </Text>
+                  {secondsLeft <= 0 ? (
+                    <Text style={styles.timerMeta}>Time is up. Waiting for the server to lock this round.</Text>
+                  ) : null}
                   <View style={styles.optionsList}>
                     {question.options.map((option) => (
                       <TouchableOpacity
                         key={option}
                         style={[styles.optionButton, selectedAnswer === option && styles.optionButtonSelected]}
                         onPress={() => submitAnswer(option)}
-                        disabled={!!selectedAnswer}
+                        disabled={answerLocked}
                       >
-                        <Text style={[styles.optionText, selectedAnswer === option && styles.optionTextSelected]}>
+                        <Text
+                          style={[
+                            styles.optionText,
+                            selectedAnswer === option && styles.optionTextSelected,
+                          ]}
+                        >
                           {option}
                         </Text>
                       </TouchableOpacity>
@@ -258,17 +313,20 @@ export const CompetitionLobbyScreen: React.FC = () => {
             </Card>
 
             <Card style={styles.scoreCard}>
-              <Text style={styles.sectionTitle}>Live Scoreboard</Text>
+              <Text style={styles.sectionTitle}>Live status</Text>
+              <Text style={styles.scoreHint}>
+                You cannot see your opponent's score until the battle is over.
+              </Text>
               {orderedBoard.map((entry, index) => (
                 <View key={entry.user_id} style={styles.scoreRow}>
                   <Text style={styles.scoreRank}>#{index + 1}</Text>
                   <View style={styles.scoreTextWrap}>
                     <Text style={styles.scoreName}>{entry.name}</Text>
                     <Text style={styles.scoreMeta}>
-                      {entry.correct_answers} correct · {entry.wrong_answers} wrong {entry.hasAnsweredCurrent ? "· answered" : ""}
+                      {entry.hasAnsweredCurrent ? "Answered this question" : "Still answering"}
                     </Text>
                   </View>
-                  <Text style={styles.scoreValue}>{entry.score}</Text>
+                  <Text style={styles.scoreValue}>Live</Text>
                 </View>
               ))}
             </Card>
@@ -280,6 +338,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
               {winnerUserId
                 ? `${orderedBoard.find((entry) => entry.user_id === winnerUserId)?.name || "Winner"} takes the match.`
                 : "This match ended without a recorded winner."}
+            </Text>
+            <Text style={styles.revealText}>
+              Final results are being prepared now. Revealing in about {revealSecondsLeft || 20} seconds.
             </Text>
           </Card>
         )}
@@ -464,9 +525,18 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
+  scoreHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
   scoreValue: {
     ...typography.body,
     color: colors.primary,
     fontWeight: "700",
+  },
+  revealText: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: 8,
   },
 });

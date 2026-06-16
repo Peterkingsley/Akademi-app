@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Check, ChevronLeft, ChevronRight, ClipboardList, X } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, X } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import { Screen } from "../../components/layout/Screen";
@@ -24,12 +24,16 @@ const MATERIAL_CBT_DAY_PASS = "MATERIAL_CBT_DAY_PASS";
 const MATERIAL_CBT_PASS_LABEL = "Material CBT Day Pass";
 const MATERIAL_CBT_PASS_PRICE = "NGN 100";
 
+const QUESTION_COUNT_OPTIONS = [5, 10, 15, 20];
+const DURATION_OPTIONS = [5, 10, 15, 20, 30];
+
 export const MaterialPracticeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { materialId, title } = route.params;
 
   const [loading, setLoading] = useState(true);
+  const [setupLoading, setSetupLoading] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState("");
   const [checkoutOpening, setCheckoutOpening] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -37,31 +41,53 @@ export const MaterialPracticeScreen: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [questionCount, setQuestionCount] = useState(10);
+  const [durationMinutes, setDurationMinutes] = useState(15);
+  const [setupReady, setSetupReady] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
 
   useEffect(() => {
-    const loadQuestions = async () => {
+    const checkPass = async () => {
       try {
         setPassStatus("Checking CBT pass...");
-        const pass = await userService.purchaseFeaturePass(MATERIAL_CBT_DAY_PASS, materialId, "MATERIAL");
+        const pass = await userService.purchaseFeaturePass(
+          MATERIAL_CBT_DAY_PASS,
+          materialId,
+          "MATERIAL",
+        );
         if (pass.betaUnlocked) {
           setPassStatus("Free beta active");
+          setSetupReady(true);
         } else if (pass.paymentUrl) {
           setCheckoutUrl(pass.paymentUrl);
           return;
         }
-
-        const data = await materialService.getMaterialQuestions(materialId);
-        setQuestions(data);
       } catch (error) {
-        console.error("Failed to load material questions:", error);
-        Alert.alert("Practice unavailable", "No CBT questions are available for this material yet.");
+        console.error("Failed to check CBT access:", error);
+        Alert.alert("CBT unavailable", "We could not prepare CBT access for this material.");
       } finally {
         setLoading(false);
       }
     };
 
-    loadQuestions();
+    checkPass();
   }, [materialId]);
+
+  useEffect(() => {
+    if (!setupReady || submitted || questions.length === 0 || remainingSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          clearInterval(timer);
+          setSubmitted(true);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [setupReady, submitted, questions.length, remainingSeconds]);
 
   const currentQuestion = questions[currentIndex];
   const progress = questions.length ? (Object.keys(answers).length / questions.length) * 100 : 0;
@@ -75,8 +101,38 @@ export const MaterialPracticeScreen: React.FC = () => {
 
   const getOptions = (question: PracticeQuestion) => {
     if (Array.isArray(question.options) && question.options.length > 0) return question.options;
-    if (question.correct_answer) return [question.correct_answer, ...fallbackOptions.filter((option) => option !== question.correct_answer)].slice(0, 4);
+    if (question.correct_answer) {
+      return [
+        question.correct_answer,
+        ...fallbackOptions.filter((option) => option !== question.correct_answer),
+      ].slice(0, 4);
+    }
     return fallbackOptions;
+  };
+
+  const formattedTime = useMemo(() => {
+    const mins = Math.floor(remainingSeconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = (remainingSeconds % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  }, [remainingSeconds]);
+
+  const startPractice = async () => {
+    try {
+      setSetupLoading(true);
+      const data = await materialService.getMaterialQuestions(materialId, questionCount);
+      setQuestions(data);
+      setAnswers({});
+      setCurrentIndex(0);
+      setSubmitted(false);
+      setRemainingSeconds(durationMinutes * 60);
+    } catch (error) {
+      console.error("Failed to load material questions:", error);
+      Alert.alert("Practice unavailable", "No CBT questions are available for this material yet.");
+    } finally {
+      setSetupLoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -99,7 +155,7 @@ export const MaterialPracticeScreen: React.FC = () => {
       if (result.type === "cancel") {
         Alert.alert(
           "Checkout not completed",
-          "Complete payment to unlock CBT practice for this material, then return here and try again."
+          "Complete payment to unlock CBT practice for this material, then return here and try again.",
         );
       }
     } catch (error) {
@@ -115,7 +171,9 @@ export const MaterialPracticeScreen: React.FC = () => {
       <Screen style={styles.screen} hideHeader>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, typography.caption]}>{passStatus || "Preparing CBT..."}</Text>
+          <Text style={[styles.loadingText, typography.caption]}>
+            {passStatus || "Preparing CBT..."}
+          </Text>
         </View>
       </Screen>
     );
@@ -130,7 +188,9 @@ export const MaterialPracticeScreen: React.FC = () => {
           </TouchableOpacity>
           <View style={styles.headerTitleWrap}>
             <Text style={[styles.headerTitle, typography.h3]}>Material CBT</Text>
-            <Text style={[styles.headerSubtitle, typography.caption]} numberOfLines={1}>{title || "Practice"}</Text>
+            <Text style={[styles.headerSubtitle, typography.caption]} numberOfLines={1}>
+              {title || "Practice"}
+            </Text>
           </View>
           <View style={styles.headerBtn} />
         </View>
@@ -143,7 +203,8 @@ export const MaterialPracticeScreen: React.FC = () => {
           <Text style={[styles.passTitle, typography.h2]}>{MATERIAL_CBT_PASS_LABEL}</Text>
           <Text style={[styles.passPrice, typography.h1]}>{MATERIAL_CBT_PASS_PRICE}</Text>
           <Text style={[styles.passDescription, typography.bodySmall]}>
-            Unlock unlimited CBT practice for this material for 24 hours. This pass only applies to this material.
+            Unlock unlimited CBT practice for this material for 24 hours. This pass only applies
+            to this material.
           </Text>
           <Button
             label="Buy pass and continue"
@@ -159,6 +220,8 @@ export const MaterialPracticeScreen: React.FC = () => {
     );
   }
 
+  const showSetup = questions.length === 0 && !submitted;
+
   return (
     <Screen style={styles.screen} hideHeader>
       <View style={styles.header}>
@@ -167,20 +230,97 @@ export const MaterialPracticeScreen: React.FC = () => {
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
           <Text style={[styles.headerTitle, typography.h3]}>Material CBT</Text>
-          <Text style={[styles.headerSubtitle, typography.caption]} numberOfLines={1}>{title || "Practice"}</Text>
+          <Text style={[styles.headerSubtitle, typography.caption]} numberOfLines={1}>
+            {title || "Practice"}
+          </Text>
         </View>
-        <View style={styles.scorePill}>
-          <ClipboardList size={14} color={colors.primary} />
-          <Text style={[styles.scorePillText, typography.mono]}>{questions.length} Qs</Text>
-        </View>
+        {!showSetup ? (
+          <View style={styles.scorePill}>
+            <Clock3 size={14} color={colors.primary} />
+            <Text style={[styles.scorePillText, typography.mono]}>{formattedTime}</Text>
+          </View>
+        ) : (
+          <View style={styles.scorePill}>
+            <ClipboardList size={14} color={colors.primary} />
+            <Text style={[styles.scorePillText, typography.mono]}>{questionCount} Qs</Text>
+          </View>
+        )}
       </View>
 
-      {questions.length === 0 ? (
+      {showSetup ? (
+        <ScrollView contentContainerStyle={styles.setupContent}>
+          <Card style={styles.setupCard}>
+            <Text style={[styles.setupTitle, typography.h3]}>Set your CBT format</Text>
+            <Text style={[styles.setupText, typography.bodySmall]}>
+              Choose how many questions you want and how long this CBT should last before you
+              start.
+            </Text>
+
+            <View style={styles.optionSection}>
+              <Text style={[styles.optionLabel, typography.mono]}>QUESTION COUNT</Text>
+              <View style={styles.segmentRow}>
+                {QUESTION_COUNT_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.segmentButton, questionCount === option && styles.segmentButtonActive]}
+                    onPress={() => setQuestionCount(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentButtonText,
+                        questionCount === option && styles.segmentButtonTextActive,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.optionSection}>
+              <Text style={[styles.optionLabel, typography.mono]}>TOTAL CBT TIME</Text>
+              <View style={styles.segmentWrap}>
+                {DURATION_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.segmentButton, durationMinutes === option && styles.segmentButtonActive]}
+                    onPress={() => setDurationMinutes(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentButtonText,
+                        durationMinutes === option && styles.segmentButtonTextActive,
+                      ]}
+                    >
+                      {option} min
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <Card style={styles.setupSummaryCard}>
+              <Text style={[styles.setupSummaryTitle, typography.bodySmall]}>
+                This CBT will load {questionCount} questions and auto-submit after {durationMinutes} minutes.
+              </Text>
+            </Card>
+
+            <Button
+              label={setupLoading ? "Preparing..." : "Start CBT"}
+              onPress={startPractice}
+              disabled={setupLoading || !setupReady}
+              style={styles.startButton}
+            />
+          </Card>
+        </ScrollView>
+      ) : questions.length === 0 ? (
         <View style={styles.emptyState}>
           <ClipboardList size={40} color={colors.textMuted} />
           <Text style={[styles.emptyTitle, typography.h3]}>No CBT yet</Text>
           <Text style={[styles.emptyText, typography.bodySmall]}>
-            This material has no generated questions yet. Try the selected-text CBT action while the question bank is prepared.
+            This material has no generated questions yet. Try the selected-text CBT action while
+            the question bank is prepared.
           </Text>
           <Button label="Back to Material" onPress={() => navigation.goBack()} style={styles.emptyBtn} />
         </View>
@@ -192,7 +332,9 @@ export const MaterialPracticeScreen: React.FC = () => {
               <View>
                 <Card style={styles.resultCard}>
                   <Text style={[styles.resultLabel, typography.mono]}>FINAL SCORE</Text>
-                  <Text style={[styles.resultScore, typography.h1]}>{score}/{questions.length}</Text>
+                  <Text style={[styles.resultScore, typography.h1]}>
+                    {score}/{questions.length}
+                  </Text>
                   <Text style={[styles.resultText, typography.bodySmall]}>
                     {Math.round((score / questions.length) * 100)}% aggregate
                   </Text>
@@ -201,20 +343,41 @@ export const MaterialPracticeScreen: React.FC = () => {
                 {questions.map((question, index) => {
                   const chosen = answers[question.id] || "Not answered";
                   const correct = question.correct_answer || "Not available";
-                  const isCorrect = chosen.trim().toLowerCase() === correct.trim().toLowerCase();
+                  const isCorrect =
+                    chosen.trim().toLowerCase() === correct.trim().toLowerCase();
 
                   return (
                     <Card key={question.id} style={styles.reviewCard}>
-                      <Text style={[styles.questionCount, typography.mono]}>QUESTION {index + 1}</Text>
-                      <Text style={[styles.questionText, typography.body]}>{question.question_text}</Text>
-                      <Text style={[styles.answerLine, typography.bodySmall, { color: isCorrect ? colors.success : colors.error }]}>
+                      <Text style={[styles.questionCountLabel, typography.mono]}>
+                        QUESTION {index + 1}
+                      </Text>
+                      <Text style={[styles.questionText, typography.body]}>
+                        {question.question_text}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.answerLine,
+                          typography.bodySmall,
+                          { color: isCorrect ? colors.success : colors.error },
+                        ]}
+                      >
                         Your answer: {chosen}
                       </Text>
                       {!isCorrect && (
-                        <Text style={[styles.answerLine, typography.bodySmall, { color: colors.success }]}>Correct: {correct}</Text>
+                        <Text
+                          style={[
+                            styles.answerLine,
+                            typography.bodySmall,
+                            { color: colors.success },
+                          ]}
+                        >
+                          Correct: {correct}
+                        </Text>
                       )}
                       <Text style={[styles.explanation, typography.bodySmall]}>
-                        {question.explanation || question.approach_guide || "Review the selected material section again."}
+                        {question.explanation ||
+                          question.approach_guide ||
+                          "Review the selected material section again."}
                       </Text>
                     </Card>
                   );
@@ -222,11 +385,13 @@ export const MaterialPracticeScreen: React.FC = () => {
               </View>
             ) : (
               <View>
-                <Text style={[styles.questionCount, typography.mono]}>
+                <Text style={[styles.questionCountLabel, typography.mono]}>
                   QUESTION {currentIndex + 1} OF {questions.length}
                 </Text>
                 <Card style={styles.questionCard}>
-                  <Text style={[styles.questionText, typography.body]}>{currentQuestion.question_text}</Text>
+                  <Text style={[styles.questionText, typography.body]}>
+                    {currentQuestion.question_text}
+                  </Text>
                 </Card>
 
                 <View style={styles.optionsList}>
@@ -236,14 +401,34 @@ export const MaterialPracticeScreen: React.FC = () => {
                       <TouchableOpacity
                         key={`${currentQuestion.id}-${option}`}
                         style={[styles.option, selected && styles.optionSelected]}
-                        onPress={() => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: option }))}
+                        onPress={() =>
+                          setAnswers((prev) => ({ ...prev, [currentQuestion.id]: option }))
+                        }
                       >
-                        <View style={[styles.optionLetter, selected && styles.optionLetterSelected]}>
-                          <Text style={[styles.optionLetterText, selected && styles.optionLetterTextSelected]}>
+                        <View
+                          style={[
+                            styles.optionLetter,
+                            selected && styles.optionLetterSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionLetterText,
+                              selected && styles.optionLetterTextSelected,
+                            ]}
+                          >
                             {String.fromCharCode(65 + index)}
                           </Text>
                         </View>
-                        <Text style={[styles.optionText, typography.bodySmall, selected && styles.optionTextSelected]}>{option}</Text>
+                        <Text
+                          style={[
+                            styles.optionText,
+                            typography.bodySmall,
+                            selected && styles.optionTextSelected,
+                          ]}
+                        >
+                          {option}
+                        </Text>
                         {selected && <Check size={18} color={colors.primary} />}
                       </TouchableOpacity>
                     );
@@ -266,7 +451,11 @@ export const MaterialPracticeScreen: React.FC = () => {
               <Button
                 label={currentIndex === questions.length - 1 ? "Submit" : "Next"}
                 icon={<ChevronRight size={18} color="#FFFFFF" />}
-                onPress={() => currentIndex === questions.length - 1 ? handleSubmit() : setCurrentIndex((prev) => prev + 1)}
+                onPress={() =>
+                  currentIndex === questions.length - 1
+                    ? handleSubmit()
+                    : setCurrentIndex((prev) => prev + 1)
+                }
                 style={styles.nextBtn}
               />
             </View>
@@ -376,6 +565,69 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "700",
   },
+  setupContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  setupCard: {
+    gap: 16,
+  },
+  setupTitle: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  setupText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  optionSection: {
+    gap: 10,
+  },
+  optionLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+  },
+  segmentRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  segmentWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  segmentButton: {
+    minWidth: 66,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  segmentButtonText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  segmentButtonTextActive: {
+    color: "#04110A",
+  },
+  setupSummaryCard: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  setupSummaryTitle: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  startButton: {
+    marginTop: 6,
+  },
   progress: {
     borderRadius: 0,
     height: 3,
@@ -384,7 +636,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 140,
   },
-  questionCount: {
+  questionCountLabel: {
     color: colors.textMuted,
     fontSize: 9,
     marginBottom: 12,
@@ -456,8 +708,8 @@ const styles = StyleSheet.create({
   },
   navBtn: {
     alignItems: "center",
-    flexDirection: "row",
     flex: 1,
+    flexDirection: "row",
     gap: 6,
     paddingVertical: 12,
   },

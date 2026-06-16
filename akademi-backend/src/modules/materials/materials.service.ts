@@ -126,7 +126,7 @@ export class MaterialsService {
     return getSignedUrl(s3Client, command, { expiresIn: 3600 });
   }
 
-  async getQuestions(id: string, userId: string) {
+  async getQuestions(id: string, userId: string, limit?: number) {
     const material = await prisma.material.findUnique({
       where: { id, verification_status: VerificationStatus.VERIFIED },
     });
@@ -140,8 +140,12 @@ export class MaterialsService {
       throw new Error('Material CBT Day Pass required');
     }
 
+    const take = Math.min(Math.max(Number(limit) || 10, 5), 50);
+
     return prisma.question.findMany({
       where: { material_id: id },
+      take,
+      orderBy: { generated_at: 'desc' },
     });
   }
 

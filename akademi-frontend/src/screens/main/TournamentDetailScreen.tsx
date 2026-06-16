@@ -78,10 +78,23 @@ export const TournamentDetailScreen: React.FC = () => {
   };
 
   const timingState = useMemo(() => {
-    if (!tournament) return { canCheckIn: false, checkInText: "", canJoin: false };
+    if (!tournament) {
+      return {
+        canCheckIn: false,
+        checkInText: "",
+        canJoin: false,
+        joinText: "Join Tournament",
+      };
+    }
     const now = Date.now();
+    const registrationCloses = tournament.registration_closes_at
+      ? new Date(tournament.registration_closes_at).getTime()
+      : null;
     const opens = tournament.check_in_opens_at ? new Date(tournament.check_in_opens_at).getTime() : null;
     const closes = tournament.check_in_closes_at ? new Date(tournament.check_in_closes_at).getTime() : null;
+    const lateJoinCutoff = tournament.late_join_cutoff_at
+      ? new Date(tournament.late_join_cutoff_at).getTime()
+      : null;
     const canCheckIn =
       !!tournament.joined &&
       tournament.entry_status !== "CHECKED_IN" &&
@@ -96,10 +109,17 @@ export const TournamentDetailScreen: React.FC = () => {
           : closes && closes < now
             ? "Check-in closed"
             : "Check in now";
-    const canJoin =
-      !tournament.joined &&
-      (!tournament.late_join_cutoff_at || new Date(tournament.late_join_cutoff_at).getTime() >= now);
-    return { canCheckIn, checkInText, canJoin };
+    const registrationClosed = !!registrationCloses && registrationCloses < now;
+    const lateJoinClosed = !!lateJoinCutoff && lateJoinCutoff < now;
+    const canJoin = !tournament.joined && !registrationClosed && !lateJoinClosed;
+    const joinText = tournament.joined
+      ? "Registered"
+      : registrationClosed
+        ? "Registration closed"
+        : lateJoinClosed
+          ? "Join window closed"
+          : "Join Tournament";
+    return { canCheckIn, checkInText, canJoin, joinText };
   }, [tournament]);
 
   if (!tournament) {
@@ -188,7 +208,7 @@ export const TournamentDetailScreen: React.FC = () => {
               disabled={!timingState.canJoin || !!tournament.joined}
             >
               <Text style={[styles.primaryText, (!timingState.canJoin || tournament.joined) && styles.joinedText]}>
-                {tournament.joined ? "Registered" : timingState.canJoin ? "Join Tournament" : "Join window closed"}
+                {timingState.joinText}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
