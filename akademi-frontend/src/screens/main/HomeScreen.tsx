@@ -18,6 +18,7 @@ import {
   GraduationCap,
   Library,
   Sparkles,
+  Swords,
   Target,
   Timer,
   TrendingUp,
@@ -75,6 +76,14 @@ const QUICK_ACTIONS = [
     icon: Target,
     tint: colors.warning,
     screen: "ExamPrep",
+  },
+  {
+    id: "compete",
+    label: "Compete",
+    description: "Live battles",
+    icon: Swords,
+    tint: "#F59E0B",
+    screen: "CompetitionHub",
   },
 ];
 

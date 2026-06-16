@@ -22,6 +22,7 @@ import {
   Sparkles,
   Target,
   Trophy,
+  Swords,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
@@ -31,6 +32,7 @@ import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { ProgressSummary, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
+import { CompetitionSummary, competitionService } from "../../services/competition";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Not completed yet";
@@ -47,14 +49,19 @@ export const ProgressScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [competitionSummary, setCompetitionSummary] = useState<CompetitionSummary | null>(null);
 
   const loadProgress = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
-      const data = await userService.getProgress();
+      const [data, competition] = await Promise.all([
+        userService.getProgress(),
+        competitionService.getSummary().catch(() => null),
+      ]);
       setProgress(data);
+      setCompetitionSummary(competition);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Could not load your progress right now.");
     } finally {
@@ -138,6 +145,39 @@ export const ProgressScreen: React.FC = () => {
               </Text>
               <Text style={styles.heroText}>{progress.insight}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.competitionCard}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate("CompetitionHub")}
+            >
+              <View style={styles.competitionCardTop}>
+                <View style={styles.competitionCardTitleWrap}>
+                  <View style={styles.competitionIcon}>
+                    <Swords size={18} color={colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={styles.competitionTitle}>Competitive Track</Text>
+                    <Text style={styles.competitionSubtitle}>Live matches and leaderboard</Text>
+                  </View>
+                </View>
+                <ChevronDown size={16} color={colors.textMuted} />
+              </View>
+              <View style={styles.competitionStatsRow}>
+                <View style={styles.competitionStat}>
+                  <Text style={styles.competitionStatValue}>{competitionSummary?.wins ?? 0}</Text>
+                  <Text style={styles.competitionStatLabel}>Wins</Text>
+                </View>
+                <View style={styles.competitionStat}>
+                  <Text style={styles.competitionStatValue}>{competitionSummary?.winRate ?? 0}%</Text>
+                  <Text style={styles.competitionStatLabel}>Win rate</Text>
+                </View>
+                <View style={styles.competitionStat}>
+                  <Text style={styles.competitionStatValue}>{competitionSummary?.liveMatches ?? 0}</Text>
+                  <Text style={styles.competitionStatLabel}>Live now</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
 
             <View style={styles.statsGrid}>
               <StatCard icon={BookOpen} label="Solved" value={progress.summary.solved} sub={`${progress.summary.accuracy}% accuracy`} />
@@ -435,6 +475,66 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     lineHeight: 21,
     fontFamily: "Inter-Regular",
     color: colors.textSecondary,
+  },
+  competitionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 16,
+  },
+  competitionCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  competitionCardTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  competitionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  competitionTitle: {
+    fontSize: 15,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
+  competitionSubtitle: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  competitionStatsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  competitionStat: {
+    flex: 1,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  competitionStatValue: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  competitionStatLabel: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.textMuted,
+    marginTop: 4,
   },
   statsGrid: {
     flexDirection: "row",
