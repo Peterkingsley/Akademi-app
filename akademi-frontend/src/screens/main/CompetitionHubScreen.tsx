@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,15 +10,43 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Swords, Trophy, Users, Radio, CalendarDays } from "lucide-react-native";
+import { CalendarDays, Radio, Swords, Trophy, Users } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { competitionService, CompetitionLeaderboardEntry, CompetitionRoom, CompetitionSummary, Tournament } from "../../services/competition";
+import {
+  competitionService,
+  CompetitionLeaderboardEntry,
+  CompetitionRoom,
+  CompetitionSummary,
+  Tournament,
+} from "../../services/competition";
 import { socketService } from "../../services/socket";
+
+const formatEventDate = (value: string) =>
+  new Date(value).toLocaleString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+const campaignAudienceLabel = (tournament: Tournament) => {
+  if (tournament.audience_scope === "UNIVERSITY") {
+    return tournament.audience_university || "University event";
+  }
+  if (tournament.audience_scope === "FACULTY") {
+    return `${tournament.audience_faculty || "Faculty"} across schools`;
+  }
+  if (tournament.audience_scope === "DEPARTMENT") {
+    return `${tournament.audience_department || "Department"} across schools`;
+  }
+  return "Open to everyone on Akademi";
+};
 
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -53,14 +82,17 @@ export const CompetitionHubScreen: React.FC = () => {
         (result) => result.status === "rejected" && result.reason?.response?.status === 404,
       );
 
-      if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
-      else setSummary({
-        matchesPlayed: 0,
-        wins: 0,
-        liveMatches: 0,
-        averageScore: 0,
-        winRate: 0,
-      });
+      if (summaryResult.status === "fulfilled") {
+        setSummary(summaryResult.value);
+      } else {
+        setSummary({
+          matchesPlayed: 0,
+          wins: 0,
+          liveMatches: 0,
+          averageScore: 0,
+          winRate: 0,
+        });
+      }
 
       setMyRooms(mineResult.status === "fulfilled" ? mineResult.value : []);
       setPublicRooms(publicResult.status === "fulfilled" ? publicResult.value : []);
@@ -68,7 +100,9 @@ export const CompetitionHubScreen: React.FC = () => {
       setTournaments(tournamentResult.status === "fulfilled" ? tournamentResult.value : []);
 
       if (hasMissingRoute) {
-        setLoadNotice("Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here.");
+        setLoadNotice(
+          "Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here.",
+        );
       }
     } catch (error: any) {
       setLoadNotice(
@@ -103,12 +137,15 @@ export const CompetitionHubScreen: React.FC = () => {
     };
   }, []);
 
-  const statCards = [
+  const stats = [
     { label: "Matches", value: summary?.matchesPlayed ?? 0, icon: Swords },
     { label: "Wins", value: summary?.wins ?? 0, icon: Trophy },
     { label: "Win Rate", value: `${summary?.winRate ?? 0}%`, icon: Radio },
     { label: "Live", value: summary?.liveMatches ?? 0, icon: Users },
   ];
+
+  const featuredTournament = tournaments[0] || null;
+  const remainingTournaments = tournaments.slice(1);
 
   const joinTournament = async (tournamentId: string) => {
     try {
@@ -116,8 +153,8 @@ export const CompetitionHubScreen: React.FC = () => {
       setTournaments((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
-    } catch (error) {
-      console.error("Failed to join tournament", error);
+    } catch (error: any) {
+      Alert.alert("Unable to join event", error?.response?.data?.message || "Please try again.");
     }
   };
 
@@ -141,6 +178,11 @@ export const CompetitionHubScreen: React.FC = () => {
     }
   };
 
+  const liveCampaignCount = useMemo(
+    () => tournaments.filter((tournament) => tournament.status === "LIVE" || tournament.status === "PUBLISHED").length,
+    [tournaments],
+  );
+
   return (
     <Screen style={styles.screen}>
       <ScrollView
@@ -148,15 +190,10 @@ export const CompetitionHubScreen: React.FC = () => {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.primary} />}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Compete Live</Text>
-            <Text style={styles.subtitle}>
-              Challenge friends, join public battles, and climb the rankings.
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("CreateCompetition")}>
-            <Text style={styles.primaryButtonText}>New Match</Text>
-          </TouchableOpacity>
+          <Text style={styles.title}>Compete Live</Text>
+          <Text style={styles.subtitle}>
+            Join live campaigns, register for challenges, or host your own match room.
+          </Text>
         </View>
 
         {loading ? (
@@ -172,8 +209,119 @@ export const CompetitionHubScreen: React.FC = () => {
               </Card>
             ) : null}
 
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Live Campaigns</Text>
+              <Text style={styles.sectionHint}>{liveCampaignCount} active or scheduled event{liveCampaignCount === 1 ? "" : "s"}</Text>
+            </View>
+
+            {featuredTournament ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })}
+              >
+                <Card style={styles.heroCampaignCard}>
+                  {featuredTournament.campaign_banner_url ? (
+                    <Image source={{ uri: featuredTournament.campaign_banner_url }} style={styles.heroBanner} resizeMode="cover" />
+                  ) : (
+                    <View style={styles.heroFallbackBanner}>
+                      <Text style={styles.heroFallbackText}>
+                        {featuredTournament.campaign_preheader || "Featured challenge"}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.heroBody}>
+                    <Text style={styles.heroEyebrow}>
+                      {featuredTournament.campaign_preheader || campaignAudienceLabel(featuredTournament)}
+                    </Text>
+                    <Text style={styles.heroTitle}>{featuredTournament.title}</Text>
+                    <Text style={styles.heroDescription} numberOfLines={3}>
+                      {featuredTournament.description || "Join this live Akademi challenge and compete in real time."}
+                    </Text>
+
+                    <View style={styles.heroMetaWrap}>
+                      <View style={styles.heroMetaRow}>
+                        <CalendarDays size={14} color={colors.textMuted} />
+                        <Text style={styles.heroMetaText}>{formatEventDate(featuredTournament.scheduled_at)}</Text>
+                      </View>
+                      <Text style={styles.heroMetaText}>{featuredTournament.shared_course_code || "Multi-course event"}</Text>
+                      {featuredTournament.prize_summary ? (
+                        <Text style={styles.heroPrize}>{featuredTournament.prize_summary}</Text>
+                      ) : null}
+                    </View>
+
+                    <View style={styles.heroActions}>
+                      <TouchableOpacity
+                        style={[styles.heroPrimaryButton, featuredTournament.joined && styles.heroSecondaryButton]}
+                        onPress={() =>
+                          featuredTournament.joined
+                            ? navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })
+                            : joinTournament(featuredTournament.id)
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.heroPrimaryButtonText,
+                            featuredTournament.joined && styles.heroSecondaryButtonText,
+                          ]}
+                        >
+                          {featuredTournament.joined
+                            ? "View Event"
+                            : featuredTournament.campaign_cta_label || "Register now"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.heroGhostButton}
+                        onPress={() => navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })}
+                      >
+                        <Text style={styles.heroGhostButtonText}>See details</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            ) : (
+              <Card style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>No live campaigns yet</Text>
+                <Text style={styles.emptyText}>Published university, faculty, department, and national challenges will show here first.</Text>
+              </Card>
+            )}
+
+            {remainingTournaments.length > 0 ? (
+              <View style={styles.tournamentList}>
+                {remainingTournaments.map((tournament) => (
+                  <Card
+                    key={tournament.id}
+                    style={styles.campaignListCard}
+                    onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}
+                  >
+                    {tournament.campaign_banner_url ? (
+                      <Image source={{ uri: tournament.campaign_banner_url }} style={styles.campaignThumb} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.campaignThumbFallback} />
+                    )}
+                    <View style={styles.campaignListBody}>
+                      <View style={styles.campaignListTop}>
+                        <Text style={styles.campaignListTitle} numberOfLines={2}>{tournament.title}</Text>
+                        <Text style={styles.campaignStatus}>{tournament.status}</Text>
+                      </View>
+                      <Text style={styles.campaignListMeta}>
+                        {tournament.shared_course_code || "Multi-course"} · {formatEventDate(tournament.scheduled_at)}
+                      </Text>
+                      <Text style={styles.campaignListAudience} numberOfLines={1}>
+                        {campaignAudienceLabel(tournament)}
+                      </Text>
+                    </View>
+                  </Card>
+                ))}
+              </View>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick actions</Text>
+            </View>
+
             <View style={styles.statsGrid}>
-              {statCards.map((item) => {
+              {stats.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Card key={item.label} style={styles.statCard}>
@@ -185,17 +333,16 @@ export const CompetitionHubScreen: React.FC = () => {
               })}
             </View>
 
-            <Card style={styles.callout}>
-              <Text style={styles.calloutTitle}>Tournament-ready foundation</Text>
-              <Text style={styles.calloutText}>
-                Private matches work first. Public queues and campus campaigns can build on the same room system.
-              </Text>
-            </Card>
+            <View style={styles.quickActionRow}>
+              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("CreateCompetition")}>
+                <Text style={styles.primaryButtonText}>New Match</Text>
+              </TouchableOpacity>
+            </View>
 
             <Card style={styles.joinCodeCard}>
               <Text style={styles.calloutTitle}>Have a match code?</Text>
               <Text style={styles.calloutText}>
-                Enter the code your friend or campaign host shared to join the live lobby.
+                Join a private room or host-shared campaign code instantly.
               </Text>
               <Input
                 label="Room code"
@@ -238,7 +385,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <Text style={styles.roomCode}>{room.code}</Text>
                   </View>
                   <Text style={styles.roomMeta}>
-                    {room.format === "SHARED_COURSE" ? room.shared_course_code || "Shared course" : "Dual course"} | {room.participants.length}/{room.max_participants} players
+                    {room.format === "SHARED_COURSE" ? room.shared_course_code || "Shared course" : "Dual course"} · {room.participants.length}/{room.max_participants} players
                   </Text>
                   <Text style={styles.roomStatus}>{room.status}</Text>
                 </Card>
@@ -261,49 +408,9 @@ export const CompetitionHubScreen: React.FC = () => {
                     <Text style={styles.roomCode}>{room.code}</Text>
                   </View>
                   <Text style={styles.roomMeta}>
-                    Host: {room.host.name} | {room.shared_course_code || "Mixed"}
+                    Host: {room.host.name} · {room.shared_course_code || "Mixed"}
                   </Text>
                   <Text style={styles.roomStatus}>{room.participants.length}/{room.max_participants} joined</Text>
-                </Card>
-              ))
-            )}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Scheduled Tournaments</Text>
-            </View>
-            {tournaments.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No tournaments yet</Text>
-                <Text style={styles.emptyText}>Published campus and national events will appear here.</Text>
-              </Card>
-            ) : (
-              tournaments.map((tournament) => (
-                <Card key={tournament.id} style={styles.roomCard} onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}>
-                  <View style={styles.roomTop}>
-                    <Text style={styles.roomTitle}>{tournament.title}</Text>
-                    <Text style={styles.roomCode}>{tournament.status}</Text>
-                  </View>
-                  <Text style={styles.roomMeta}>
-                    {tournament.shared_course_code || "Multi-course"} | {new Date(tournament.scheduled_at).toLocaleString()}
-                  </Text>
-                  {tournament.prize_summary ? (
-                    <Text style={styles.roomStatus}>{tournament.prize_summary}</Text>
-                  ) : null}
-                  <View style={styles.tournamentFooter}>
-                    <View style={styles.tournamentCount}>
-                      <CalendarDays size={14} color={colors.textMuted} />
-                      <Text style={styles.tournamentCountText}>{tournament.entry_count} joined</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.joinButton, tournament.joined && styles.joinedButton]}
-                      onPress={() => joinTournament(tournament.id)}
-                      disabled={!!tournament.joined}
-                    >
-                      <Text style={[styles.joinButtonText, tournament.joined && styles.joinedButtonText]}>
-                        {tournament.joined ? "Joined" : "Join Event"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
                 </Card>
               ))
             )}
@@ -324,7 +431,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <View style={styles.leaderTextWrap}>
                       <Text style={styles.leaderName}>{entry.name}</Text>
                       <Text style={styles.leaderMeta}>
-                        {entry.wins} wins | {entry.matchesPlayed} matches | {entry.winRate}% win rate
+                        {entry.wins} wins · {entry.matchesPlayed} matches · {entry.winRate}% win rate
                       </Text>
                     </View>
                     <Text style={styles.leaderScore}>{entry.totalScore}</Text>
@@ -350,33 +457,196 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   header: {
-    gap: 16,
+    gap: 8,
   },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginBottom: 6,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     lineHeight: 22,
   },
-  primaryButton: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
+  center: {
+    paddingTop: 80,
+    alignItems: "center",
   },
-  primaryButtonText: {
+  noticeCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderWidth: 1,
+    gap: 8,
+  },
+  noticeTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  noticeText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  sectionHeader: {
+    gap: 4,
+  },
+  sectionTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+  },
+  sectionHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  heroCampaignCard: {
+    overflow: "hidden",
+    padding: 0,
+    backgroundColor: colors.surface,
+  },
+  heroBanner: {
+    width: "100%",
+    height: 180,
+    backgroundColor: colors.surfaceElevated,
+  },
+  heroFallbackBanner: {
+    height: 140,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  heroFallbackText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  heroBody: {
+    padding: 18,
+    gap: 10,
+  },
+  heroEyebrow: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  heroTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+  },
+  heroDescription: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 21,
+  },
+  heroMetaWrap: {
+    gap: 6,
+  },
+  heroMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  heroMetaText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  heroPrize: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  heroActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 6,
+  },
+  heroPrimaryButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  heroPrimaryButtonText: {
     ...typography.bodySmall,
     color: "#04110A",
     fontWeight: "700",
   },
-  center: {
-    paddingTop: 80,
+  heroGhostButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  heroGhostButtonText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  heroSecondaryButton: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  heroSecondaryButtonText: {
+    color: colors.textPrimary,
+  },
+  tournamentList: {
+    gap: 12,
+  },
+  campaignListCard: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
+  campaignThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+  },
+  campaignThumbFallback: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+  },
+  campaignListBody: {
+    flex: 1,
+    gap: 6,
+  },
+  campaignListTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  campaignListTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+  },
+  campaignStatus: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  campaignListMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  campaignListAudience: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   statsGrid: {
     flexDirection: "row",
@@ -395,25 +665,25 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  callout: {
-    backgroundColor: colors.surfaceElevated,
-    gap: 8,
+  quickActionRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
-  noticeCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderWidth: 1,
-    gap: 8,
+  primaryButton: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  noticeTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+  primaryButtonText: {
+    ...typography.bodySmall,
+    color: "#04110A",
     fontWeight: "700",
   },
-  noticeText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+  joinCodeCard: {
+    backgroundColor: colors.surfaceElevated,
+    gap: 8,
   },
   calloutTitle: {
     ...typography.body,
@@ -424,10 +694,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
-  },
-  joinCodeCard: {
-    backgroundColor: colors.surfaceElevated,
-    gap: 8,
   },
   joinInput: {
     marginBottom: 4,
@@ -446,13 +712,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: "#04110A",
     fontWeight: "700",
-  },
-  sectionHeader: {
-    marginTop: 8,
-  },
-  sectionTitle: {
-    ...typography.h4,
-    color: colors.textPrimary,
   },
   emptyCard: {
     gap: 8,
@@ -493,40 +752,6 @@ const styles = StyleSheet.create({
   roomStatus: {
     ...typography.caption,
     color: colors.textMuted,
-  },
-  tournamentFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
-  },
-  tournamentCount: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  tournamentCountText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  joinButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  joinedButton: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  joinButtonText: {
-    ...typography.caption,
-    color: "#04110A",
-    fontWeight: "700",
-  },
-  joinedButtonText: {
-    color: colors.textSecondary,
   },
   leaderboardCard: {
     gap: 12,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { CalendarDays, Swords, Trophy, Users } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -8,6 +8,15 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { competitionService, Tournament } from "../../services/competition";
 import { socketService } from "../../services/socket";
+
+const formatDateTime = (value: string) =>
+  new Date(value).toLocaleString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export const TournamentDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -73,17 +82,23 @@ export const TournamentDetailScreen: React.FC = () => {
     const now = Date.now();
     const opens = tournament.check_in_opens_at ? new Date(tournament.check_in_opens_at).getTime() : null;
     const closes = tournament.check_in_closes_at ? new Date(tournament.check_in_closes_at).getTime() : null;
-    const canCheckIn = !!tournament.joined && tournament.entry_status !== "CHECKED_IN" && (!opens || opens <= now) && (!closes || closes >= now);
+    const canCheckIn =
+      !!tournament.joined &&
+      tournament.entry_status !== "CHECKED_IN" &&
+      (!opens || opens <= now) &&
+      (!closes || closes >= now);
     const checkInText = !tournament.joined
       ? "Join first to check in"
       : tournament.entry_status === "CHECKED_IN"
         ? "Checked in"
         : opens && opens > now
-          ? `Check-in opens ${new Date(opens).toLocaleString()}`
+          ? `Check-in opens ${formatDateTime(tournament.check_in_opens_at!)}`
           : closes && closes < now
             ? "Check-in closed"
             : "Check in now";
-    const canJoin = !tournament.joined && (!tournament.late_join_cutoff_at || new Date(tournament.late_join_cutoff_at).getTime() >= now);
+    const canJoin =
+      !tournament.joined &&
+      (!tournament.late_join_cutoff_at || new Date(tournament.late_join_cutoff_at).getTime() >= now);
     return { canCheckIn, checkInText, canJoin };
   }, [tournament]);
 
@@ -99,18 +114,29 @@ export const TournamentDetailScreen: React.FC = () => {
 
   return (
     <Screen style={styles.screen}>
-      <View style={styles.container}>
-        <Text style={styles.title}>{tournament.title}</Text>
-        <Text style={styles.subtitle}>{tournament.description || "Scheduled live competition event."}</Text>
+      <ScrollView contentContainerStyle={styles.container}>
+        {tournament.campaign_banner_url ? (
+          <Image source={{ uri: tournament.campaign_banner_url }} style={styles.banner} resizeMode="cover" />
+        ) : null}
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.eyebrow}>{tournament.campaign_preheader || "Live challenge"}</Text>
+          <Text style={styles.title}>{tournament.title}</Text>
+          <Text style={styles.subtitle}>
+            {tournament.description || "Scheduled live competition event."}
+          </Text>
+        </View>
 
         <Card style={styles.detailCard}>
           <View style={styles.metaRow}>
             <CalendarDays size={16} color={colors.textMuted} />
-            <Text style={styles.metaText}>{new Date(tournament.scheduled_at).toLocaleString()}</Text>
+            <Text style={styles.metaText}>{formatDateTime(tournament.scheduled_at)}</Text>
           </View>
           <View style={styles.metaRow}>
             <Swords size={16} color={colors.textMuted} />
-            <Text style={styles.metaText}>{tournament.shared_course_code || "Mixed course event"} | {tournament.question_count} questions</Text>
+            <Text style={styles.metaText}>
+              {tournament.shared_course_code || "Mixed course event"} · {tournament.question_count} questions
+            </Text>
           </View>
           <View style={styles.metaRow}>
             <Users size={16} color={colors.textMuted} />
@@ -123,47 +149,60 @@ export const TournamentDetailScreen: React.FC = () => {
             </View>
           ) : null}
           {tournament.check_in_opens_at ? (
-            <Text style={styles.infoText}>Check-in opens: {new Date(tournament.check_in_opens_at).toLocaleString()}</Text>
+            <Text style={styles.infoText}>Check-in opens: {formatDateTime(tournament.check_in_opens_at)}</Text>
           ) : null}
           {tournament.check_in_closes_at ? (
-            <Text style={styles.infoText}>Check-in closes: {new Date(tournament.check_in_closes_at).toLocaleString()}</Text>
+            <Text style={styles.infoText}>Check-in closes: {formatDateTime(tournament.check_in_closes_at)}</Text>
           ) : null}
           {tournament.late_join_cutoff_at ? (
-            <Text style={styles.infoText}>Late join cutoff: {new Date(tournament.late_join_cutoff_at).toLocaleString()}</Text>
+            <Text style={styles.infoText}>Late join cutoff: {formatDateTime(tournament.late_join_cutoff_at)}</Text>
           ) : null}
         </Card>
 
-        {tournament.campaign_preheader || tournament.campaign_cta_label ? (
-          <Card style={styles.campaignCard}>
-            <View style={[styles.campaignAccent, { backgroundColor: tournament.campaign_accent_color || colors.primary }]} />
-            <Text style={styles.campaignEyebrow}>{tournament.campaign_preheader || "Tournament campaign"}</Text>
-            <Text style={styles.campaignTitle}>{tournament.title}</Text>
-            <Text style={styles.campaignText}>{tournament.prize_summary || "Prepare for the live competition event."}</Text>
-            <TouchableOpacity style={[styles.campaignButton, { backgroundColor: tournament.campaign_accent_color || colors.primary }]}>
-              <Text style={styles.campaignButtonText}>{tournament.campaign_cta_label || "Join the competition"}</Text>
-            </TouchableOpacity>
-          </Card>
-        ) : null}
+        <Card style={styles.campaignCard}>
+          <Text style={styles.campaignEyebrow}>Why join this challenge</Text>
+          <Text style={styles.campaignTitle}>{tournament.title}</Text>
+          <Text style={styles.campaignText}>
+            {tournament.prize_summary || "Prepare for the live competition event."}
+          </Text>
+          <TouchableOpacity
+            style={[styles.campaignButton, { backgroundColor: tournament.campaign_accent_color || colors.primary }]}
+            onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}
+          >
+            <Text style={styles.campaignButtonText}>{tournament.campaign_cta_label || "Register for challenge"}</Text>
+          </TouchableOpacity>
+        </Card>
 
         {tournament.room_id && tournament.status === "LIVE" ? (
-          <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("CompetitionLobby", { roomId: tournament.room_id })}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => navigation.navigate("CompetitionLobby", { roomId: tournament.room_id })}
+          >
             <Text style={styles.primaryText}>Open Live Event</Text>
           </TouchableOpacity>
         ) : (
           <>
-            <TouchableOpacity style={[styles.primaryButton, (!timingState.canJoin || tournament.joined) && styles.joinedButton]} onPress={joinTournament} disabled={!timingState.canJoin || !!tournament.joined}>
+            <TouchableOpacity
+              style={[styles.primaryButton, (!timingState.canJoin || tournament.joined) && styles.joinedButton]}
+              onPress={joinTournament}
+              disabled={!timingState.canJoin || !!tournament.joined}
+            >
               <Text style={[styles.primaryText, (!timingState.canJoin || tournament.joined) && styles.joinedText]}>
                 {tournament.joined ? "Registered" : timingState.canJoin ? "Join Tournament" : "Join window closed"}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.secondaryButton, !timingState.canCheckIn && styles.disabledSecondary]} onPress={checkInTournament} disabled={!timingState.canCheckIn}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, !timingState.canCheckIn && styles.disabledSecondary]}
+              onPress={checkInTournament}
+              disabled={!timingState.canCheckIn}
+            >
               <Text style={[styles.secondaryText, !timingState.canCheckIn && styles.disabledSecondaryText]}>
                 {timingState.checkInText}
               </Text>
             </TouchableOpacity>
           </>
         )}
-      </View>
+      </ScrollView>
     </Screen>
   );
 };
@@ -184,7 +223,24 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
+    paddingBottom: 32,
     gap: 16,
+  },
+  banner: {
+    width: "100%",
+    height: 200,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceElevated,
+  },
+  heroCopy: {
+    gap: 8,
+  },
+  eyebrow: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   title: {
     ...typography.h2,
@@ -193,6 +249,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
+    lineHeight: 24,
   },
   detailCard: {
     gap: 12,
@@ -214,11 +271,6 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: colors.surfaceElevated,
   },
-  campaignAccent: {
-    width: 52,
-    height: 4,
-    borderRadius: 999,
-  },
   campaignEyebrow: {
     ...typography.caption,
     color: colors.textMuted,
@@ -231,15 +283,16 @@ const styles = StyleSheet.create({
   campaignText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
   campaignButton: {
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
   },
   campaignButtonText: {
-    color: "#FFFFFF",
+    color: "#04110A",
     fontWeight: "700",
     fontSize: 12,
   },
