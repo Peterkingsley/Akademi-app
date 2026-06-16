@@ -11,6 +11,8 @@ import {
   ChevronRight,
   ShieldAlert,
   Mail
+  ,
+  Swords
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -77,6 +79,13 @@ export const AdminMoreScreen: React.FC = () => {
                   description="View landing page signups and email them"
                   onPress={() => navigation.navigate("AdminWaitlist")}
                   color="#22C55E"
+                />
+                <MenuItem
+                  icon={Swords}
+                  label="Tournaments"
+                  description="Create and publish scheduled competition events"
+                  onPress={() => navigation.navigate("AdminTournaments")}
+                  color="#F59E0B"
                 />
               </>
             )}

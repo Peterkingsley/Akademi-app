@@ -42,6 +42,7 @@ import { CompetitionHubScreen } from "../screens/main/CompetitionHubScreen";
 import { CreateCompetitionScreen } from "../screens/main/CreateCompetitionScreen";
 import { CompetitionLobbyScreen } from "../screens/main/CompetitionLobbyScreen";
 import { CompetitionResultScreen } from "../screens/main/CompetitionResultScreen";
+import { TournamentDetailScreen } from "../screens/main/TournamentDetailScreen";
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -89,6 +90,7 @@ export const MainStack = () => {
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="CompetitionHub" component={CompetitionHubScreen} />
+      <Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
       <Stack.Screen name="CreateCompetition" component={CreateCompetitionScreen} />
       <Stack.Screen name="CompetitionLobby" component={CompetitionLobbyScreen} />
       <Stack.Screen name="CompetitionResult" component={CompetitionResultScreen} />

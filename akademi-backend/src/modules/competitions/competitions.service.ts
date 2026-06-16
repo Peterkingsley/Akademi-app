@@ -139,9 +139,73 @@ export class CompetitionsService {
       registration_closes_at: tournament.registration_closes_at || null,
       published_at: tournament.published_at || null,
       entry_count: tournament.entries?.length || 0,
+      room_id: tournament.room?.id || null,
       joined: !!entry,
       entry_status: entry?.status || null,
     };
+  }
+
+  private async ensureTournamentRooms() {
+    const readyTournaments = await prisma.tournament.findMany({
+      where: {
+        status: {
+          in: [TournamentStatus.PUBLISHED, TournamentStatus.LIVE],
+        },
+        scheduled_at: {
+          lte: new Date(),
+        },
+        room: null,
+      },
+      include: {
+        entries: {
+          include: {
+            user: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const tournament of readyTournaments) {
+      if (tournament.entries.length < 2) {
+        continue;
+      }
+
+      const hostEntry = tournament.entries[0];
+      await prisma.competitionRoom.create({
+        data: {
+          code: await this.generateUniqueCode(),
+          host_user_id: hostEntry.user_id,
+          tournament_id: tournament.id,
+          title: tournament.title,
+          visibility: CompetitionVisibility.TOURNAMENT,
+          format: tournament.format,
+          status: CompetitionStatus.LIVE,
+          shared_course_code: tournament.shared_course_code,
+          question_count: tournament.question_count,
+          question_timer_sec: tournament.question_timer_sec,
+          max_participants: tournament.max_participants || Math.max(2, tournament.entries.length),
+          starts_at: new Date(),
+          participants: {
+            create: tournament.entries.map((entry) => ({
+              user_id: entry.user_id,
+              course_code: tournament.shared_course_code,
+              status: CompetitionParticipantStatus.JOINED,
+            })),
+          },
+        },
+      });
+
+      await prisma.tournament.update({
+        where: { id: tournament.id },
+        data: {
+          status: TournamentStatus.LIVE,
+        },
+      });
+    }
   }
 
   private async generateUniqueCode() {
@@ -675,9 +739,15 @@ export class CompetitionsService {
   }
 
   async listAdminTournaments() {
+    await this.ensureTournamentRooms();
     const tournaments = await prisma.tournament.findMany({
       include: {
         entries: true,
+        room: {
+          select: {
+            id: true,
+          },
+        },
       },
       orderBy: { scheduled_at: 'asc' },
       take: 50,
@@ -687,6 +757,7 @@ export class CompetitionsService {
   }
 
   async listPublicTournaments(userId: string) {
+    await this.ensureTournamentRooms();
     const tournaments = await prisma.tournament.findMany({
       where: {
         status: {
@@ -695,6 +766,11 @@ export class CompetitionsService {
       },
       include: {
         entries: true,
+        room: {
+          select: {
+            id: true,
+          },
+        },
       },
       orderBy: { scheduled_at: 'asc' },
       take: 20,
@@ -708,6 +784,11 @@ export class CompetitionsService {
       where: { id: tournamentId },
       include: {
         entries: true,
+        room: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
@@ -737,9 +818,32 @@ export class CompetitionsService {
       where: { id: tournamentId },
       include: {
         entries: true,
+        room: {
+          select: {
+            id: true,
+          },
+        },
       },
     });
 
     return this.formatTournament(updated, userId);
+  }
+
+  async getTournament(userId: string, tournamentId: string) {
+    await this.ensureTournamentRooms();
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+        room: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    return this.formatTournament(tournament, userId);
   }
 }

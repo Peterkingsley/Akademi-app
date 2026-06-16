@@ -103,4 +103,14 @@ export class CompetitionsController {
       res.status(400).json({ message: error.message || 'Failed to join tournament' });
     }
   }
+
+  async getTournament(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const tournament = await competitionsService.getTournament(userId, req.params.id);
+      res.status(200).json(tournament);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message || 'Tournament not found' });
+    }
+  }
 }

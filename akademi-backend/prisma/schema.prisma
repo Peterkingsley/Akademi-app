@@ -494,6 +494,7 @@ model CompetitionRoom {
   id                 String                @id @default(uuid())
   code               String                @unique
   host_user_id       String
+  tournament_id      String?               @unique
   title              String
   visibility         CompetitionVisibility @default(PRIVATE)
   format             CompetitionFormat     @default(SHARED_COURSE)
@@ -509,6 +510,7 @@ model CompetitionRoom {
   updated_at         DateTime              @updatedAt
 
   host         User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
+  tournament   Tournament?              @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
   participants CompetitionParticipant[]
 
   @@index([host_user_id])
@@ -559,6 +561,7 @@ model Tournament {
   updated_at          DateTime          @updatedAt
 
   entries TournamentEntry[]
+  room    CompetitionRoom?
 
   @@index([status])
   @@index([scheduled_at])

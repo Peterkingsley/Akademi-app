@@ -62,6 +62,7 @@ export type MainTabParamList = {
 export type AdminStackParamList = {
   AdminDashboard: undefined;
   AdminMore: undefined;
+  AdminTournaments: undefined;
   AdminTeam: undefined;
   AdminWaitlist: undefined;
   AuditTrail: undefined;
@@ -120,6 +121,7 @@ export type MainStackParamList = {
   HelpSupport: undefined;
   RateAkademi: undefined;
   CompetitionHub: undefined;
+  TournamentDetail: { tournamentId: string };
   CreateCompetition: undefined;
   CompetitionLobby: { roomId: string };
   CompetitionResult: {

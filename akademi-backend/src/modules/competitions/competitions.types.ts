@@ -125,6 +125,7 @@ export interface TournamentView {
   registration_closes_at: Date | null;
   published_at: Date | null;
   entry_count: number;
+  room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
 }

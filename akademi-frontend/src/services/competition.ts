@@ -93,6 +93,7 @@ export interface Tournament {
   registration_closes_at: string | null;
   published_at: string | null;
   entry_count: number;
+  room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
 }
@@ -149,6 +150,11 @@ export const competitionService = {
 
   async getTournaments() {
     const { data } = await api.get<Tournament[]>("/competitions/tournaments");
+    return data;
+  },
+
+  async getTournament(tournamentId: string) {
+    const { data } = await api.get<Tournament>(`/competitions/tournaments/${tournamentId}`);
     return data;
   },
 

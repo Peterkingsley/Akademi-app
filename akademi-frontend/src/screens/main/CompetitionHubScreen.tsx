@@ -174,7 +174,7 @@ export const CompetitionHubScreen: React.FC = () => {
               </Card>
             ) : (
               tournaments.map((tournament) => (
-                <Card key={tournament.id} style={styles.roomCard}>
+                <Card key={tournament.id} style={styles.roomCard} onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}>
                   <View style={styles.roomTop}>
                     <Text style={styles.roomTitle}>{tournament.title}</Text>
                     <Text style={styles.roomCode}>{tournament.status}</Text>

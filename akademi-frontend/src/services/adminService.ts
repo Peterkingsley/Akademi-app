@@ -125,6 +125,24 @@ export interface WaitlistResponse {
   };
 }
 
+export interface AdminTournament {
+  id: string;
+  title: string;
+  description: string | null;
+  status: "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
+  format: "SHARED_COURSE" | "DUAL_COURSE";
+  shared_course_code: string | null;
+  question_count: number;
+  question_timer_sec: number;
+  max_participants: number | null;
+  prize_summary: string | null;
+  scheduled_at: string;
+  registration_closes_at: string | null;
+  published_at: string | null;
+  entry_count: number;
+  room_id?: string | null;
+}
+
 export const adminService = {
   // Pillar 1: Dashboard
   getStats: async (): Promise<AdminDashboardStats> => {
@@ -144,6 +162,21 @@ export const adminService = {
 
   getSystemHealth: async (): Promise<AdminSystemHealth> => {
     const { data } = await api.get("/admin/dashboard/system-health");
+    return data;
+  },
+
+  listTournaments: async (): Promise<AdminTournament[]> => {
+    const { data } = await api.get("/admin/competitions/tournaments");
+    return data;
+  },
+
+  createTournament: async (payload: any): Promise<AdminTournament> => {
+    const { data } = await api.post("/admin/competitions/tournaments", payload);
+    return data;
+  },
+
+  publishTournament: async (id: string): Promise<AdminTournament> => {
+    const { data } = await api.patch(`/admin/competitions/tournaments/${id}/publish`);
     return data;
   },
 
