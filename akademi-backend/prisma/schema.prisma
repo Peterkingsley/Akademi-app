@@ -136,6 +136,11 @@ enum TournamentEntryStatus {
   WINNER
 }
 
+enum MatchSessionStatus {
+  LIVE
+  FINISHED
+}
+
 // Models
 model User {
   id                           String         @id @default(uuid())
@@ -512,6 +517,7 @@ model CompetitionRoom {
   host         User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
   tournament   Tournament?              @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
   participants CompetitionParticipant[]
+  match_session CompetitionMatchSession?
 
   @@index([host_user_id])
   @@index([status])
@@ -553,8 +559,16 @@ model Tournament {
   question_timer_sec  Int               @default(20)
   max_participants    Int?
   prize_summary       String?
+  campaign_banner_url String?
+  campaign_accent_color String?
+  campaign_cta_label  String?
+  campaign_cta_url    String?
+  campaign_preheader  String?
   scheduled_at        DateTime
   registration_closes_at DateTime?
+  late_join_cutoff_at DateTime?
+  check_in_opens_at   DateTime?
+  check_in_closes_at  DateTime?
   published_at        DateTime?
   created_by_admin_id String
   created_at          DateTime          @default(now())
@@ -574,6 +588,7 @@ model TournamentEntry {
   user_id       String
   status        TournamentEntryStatus @default(REGISTERED)
   joined_at     DateTime            @default(now())
+  checked_in_at DateTime?
 
   tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -582,6 +597,25 @@ model TournamentEntry {
   @@index([user_id])
   @@index([tournament_id])
   @@map("tournament_entries")
+}
+
+model CompetitionMatchSession {
+  id                 String             @id @default(uuid())
+  room_id            String             @unique
+  status             MatchSessionStatus @default(LIVE)
+  current_index      Int                @default(0)
+  question_started_at DateTime
+  question_expires_at DateTime
+  question_ids       Json               @default("[]")
+  answered_user_ids  Json               @default("{}")
+  scoreboard         Json               @default("{}")
+  created_at         DateTime           @default(now())
+  updated_at         DateTime           @updatedAt
+
+  room CompetitionRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("competition_match_sessions")
 }
 
 model Transaction {

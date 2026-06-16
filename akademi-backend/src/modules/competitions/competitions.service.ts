@@ -1,11 +1,13 @@
 import {
   CompetitionFormat,
+  MatchSessionStatus,
   CompetitionParticipantStatus,
   CompetitionStatus,
   CompetitionVisibility,
   TournamentEntryStatus,
   TournamentStatus,
 } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import prisma from '../../config/db';
 import { notificationsService } from '../notifications/notifications.service';
 import { emitToUser } from '../websocket/websocket.emitter';
@@ -124,6 +126,81 @@ export class CompetitionsService {
     };
   }
 
+  private serializeMatch(match: ActiveMatch) {
+    return {
+      current_index: match.currentIndex,
+      question_started_at: new Date(match.questionStartedAt),
+      question_expires_at: new Date(match.questionExpiresAt),
+      question_ids: match.questions.map((question) => question.id),
+      answered_user_ids: Object.fromEntries(
+        Object.entries(match.answersByQuestion).map(([questionId, userIds]) => [questionId, Array.from(userIds)]),
+      ) as Prisma.InputJsonValue,
+      scoreboard: match.scoreboard as unknown as Prisma.InputJsonValue,
+      status: match.status === CompetitionStatus.FINISHED ? MatchSessionStatus.FINISHED : MatchSessionStatus.LIVE,
+    };
+  }
+
+  private async persistMatch(roomId: string, match: ActiveMatch) {
+    await prisma.competitionMatchSession.upsert({
+      where: { room_id: roomId },
+      create: {
+        room_id: roomId,
+        ...this.serializeMatch(match),
+      },
+      update: this.serializeMatch(match),
+    });
+  }
+
+  private async hydrateMatch(roomId: string) {
+    const room = await prisma.competitionRoom.findUnique({
+      where: { id: roomId },
+      include: {
+        participants: {
+          include: {
+            user: { select: { id: true, name: true } },
+          },
+          orderBy: { joined_at: 'asc' },
+        },
+        match_session: true,
+      },
+    });
+
+    if (!room?.match_session) return null;
+
+    const questionIds = Array.isArray(room.match_session.question_ids) ? room.match_session.question_ids.map(String) : [];
+    const persistedQuestions = await prisma.question.findMany({
+      where: { id: { in: questionIds } },
+    });
+    const questionMap = new Map(persistedQuestions.map((question) => [question.id, question]));
+    const questions = questionIds.map((questionId) => questionMap.get(questionId)).filter(Boolean).map((question: any) => ({
+      id: question.id,
+      question_text: question.question_text,
+      options: this.sanitizeOptions(question.options),
+      correct_answer: question.correct_answer || '',
+      difficulty: question.difficulty,
+      explanation: question.explanation,
+    }));
+
+    const scoreboard = ((room.match_session.scoreboard || {}) as unknown) as Record<string, CompetitionScoreboardEntry>;
+    const answeredUserIds = ((room.match_session.answered_user_ids || {}) as unknown) as Record<string, string[]>;
+    const match: ActiveMatch = {
+      roomId,
+      currentIndex: room.match_session.current_index,
+      questionTimerSec: room.question_timer_sec,
+      questions,
+      scoreboard,
+      answersByQuestion: Object.fromEntries(
+        Object.entries(answeredUserIds).map(([questionId, userIds]) => [questionId, new Set((userIds || []).map(String))]),
+      ),
+      questionStartedAt: new Date(room.match_session.question_started_at).getTime(),
+      questionExpiresAt: new Date(room.match_session.question_expires_at).getTime(),
+      status: room.match_session.status === MatchSessionStatus.FINISHED ? CompetitionStatus.FINISHED : CompetitionStatus.LIVE,
+    };
+
+    activeMatches.set(roomId, match);
+    return match;
+  }
+
   private formatTournament(tournament: any, userId?: string): TournamentView {
     const entry = userId ? tournament.entries?.find((item: any) => item.user_id === userId) || null : null;
     return {
@@ -139,7 +216,15 @@ export class CompetitionsService {
       prize_summary: tournament.prize_summary || null,
       scheduled_at: tournament.scheduled_at,
       registration_closes_at: tournament.registration_closes_at || null,
+      late_join_cutoff_at: tournament.late_join_cutoff_at || null,
+      check_in_opens_at: tournament.check_in_opens_at || null,
+      check_in_closes_at: tournament.check_in_closes_at || null,
       published_at: tournament.published_at || null,
+      campaign_banner_url: tournament.campaign_banner_url || null,
+      campaign_accent_color: tournament.campaign_accent_color || null,
+      campaign_cta_label: tournament.campaign_cta_label || null,
+      campaign_cta_url: tournament.campaign_cta_url || null,
+      campaign_preheader: tournament.campaign_preheader || null,
       entry_count: tournament.entries?.length || 0,
       room_id: tournament.room?.id || null,
       joined: !!entry,
@@ -208,14 +293,19 @@ export class CompetitionsService {
     });
 
     for (const tournament of readyTournaments) {
-      if (tournament.entries.length < 2) {
+      const checkInClosesAt = tournament.check_in_closes_at || tournament.scheduled_at;
+      const eligibleEntries = tournament.entries.filter((entry) =>
+        entry.status === TournamentEntryStatus.CHECKED_IN || checkInClosesAt.getTime() <= Date.now(),
+      );
+
+      if (eligibleEntries.length < 2) {
         continue;
       }
 
       let room = tournament.room;
 
       if (!room) {
-        const hostEntry = tournament.entries[0];
+        const hostEntry = eligibleEntries[0];
         room = await prisma.competitionRoom.create({
           data: {
             code: await this.generateUniqueCode(),
@@ -231,7 +321,7 @@ export class CompetitionsService {
             max_participants: tournament.max_participants || Math.max(2, tournament.entries.length),
             starts_at: new Date(),
             participants: {
-              create: tournament.entries.map((entry) => ({
+              create: eligibleEntries.map((entry) => ({
                 user_id: entry.user_id,
                 course_code: tournament.shared_course_code,
                 status: CompetitionParticipantStatus.JOINED,
@@ -259,7 +349,7 @@ export class CompetitionsService {
 
       const startsAt = room.starts_at || new Date();
       await Promise.all(
-        tournament.entries.map(async (entry) => {
+        eligibleEntries.map(async (entry) => {
           await notificationsService.createNotification({
             user_id: entry.user_id,
             title: `${tournament.title} is live`,
@@ -483,7 +573,7 @@ export class CompetitionsService {
   }
 
   async startMatch(roomId: string) {
-    const existing = activeMatches.get(roomId);
+    const existing = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (existing) {
       return this.buildMatchState(existing);
     }
@@ -538,17 +628,18 @@ export class CompetitionsService {
     };
 
     activeMatches.set(roomId, match);
+    await this.persistMatch(roomId, match);
     return this.buildMatchState(match);
   }
 
-  getMatchState(roomId: string) {
-    const match = activeMatches.get(roomId);
+  async getMatchState(roomId: string) {
+    const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
     return this.buildMatchState(match);
   }
 
   async submitAnswer(roomId: string, userId: string, answer: string) {
-    const match = activeMatches.get(roomId);
+    const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
     if (match.status !== CompetitionStatus.LIVE) throw new Error('Match is not live');
 
@@ -602,11 +693,12 @@ export class CompetitionsService {
       return this.advanceMatch(roomId);
     }
 
+    await this.persistMatch(roomId, match);
     return this.buildMatchState(match);
   }
 
   async advanceMatch(roomId: string) {
-    const match = activeMatches.get(roomId);
+    const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
 
     match.currentIndex += 1;
@@ -620,11 +712,12 @@ export class CompetitionsService {
       entry.hasAnsweredCurrent = false;
     });
 
+    await this.persistMatch(roomId, match);
     return this.buildMatchState(match);
   }
 
   async finishMatch(roomId: string) {
-    const match = activeMatches.get(roomId);
+    const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
 
     match.status = CompetitionStatus.FINISHED;
@@ -657,6 +750,10 @@ export class CompetitionsService {
     };
 
     activeMatches.delete(roomId);
+    await prisma.competitionMatchSession.updateMany({
+      where: { room_id: roomId },
+      data: { status: MatchSessionStatus.FINISHED },
+    });
     return finalState;
   }
 
@@ -772,8 +869,16 @@ export class CompetitionsService {
         question_timer_sec: Math.min(Math.max(payload.question_timer_sec || 20, 10), 60),
         max_participants: payload.max_participants || null,
         prize_summary: payload.prize_summary?.trim() || null,
+        campaign_banner_url: payload.campaign_banner_url?.trim() || null,
+        campaign_accent_color: payload.campaign_accent_color?.trim() || null,
+        campaign_cta_label: payload.campaign_cta_label?.trim() || null,
+        campaign_cta_url: payload.campaign_cta_url?.trim() || null,
+        campaign_preheader: payload.campaign_preheader?.trim() || null,
         scheduled_at: new Date(payload.scheduled_at),
         registration_closes_at: payload.registration_closes_at ? new Date(payload.registration_closes_at) : null,
+        late_join_cutoff_at: payload.late_join_cutoff_at ? new Date(payload.late_join_cutoff_at) : null,
+        check_in_opens_at: payload.check_in_opens_at ? new Date(payload.check_in_opens_at) : null,
+        check_in_closes_at: payload.check_in_closes_at ? new Date(payload.check_in_closes_at) : null,
         created_by_admin_id: adminId,
       },
       include: {
@@ -860,6 +965,9 @@ export class CompetitionsService {
     if (tournament.registration_closes_at && tournament.registration_closes_at.getTime() < Date.now()) {
       throw new Error('Tournament registration is closed');
     }
+    if (tournament.late_join_cutoff_at && tournament.late_join_cutoff_at.getTime() < Date.now()) {
+      throw new Error('Late join window has closed for this tournament');
+    }
     if (tournament.max_participants && tournament.entries.length >= tournament.max_participants) {
       throw new Error('Tournament is full');
     }
@@ -885,6 +993,37 @@ export class CompetitionsService {
           },
         },
       },
+    });
+
+    return this.formatTournament(updated, userId);
+  }
+
+  async checkInTournament(userId: string, tournamentId: string) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { entries: true, room: { select: { id: true } } },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    const now = Date.now();
+    if (tournament.check_in_opens_at && tournament.check_in_opens_at.getTime() > now) {
+      throw new Error('Check-in has not opened yet');
+    }
+    if (tournament.check_in_closes_at && tournament.check_in_closes_at.getTime() < now) {
+      throw new Error('Check-in is closed');
+    }
+
+    const existing = tournament.entries.find((entry) => entry.user_id === userId);
+    if (!existing) throw new Error('Join the tournament before checking in');
+
+    await prisma.tournamentEntry.update({
+      where: { id: existing.id },
+      data: { status: TournamentEntryStatus.CHECKED_IN, checked_in_at: new Date() },
+    });
+
+    const updated = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { entries: true, room: { select: { id: true } } },
     });
 
     return this.formatTournament(updated, userId);

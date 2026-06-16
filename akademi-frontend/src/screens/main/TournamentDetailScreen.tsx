@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { CalendarDays, Swords, Trophy, Users } from "lucide-react-native";
@@ -59,6 +59,34 @@ export const TournamentDetailScreen: React.FC = () => {
     }
   };
 
+  const checkInTournament = async () => {
+    try {
+      const updated = await competitionService.checkInTournament(tournamentId);
+      setTournament(updated);
+    } catch (error: any) {
+      Alert.alert("Unable to check in", error?.response?.data?.message || "Please try again.");
+    }
+  };
+
+  const timingState = useMemo(() => {
+    if (!tournament) return { canCheckIn: false, checkInText: "", canJoin: false };
+    const now = Date.now();
+    const opens = tournament.check_in_opens_at ? new Date(tournament.check_in_opens_at).getTime() : null;
+    const closes = tournament.check_in_closes_at ? new Date(tournament.check_in_closes_at).getTime() : null;
+    const canCheckIn = !!tournament.joined && tournament.entry_status !== "CHECKED_IN" && (!opens || opens <= now) && (!closes || closes >= now);
+    const checkInText = !tournament.joined
+      ? "Join first to check in"
+      : tournament.entry_status === "CHECKED_IN"
+        ? "Checked in"
+        : opens && opens > now
+          ? `Check-in opens ${new Date(opens).toLocaleString()}`
+          : closes && closes < now
+            ? "Check-in closed"
+            : "Check in now";
+    const canJoin = !tournament.joined && (!tournament.late_join_cutoff_at || new Date(tournament.late_join_cutoff_at).getTime() >= now);
+    return { canCheckIn, checkInText, canJoin };
+  }, [tournament]);
+
   if (!tournament) {
     return (
       <Screen style={styles.screen}>
@@ -94,18 +122,46 @@ export const TournamentDetailScreen: React.FC = () => {
               <Text style={styles.metaText}>{tournament.prize_summary}</Text>
             </View>
           ) : null}
+          {tournament.check_in_opens_at ? (
+            <Text style={styles.infoText}>Check-in opens: {new Date(tournament.check_in_opens_at).toLocaleString()}</Text>
+          ) : null}
+          {tournament.check_in_closes_at ? (
+            <Text style={styles.infoText}>Check-in closes: {new Date(tournament.check_in_closes_at).toLocaleString()}</Text>
+          ) : null}
+          {tournament.late_join_cutoff_at ? (
+            <Text style={styles.infoText}>Late join cutoff: {new Date(tournament.late_join_cutoff_at).toLocaleString()}</Text>
+          ) : null}
         </Card>
+
+        {tournament.campaign_preheader || tournament.campaign_cta_label ? (
+          <Card style={styles.campaignCard}>
+            <View style={[styles.campaignAccent, { backgroundColor: tournament.campaign_accent_color || colors.primary }]} />
+            <Text style={styles.campaignEyebrow}>{tournament.campaign_preheader || "Tournament campaign"}</Text>
+            <Text style={styles.campaignTitle}>{tournament.title}</Text>
+            <Text style={styles.campaignText}>{tournament.prize_summary || "Prepare for the live competition event."}</Text>
+            <TouchableOpacity style={[styles.campaignButton, { backgroundColor: tournament.campaign_accent_color || colors.primary }]}>
+              <Text style={styles.campaignButtonText}>{tournament.campaign_cta_label || "Join the competition"}</Text>
+            </TouchableOpacity>
+          </Card>
+        ) : null}
 
         {tournament.room_id && tournament.status === "LIVE" ? (
           <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("CompetitionLobby", { roomId: tournament.room_id })}>
             <Text style={styles.primaryText}>Open Live Event</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity style={[styles.primaryButton, tournament.joined && styles.joinedButton]} onPress={joinTournament} disabled={!!tournament.joined}>
-            <Text style={[styles.primaryText, tournament.joined && styles.joinedText]}>
-              {tournament.joined ? "Registered" : "Join Tournament"}
-            </Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={[styles.primaryButton, (!timingState.canJoin || tournament.joined) && styles.joinedButton]} onPress={joinTournament} disabled={!timingState.canJoin || !!tournament.joined}>
+              <Text style={[styles.primaryText, (!timingState.canJoin || tournament.joined) && styles.joinedText]}>
+                {tournament.joined ? "Registered" : timingState.canJoin ? "Join Tournament" : "Join window closed"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.secondaryButton, !timingState.canCheckIn && styles.disabledSecondary]} onPress={checkInTournament} disabled={!timingState.canCheckIn}>
+              <Text style={[styles.secondaryText, !timingState.canCheckIn && styles.disabledSecondaryText]}>
+                {timingState.checkInText}
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
     </Screen>
@@ -150,6 +206,43 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
   },
+  infoText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  campaignCard: {
+    gap: 10,
+    backgroundColor: colors.surfaceElevated,
+  },
+  campaignAccent: {
+    width: 52,
+    height: 4,
+    borderRadius: 999,
+  },
+  campaignEyebrow: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  campaignTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  campaignText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  campaignButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  campaignButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 12,
+  },
   primaryButton: {
     backgroundColor: colors.primary,
     paddingVertical: 14,
@@ -167,6 +260,24 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   joinedText: {
+    color: colors.textSecondary,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+  },
+  secondaryText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  disabledSecondary: {
+    opacity: 0.6,
+  },
+  disabledSecondaryText: {
     color: colors.textSecondary,
   },
 });

@@ -91,7 +91,15 @@ export interface Tournament {
   prize_summary: string | null;
   scheduled_at: string;
   registration_closes_at: string | null;
+  late_join_cutoff_at: string | null;
+  check_in_opens_at: string | null;
+  check_in_closes_at: string | null;
   published_at: string | null;
+  campaign_banner_url: string | null;
+  campaign_accent_color: string | null;
+  campaign_cta_label: string | null;
+  campaign_cta_url: string | null;
+  campaign_preheader: string | null;
   entry_count: number;
   room_id?: string | null;
   joined?: boolean;
@@ -160,6 +168,11 @@ export const competitionService = {
 
   async joinTournament(tournamentId: string) {
     const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/join`);
+    return data;
+  },
+
+  async checkInTournament(tournamentId: string) {
+    const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/check-in`);
     return data;
   },
 };

@@ -16,6 +16,7 @@ router.get('/leaderboard', controller.getLeaderboard);
 router.get('/tournaments', controller.getTournaments);
 router.get('/tournaments/:id', controller.getTournament);
 router.post('/tournaments/:id/join', controller.joinTournament);
+router.post('/tournaments/:id/check-in', controller.checkInTournament);
 router.get('/:id', controller.getOne);
 router.patch('/:id/status', controller.updateStatus);
 
