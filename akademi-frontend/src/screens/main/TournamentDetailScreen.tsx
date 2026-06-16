@@ -64,7 +64,11 @@ export const TournamentDetailScreen: React.FC = () => {
       const updated = await competitionService.joinTournament(tournamentId);
       setTournament(updated);
     } catch (error: any) {
-      Alert.alert("Unable to join", error?.response?.data?.message || "Please try again.");
+      const message = error?.response?.data?.message || "Please try again.";
+      if (message === "Tournament registration is closed" || message === "Late join window has closed for this tournament") {
+        await loadTournament();
+      }
+      Alert.alert("Unable to join", message);
     }
   };
 

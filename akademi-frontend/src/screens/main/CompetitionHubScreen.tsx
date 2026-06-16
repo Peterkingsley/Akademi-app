@@ -41,6 +41,33 @@ const campaignAudienceLabel = (tournament: Tournament) => {
   return "Open to everyone on Akademi";
 };
 
+const getTournamentJoinState = (tournament: Tournament) => {
+  const now = Date.now();
+  const registrationCloses = tournament.registration_closes_at
+    ? new Date(tournament.registration_closes_at).getTime()
+    : null;
+  const lateJoinCutoff = tournament.late_join_cutoff_at
+    ? new Date(tournament.late_join_cutoff_at).getTime()
+    : null;
+
+  if (tournament.joined) {
+    return { canJoin: false, label: "View Event" };
+  }
+
+  if (registrationCloses && registrationCloses < now) {
+    return { canJoin: false, label: "Registration closed" };
+  }
+
+  if (lateJoinCutoff && lateJoinCutoff < now) {
+    return { canJoin: false, label: "Join window closed" };
+  }
+
+  return {
+    canJoin: true,
+    label: tournament.campaign_cta_label || "Register now",
+  };
+};
+
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -111,7 +138,14 @@ export const CompetitionHubScreen: React.FC = () => {
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
     } catch (error: any) {
-      Alert.alert("Unable to join event", error?.response?.data?.message || "Please try again.");
+      const message = error?.response?.data?.message || "Please try again.";
+      if (
+        message === "Tournament registration is closed" ||
+        message === "Late join window has closed for this tournament"
+      ) {
+        loadData(true);
+      }
+      Alert.alert("Unable to join event", message);
     }
   };
 
@@ -122,6 +156,7 @@ export const CompetitionHubScreen: React.FC = () => {
       ).length,
     [tournaments],
   );
+  const featuredJoinState = featuredTournament ? getTournamentJoinState(featuredTournament) : null;
 
   return (
     <Screen style={styles.screen}>
@@ -268,10 +303,10 @@ export const CompetitionHubScreen: React.FC = () => {
                       <TouchableOpacity
                         style={[
                           styles.heroPrimaryButton,
-                          featuredTournament.joined && styles.heroSecondaryButton,
+                          !featuredJoinState?.canJoin && styles.heroSecondaryButton,
                         ]}
                         onPress={() =>
-                          featuredTournament.joined
+                          featuredTournament.joined || !featuredJoinState?.canJoin
                             ? navigation.navigate("TournamentDetail", {
                                 tournamentId: featuredTournament.id,
                               })
@@ -281,12 +316,10 @@ export const CompetitionHubScreen: React.FC = () => {
                         <Text
                           style={[
                             styles.heroPrimaryButtonText,
-                            featuredTournament.joined && styles.heroSecondaryButtonText,
+                            !featuredJoinState?.canJoin && styles.heroSecondaryButtonText,
                           ]}
                         >
-                          {featuredTournament.joined
-                            ? "View Event"
-                            : featuredTournament.campaign_cta_label || "Register now"}
+                          {featuredJoinState?.label || "Register now"}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
