@@ -1,8 +1,9 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt } from './ai.prompts';
+import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
+import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
   return messages
@@ -73,13 +74,101 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 }
 
 export class AIService {
+  private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
+    if (session.session_type !== 'ASSIGNMENT') return false;
+
+    const text = studentMessage.toLowerCase();
+    const mathSignals = [
+      'solve',
+      'calculate',
+      'ratio',
+      'simplify',
+      'differentiate',
+      'integrate',
+      'equation',
+      'simultaneous',
+      'matrix',
+      'probability',
+      'mean',
+      'median',
+      'fraction',
+      'percentage',
+      'velocity',
+      'acceleration',
+      'force',
+      'mole',
+      'molar',
+      'balance this reaction',
+    ];
+
+    const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]/.test(studentMessage);
+    const keywordSignal = mathSignals.some((signal) => text.includes(signal));
+    const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
+
+    return symbolSignals || keywordSignal || courseSignal;
+  }
+
+  private parseWhiteboardPayload(raw: string) {
+    try {
+      const parsed = JSON.parse(raw);
+      const steps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+      if (typeof parsed?.final_answer !== 'string' || steps.length === 0) {
+        return null;
+      }
+
+      const normalizedSteps = steps
+        .map((step: any, index: number) => ({
+          id: typeof step?.id === 'string' ? step.id : `step-${index + 1}`,
+          type: ['write', 'highlight', 'answer'].includes(step?.type) ? step.type : 'write',
+          text: String(step?.text || '').trim(),
+          note: String(step?.note || '').trim(),
+        }))
+        .filter((step: { text: string }) => step.text.length > 0)
+        .slice(0, 12);
+
+      if (normalizedSteps.length === 0) return null;
+
+      return {
+        title: String(parsed?.title || 'Board walkthrough'),
+        board_style: 'digital-whiteboard',
+        steps: normalizedSteps,
+        final_answer: parsed.final_answer.trim(),
+        summary: String(parsed?.summary || '').trim(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async buildWhiteboardPayload(studentMessage: string, answer: string) {
+    try {
+      const raw = await aiProvider.generateResponse(
+        `Question: ${studentMessage}
+
+Reference solution:
+${answer}
+
+Create a board replay plan for this solution.`,
+        {
+          systemPrompt: whiteboardMathSystemPrompt,
+          maxTokens: 900,
+        }
+      );
+
+      return this.parseWhiteboardPayload(raw);
+    } catch (error) {
+      console.error('Whiteboard payload generation failed:', error);
+      return null;
+    }
+  }
+
   async getOrchestratedResponse(
     userId: string,
     sessionId: string,
     studentMessage: string,
     replyMode: ReplyMode,
     hasActivePaidFeature: boolean
-  ): Promise<string> {
+  ): Promise<OrchestratedAIResponse> {
     // 1. Check daily limit
     await checkDailyLimit(userId, hasActivePaidFeature);
 
@@ -166,7 +255,7 @@ Important:
     );
 
     const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
-    if (cachedResponse) return cachedResponse;
+    if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
     const systemPrompt = assembleSystemPrompt(
@@ -182,12 +271,27 @@ Important:
       maxTokens: 1000,
     });
 
+    const whiteboardPayload = this.isBoardEligibleQuestion(studentMessage, session)
+      ? await this.buildWhiteboardPayload(studentMessage, aiResponseText)
+      : null;
+
     // 6. Cache response
     if (!isFollowUp) {
       await setCachedAIResponse(cacheKey, aiResponseText);
     }
 
-    return aiResponseText;
+    return {
+      content: aiResponseText,
+      metadata: whiteboardPayload
+        ? {
+            whiteboard: {
+              available: true,
+              subject_family: 'quantitative',
+              payload: whiteboardPayload,
+            },
+          }
+        : undefined,
+    };
   }
 }
 

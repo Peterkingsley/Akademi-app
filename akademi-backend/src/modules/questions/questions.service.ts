@@ -41,12 +41,13 @@ export class QuestionsService {
         : question.explanation || question.approach_guide;
     } else {
       // Legacy/open-ended question: fall back to AI feedback (no strict scoring)
-      feedback = await orchestrateAIResponse(
+      const aiFeedback = await orchestrateAIResponse(
         userId,
         '',
         `Evaluate the student's answer and give feedback.\n\nQuestion: ${question.question_text}\nAnswer: ${answer}`,
         null
       );
+      feedback = aiFeedback.content;
     }
 
     const attempt = await prisma.questionAttempt.create({

@@ -13,6 +13,7 @@ import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
 import { CameraScreen } from "../screens/main/CameraScreen";
 import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
 import { AIProcessingScreen } from "../screens/main/AIProcessingScreen";
+import { BoardReplayScreen } from "../screens/main/BoardReplayScreen";
 import { LiveTutorEntryScreen } from "../screens/main/LiveTutorEntryScreen";
 import { LiveTutorSessionScreen } from "../screens/main/LiveTutorSessionScreen";
 import { TutorSessionSummaryScreen } from "../screens/main/TutorSessionSummaryScreen";
@@ -74,6 +75,7 @@ export const MainStack = () => {
       />
       <Stack.Screen name="CropConfirm" component={CropConfirmScreen} />
       <Stack.Screen name="AIProcessing" component={AIProcessingScreen} />
+      <Stack.Screen name="BoardReplay" component={BoardReplayScreen} />
       <Stack.Screen name="LiveTutorEntry" component={LiveTutorEntryScreen} />
       <Stack.Screen
         name="LiveTutorSession"

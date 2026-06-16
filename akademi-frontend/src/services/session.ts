@@ -21,6 +21,24 @@ export interface Message {
   user_id: string;
   role: "STUDENT" | "AI";
   content: string;
+  metadata?: {
+    whiteboard?: {
+      available?: boolean;
+      subject_family?: string;
+      payload?: {
+        title: string;
+        board_style: "digital-whiteboard";
+        steps: Array<{
+          id: string;
+          type: "write" | "highlight" | "answer";
+          text: string;
+          note: string;
+        }>;
+        final_answer: string;
+        summary?: string;
+      };
+    };
+  };
   reply_mode?: string;
   created_at: string;
 }

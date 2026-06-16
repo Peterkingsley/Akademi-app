@@ -35,6 +35,7 @@ export interface MessageResponse {
   id: string;
   role: MessageRole;
   content: string;
+  metadata?: Record<string, unknown>;
   reply_mode: ReplyMode | null;
   created_at: Date;
 }

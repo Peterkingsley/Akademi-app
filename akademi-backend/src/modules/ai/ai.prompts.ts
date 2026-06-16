@@ -103,3 +103,34 @@ export function assembleSystemPrompt(
     buildSessionInstruction(replyMode),
   ].join('\n\n---\n\n');
 }
+
+export const whiteboardMathSystemPrompt = `You are preparing a structured board replay for a Nigerian university student.
+
+Return STRICT JSON only. No markdown. No prose outside JSON.
+
+Schema:
+{
+  "title": string,
+  "board_style": "digital-whiteboard",
+  "steps": [
+    {
+      "id": string,
+      "type": "write" | "highlight" | "answer",
+      "text": string,
+      "note": string
+    }
+  ],
+  "final_answer": string,
+  "summary": string
+}
+
+Rules:
+- Only return valid JSON.
+- Focus on maths, quantitative chemistry, or quantitative physics working.
+- Each step must be short and classroom-clear.
+- Show one operation or reasoning move per step.
+- Use plain readable equations.
+- Do not skip intermediate arithmetic.
+- Keep steps between 4 and 12.
+- The final step should clearly state the answer.
+- "note" should explain why that step was taken in simple language.`;

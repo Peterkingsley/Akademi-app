@@ -13,6 +13,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { sessionService } from "../../services/session";
 
 const STATUS_TEXTS = [
   "ANALYSING PROBLEM STRUCTURE",
@@ -64,12 +65,28 @@ export const AIProcessingScreen: React.FC = () => {
     }, 1500);
 
     // Simulate completion and navigation after 5 seconds
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       if (type === "assignment") {
-        if (reply_mode === "STUDY") {
-          navigation.navigate("StudyMode", { sessionId });
-        } else {
-          navigation.navigate("AssignmentResult", { sessionId });
+        try {
+          const messages = sessionId ? await sessionService.listMessages(sessionId) : [];
+          const hasWhiteboardPayload = messages.some(
+            (message) => message.role === "AI" && message.metadata?.whiteboard?.payload?.steps?.length
+          );
+
+          if (hasWhiteboardPayload) {
+            navigation.navigate("BoardReplay", { sessionId });
+          } else if (reply_mode === "STUDY") {
+            navigation.navigate("StudyMode", { sessionId });
+          } else {
+            navigation.navigate("AssignmentResult", { sessionId });
+          }
+        } catch (error) {
+          console.error("Failed to inspect board payload", error);
+          if (reply_mode === "STUDY") {
+            navigation.navigate("StudyMode", { sessionId });
+          } else {
+            navigation.navigate("AssignmentResult", { sessionId });
+          }
         }
       } else {
         navigation.navigate("LiveTutorSession", { sessionId });

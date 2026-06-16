@@ -1,6 +1,6 @@
 import prisma from '../../config/db';
 import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest } from './sessions.types';
-import { SessionType, MessageRole, Feature } from '@prisma/client';
+import { SessionType, MessageRole, Feature, Prisma } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
@@ -179,7 +179,7 @@ export class SessionsService {
     });
 
     // AI Orchestration Logic
-    const aiResponseContent = await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
+    const aiResponse = await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
 
     // Save AI message
     return prisma.message.create({
@@ -187,7 +187,8 @@ export class SessionsService {
         session_id: sessionId,
         user_id: userId,
         role: MessageRole.AI,
-        content: aiResponseContent,
+        content: aiResponse.content,
+        metadata: (aiResponse.metadata || {}) as Prisma.InputJsonValue,
         reply_mode: replyMode,
       },
     });

@@ -319,6 +319,7 @@ model Message {
   user_id    String
   role       MessageRole
   content    String
+  metadata   Json        @default("{}")
   reply_mode ReplyMode?
   created_at DateTime    @default(now())
 

@@ -3,7 +3,6 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -32,9 +31,6 @@ import { useTheme } from "../../theme/ThemeContext";
 
 type AnswerMode = "DIRECT" | "STUDY";
 
-const CAUSES = ["Assignment", "Personal Project", "Exam Practice", "General Interest"];
-const TYPES = ["Calculation", "Theory", "Programming", "Case Study"];
-
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
@@ -46,10 +42,7 @@ export const SolveScreen: React.FC = () => {
 
   const [answerMode, setAnswerMode] = useState<AnswerMode>("DIRECT");
   const [question, setQuestion] = useState("");
-  const [includeContext, setIncludeContext] = useState(true);
   const [course, setCourse] = useState("Select Course");
-  const [selectedCause, setSelectedCause] = useState("Assignment");
-  const [selectedType, setSelectedType] = useState("Theory");
   const [loading, setLoading] = useState(false);
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const hasQuestion = question.trim().length > 0;
@@ -71,22 +64,12 @@ export const SolveScreen: React.FC = () => {
       return;
     }
 
-    if (!selectedCause || !selectedType) {
-      Alert.alert("Add the missing details", "Choose why you are solving this and the question type.");
-      return;
-    }
-
     setLoading(true);
     try {
       const { data: session } = await api.post("/sessions", {
         session_type: "ASSIGNMENT",
         reply_mode: answerMode,
         course_code: courseCode,
-        metadata: {
-          cause: selectedCause,
-          type: selectedType,
-          includeContext,
-        },
       });
 
       await api.post(`/sessions/${session.id}/messages`, {
@@ -112,33 +95,6 @@ export const SolveScreen: React.FC = () => {
       setLoading(false);
     }
   };
-
-  const renderChipSelector = (
-    label: string,
-    options: string[],
-    selected: string,
-    onSelect: (val: string) => void
-  ) => (
-    <View style={styles.selectionSection}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.chipRow}>
-        {options.map((option) => {
-          const active = selected === option;
-          return (
-            <TouchableOpacity
-              key={option}
-              onPress={() => onSelect(option)}
-              style={[styles.chip, active && styles.activeChip]}
-              activeOpacity={0.8}
-            >
-              {active && <Check size={13} color={colors.background} />}
-              <Text style={[styles.chipText, active && styles.activeChipText]}>{option}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
-  );
 
   return (
     <Screen hideHeader style={styles.screen}>
@@ -235,27 +191,6 @@ export const SolveScreen: React.FC = () => {
             <Lightbulb size={15} color={colors.textMuted} />
             <Text style={styles.hintText}>Include all values, instructions, and lecturer constraints.</Text>
           </View>
-        </View>
-
-        {renderChipSelector("Why are you solving this?", CAUSES, selectedCause, setSelectedCause)}
-        {renderChipSelector("Question type", TYPES, selectedType, setSelectedType)}
-
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleCopy}>
-            <Text style={styles.toggleTitle}>Use my course context</Text>
-            <Text style={styles.toggleSubtext}>
-              {hasCourse
-                ? "Akademi can consider your selected course while answering."
-                : "Optional. Select a course only when the question needs course context."}
-            </Text>
-          </View>
-          <Switch
-            value={includeContext}
-            onValueChange={setIncludeContext}
-            disabled={!hasCourse}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor="#FFFFFF"
-          />
         </View>
 
         <View style={styles.answerModeSection}>
@@ -507,70 +442,11 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     lineHeight: 15,
     marginLeft: 7,
   },
-  selectionSection: {
-    marginBottom: 18,
-  },
   sectionLabel: {
     ...typography.label,
     color: colors.textMuted,
     letterSpacing: 0,
     marginBottom: 10,
-  },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-  },
-  activeChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  activeChipText: {
-    color: colors.background,
-    marginLeft: 5,
-  },
-  toggleRow: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 18,
-    padding: 14,
-  },
-  toggleCopy: {
-    flex: 1,
-    marginRight: 14,
-  },
-  toggleTitle: {
-    ...typography.h4,
-    color: colors.textPrimary,
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  toggleSubtext: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
   },
   answerModeSection: {
     marginBottom: 18,
