@@ -61,6 +61,7 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         min-width: max-content;
         font-size: ${fontSize}px;
         line-height: 1.4;
+        visibility: hidden;
       }
       .katex-display {
         margin: 0.15em 0 0;
@@ -73,16 +74,10 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   <body>
     <div id="formula"></div>
     <script>
-      function render() {
-        try {
-          katex.render(String.raw\`${escapeHtml(latex)}\`, document.getElementById('formula'), {
-            throwOnError: false,
-            displayMode: ${displayMode === "block" ? "true" : "false"},
-            trust: false
-          });
-        } catch (error) {
-          document.getElementById('formula').textContent = ${JSON.stringify(latex)};
-        }
+      let renderAttempts = 0;
+      let rendered = false;
+
+      function publishSize() {
         const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 24);
         const width = Math.max(
           document.body.scrollWidth,
@@ -92,9 +87,50 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         );
         window.ReactNativeWebView.postMessage(JSON.stringify({ height, width }));
       }
+
+      function showFallback() {
+        const node = document.getElementById('formula');
+        if (!node) return;
+        node.textContent = ${JSON.stringify(latex)};
+        node.style.visibility = 'visible';
+        publishSize();
+      }
+
+      function render() {
+        if (rendered) {
+          publishSize();
+          return;
+        }
+
+        if (!window.katex || typeof window.katex.render !== 'function') {
+          renderAttempts += 1;
+          if (renderAttempts < 20) {
+            setTimeout(render, 120);
+            return;
+          }
+          showFallback();
+          return;
+        }
+
+        try {
+          window.katex.render(String.raw\`${escapeHtml(latex)}\`, document.getElementById('formula'), {
+            throwOnError: false,
+            displayMode: ${displayMode === "block" ? "true" : "false"},
+            trust: false
+          });
+          document.getElementById('formula').style.visibility = 'visible';
+          rendered = true;
+        } catch (error) {
+          showFallback();
+          return;
+        }
+        publishSize();
+      }
       document.addEventListener('DOMContentLoaded', render);
       window.addEventListener('load', render);
       setTimeout(render, 120);
+      setTimeout(render, 400);
+      setTimeout(render, 900);
     </script>
   </body>
 </html>`,
