@@ -173,6 +173,11 @@ export interface TournamentMaterialOption {
   created_at: Date;
 }
 
+export interface TournamentAudienceOptions {
+  faculties: string[];
+  departments: string[];
+}
+
 export interface AdminCompetitionRoomView {
   id: string;
   code: string;

@@ -21,6 +21,7 @@ import {
   CompetitionQuestionView,
   CreateCompetitionRequest,
   CreateTournamentRequest,
+  TournamentAudienceOptions,
   TournamentMaterialOption,
   TournamentView,
 } from './competitions.types';
@@ -1072,6 +1073,22 @@ export class CompetitionsService {
     });
 
     return materials;
+  }
+
+  async listTournamentAudienceOptions(): Promise<TournamentAudienceOptions> {
+    const departments = await prisma.department.findMany({
+      select: {
+        name: true,
+        faculty: true,
+      },
+      distinct: ['name', 'faculty'],
+      orderBy: [{ faculty: 'asc' }, { name: 'asc' }],
+    });
+
+    return {
+      faculties: Array.from(new Set(departments.map((entry) => entry.faculty).filter(Boolean))).sort(),
+      departments: Array.from(new Set(departments.map((entry) => entry.name).filter(Boolean))).sort(),
+    };
   }
 
   async listAdminRooms(): Promise<AdminCompetitionRoomView[]> {

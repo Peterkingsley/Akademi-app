@@ -60,6 +60,7 @@ router.get('/dashboard/activity', (req, res) => adminController.getActivity(req,
 router.get('/dashboard/system-health', (req, res) => adminController.getSystemHealth(req, res));
 router.get('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listTournaments(req, res));
 router.get('/competitions/tournament-materials', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listTournamentMaterialOptions(req, res));
+router.get('/competitions/audience-options', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listTournamentAudienceOptions(req, res));
 router.get('/competitions/rooms', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listCompetitionRooms(req, res));
 router.post('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.createTournament(req, res));
 router.post('/competitions/tournaments/banner-upload', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), tournamentBannerUpload.single('banner'), (req, res) => adminController.uploadTournamentBanner(req, res));

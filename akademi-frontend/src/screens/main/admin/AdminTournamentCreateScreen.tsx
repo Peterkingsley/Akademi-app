@@ -18,7 +18,11 @@ import { Screen } from "../../../components/layout/Screen";
 import { Card } from "../../../components/ui/Card";
 import { Input } from "../../../components/ui/Input";
 import { useTheme } from "../../../theme/ThemeContext";
-import { adminService, TournamentMaterialOption } from "../../../services/adminService";
+import {
+  adminService,
+  TournamentAudienceOptions,
+  TournamentMaterialOption,
+} from "../../../services/adminService";
 import api from "../../../services/api";
 
 type UniversityOption = { id: string; name: string; location?: string; type?: string };
@@ -54,6 +58,10 @@ export const AdminTournamentCreateScreen: React.FC = () => {
   const [audienceScope, setAudienceScope] = useState<AudienceScope>("EVERYONE");
   const [universities, setUniversities] = useState<UniversityOption[]>([]);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [audienceOptions, setAudienceOptions] = useState<TournamentAudienceOptions>({
+    faculties: [],
+    departments: [],
+  });
   const [selectedUniversityId, setSelectedUniversityId] = useState<string | null>(null);
   const [selectedUniversityName, setSelectedUniversityName] = useState("");
   const [selectedFaculty, setSelectedFaculty] = useState("");
@@ -77,6 +85,7 @@ export const AdminTournamentCreateScreen: React.FC = () => {
 
   useEffect(() => {
     fetchUniversities();
+    fetchAudienceOptions();
   }, []);
 
   useEffect(() => {
@@ -96,6 +105,11 @@ export const AdminTournamentCreateScreen: React.FC = () => {
     [departments],
   );
 
+  const departmentNames = useMemo(
+    () => Array.from(new Set(departments.map((item) => item.name))).sort(),
+    [departments],
+  );
+
   const filteredPickerItems = useMemo(() => {
     const query = pickerSearch.trim().toLowerCase();
     if (pickerMode === "scope") {
@@ -106,12 +120,19 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       return universities.filter((item) => !query || item.name.toLowerCase().includes(query));
     }
     if (pickerMode === "faculty") {
-      return faculties.filter((item) => !query || item.toLowerCase().includes(query));
+      const options = audienceScope === "UNIVERSITY" ? faculties : audienceOptions.faculties;
+      return options.filter((item) => !query || item.toLowerCase().includes(query));
     }
     if (pickerMode === "department") {
-      return departments.filter(
-        (item) => item.faculty === selectedFaculty && (!query || item.name.toLowerCase().includes(query)),
-      );
+      const options =
+        audienceScope === "DEPARTMENT"
+          ? audienceOptions.departments
+          : audienceScope === "UNIVERSITY"
+            ? departments
+                .filter((item) => item.faculty === selectedFaculty)
+                .map((item) => item.name)
+            : departmentNames;
+      return Array.from(new Set(options)).filter((item) => !query || item.toLowerCase().includes(query));
     }
     if (pickerMode === "materials") {
       return materials.filter((item) => {
@@ -120,7 +141,18 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       });
     }
     return [];
-  }, [pickerMode, pickerSearch, universities, faculties, departments, selectedFaculty, materials]);
+  }, [
+    pickerMode,
+    pickerSearch,
+    universities,
+    faculties,
+    departments,
+    selectedFaculty,
+    materials,
+    audienceOptions,
+    audienceScope,
+    departmentNames,
+  ]);
 
   const previewCourseLabel = useMemo(() => {
     const courseCodes = Array.from(new Set(selectedMaterials.map((item) => item.course_code).filter(Boolean)));
@@ -138,6 +170,15 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       Alert.alert("School list unavailable", "Could not load schools from the Akademi database.");
     } finally {
       setSchoolLoading(false);
+    }
+  };
+
+  const fetchAudienceOptions = async () => {
+    try {
+      const data = await adminService.listTournamentAudienceOptions();
+      setAudienceOptions(data);
+    } catch {
+      setAudienceOptions({ faculties: [], departments: [] });
     }
   };
 
@@ -163,10 +204,8 @@ export const AdminTournamentCreateScreen: React.FC = () => {
           : audienceScope === "UNIVERSITY"
             ? { university: selectedUniversityName || undefined }
             : audienceScope === "FACULTY"
-              ? { university: selectedUniversityName || undefined, faculty: selectedFaculty || undefined }
+              ? { faculty: selectedFaculty || undefined }
               : {
-                  university: selectedUniversityName || undefined,
-                  faculty: selectedFaculty || undefined,
                   department: selectedDepartment || undefined,
                 };
       const data = await adminService.listTournamentMaterialOptions(params);
@@ -252,10 +291,21 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       setSelectedDepartment("");
     }
     if (scope === "UNIVERSITY") {
+      setSelectedUniversityId(null);
+      setSelectedUniversityName("");
       setSelectedFaculty("");
       setSelectedDepartment("");
     }
     if (scope === "FACULTY") {
+      setSelectedUniversityId(null);
+      setSelectedUniversityName("");
+      setSelectedFaculty("");
+      setSelectedDepartment("");
+    }
+    if (scope === "DEPARTMENT") {
+      setSelectedUniversityId(null);
+      setSelectedUniversityName("");
+      setSelectedFaculty("");
       setSelectedDepartment("");
     }
   };
@@ -274,10 +324,12 @@ export const AdminTournamentCreateScreen: React.FC = () => {
     }
     if (pickerMode === "faculty") {
       setSelectedFaculty(item as string);
-      setSelectedDepartment("");
+      if (audienceScope === "UNIVERSITY") {
+        setSelectedDepartment("");
+      }
     }
     if (pickerMode === "department") {
-      setSelectedDepartment(item.name);
+      setSelectedDepartment(typeof item === "string" ? item : item.name);
     }
     if (pickerMode === "materials") {
       const option = item as TournamentMaterialOption;
@@ -304,7 +356,7 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       Alert.alert("Select materials", "Choose at least one verified material from the Akademi database.");
       return;
     }
-    if (audienceScope !== "EVERYONE" && !selectedUniversityName) {
+    if (audienceScope === "UNIVERSITY" && !selectedUniversityName) {
       Alert.alert("Select school", "Choose the school this tournament is for.");
       return;
     }
@@ -419,7 +471,7 @@ export const AdminTournamentCreateScreen: React.FC = () => {
             placeholder="Choose who can join"
             onPress={() => setPickerMode("scope")}
           />
-          {audienceScope !== "EVERYONE" ? (
+          {audienceScope === "UNIVERSITY" ? (
             <FieldButton
               label="University / School"
               value={selectedUniversityName}
@@ -427,22 +479,20 @@ export const AdminTournamentCreateScreen: React.FC = () => {
               onPress={() => setPickerMode("university")}
             />
           ) : null}
-          {(audienceScope === "FACULTY" || audienceScope === "DEPARTMENT") ? (
+          {audienceScope === "FACULTY" ? (
             <FieldButton
               label="Faculty"
               value={selectedFaculty}
-              placeholder={!selectedUniversityName ? "Choose school first" : "Choose faculty"}
+              placeholder="Choose faculty"
               onPress={() => setPickerMode("faculty")}
-              disabled={!selectedUniversityName}
             />
           ) : null}
           {audienceScope === "DEPARTMENT" ? (
             <FieldButton
               label="Department"
               value={selectedDepartment}
-              placeholder={!selectedFaculty ? "Choose faculty first" : "Choose department"}
+              placeholder="Choose department"
               onPress={() => setPickerMode("department")}
-              disabled={!selectedFaculty}
             />
           ) : null}
 
@@ -521,7 +571,13 @@ export const AdminTournamentCreateScreen: React.FC = () => {
               {previewCourseLabel} · {selectedMaterials.length} verified material{selectedMaterials.length === 1 ? "" : "s"}
             </Text>
             <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
-              Audience: {audienceScope === "EVERYONE" ? "Everyone on Akademi" : audienceScope === "UNIVERSITY" ? selectedUniversityName || "Selected university" : audienceScope === "FACULTY" ? `${selectedFaculty || "Selected faculty"} · ${selectedUniversityName || "school"}` : `${selectedDepartment || "Selected department"} · ${selectedUniversityName || "school"}`}
+              Audience: {audienceScope === "EVERYONE"
+                ? "Everyone on Akademi"
+                : audienceScope === "UNIVERSITY"
+                  ? selectedUniversityName || "Selected university"
+                  : audienceScope === "FACULTY"
+                    ? `${selectedFaculty || "Selected faculty"} across all schools`
+                    : `${selectedDepartment || "Selected department"} across all schools`}
             </Text>
             <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
               {prize || "Prize summary will show here"}

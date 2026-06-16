@@ -196,6 +196,11 @@ export interface TournamentMaterialOption {
   created_at: string;
 }
 
+export interface TournamentAudienceOptions {
+  faculties: string[];
+  departments: string[];
+}
+
 export interface CampaignDesign {
   bannerImageUrl?: string;
   accentColor?: string;
@@ -237,6 +242,11 @@ export const adminService = {
     department?: string;
   }): Promise<TournamentMaterialOption[]> => {
     const { data } = await api.get("/admin/competitions/tournament-materials", { params });
+    return data;
+  },
+
+  listTournamentAudienceOptions: async (): Promise<TournamentAudienceOptions> => {
+    const { data } = await api.get("/admin/competitions/audience-options");
     return data;
   },
 

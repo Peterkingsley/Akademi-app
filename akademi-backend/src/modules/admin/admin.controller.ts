@@ -94,6 +94,15 @@ export class AdminController {
     }
   }
 
+  async listTournamentAudienceOptions(_req: Request, res: Response) {
+    try {
+      const options = await competitionsService.listTournamentAudienceOptions();
+      res.json(options);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async listCompetitionRooms(req: Request, res: Response) {
     try {
       const rooms = await competitionsService.listAdminRooms();
