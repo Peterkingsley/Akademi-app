@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import { Swords, Trophy, Users, Radio, CalendarDays } from "lucide-react-native"
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
+import { Input } from "../../components/ui/Input";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { competitionService, CompetitionLeaderboardEntry, CompetitionRoom, CompetitionSummary, Tournament } from "../../services/competition";
@@ -26,6 +28,9 @@ export const CompetitionHubScreen: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinCourseCode, setJoinCourseCode] = useState("");
+  const [joining, setJoining] = useState(false);
 
   const loadData = async (isRefresh = false) => {
     try {
@@ -92,6 +97,26 @@ export const CompetitionHubScreen: React.FC = () => {
     }
   };
 
+  const joinMatchByCode = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      Alert.alert("Enter match code", "Ask the host for the room code and paste it here.");
+      return;
+    }
+
+    try {
+      setJoining(true);
+      const room = await competitionService.joinRoom(code, joinCourseCode.trim().toUpperCase() || undefined);
+      setJoinCode("");
+      setJoinCourseCode("");
+      navigation.navigate("CompetitionLobby", { roomId: room.id });
+    } catch (error: any) {
+      Alert.alert("Could not join match", error?.response?.data?.message || "Check the code and try again.");
+    } finally {
+      setJoining(false);
+    }
+  };
+
   return (
     <Screen style={styles.screen}>
       <ScrollView
@@ -134,6 +159,36 @@ export const CompetitionHubScreen: React.FC = () => {
               <Text style={styles.calloutText}>
                 Private matches work first. Public queues and campus campaigns can build on the same room system.
               </Text>
+            </Card>
+
+            <Card style={styles.joinCodeCard}>
+              <Text style={styles.calloutTitle}>Have a match code?</Text>
+              <Text style={styles.calloutText}>
+                Enter the code your friend or campaign host shared to join the live lobby.
+              </Text>
+              <Input
+                label="Room code"
+                placeholder="e.g. A7K2Q9"
+                value={joinCode}
+                onChangeText={setJoinCode}
+                autoCapitalize="characters"
+                style={styles.joinInput}
+              />
+              <Input
+                label="Your course code"
+                placeholder="Optional for dual-course matches"
+                value={joinCourseCode}
+                onChangeText={setJoinCourseCode}
+                autoCapitalize="characters"
+                style={styles.joinInput}
+              />
+              <TouchableOpacity
+                style={[styles.joinCodeButton, (!joinCode.trim() || joining) && styles.joinCodeButtonDisabled]}
+                onPress={joinMatchByCode}
+                disabled={!joinCode.trim() || joining}
+              >
+                <Text style={styles.joinCodeButtonText}>{joining ? "Joining..." : "Join with code"}</Text>
+              </TouchableOpacity>
             </Card>
 
             <View style={styles.sectionHeader}>
@@ -322,6 +377,28 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  joinCodeCard: {
+    backgroundColor: colors.surfaceElevated,
+    gap: 8,
+  },
+  joinInput: {
+    marginBottom: 4,
+  },
+  joinCodeButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    marginTop: 4,
+    paddingVertical: 14,
+  },
+  joinCodeButtonDisabled: {
+    opacity: 0.55,
+  },
+  joinCodeButtonText: {
+    ...typography.bodySmall,
+    color: "#04110A",
+    fontWeight: "700",
   },
   sectionHeader: {
     marginTop: 8,
