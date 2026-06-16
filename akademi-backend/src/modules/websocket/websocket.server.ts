@@ -7,16 +7,16 @@ import { config } from '../../config/env';
 import { JwtPayload } from '../auth/auth.types';
 import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketData } from './websocket.types';
 import { registerHandlers } from './websocket.handlers';
-
-let io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+import { getIO, setIO } from './websocket.state';
 
 export const initWebSocket = (server: http.Server) => {
-  io = new Server(server, {
+  const io = new Server(server, {
     cors: {
       origin: '*', // Adjust based on requirements
       methods: ['GET', 'POST'],
     },
   });
+  setIO(io);
 
   // Redis Adapter Setup
   if (config.nodeEnv !== 'test' && config.enableRedis) {
@@ -52,9 +52,4 @@ export const initWebSocket = (server: http.Server) => {
   return io;
 };
 
-export const getIO = () => {
-  if (!io) {
-    throw new Error('WebSocket server not initialized');
-  }
-  return io;
-};
+export { getIO };
