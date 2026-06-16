@@ -11,7 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { CalendarDays, Check, ChevronDown, ImagePlus, Search, X } from "lucide-react-native";
 import { Screen } from "../../../components/layout/Screen";
@@ -244,8 +247,42 @@ export const AdminTournamentCreateScreen: React.FC = () => {
     }
   };
 
+  const assignDateField = (field: DateField, value: Date | null) => {
+    if (field === "scheduledAt") setScheduledAt(value);
+    if (field === "registrationClosesAt") setRegistrationClosesAt(value);
+    if (field === "lateJoinCutoffAt") setLateJoinCutoffAt(value);
+    if (field === "checkInOpensAt") setCheckInOpensAt(value);
+    if (field === "checkInClosesAt") setCheckInClosesAt(value);
+  };
+
+  const openAndroidDateTimePicker = (field: DateField, initialValue: Date) => {
+    DateTimePickerAndroid.open({
+      value: initialValue,
+      mode: "date",
+      is24Hour: false,
+      onChange: (dateEvent, pickedDate) => {
+        if (dateEvent.type !== "set" || !pickedDate) return;
+
+        const mergedDate = new Date(initialValue);
+        mergedDate.setFullYear(pickedDate.getFullYear(), pickedDate.getMonth(), pickedDate.getDate());
+
+        DateTimePickerAndroid.open({
+          value: mergedDate,
+          mode: "time",
+          is24Hour: false,
+          onChange: (timeEvent, pickedTime) => {
+            if (timeEvent.type !== "set" || !pickedTime) return;
+
+            const mergedDateTime = new Date(mergedDate);
+            mergedDateTime.setHours(pickedTime.getHours(), pickedTime.getMinutes(), 0, 0);
+            assignDateField(field, mergedDateTime);
+          },
+        });
+      },
+    });
+  };
+
   const openDatePicker = (field: DateField) => {
-    setActiveDateField(field);
     const value =
       field === "scheduledAt"
         ? scheduledAt
@@ -256,15 +293,15 @@ export const AdminTournamentCreateScreen: React.FC = () => {
             : field === "checkInOpensAt"
               ? checkInOpensAt
               : checkInClosesAt;
-    setTempDate(value || new Date());
-  };
+    const nextValue = value || new Date();
 
-  const assignDateField = (field: DateField, value: Date | null) => {
-    if (field === "scheduledAt") setScheduledAt(value);
-    if (field === "registrationClosesAt") setRegistrationClosesAt(value);
-    if (field === "lateJoinCutoffAt") setLateJoinCutoffAt(value);
-    if (field === "checkInOpensAt") setCheckInOpensAt(value);
-    if (field === "checkInClosesAt") setCheckInClosesAt(value);
+    if (Platform.OS === "android") {
+      openAndroidDateTimePicker(field, nextValue);
+      return;
+    }
+
+    setTempDate(nextValue);
+    setActiveDateField(field);
   };
 
   const handleDateChange = (_event: DateTimePickerEvent, value?: Date) => {
