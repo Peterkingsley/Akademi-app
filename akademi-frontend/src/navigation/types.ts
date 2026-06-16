@@ -124,6 +124,9 @@ export type MainStackParamList = {
   HelpSupport: undefined;
   RateAkademi: undefined;
   CompetitionHub: undefined;
+  CompetitionMatches: undefined;
+  CompetitionJoinCode: undefined;
+  CompetitionLeaderboard: undefined;
   TournamentDetail: { tournamentId: string };
   CreateCompetition: undefined;
   CompetitionLobby: { roomId: string };

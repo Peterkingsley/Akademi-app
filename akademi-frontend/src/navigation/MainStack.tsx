@@ -39,6 +39,9 @@ import { AchievementsScreen } from "../screens/main/AchievementsScreen";
 import { SessionDetailScreen } from "../screens/main/SessionDetailScreen";
 import { ProgressScreen } from "../screens/main/ProgressScreen";
 import { CompetitionHubScreen } from "../screens/main/CompetitionHubScreen";
+import { CompetitionMatchesScreen } from "../screens/main/CompetitionMatchesScreen";
+import { CompetitionJoinCodeScreen } from "../screens/main/CompetitionJoinCodeScreen";
+import { CompetitionLeaderboardScreen } from "../screens/main/CompetitionLeaderboardScreen";
 import { CreateCompetitionScreen } from "../screens/main/CreateCompetitionScreen";
 import { CompetitionLobbyScreen } from "../screens/main/CompetitionLobbyScreen";
 import { CompetitionResultScreen } from "../screens/main/CompetitionResultScreen";
@@ -90,6 +93,9 @@ export const MainStack = () => {
       <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="CompetitionHub" component={CompetitionHubScreen} />
+      <Stack.Screen name="CompetitionMatches" component={CompetitionMatchesScreen} />
+      <Stack.Screen name="CompetitionJoinCode" component={CompetitionJoinCodeScreen} />
+      <Stack.Screen name="CompetitionLeaderboard" component={CompetitionLeaderboardScreen} />
       <Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
       <Stack.Screen name="CreateCompetition" component={CreateCompetitionScreen} />
       <Stack.Screen name="CompetitionLobby" component={CompetitionLobbyScreen} />

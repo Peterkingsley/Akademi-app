@@ -10,20 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CalendarDays, Radio, Swords, Trophy, Users } from "lucide-react-native";
+import { CalendarDays, ChevronRight, ListChecks, Plus, Trophy, UserPlus } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
-import { Input } from "../../components/ui/Input";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import {
-  competitionService,
-  CompetitionLeaderboardEntry,
-  CompetitionRoom,
-  CompetitionSummary,
-  Tournament,
-} from "../../services/competition";
+import { competitionService, Tournament } from "../../services/competition";
 import { socketService } from "../../services/socket";
 
 const formatEventDate = (value: string) =>
@@ -50,16 +43,9 @@ const campaignAudienceLabel = (tournament: Tournament) => {
 
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [summary, setSummary] = useState<CompetitionSummary | null>(null);
-  const [myRooms, setMyRooms] = useState<CompetitionRoom[]>([]);
-  const [publicRooms, setPublicRooms] = useState<CompetitionRoom[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [joinCode, setJoinCode] = useState("");
-  const [joinCourseCode, setJoinCourseCode] = useState("");
-  const [joining, setJoining] = useState(false);
   const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
@@ -69,45 +55,23 @@ export const CompetitionHubScreen: React.FC = () => {
 
       setLoadNotice(null);
 
-      const results = await Promise.allSettled([
-        competitionService.getSummary(),
-        competitionService.getMyRooms(),
-        competitionService.getPublicRooms(),
-        competitionService.getLeaderboard(),
-        competitionService.getTournaments(),
-      ]);
-
-      const [summaryResult, mineResult, publicResult, leaderboardResult, tournamentResult] = results;
+      const results = await Promise.allSettled([competitionService.getTournaments()]);
+      const [tournamentResult] = results;
       const hasMissingRoute = results.some(
         (result) => result.status === "rejected" && result.reason?.response?.status === 404,
       );
 
-      if (summaryResult.status === "fulfilled") {
-        setSummary(summaryResult.value);
-      } else {
-        setSummary({
-          matchesPlayed: 0,
-          wins: 0,
-          liveMatches: 0,
-          averageScore: 0,
-          winRate: 0,
-        });
-      }
-
-      setMyRooms(mineResult.status === "fulfilled" ? mineResult.value : []);
-      setPublicRooms(publicResult.status === "fulfilled" ? publicResult.value : []);
-      setLeaderboard(leaderboardResult.status === "fulfilled" ? leaderboardResult.value : []);
       setTournaments(tournamentResult.status === "fulfilled" ? tournamentResult.value : []);
 
       if (hasMissingRoute) {
         setLoadNotice(
-          "Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here.",
+          "Competition routes are not live on this backend yet. Once Render deploys the latest branch, campaigns and match rooms will appear here.",
         );
       }
     } catch (error: any) {
       setLoadNotice(
         error?.response?.status === 404
-          ? "Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here."
+          ? "Competition routes are not live on this backend yet. Once Render deploys the latest branch, campaigns and match rooms will appear here."
           : "We could not refresh competition data right now. Pull to try again.",
       );
     } finally {
@@ -137,13 +101,6 @@ export const CompetitionHubScreen: React.FC = () => {
     };
   }, []);
 
-  const stats = [
-    { label: "Matches", value: summary?.matchesPlayed ?? 0, icon: Swords },
-    { label: "Wins", value: summary?.wins ?? 0, icon: Trophy },
-    { label: "Win Rate", value: `${summary?.winRate ?? 0}%`, icon: Radio },
-    { label: "Live", value: summary?.liveMatches ?? 0, icon: Users },
-  ];
-
   const featuredTournament = tournaments[0] || null;
   const remainingTournaments = tournaments.slice(1);
 
@@ -158,28 +115,11 @@ export const CompetitionHubScreen: React.FC = () => {
     }
   };
 
-  const joinMatchByCode = async () => {
-    const code = joinCode.trim().toUpperCase();
-    if (!code) {
-      Alert.alert("Enter match code", "Ask the host for the room code and paste it here.");
-      return;
-    }
-
-    try {
-      setJoining(true);
-      const room = await competitionService.joinRoom(code, joinCourseCode.trim().toUpperCase() || undefined);
-      setJoinCode("");
-      setJoinCourseCode("");
-      navigation.navigate("CompetitionLobby", { roomId: room.id });
-    } catch (error: any) {
-      Alert.alert("Could not join match", error?.response?.data?.message || "Check the code and try again.");
-    } finally {
-      setJoining(false);
-    }
-  };
-
   const liveCampaignCount = useMemo(
-    () => tournaments.filter((tournament) => tournament.status === "LIVE" || tournament.status === "PUBLISHED").length,
+    () =>
+      tournaments.filter(
+        (tournament) => tournament.status === "LIVE" || tournament.status === "PUBLISHED",
+      ).length,
     [tournaments],
   );
 
@@ -187,12 +127,19 @@ export const CompetitionHubScreen: React.FC = () => {
     <Screen style={styles.screen}>
       <ScrollView
         contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={colors.primary}
+          />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.title}>Compete Live</Text>
           <Text style={styles.subtitle}>
-            Join live campaigns, register for challenges, or host your own match room.
+            Live campaigns come first here. Your own rooms, code invites, and rankings now sit
+            behind dedicated action buttons.
           </Text>
         </View>
 
@@ -211,17 +158,79 @@ export const CompetitionHubScreen: React.FC = () => {
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Live Campaigns</Text>
-              <Text style={styles.sectionHint}>{liveCampaignCount} active or scheduled event{liveCampaignCount === 1 ? "" : "s"}</Text>
+              <Text style={styles.sectionHint}>
+                {liveCampaignCount} active or scheduled event
+                {liveCampaignCount === 1 ? "" : "s"}
+              </Text>
+            </View>
+
+            <View style={styles.actionGrid}>
+              <TouchableOpacity
+                style={styles.primaryActionButton}
+                onPress={() => navigation.navigate("CreateCompetition")}
+              >
+                <Plus size={18} color="#04110A" />
+                <Text style={styles.primaryActionButtonText}>New Match</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryActionButton}
+                onPress={() => navigation.navigate("CompetitionJoinCode")}
+              >
+                <UserPlus size={18} color={colors.primary} />
+                <Text style={styles.secondaryActionButtonText}>Join with code</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.utilityRow}>
+              <Card
+                style={styles.utilityCard}
+                onPress={() => navigation.navigate("CompetitionMatches")}
+              >
+                <View style={styles.utilityIconWrap}>
+                  <ListChecks size={18} color={colors.primary} />
+                </View>
+                <View style={styles.utilityContent}>
+                  <Text style={styles.utilityTitle}>My matches</Text>
+                  <Text style={styles.utilityText}>
+                    Open your created rooms, joined rooms, and public room list on a separate page.
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </Card>
+
+              <Card
+                style={styles.utilityCard}
+                onPress={() => navigation.navigate("CompetitionLeaderboard")}
+              >
+                <View style={styles.utilityIconWrap}>
+                  <Trophy size={18} color={colors.primary} />
+                </View>
+                <View style={styles.utilityContent}>
+                  <Text style={styles.utilityTitle}>Leaderboard</Text>
+                  <Text style={styles.utilityText}>
+                    Check your match totals, win rate, and overall ranking without crowding this
+                    campaign page.
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </Card>
             </View>
 
             {featuredTournament ? (
               <TouchableOpacity
                 activeOpacity={0.9}
-                onPress={() => navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })}
+                onPress={() =>
+                  navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })
+                }
               >
                 <Card style={styles.heroCampaignCard}>
                   {featuredTournament.campaign_banner_url ? (
-                    <Image source={{ uri: featuredTournament.campaign_banner_url }} style={styles.heroBanner} resizeMode="cover" />
+                    <Image
+                      source={{ uri: featuredTournament.campaign_banner_url }}
+                      style={styles.heroBanner}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.heroFallbackBanner}>
                       <Text style={styles.heroFallbackText}>
@@ -231,19 +240,25 @@ export const CompetitionHubScreen: React.FC = () => {
                   )}
                   <View style={styles.heroBody}>
                     <Text style={styles.heroEyebrow}>
-                      {featuredTournament.campaign_preheader || campaignAudienceLabel(featuredTournament)}
+                      {featuredTournament.campaign_preheader ||
+                        campaignAudienceLabel(featuredTournament)}
                     </Text>
                     <Text style={styles.heroTitle}>{featuredTournament.title}</Text>
                     <Text style={styles.heroDescription} numberOfLines={3}>
-                      {featuredTournament.description || "Join this live Akademi challenge and compete in real time."}
+                      {featuredTournament.description ||
+                        "Join this live Akademi challenge and compete in real time."}
                     </Text>
 
                     <View style={styles.heroMetaWrap}>
                       <View style={styles.heroMetaRow}>
                         <CalendarDays size={14} color={colors.textMuted} />
-                        <Text style={styles.heroMetaText}>{formatEventDate(featuredTournament.scheduled_at)}</Text>
+                        <Text style={styles.heroMetaText}>
+                          {formatEventDate(featuredTournament.scheduled_at)}
+                        </Text>
                       </View>
-                      <Text style={styles.heroMetaText}>{featuredTournament.shared_course_code || "Multi-course event"}</Text>
+                      <Text style={styles.heroMetaText}>
+                        {featuredTournament.shared_course_code || "Multi-course event"}
+                      </Text>
                       {featuredTournament.prize_summary ? (
                         <Text style={styles.heroPrize}>{featuredTournament.prize_summary}</Text>
                       ) : null}
@@ -251,10 +266,15 @@ export const CompetitionHubScreen: React.FC = () => {
 
                     <View style={styles.heroActions}>
                       <TouchableOpacity
-                        style={[styles.heroPrimaryButton, featuredTournament.joined && styles.heroSecondaryButton]}
+                        style={[
+                          styles.heroPrimaryButton,
+                          featuredTournament.joined && styles.heroSecondaryButton,
+                        ]}
                         onPress={() =>
                           featuredTournament.joined
-                            ? navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })
+                            ? navigation.navigate("TournamentDetail", {
+                                tournamentId: featuredTournament.id,
+                              })
                             : joinTournament(featuredTournament.id)
                         }
                       >
@@ -271,7 +291,11 @@ export const CompetitionHubScreen: React.FC = () => {
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.heroGhostButton}
-                        onPress={() => navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })}
+                        onPress={() =>
+                          navigation.navigate("TournamentDetail", {
+                            tournamentId: featuredTournament.id,
+                          })
+                        }
                       >
                         <Text style={styles.heroGhostButtonText}>See details</Text>
                       </TouchableOpacity>
@@ -282,7 +306,10 @@ export const CompetitionHubScreen: React.FC = () => {
             ) : (
               <Card style={styles.emptyCard}>
                 <Text style={styles.emptyTitle}>No live campaigns yet</Text>
-                <Text style={styles.emptyText}>Published university, faculty, department, and national challenges will show here first.</Text>
+                <Text style={styles.emptyText}>
+                  Published university, faculty, department, and national challenges will show
+                  here first.
+                </Text>
               </Card>
             )}
 
@@ -292,20 +319,29 @@ export const CompetitionHubScreen: React.FC = () => {
                   <Card
                     key={tournament.id}
                     style={styles.campaignListCard}
-                    onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}
+                    onPress={() =>
+                      navigation.navigate("TournamentDetail", { tournamentId: tournament.id })
+                    }
                   >
                     {tournament.campaign_banner_url ? (
-                      <Image source={{ uri: tournament.campaign_banner_url }} style={styles.campaignThumb} resizeMode="cover" />
+                      <Image
+                        source={{ uri: tournament.campaign_banner_url }}
+                        style={styles.campaignThumb}
+                        resizeMode="cover"
+                      />
                     ) : (
                       <View style={styles.campaignThumbFallback} />
                     )}
                     <View style={styles.campaignListBody}>
                       <View style={styles.campaignListTop}>
-                        <Text style={styles.campaignListTitle} numberOfLines={2}>{tournament.title}</Text>
+                        <Text style={styles.campaignListTitle} numberOfLines={2}>
+                          {tournament.title}
+                        </Text>
                         <Text style={styles.campaignStatus}>{tournament.status}</Text>
                       </View>
                       <Text style={styles.campaignListMeta}>
-                        {tournament.shared_course_code || "Multi-course"} · {formatEventDate(tournament.scheduled_at)}
+                        {tournament.shared_course_code || "Multi-course"} ·{" "}
+                        {formatEventDate(tournament.scheduled_at)}
                       </Text>
                       <Text style={styles.campaignListAudience} numberOfLines={1}>
                         {campaignAudienceLabel(tournament)}
@@ -315,130 +351,6 @@ export const CompetitionHubScreen: React.FC = () => {
                 ))}
               </View>
             ) : null}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick actions</Text>
-            </View>
-
-            <View style={styles.statsGrid}>
-              {stats.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Card key={item.label} style={styles.statCard}>
-                    <Icon size={18} color={colors.primary} />
-                    <Text style={styles.statValue}>{item.value}</Text>
-                    <Text style={styles.statLabel}>{item.label}</Text>
-                  </Card>
-                );
-              })}
-            </View>
-
-            <View style={styles.quickActionRow}>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate("CreateCompetition")}>
-                <Text style={styles.primaryButtonText}>New Match</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Card style={styles.joinCodeCard}>
-              <Text style={styles.calloutTitle}>Have a match code?</Text>
-              <Text style={styles.calloutText}>
-                Join a private room or host-shared campaign code instantly.
-              </Text>
-              <Input
-                label="Room code"
-                placeholder="e.g. A7K2Q9"
-                value={joinCode}
-                onChangeText={setJoinCode}
-                autoCapitalize="characters"
-                style={styles.joinInput}
-              />
-              <Input
-                label="Your course code"
-                placeholder="Optional for dual-course matches"
-                value={joinCourseCode}
-                onChangeText={setJoinCourseCode}
-                autoCapitalize="characters"
-                style={styles.joinInput}
-              />
-              <TouchableOpacity
-                style={[styles.joinCodeButton, (!joinCode.trim() || joining) && styles.joinCodeButtonDisabled]}
-                onPress={joinMatchByCode}
-                disabled={!joinCode.trim() || joining}
-              >
-                <Text style={styles.joinCodeButtonText}>{joining ? "Joining..." : "Join with code"}</Text>
-              </TouchableOpacity>
-            </Card>
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Matches</Text>
-            </View>
-            {myRooms.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No matches yet</Text>
-                <Text style={styles.emptyText}>Create a room and share the code with a friend to start your first live battle.</Text>
-              </Card>
-            ) : (
-              myRooms.map((room) => (
-                <Card key={room.id} style={styles.roomCard} onPress={() => navigation.navigate("CompetitionLobby", { roomId: room.id })}>
-                  <View style={styles.roomTop}>
-                    <Text style={styles.roomTitle}>{room.title}</Text>
-                    <Text style={styles.roomCode}>{room.code}</Text>
-                  </View>
-                  <Text style={styles.roomMeta}>
-                    {room.format === "SHARED_COURSE" ? room.shared_course_code || "Shared course" : "Dual course"} · {room.participants.length}/{room.max_participants} players
-                  </Text>
-                  <Text style={styles.roomStatus}>{room.status}</Text>
-                </Card>
-              ))
-            )}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Open Public Matches</Text>
-            </View>
-            {publicRooms.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No public rooms waiting</Text>
-                <Text style={styles.emptyText}>When public competition opens up, available rooms will show here.</Text>
-              </Card>
-            ) : (
-              publicRooms.map((room) => (
-                <Card key={room.id} style={styles.roomCard} onPress={() => navigation.navigate("CompetitionLobby", { roomId: room.id })}>
-                  <View style={styles.roomTop}>
-                    <Text style={styles.roomTitle}>{room.title}</Text>
-                    <Text style={styles.roomCode}>{room.code}</Text>
-                  </View>
-                  <Text style={styles.roomMeta}>
-                    Host: {room.host.name} · {room.shared_course_code || "Mixed"}
-                  </Text>
-                  <Text style={styles.roomStatus}>{room.participants.length}/{room.max_participants} joined</Text>
-                </Card>
-              ))
-            )}
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Leaderboard</Text>
-            </View>
-            {leaderboard.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No leaderboard yet</Text>
-                <Text style={styles.emptyText}>Completed live battles will start shaping the rankings here.</Text>
-              </Card>
-            ) : (
-              <Card style={styles.leaderboardCard}>
-                {leaderboard.map((entry, index) => (
-                  <View key={entry.user_id} style={styles.leaderRow}>
-                    <Text style={styles.leaderRank}>#{index + 1}</Text>
-                    <View style={styles.leaderTextWrap}>
-                      <Text style={styles.leaderName}>{entry.name}</Text>
-                      <Text style={styles.leaderMeta}>
-                        {entry.wins} wins · {entry.matchesPlayed} matches · {entry.winRate}% win rate
-                      </Text>
-                    </View>
-                    <Text style={styles.leaderScore}>{entry.totalScore}</Text>
-                  </View>
-                ))}
-              </Card>
-            )}
           </>
         )}
       </ScrollView>
@@ -498,6 +410,72 @@ const styles = StyleSheet.create({
   sectionHint: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  actionGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  primaryActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 15,
+  },
+  primaryActionButtonText: {
+    ...typography.bodySmall,
+    color: "#04110A",
+    fontWeight: "700",
+  },
+  secondaryActionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingVertical: 15,
+  },
+  secondaryActionButtonText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  utilityRow: {
+    gap: 12,
+  },
+  utilityCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  utilityIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  utilityContent: {
+    flex: 1,
+    gap: 4,
+  },
+  utilityTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  utilityText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   heroCampaignCard: {
     overflow: "hidden",
@@ -648,71 +626,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  statCard: {
-    width: "47%",
-    gap: 8,
-  },
-  statValue: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  quickActionRow: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-  },
-  primaryButton: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  primaryButtonText: {
-    ...typography.bodySmall,
-    color: "#04110A",
-    fontWeight: "700",
-  },
-  joinCodeCard: {
-    backgroundColor: colors.surfaceElevated,
-    gap: 8,
-  },
-  calloutTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
-  calloutText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  joinInput: {
-    marginBottom: 4,
-  },
-  joinCodeButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    marginTop: 4,
-    paddingVertical: 14,
-  },
-  joinCodeButtonDisabled: {
-    opacity: 0.55,
-  },
-  joinCodeButtonText: {
-    ...typography.bodySmall,
-    color: "#04110A",
-    fontWeight: "700",
-  },
   emptyCard: {
     gap: 8,
   },
@@ -725,62 +638,5 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
-  },
-  roomCard: {
-    gap: 8,
-  },
-  roomTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-  },
-  roomTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-    flex: 1,
-  },
-  roomCode: {
-    ...typography.caption,
-    color: colors.primary,
-  },
-  roomMeta: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-  roomStatus: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  leaderboardCard: {
-    gap: 12,
-  },
-  leaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  leaderRank: {
-    ...typography.caption,
-    color: colors.textMuted,
-    width: 24,
-  },
-  leaderTextWrap: {
-    flex: 1,
-  },
-  leaderName: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
-  leaderMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  leaderScore: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: "700",
   },
 });
