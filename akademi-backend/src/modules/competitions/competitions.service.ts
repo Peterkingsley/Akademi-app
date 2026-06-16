@@ -21,6 +21,7 @@ import {
   CompetitionQuestionView,
   CreateCompetitionRequest,
   CreateTournamentRequest,
+  TournamentMaterialOption,
   TournamentView,
 } from './competitions.types';
 
@@ -214,6 +215,7 @@ export class CompetitionsService {
       status: tournament.status,
       format: tournament.format,
       shared_course_code: tournament.shared_course_code || null,
+      source_material_ids: tournament.source_material_ids || [],
       question_count: tournament.question_count,
       question_timer_sec: tournament.question_timer_sec,
       max_participants: tournament.max_participants ?? null,
@@ -250,9 +252,36 @@ export class CompetitionsService {
   private async getRoomQuestions(room: {
     format: CompetitionFormat;
     shared_course_code: string | null;
+    tournament_id?: string | null;
     question_count: number;
     participants: Array<{ course_code: string | null }>;
   }) {
+    const tournament = room.tournament_id
+      ? await prisma.tournament.findUnique({
+          where: { id: room.tournament_id },
+          select: { source_material_ids: true },
+        })
+      : null;
+
+    const sourceMaterialIds = tournament?.source_material_ids?.filter(Boolean) || [];
+
+    if (sourceMaterialIds.length > 0) {
+      const questions = await prisma.question.findMany({
+        where: {
+          correct_answer: { not: null },
+          material_id: { in: sourceMaterialIds },
+        },
+        take: room.question_count,
+        orderBy: { generated_at: 'desc' },
+      });
+
+      if (questions.length < Math.min(5, room.question_count)) {
+        throw new Error('Not enough scored questions are available from the selected materials yet');
+      }
+
+      return questions;
+    }
+
     const courseCodes = room.format === CompetitionFormat.SHARED_COURSE
       ? [room.shared_course_code].filter(Boolean) as string[]
       : room.participants.map((participant) => participant.course_code).filter(Boolean) as string[];
@@ -921,12 +950,39 @@ export class CompetitionsService {
   }
 
   async createTournament(adminId: string, payload: CreateTournamentRequest) {
+    const sourceMaterialIds = Array.from(new Set((payload.source_material_ids || []).map((id) => id.trim()).filter(Boolean)));
+    let normalizedSharedCourseCode = payload.shared_course_code?.trim().toUpperCase() || null;
+
+    if (sourceMaterialIds.length > 0) {
+      const materials = await prisma.material.findMany({
+        where: {
+          id: { in: sourceMaterialIds },
+          verification_status: 'VERIFIED' as any,
+        },
+        select: {
+          id: true,
+          course_code: true,
+        },
+      });
+
+      if (materials.length !== sourceMaterialIds.length) {
+        throw new Error('One or more selected materials are no longer verified or available');
+      }
+
+      const materialCourseCodes = Array.from(
+        new Set(materials.map((material) => material.course_code?.trim().toUpperCase()).filter(Boolean) as string[]),
+      );
+
+      normalizedSharedCourseCode = materialCourseCodes.length === 1 ? materialCourseCodes[0] : null;
+    }
+
     const tournament = await prisma.tournament.create({
       data: {
         title: payload.title.trim(),
         description: payload.description?.trim() || null,
         format: payload.format || CompetitionFormat.SHARED_COURSE,
-        shared_course_code: payload.shared_course_code?.trim().toUpperCase() || null,
+        shared_course_code: normalizedSharedCourseCode,
+        source_material_ids: sourceMaterialIds,
         question_count: Math.min(Math.max(payload.question_count || 10, 5), 25),
         question_timer_sec: Math.min(Math.max(payload.question_timer_sec || 20, 10), 60),
         max_participants: payload.max_participants || null,
@@ -986,6 +1042,36 @@ export class CompetitionsService {
     });
 
     return tournaments.map((tournament) => this.formatTournament(tournament));
+  }
+
+  async listTournamentMaterialOptions(filter: {
+    university?: string;
+    faculty?: string;
+    department?: string;
+  }): Promise<TournamentMaterialOption[]> {
+    const materials = await prisma.material.findMany({
+      where: {
+        verification_status: 'VERIFIED' as any,
+        ...(filter.university ? { university: filter.university } : {}),
+        ...(filter.faculty ? { faculty: filter.faculty } : {}),
+        ...(filter.department ? { department: filter.department } : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        semester: true,
+        created_at: true,
+      },
+      orderBy: [{ course_code: 'asc' }, { created_at: 'desc' }],
+      take: 200,
+    });
+
+    return materials;
   }
 
   async listAdminRooms(): Promise<AdminCompetitionRoomView[]> {

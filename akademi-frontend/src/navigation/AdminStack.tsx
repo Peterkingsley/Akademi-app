@@ -16,6 +16,9 @@ import { AdminMoreScreen } from "../screens/main/admin/AdminMoreScreen";
 import { AdminTeamScreen } from "../screens/main/admin/AdminTeamScreen";
 import { AdminWaitlistScreen } from "../screens/main/admin/AdminWaitlistScreen";
 import { AdminTournamentsScreen } from "../screens/main/admin/AdminTournamentsScreen";
+import { AdminTournamentCreateScreen } from "../screens/main/admin/AdminTournamentCreateScreen";
+import { AdminTournamentCampaignsScreen } from "../screens/main/admin/AdminTournamentCampaignsScreen";
+import { AdminTournamentRoomsScreen } from "../screens/main/admin/AdminTournamentRoomsScreen";
 import { AuditTrailScreen } from "../screens/main/admin/AuditTrailScreen";
 import { SecuritySettingsScreen } from "../screens/main/admin/SecuritySettingsScreen";
 
@@ -69,6 +72,27 @@ const MoreStack = () => {
         {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
             <AdminTournamentsScreen />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AdminTournamentCreate">
+        {() => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AdminTournamentCreateScreen />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AdminTournamentCampaigns">
+        {() => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AdminTournamentCampaignsScreen />
+          </PermissionGuard>
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="AdminTournamentRooms">
+        {() => (
+          <PermissionGuard requiredRole="SUPER_ADMIN">
+            <AdminTournamentRoomsScreen />
           </PermissionGuard>
         )}
       </Stack.Screen>

@@ -63,6 +63,9 @@ export type AdminStackParamList = {
   AdminDashboard: undefined;
   AdminMore: undefined;
   AdminTournaments: undefined;
+  AdminTournamentCreate: undefined;
+  AdminTournamentCampaigns: undefined;
+  AdminTournamentRooms: undefined;
   AdminTeam: undefined;
   AdminWaitlist: undefined;
   AuditTrail: undefined;

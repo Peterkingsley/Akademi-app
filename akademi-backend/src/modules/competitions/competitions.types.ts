@@ -104,6 +104,7 @@ export interface CreateTournamentRequest {
   description?: string;
   format?: CompetitionFormat;
   shared_course_code?: string;
+  source_material_ids?: string[];
   question_count?: number;
   question_timer_sec?: number;
   max_participants?: number;
@@ -131,6 +132,7 @@ export interface TournamentView {
   status: TournamentStatus;
   format: CompetitionFormat;
   shared_course_code: string | null;
+  source_material_ids: string[];
   question_count: number;
   question_timer_sec: number;
   max_participants: number | null;
@@ -157,6 +159,18 @@ export interface TournamentView {
   room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
+}
+
+export interface TournamentMaterialOption {
+  id: string;
+  title: string;
+  course_code: string | null;
+  university: string;
+  faculty: string;
+  department: string;
+  level: number | null;
+  semester: number | null;
+  created_at: Date;
 }
 
 export interface AdminCompetitionRoomView {

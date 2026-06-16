@@ -81,6 +81,19 @@ export class AdminController {
     }
   }
 
+  async listTournamentMaterialOptions(req: Request, res: Response) {
+    try {
+      const options = await competitionsService.listTournamentMaterialOptions({
+        university: typeof req.query.university === 'string' ? req.query.university : undefined,
+        faculty: typeof req.query.faculty === 'string' ? req.query.faculty : undefined,
+        department: typeof req.query.department === 'string' ? req.query.department : undefined,
+      });
+      res.json(options);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async listCompetitionRooms(req: Request, res: Response) {
     try {
       const rooms = await competitionsService.listAdminRooms();

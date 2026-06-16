@@ -132,6 +132,7 @@ export interface AdminTournament {
   status: "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
   format: "SHARED_COURSE" | "DUAL_COURSE";
   shared_course_code: string | null;
+  source_material_ids: string[];
   question_count: number;
   question_timer_sec: number;
   max_participants: number | null;
@@ -162,7 +163,7 @@ export interface AdminCompetitionRoom {
   id: string;
   code: string;
   title: string;
-  visibility: "PRIVATE" | "PUBLIC";
+  visibility: "PRIVATE" | "PUBLIC" | "TOURNAMENT";
   format: "SHARED_COURSE" | "DUAL_COURSE";
   status: "WAITING" | "READY" | "LIVE" | "FINISHED" | "CANCELLED";
   shared_course_code: string | null;
@@ -181,6 +182,18 @@ export interface AdminCompetitionRoom {
     id: string;
     title: string;
   } | null;
+}
+
+export interface TournamentMaterialOption {
+  id: string;
+  title: string;
+  course_code: string | null;
+  university: string;
+  faculty: string;
+  department: string;
+  level: number | null;
+  semester: number | null;
+  created_at: string;
 }
 
 export interface CampaignDesign {
@@ -215,6 +228,15 @@ export const adminService = {
 
   listTournaments: async (): Promise<AdminTournament[]> => {
     const { data } = await api.get("/admin/competitions/tournaments");
+    return data;
+  },
+
+  listTournamentMaterialOptions: async (params?: {
+    university?: string;
+    faculty?: string;
+    department?: string;
+  }): Promise<TournamentMaterialOption[]> => {
+    const { data } = await api.get("/admin/competitions/tournament-materials", { params });
     return data;
   },
 

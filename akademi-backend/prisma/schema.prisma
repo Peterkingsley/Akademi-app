@@ -563,6 +563,7 @@ model Tournament {
   status              TournamentStatus  @default(DRAFT)
   format              CompetitionFormat @default(SHARED_COURSE)
   shared_course_code  String?
+  source_material_ids String[]          @default([])
   question_count      Int               @default(10)
   question_timer_sec  Int               @default(20)
   max_participants    Int?
