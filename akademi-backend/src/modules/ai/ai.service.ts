@@ -92,9 +92,26 @@ export class AIService {
       .replace(/\s+/g, ' ')
       .trim();
 
+    normalized = normalized
+      .replace(/\bwhere\b[\s\S]*$/i, '')
+      .replace(/\bhere\b[\s\S]*$/i, '')
+      .replace(/\bbecause\b[\s\S]*$/i, '')
+      .replace(/,\s*[A-Za-z][A-Za-z\s,'-]*$/g, '')
+      .trim();
+
     normalized = normalized.replace(/([A-Za-z0-9\)\}])\^([A-Za-z0-9])/g, '$1^{$2}');
 
     return normalized;
+  }
+
+  private looksLikeStandaloneMath(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+
+    const letterWords = trimmed.match(/[A-Za-z]{3,}/g) || [];
+    const symbolMatches = trimmed.match(/[=^\\+\-*/()[\]{}]|dy\/dx|d\/dx|sqrt/gi) || [];
+
+    return symbolMatches.length >= 2 && letterWords.length <= 2;
   }
 
   private extractLatexCandidates(value: string) {
@@ -115,8 +132,6 @@ export class AIService {
 
     pullMatch(/\$([^$]+)\$/g);
     pullMatch(/\\\((.+?)\\\)/g);
-    pullMatch(/(?:where|using|rule:|formula:)\s+([^.!?]*?(?:=|dy\/dx|d\/dx|sqrt|\^)[^.!?]*)/gi);
-    pullMatch(/((?:dy\/dx|d\/dx)[^.!?]*)/gi);
 
     const sentences = working
       .split(/(?<=[.!?])\s+/)
@@ -126,14 +141,10 @@ export class AIService {
     const keptSentences: string[] = [];
 
     sentences.forEach((sentence) => {
-      const maybeMath = sentence.match(/([^.!?]*?(?:=|\^|sqrt|\\frac|dy\/dx|d\/dx)[^.!?]*)/i);
-      if (maybeMath && maybeMath[1]) {
-        const normalized = this.normalizeLatexExpression(maybeMath[1]);
-        const symbolCount = (normalized.match(/[=^\\]/g) || []).length;
-        if (symbolCount >= 1) {
+      if (this.looksLikeStandaloneMath(sentence)) {
+        const normalized = this.normalizeLatexExpression(sentence);
+        if (normalized) {
           extractedMath.push(normalized);
-          const stripped = sentence.replace(maybeMath[1], '').replace(/\s+/g, ' ').trim();
-          if (stripped) keptSentences.push(stripped);
           return;
         }
       }
@@ -154,8 +165,8 @@ export class AIService {
     const existingMath = this.normalizeLatexExpression(step.math);
     const combinedMathParts = [
       existingMath,
-      ...textExtraction.extractedMath,
-      ...noteExtraction.extractedMath,
+      ...(existingMath ? [] : textExtraction.extractedMath),
+      ...(existingMath ? [] : noteExtraction.extractedMath),
     ].filter(Boolean);
 
     const uniqueMath = [...new Set(combinedMathParts)];
