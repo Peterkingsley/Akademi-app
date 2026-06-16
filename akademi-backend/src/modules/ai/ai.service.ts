@@ -74,6 +74,109 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 }
 
 export class AIService {
+  private normalizeLatexExpression(value: string) {
+    if (!value) return '';
+
+    let normalized = value.trim();
+
+    normalized = normalized
+      .replace(/\$\$?/g, '')
+      .replace(/\\\((.*?)\\\)/g, '$1')
+      .replace(/\\\[(.*?)\\\]/g, '$1')
+      .replace(/\bdy\/dx\b/gi, '\\frac{dy}{dx}')
+      .replace(/\bd\/dx\b/gi, '\\frac{d}{dx}')
+      .replace(/\bsqrt\s*\(([^)]+)\)/gi, '\\sqrt{$1}')
+      .replace(/\*/g, ' \\cdot ')
+      .replace(/÷/g, '\\div')
+      .replace(/×/g, '\\cdot')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    normalized = normalized.replace(/([A-Za-z0-9\)\}])\^([A-Za-z0-9])/g, '$1^{$2}');
+
+    return normalized;
+  }
+
+  private extractLatexCandidates(value: string) {
+    if (!value) return { cleanedText: '', extractedMath: [] as string[] };
+
+    let working = value;
+    const extractedMath: string[] = [];
+
+    const pullMatch = (regex: RegExp, formatter?: (match: RegExpExecArray) => string) => {
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(working)) !== null) {
+        const raw = formatter ? formatter(match) : (match[1] || match[0]);
+        const normalized = this.normalizeLatexExpression(raw);
+        if (normalized) extractedMath.push(normalized);
+      }
+      working = working.replace(regex, ' ');
+    };
+
+    pullMatch(/\$([^$]+)\$/g);
+    pullMatch(/\\\((.+?)\\\)/g);
+    pullMatch(/(?:where|using|rule:|formula:)\s+([^.!?]*?(?:=|dy\/dx|d\/dx|sqrt|\^)[^.!?]*)/gi);
+    pullMatch(/((?:dy\/dx|d\/dx)[^.!?]*)/gi);
+
+    const sentences = working
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+
+    const keptSentences: string[] = [];
+
+    sentences.forEach((sentence) => {
+      const maybeMath = sentence.match(/([^.!?]*?(?:=|\^|sqrt|\\frac|dy\/dx|d\/dx)[^.!?]*)/i);
+      if (maybeMath && maybeMath[1]) {
+        const normalized = this.normalizeLatexExpression(maybeMath[1]);
+        const symbolCount = (normalized.match(/[=^\\]/g) || []).length;
+        if (symbolCount >= 1) {
+          extractedMath.push(normalized);
+          const stripped = sentence.replace(maybeMath[1], '').replace(/\s+/g, ' ').trim();
+          if (stripped) keptSentences.push(stripped);
+          return;
+        }
+      }
+      keptSentences.push(sentence);
+    });
+
+    const uniqueMath = [...new Set(extractedMath.filter(Boolean))];
+
+    return {
+      cleanedText: keptSentences.join(' ').replace(/\s+/g, ' ').trim(),
+      extractedMath: uniqueMath,
+    };
+  }
+
+  private normalizeBoardStep(step: { id: string; type: string; text: string; math: string; note: string }) {
+    const textExtraction = this.extractLatexCandidates(step.text);
+    const noteExtraction = this.extractLatexCandidates(step.note);
+    const existingMath = this.normalizeLatexExpression(step.math);
+    const combinedMathParts = [
+      existingMath,
+      ...textExtraction.extractedMath,
+      ...noteExtraction.extractedMath,
+    ].filter(Boolean);
+
+    const uniqueMath = [...new Set(combinedMathParts)];
+    const text = textExtraction.cleanedText || step.text.trim();
+    const note = noteExtraction.cleanedText || step.note.trim();
+
+    const shortenedText = text.length > 180
+      ? text.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').trim()
+      : text;
+    const shortenedNote = note.length > 140
+      ? note.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').trim()
+      : note;
+
+    return {
+      ...step,
+      text: shortenedText,
+      math: uniqueMath.join(' \\\\ '),
+      note: shortenedNote,
+    };
+  }
+
   private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
     if (session.session_type !== 'ASSIGNMENT') return false;
 
@@ -156,6 +259,7 @@ export class AIService {
           math: String(step?.math || '').trim(),
           note: String(step?.note || '').trim(),
         }))
+        .map((step: { id: string; type: string; text: string; math: string; note: string }) => this.normalizeBoardStep(step))
         .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0)
         .slice(0, 12);
 
@@ -166,7 +270,7 @@ export class AIService {
         board_style: 'digital-whiteboard',
         steps: normalizedSteps,
         final_answer: parsed.final_answer.trim(),
-        final_answer_math: String(parsed?.final_answer_math || parsed?.final_answer || '').trim(),
+        final_answer_math: this.normalizeLatexExpression(String(parsed?.final_answer_math || parsed?.final_answer || '').trim()),
         summary: String(parsed?.summary || '').trim(),
       };
     } catch {
