@@ -23,6 +23,10 @@ export const AdminTournamentsScreen: React.FC = () => {
   const [accentColor, setAccentColor] = useState("#16A34A");
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaUrl, setCtaUrl] = useState("");
+  const [audienceScope, setAudienceScope] = useState<"EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT">("EVERYONE");
+  const [audienceUniversity, setAudienceUniversity] = useState("");
+  const [audienceFaculty, setAudienceFaculty] = useState("");
+  const [audienceDepartment, setAudienceDepartment] = useState("");
   const [saving, setSaving] = useState(false);
 
   const formCardStyle: ViewStyle = {
@@ -61,6 +65,10 @@ export const AdminTournamentsScreen: React.FC = () => {
         campaign_accent_color: accentColor || undefined,
         campaign_cta_label: ctaLabel || undefined,
         campaign_cta_url: ctaUrl || undefined,
+        audience_scope: audienceScope,
+        audience_university: audienceUniversity || undefined,
+        audience_faculty: audienceFaculty || undefined,
+        audience_department: audienceDepartment || undefined,
       });
       setTitle("");
       setCourseCode("");
@@ -75,6 +83,10 @@ export const AdminTournamentsScreen: React.FC = () => {
       setAccentColor("#16A34A");
       setCtaLabel("");
       setCtaUrl("");
+      setAudienceScope("EVERYONE");
+      setAudienceUniversity("");
+      setAudienceFaculty("");
+      setAudienceDepartment("");
       await loadTournaments();
     } catch (error: any) {
       Alert.alert("Unable to create tournament", error?.response?.data?.message || "Please check the form.");
@@ -110,6 +122,19 @@ export const AdminTournamentsScreen: React.FC = () => {
           <Input label="Accent Color" placeholder="#16A34A" value={accentColor} onChangeText={setAccentColor} autoCapitalize="none" />
           <Input label="CTA Label" placeholder="Register for the showdown" value={ctaLabel} onChangeText={setCtaLabel} />
           <Input label="CTA URL" placeholder="https://..." value={ctaUrl} onChangeText={setCtaUrl} autoCapitalize="none" />
+          <Input label="Audience Scope" placeholder="EVERYONE | UNIVERSITY | FACULTY | DEPARTMENT" value={audienceScope} onChangeText={(value) => setAudienceScope((value.toUpperCase() as any) || "EVERYONE")} autoCapitalize="characters" />
+          {audienceScope !== "EVERYONE" ? (
+            <Input
+              label={audienceScope === "UNIVERSITY" ? "Audience University" : audienceScope === "FACULTY" ? "Audience Faculty" : "Audience Department"}
+              placeholder={audienceScope === "UNIVERSITY" ? "University of Lagos" : audienceScope === "FACULTY" ? "Engineering" : "Computer Science"}
+              value={audienceScope === "UNIVERSITY" ? audienceUniversity : audienceScope === "FACULTY" ? audienceFaculty : audienceDepartment}
+              onChangeText={(value) => {
+                if (audienceScope === "UNIVERSITY") setAudienceUniversity(value);
+                if (audienceScope === "FACULTY") setAudienceFaculty(value);
+                if (audienceScope === "DEPARTMENT") setAudienceDepartment(value);
+              }}
+            />
+          ) : null}
 
           <View style={[styles.previewCard, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
             <View style={styles.previewHeader}>
@@ -121,6 +146,9 @@ export const AdminTournamentsScreen: React.FC = () => {
             <Text style={[typography.h4, { color: colors.textPrimary }]}>{title || "Tournament title"}</Text>
             <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
               {prize || "Prize summary appears here"}
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Audience: {audienceScope === "EVERYONE" ? "Everyone on Akademi" : audienceScope === "UNIVERSITY" ? audienceUniversity || "Selected university" : audienceScope === "FACULTY" ? audienceFaculty || "Selected faculty" : audienceDepartment || "Selected department"}
             </Text>
             <Text style={[typography.caption, { color: colors.textMuted }]}>
               {bannerUrl || "Banner image URL not set"}
@@ -163,12 +191,20 @@ export const AdminTournamentsScreen: React.FC = () => {
               </View>
               <View style={styles.metaRow}>
                 <Radio size={14} color={colors.textMuted} />
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>{tournament.entry_count} registered</Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {tournament.entry_count} total | {tournament.checked_in_count || 0} checked in | {tournament.registered_count || 0} registered | {tournament.standby_count || 0} standby
+                </Text>
               </View>
               <View style={styles.metaRow}>
                 <Eye size={14} color={colors.textMuted} />
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>
                   {tournament.check_in_opens_at ? `Check-in: ${new Date(tournament.check_in_opens_at).toLocaleString()}` : "Check-in window not set"}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Eye size={14} color={colors.textMuted} />
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  Audience: {tournament.audience_scope === "EVERYONE" ? "Everyone on Akademi" : tournament.audience_scope === "UNIVERSITY" ? tournament.audience_university : tournament.audience_scope === "FACULTY" ? tournament.audience_faculty : tournament.audience_department}
                 </Text>
               </View>
               {tournament.status === "DRAFT" ? (

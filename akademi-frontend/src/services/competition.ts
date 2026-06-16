@@ -100,7 +100,14 @@ export interface Tournament {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  audience_scope: "EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT";
+  audience_university: string | null;
+  audience_faculty: string | null;
+  audience_department: string | null;
   entry_count: number;
+  registered_count?: number;
+  checked_in_count?: number;
+  standby_count?: number;
   room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;

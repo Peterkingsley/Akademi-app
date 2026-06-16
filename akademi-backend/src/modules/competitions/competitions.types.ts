@@ -1,5 +1,7 @@
 import { CompetitionFormat, CompetitionParticipantStatus, CompetitionStatus, CompetitionVisibility, TournamentEntryStatus, TournamentStatus } from '@prisma/client';
 
+export type TournamentAudienceScopeValue = 'EVERYONE' | 'UNIVERSITY' | 'FACULTY' | 'DEPARTMENT';
+
 export interface CreateCompetitionRequest {
   title?: string;
   visibility?: CompetitionVisibility;
@@ -116,6 +118,10 @@ export interface CreateTournamentRequest {
   campaign_cta_label?: string;
   campaign_cta_url?: string;
   campaign_preheader?: string;
+  audience_scope?: TournamentAudienceScopeValue;
+  audience_university?: string;
+  audience_faculty?: string;
+  audience_department?: string;
 }
 
 export interface TournamentView {
@@ -140,7 +146,14 @@ export interface TournamentView {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  audience_scope: TournamentAudienceScopeValue;
+  audience_university: string | null;
+  audience_faculty: string | null;
+  audience_department: string | null;
   entry_count: number;
+  registered_count?: number;
+  checked_in_count?: number;
+  standby_count?: number;
   room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;

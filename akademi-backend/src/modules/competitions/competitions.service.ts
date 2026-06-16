@@ -203,6 +203,9 @@ export class CompetitionsService {
 
   private formatTournament(tournament: any, userId?: string): TournamentView {
     const entry = userId ? tournament.entries?.find((item: any) => item.user_id === userId) || null : null;
+    const registeredCount = tournament.entries?.filter((item: any) => item.status === TournamentEntryStatus.REGISTERED).length || 0;
+    const checkedInCount = tournament.entries?.filter((item: any) => item.status === TournamentEntryStatus.CHECKED_IN).length || 0;
+    const standbyCount = tournament.entries?.filter((item: any) => item.status === 'STANDBY').length || 0;
     return {
       id: tournament.id,
       title: tournament.title,
@@ -225,7 +228,14 @@ export class CompetitionsService {
       campaign_cta_label: tournament.campaign_cta_label || null,
       campaign_cta_url: tournament.campaign_cta_url || null,
       campaign_preheader: tournament.campaign_preheader || null,
+      audience_scope: tournament.audience_scope,
+      audience_university: tournament.audience_university || null,
+      audience_faculty: tournament.audience_faculty || null,
+      audience_department: tournament.audience_department || null,
       entry_count: tournament.entries?.length || 0,
+      registered_count: registeredCount,
+      checked_in_count: checkedInCount,
+      standby_count: standbyCount,
       room_id: tournament.room?.id || null,
       joined: !!entry,
       entry_status: entry?.status || null,
@@ -293,8 +303,59 @@ export class CompetitionsService {
     });
 
     for (const tournament of readyTournaments) {
-      const checkInClosesAt = tournament.check_in_closes_at || tournament.scheduled_at;
-      const eligibleEntries = tournament.entries.filter((entry) =>
+      if (tournament.check_in_closes_at && tournament.check_in_closes_at.getTime() <= Date.now()) {
+        const noShowEntryIds = tournament.entries
+          .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
+          .map((entry) => entry.id);
+
+        if (noShowEntryIds.length > 0) {
+          await prisma.tournamentEntry.updateMany({
+            where: { id: { in: noShowEntryIds } },
+            data: { status: 'STANDBY' as any },
+          });
+
+          await Promise.all(
+            tournament.entries
+              .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
+              .map((entry) =>
+                notificationsService.createNotification({
+                  user_id: entry.user_id,
+                  title: `${tournament.title} moved you to standby`,
+                  message: 'Check-in closed before you confirmed attendance, so you were not added to the live room.',
+                  type: 'tournament_standby',
+                }),
+              ),
+          );
+        }
+      }
+
+      const refreshedTournament = await prisma.tournament.findUnique({
+        where: { id: tournament.id },
+        include: {
+          entries: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          room: {
+            include: {
+              participants: true,
+            },
+          },
+        },
+      });
+
+      if (!refreshedTournament) {
+        continue;
+      }
+
+      const checkInClosesAt = refreshedTournament.check_in_closes_at || refreshedTournament.scheduled_at;
+      const eligibleEntries = refreshedTournament.entries.filter((entry) =>
         entry.status === TournamentEntryStatus.CHECKED_IN || checkInClosesAt.getTime() <= Date.now(),
       );
 
@@ -302,7 +363,7 @@ export class CompetitionsService {
         continue;
       }
 
-      let room = tournament.room;
+      let room = refreshedTournament.room;
 
       if (!room) {
         const hostEntry = eligibleEntries[0];
@@ -310,20 +371,20 @@ export class CompetitionsService {
           data: {
             code: await this.generateUniqueCode(),
             host_user_id: hostEntry.user_id,
-            tournament_id: tournament.id,
-            title: tournament.title,
+            tournament_id: refreshedTournament.id,
+            title: refreshedTournament.title,
             visibility: CompetitionVisibility.TOURNAMENT,
-            format: tournament.format,
+            format: refreshedTournament.format,
             status: CompetitionStatus.LIVE,
-            shared_course_code: tournament.shared_course_code,
-            question_count: tournament.question_count,
-            question_timer_sec: tournament.question_timer_sec,
-            max_participants: tournament.max_participants || Math.max(2, tournament.entries.length),
+            shared_course_code: refreshedTournament.shared_course_code,
+            question_count: refreshedTournament.question_count,
+            question_timer_sec: refreshedTournament.question_timer_sec,
+            max_participants: refreshedTournament.max_participants || Math.max(2, refreshedTournament.entries.length),
             starts_at: new Date(),
             participants: {
               create: eligibleEntries.map((entry) => ({
                 user_id: entry.user_id,
-                course_code: tournament.shared_course_code,
+                course_code: refreshedTournament.shared_course_code,
                 status: CompetitionParticipantStatus.JOINED,
               })),
             },
@@ -335,7 +396,7 @@ export class CompetitionsService {
       }
 
       await prisma.tournament.update({
-        where: { id: tournament.id },
+        where: { id: refreshedTournament.id },
         data: {
           status: TournamentStatus.LIVE,
         },
@@ -344,7 +405,7 @@ export class CompetitionsService {
       try {
         await this.startMatch(room.id);
       } catch (error) {
-        console.warn(`Unable to seed tournament match ${tournament.id}:`, (error as Error)?.message || error);
+        console.warn(`Unable to seed tournament match ${refreshedTournament.id}:`, (error as Error)?.message || error);
       }
 
       const startsAt = room.starts_at || new Date();
@@ -352,16 +413,16 @@ export class CompetitionsService {
         eligibleEntries.map(async (entry) => {
           await notificationsService.createNotification({
             user_id: entry.user_id,
-            title: `${tournament.title} is live`,
+            title: `${refreshedTournament.title} is live`,
             message: `Your tournament room is ready. Join now and compete live.`,
             type: 'tournament_live',
           });
 
           emitToUser(entry.user_id, 'tournament:live', {
-            tournamentId: tournament.id,
+            tournamentId: refreshedTournament.id,
             roomId: room!.id,
-            title: tournament.title,
-            scheduledAt: tournament.scheduled_at.toISOString(),
+            title: refreshedTournament.title,
+            scheduledAt: refreshedTournament.scheduled_at.toISOString(),
             startsAt: startsAt.toISOString(),
           });
         }),
@@ -874,6 +935,10 @@ export class CompetitionsService {
         campaign_cta_label: payload.campaign_cta_label?.trim() || null,
         campaign_cta_url: payload.campaign_cta_url?.trim() || null,
         campaign_preheader: payload.campaign_preheader?.trim() || null,
+        audience_scope: (payload.audience_scope || 'EVERYONE') as any,
+        audience_university: payload.audience_university?.trim() || null,
+        audience_faculty: payload.audience_faculty?.trim() || null,
+        audience_department: payload.audience_department?.trim() || null,
         scheduled_at: new Date(payload.scheduled_at),
         registration_closes_at: payload.registration_closes_at ? new Date(payload.registration_closes_at) : null,
         late_join_cutoff_at: payload.late_join_cutoff_at ? new Date(payload.late_join_cutoff_at) : null,
@@ -924,11 +989,21 @@ export class CompetitionsService {
 
   async listPublicTournaments(userId: string) {
     await this.ensureTournamentRooms();
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { university: true, faculty: true, department: true },
+    });
     const tournaments = await prisma.tournament.findMany({
       where: {
         status: {
           in: [TournamentStatus.PUBLISHED, TournamentStatus.LIVE],
         },
+        OR: [
+          { audience_scope: 'EVERYONE' as any },
+          ...(user?.university ? [{ audience_scope: 'UNIVERSITY' as any, audience_university: user.university }] : []),
+          ...(user?.faculty ? [{ audience_scope: 'FACULTY' as any, audience_faculty: user.faculty }] : []),
+          ...(user?.department ? [{ audience_scope: 'DEPARTMENT' as any, audience_department: user.department }] : []),
+        ],
       },
       include: {
         entries: true,

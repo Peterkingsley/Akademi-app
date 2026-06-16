@@ -132,8 +132,16 @@ enum TournamentStatus {
 enum TournamentEntryStatus {
   REGISTERED
   CHECKED_IN
+  STANDBY
   ELIMINATED
   WINNER
+}
+
+enum TournamentAudienceScope {
+  EVERYONE
+  UNIVERSITY
+  FACULTY
+  DEPARTMENT
 }
 
 enum MatchSessionStatus {
@@ -564,6 +572,10 @@ model Tournament {
   campaign_cta_label  String?
   campaign_cta_url    String?
   campaign_preheader  String?
+  audience_scope      TournamentAudienceScope @default(EVERYONE)
+  audience_university String?
+  audience_faculty    String?
+  audience_department String?
   scheduled_at        DateTime
   registration_closes_at DateTime?
   late_join_cutoff_at DateTime?

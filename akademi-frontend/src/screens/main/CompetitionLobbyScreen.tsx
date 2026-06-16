@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
@@ -24,6 +24,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
   const [scoreboard, setScoreboard] = useState<CompetitionScoreboardEntry[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [winnerUserId, setWinnerUserId] = useState<string | null>(null);
+  const [timerNow, setTimerNow] = useState(Date.now());
+  const [timerRecovered, setTimerRecovered] = useState(false);
+  const wasDisconnectedRef = useRef(false);
 
   const localStatus = useMemo(() => {
     if (!room) return null;
@@ -66,8 +69,13 @@ export const CompetitionLobbyScreen: React.FC = () => {
 
     const handleQuestion = (payload: { roomId: string; question: CompetitionQuestion }) => {
       if (!mounted || payload.roomId !== route.params.roomId) return;
+      if (wasDisconnectedRef.current) {
+        setTimerRecovered(true);
+        wasDisconnectedRef.current = false;
+      }
       setQuestion(payload.question);
       setSelectedAnswer(null);
+      setTimerNow(Date.now());
     };
 
     const handleScoreUpdate = (payload: { roomId: string; scoreboard: CompetitionScoreboardEntry[] }) => {
@@ -92,8 +100,16 @@ export const CompetitionLobbyScreen: React.FC = () => {
       const socket = await socketService.connect();
       if (!mounted) return;
       setSocketConnected(!!socket.connected);
-      socket.on("connect", () => setSocketConnected(true));
-      socket.on("disconnect", () => setSocketConnected(false));
+      socket.on("connect", () => {
+        setSocketConnected(true);
+        if (wasDisconnectedRef.current) {
+          socket.emit("competition:join-room", { roomId: route.params.roomId });
+        }
+      });
+      socket.on("disconnect", () => {
+        setSocketConnected(false);
+        wasDisconnectedRef.current = true;
+      });
       socket.on("competition:room-state", handleRoomState);
       socket.on("competition:started", handleStarted);
       socket.on("competition:question", handleQuestion);
@@ -114,6 +130,14 @@ export const CompetitionLobbyScreen: React.FC = () => {
       socketService.off("competition:match-ended", handleMatchEnded);
     };
   }, [route.params.roomId]);
+
+  useEffect(() => {
+    if (!question) return;
+    const interval = setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [question?.id]);
 
   const updateStatus = async (status: CompetitionParticipantStatus) => {
     try {
@@ -136,7 +160,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
     });
   };
 
-  const secondsLeft = question ? Math.max(0, Math.ceil((new Date(question.expires_at).getTime() - Date.now()) / 1000)) : 0;
+  const secondsLeft = question ? Math.max(0, Math.ceil((new Date(question.expires_at).getTime() - timerNow) / 1000)) : 0;
   const orderedBoard = scoreboard.length > 0 ? scoreboard : (room?.participants || []).map((participant) => ({
     user_id: participant.user_id,
     name: participant.name,
@@ -162,6 +186,9 @@ export const CompetitionLobbyScreen: React.FC = () => {
         <Text style={styles.title}>{room.title}</Text>
         <Text style={styles.subtitle}>Share code <Text style={styles.code}>{room.code}</Text> with your opponent.</Text>
         <Text style={styles.socketState}>{socketConnected ? "Live sync connected" : "Reconnecting live sync..."}</Text>
+        {timerRecovered && question ? (
+          <Text style={styles.resumeState}>Timer resumed from live server state.</Text>
+        ) : null}
 
         <Card style={styles.metaCard}>
           <Text style={styles.metaText}>Format: {room.format === "SHARED_COURSE" ? "Shared course" : "Dual course"}</Text>
@@ -209,6 +236,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
                 <>
                   <Text style={styles.liveText}>{question.text}</Text>
                   <Text style={styles.timerBadge}>{secondsLeft}s left</Text>
+                  <Text style={styles.timerMeta}>Ends at {new Date(question.expires_at).toLocaleTimeString()}</Text>
                   <View style={styles.optionsList}>
                     {question.options.map((option) => (
                       <TouchableOpacity
@@ -290,6 +318,10 @@ const styles = StyleSheet.create({
   socketState: {
     ...typography.caption,
     color: colors.primary,
+  },
+  resumeState: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   code: {
     color: colors.primary,
@@ -378,6 +410,10 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
     marginTop: 4,
+  },
+  timerMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   optionsList: {
     marginTop: 12,
