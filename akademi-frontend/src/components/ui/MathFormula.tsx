@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { LayoutChangeEvent, ScrollView, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 interface MathFormulaProps {
@@ -26,6 +26,8 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   block = true,
 }) => {
   const [height, setHeight] = useState(block ? 92 : 52);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
   const displayMode = block ? "block" : "inline";
 
   const html = useMemo(
@@ -44,17 +46,19 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         padding: 0;
         background: ${backgroundColor};
         color: ${textColor};
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: hidden;
       }
       body {
         font-family: Inter, Arial, sans-serif;
         padding: 0;
       }
       #formula {
-        display: flex;
+        display: inline-flex;
         justify-content: ${block ? "flex-start" : "center"};
         align-items: center;
         min-height: 24px;
+        min-width: max-content;
         font-size: ${fontSize}px;
         line-height: 1.4;
       }
@@ -80,7 +84,13 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
           document.getElementById('formula').textContent = ${JSON.stringify(latex)};
         }
         const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 24);
-        window.ReactNativeWebView.postMessage(String(height));
+        const width = Math.max(
+          document.body.scrollWidth,
+          document.documentElement.scrollWidth,
+          document.getElementById('formula')?.scrollWidth || 0,
+          24
+        );
+        window.ReactNativeWebView.postMessage(JSON.stringify({ height, width }));
       }
       document.addEventListener('DOMContentLoaded', render);
       window.addEventListener('load', render);
@@ -91,24 +101,55 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
     [backgroundColor, block, displayMode, fontSize, latex, textColor]
   );
 
+  const onLayout = (event: LayoutChangeEvent) => {
+    const nextWidth = event.nativeEvent.layout.width;
+    if (nextWidth > 0 && nextWidth !== containerWidth) {
+      setContainerWidth(nextWidth);
+    }
+  };
+
+  const viewportWidth = Math.max(containerWidth, 1);
+  const webViewWidth = Math.max(viewportWidth, contentWidth || 0);
+
   return (
-    <View style={[styles.container, { height }]}>
-      <WebView
-        originWhitelist={["*"]}
-        source={{ html }}
-        scrollEnabled={false}
-        javaScriptEnabled
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        style={[styles.webview, { height, backgroundColor }]}
-        containerStyle={{ backgroundColor }}
-        onMessage={(event) => {
-          const nextHeight = Number(event.nativeEvent.data);
-          if (Number.isFinite(nextHeight) && nextHeight > 0) {
-            setHeight(Math.min(Math.max(nextHeight + 8, block ? 44 : 28), 220));
-          }
-        }}
-      />
+    <View style={[styles.container, { height }]} onLayout={onLayout}>
+      <ScrollView
+        horizontal
+        bounces={false}
+        showsHorizontalScrollIndicator
+        contentContainerStyle={[styles.scrollContent, { minWidth: viewportWidth }]}
+      >
+        <WebView
+          originWhitelist={["*"]}
+          source={{ html }}
+          scrollEnabled={false}
+          javaScriptEnabled
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          style={[styles.webview, { height, width: webViewWidth, backgroundColor }]}
+          containerStyle={{ backgroundColor }}
+          onMessage={(event) => {
+            try {
+              const parsed = JSON.parse(event.nativeEvent.data);
+              const nextHeight = Number(parsed?.height);
+              const nextWidth = Number(parsed?.width);
+
+              if (Number.isFinite(nextHeight) && nextHeight > 0) {
+                setHeight(Math.min(Math.max(nextHeight + 8, block ? 44 : 28), 220));
+              }
+
+              if (Number.isFinite(nextWidth) && nextWidth > 0) {
+                setContentWidth(nextWidth + 24);
+              }
+            } catch {
+              const nextHeight = Number(event.nativeEvent.data);
+              if (Number.isFinite(nextHeight) && nextHeight > 0) {
+                setHeight(Math.min(Math.max(nextHeight + 8, block ? 44 : 28), 220));
+              }
+            }
+          }}
+        />
+      </ScrollView>
     </View>
   );
 };
@@ -117,8 +158,10 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
   },
+  scrollContent: {
+    alignItems: "stretch",
+  },
   webview: {
     backgroundColor: "transparent",
-    width: "100%",
   },
 });
