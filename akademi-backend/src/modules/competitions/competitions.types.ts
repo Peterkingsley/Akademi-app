@@ -158,3 +158,28 @@ export interface TournamentView {
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
 }
+
+export interface AdminCompetitionRoomView {
+  id: string;
+  code: string;
+  title: string;
+  visibility: CompetitionVisibility;
+  format: CompetitionFormat;
+  status: CompetitionStatus;
+  shared_course_code: string | null;
+  created_at: Date;
+  starts_at: Date | null;
+  ended_at: Date | null;
+  host: {
+    id: string;
+    name: string;
+  };
+  participant_count: number;
+  ready_count: number;
+  finished_count: number;
+  winner_name: string | null;
+  tournament: {
+    id: string;
+    title: string;
+  } | null;
+}

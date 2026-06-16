@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import { extractDisciplineDocumentText } from './document-extraction';
 import { CompetitionsService } from '../competitions/competitions.service';
+import { uploadFile } from '../../shared/storage/r2.service';
 
 const adminService = new AdminService();
 const competitionsService = new CompetitionsService();
@@ -75,6 +76,36 @@ export class AdminController {
     try {
       const result = await competitionsService.publishTournament(req.params.id);
       res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async listCompetitionRooms(req: Request, res: Response) {
+    try {
+      const rooms = await competitionsService.listAdminRooms();
+      res.json(rooms);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async uploadTournamentBanner(req: Request, res: Response) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No banner image uploaded' });
+      }
+
+      const sanitizedName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const key = `admin/tournaments/banners/${Date.now()}-${sanitizedName}`;
+      const url = await uploadFile(key, req.file.buffer, req.file.mimetype || 'application/octet-stream');
+
+      res.status(201).json({
+        url,
+        key,
+        fileName: req.file.originalname,
+        contentType: req.file.mimetype,
+      });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }

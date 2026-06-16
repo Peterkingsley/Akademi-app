@@ -158,6 +158,31 @@ export interface AdminTournament {
   room_id?: string | null;
 }
 
+export interface AdminCompetitionRoom {
+  id: string;
+  code: string;
+  title: string;
+  visibility: "PRIVATE" | "PUBLIC";
+  format: "SHARED_COURSE" | "DUAL_COURSE";
+  status: "WAITING" | "READY" | "LIVE" | "FINISHED" | "CANCELLED";
+  shared_course_code: string | null;
+  created_at: string;
+  starts_at: string | null;
+  ended_at: string | null;
+  host: {
+    id: string;
+    name: string;
+  };
+  participant_count: number;
+  ready_count: number;
+  finished_count: number;
+  winner_name: string | null;
+  tournament: {
+    id: string;
+    title: string;
+  } | null;
+}
+
 export interface CampaignDesign {
   bannerImageUrl?: string;
   accentColor?: string;
@@ -193,9 +218,28 @@ export const adminService = {
     return data;
   },
 
+  listCompetitionRooms: async (): Promise<AdminCompetitionRoom[]> => {
+    const { data } = await api.get("/admin/competitions/rooms");
+    return data;
+  },
+
   createTournament: async (payload: any): Promise<AdminTournament> => {
     const { data } = await api.post("/admin/competitions/tournaments", payload);
     return data;
+  },
+
+  uploadTournamentBanner: async (file: { uri: string; name: string; mimeType?: string }) => {
+    const formData = new FormData();
+    formData.append("banner", {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || "application/octet-stream",
+    } as any);
+
+    const { data } = await api.post("/admin/competitions/tournaments/banner-upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data as { url: string; fileName: string; key: string; contentType?: string };
   },
 
   publishTournament: async (id: string): Promise<AdminTournament> => {

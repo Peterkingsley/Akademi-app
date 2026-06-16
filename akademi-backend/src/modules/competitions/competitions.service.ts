@@ -12,6 +12,7 @@ import prisma from '../../config/db';
 import { notificationsService } from '../notifications/notifications.service';
 import { emitToUser } from '../websocket/websocket.emitter';
 import {
+  AdminCompetitionRoomView,
   CompetitionLeaderboardEntry,
   CompetitionMatchState,
   CompetitionRoomView,
@@ -985,6 +986,64 @@ export class CompetitionsService {
     });
 
     return tournaments.map((tournament) => this.formatTournament(tournament));
+  }
+
+  async listAdminRooms(): Promise<AdminCompetitionRoomView[]> {
+    await this.ensureTournamentRooms();
+    const rooms = await prisma.competitionRoom.findMany({
+      include: {
+        host: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        tournament: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        participants: {
+          select: {
+            user_id: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+            status: true,
+          },
+        },
+      },
+      orderBy: [{ ended_at: 'desc' }, { starts_at: 'desc' }, { created_at: 'desc' }],
+      take: 100,
+    });
+
+    return rooms.map((room) => {
+      const winner = room.winner_user_id
+        ? room.participants.find((participant) => participant.user_id === room.winner_user_id)
+        : null;
+
+      return {
+        id: room.id,
+        code: room.code,
+        title: room.title,
+        visibility: room.visibility,
+        format: room.format,
+        status: room.status,
+        shared_course_code: room.shared_course_code,
+        created_at: room.created_at,
+        starts_at: room.starts_at,
+        ended_at: room.ended_at,
+        host: room.host,
+        participant_count: room.participants.length,
+        ready_count: room.participants.filter((participant) => participant.status === CompetitionParticipantStatus.READY).length,
+        finished_count: room.status === CompetitionStatus.FINISHED ? room.participants.length : 0,
+        winner_name: winner?.user.name || null,
+        tournament: room.tournament,
+      };
+    });
   }
 
   async listPublicTournaments(userId: string) {

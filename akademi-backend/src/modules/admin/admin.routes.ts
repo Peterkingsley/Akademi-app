@@ -30,6 +30,23 @@ const documentUpload = multer({
   },
 });
 
+const tournamentBannerUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = file.originalname.toLowerCase();
+    const allowedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+
+    if (allowedMimeTypes.has(file.mimetype) || allowedExtensions.some(ext => name.endsWith(ext))) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error('Only PNG, JPG, JPEG, and WEBP images are allowed'));
+  },
+});
+
 // Auth
 router.post('/login', (req, res) => adminController.login(req, res));
 
@@ -42,7 +59,9 @@ router.get('/dashboard/charts', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res
 router.get('/dashboard/activity', (req, res) => adminController.getActivity(req, res));
 router.get('/dashboard/system-health', (req, res) => adminController.getSystemHealth(req, res));
 router.get('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listTournaments(req, res));
+router.get('/competitions/rooms', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listCompetitionRooms(req, res));
 router.post('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.createTournament(req, res));
+router.post('/competitions/tournaments/banner-upload', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), tournamentBannerUpload.single('banner'), (req, res) => adminController.uploadTournamentBanner(req, res));
 router.patch('/competitions/tournaments/:id/publish', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.publishTournament(req, res));
 
 // Pillar 2: User Management
