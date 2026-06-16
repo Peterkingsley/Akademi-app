@@ -124,34 +124,19 @@ a {
 .brand {
   align-items: center;
   display: inline-flex;
-  gap: 12px;
   font-weight: 900;
 }
 
-.brand-mark {
-  align-items: center;
-  background: var(--green-hot);
-  border-radius: 13px;
-  color: #061006;
-  display: inline-flex;
-  font-size: 15px;
-  height: 42px;
-  justify-content: center;
-  width: 42px;
-}
-
-.brand-copy {
-  display: grid;
-  gap: 2px;
+.brand-wordmark {
+  color: var(--text);
+  font-size: clamp(1.6rem, 1.1rem + 1vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
   line-height: 1;
 }
 
-.brand-copy small {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.brand-i {
+  color: var(--green-hot);
 }
 
 .nav-menu {
@@ -197,18 +182,6 @@ a {
   overflow: hidden;
   padding: clamp(34px, 5vw, 68px);
   position: relative;
-}
-
-.hero::before {
-  color: rgba(255, 255, 255, 0.035);
-  content: "READY";
-  font-size: clamp(120px, 16vw, 230px);
-  font-weight: 900;
-  letter-spacing: -0.08em;
-  position: absolute;
-  right: -24px;
-  top: 72px;
-  z-index: -1;
 }
 
 .hero-kicker,
@@ -282,23 +255,6 @@ h3 {
 
 .hero-text {
   max-width: 620px;
-}
-
-.hero-proof {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 28px 0;
-}
-
-.hero-proof span {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  color: rgba(247, 251, 248, 0.78);
-  font-size: 13px;
-  font-weight: 900;
-  padding: 10px 13px;
 }
 
 .hero-actions {
