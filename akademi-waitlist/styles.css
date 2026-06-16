@@ -473,7 +473,7 @@ h3 {
 
 .feature-band {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 78px;
   overflow: visible;
   padding: 0;
