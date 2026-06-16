@@ -143,6 +143,14 @@ export interface AdminTournament {
   room_id?: string | null;
 }
 
+export interface CampaignDesign {
+  bannerImageUrl?: string;
+  accentColor?: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  preheader?: string;
+}
+
 export const adminService = {
   // Pillar 1: Dashboard
   getStats: async (): Promise<AdminDashboardStats> => {

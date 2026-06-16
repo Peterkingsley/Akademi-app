@@ -40,6 +40,12 @@ const escapeHtml = (value: string) => value
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
 
+const normalizeHexColor = (value?: string) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '#16a34a';
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : '#16a34a';
+};
+
 
 export class AdminService {
   private materialsService = new MaterialsService();
@@ -251,6 +257,44 @@ export class AdminService {
     return Boolean(config.resendApiKey && config.resendApiKey !== 're_dummy_key' && config.resendApiKey !== 'your_resend_api_key');
   }
 
+  private buildCampaignHtml(subject: string, message: string, design?: {
+    bannerImageUrl?: string;
+    accentColor?: string;
+    ctaLabel?: string;
+    ctaUrl?: string;
+    preheader?: string;
+  }, audienceNote?: string) {
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
+    const accentColor = normalizeHexColor(design?.accentColor);
+    const preheader = design?.preheader ? escapeHtml(design.preheader) : safeSubject;
+    const bannerImageUrl = String(design?.bannerImageUrl || '').trim();
+    const ctaLabel = String(design?.ctaLabel || '').trim();
+    const ctaUrl = String(design?.ctaUrl || '').trim();
+    const ctaHtml = ctaLabel && ctaUrl
+      ? `<a href="${escapeHtml(ctaUrl)}" style="display:inline-block;margin-top:24px;background:${accentColor};color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700;">${escapeHtml(ctaLabel)}</a>`
+      : '';
+    const bannerHtml = bannerImageUrl
+      ? `<img src="${escapeHtml(bannerImageUrl)}" alt="" style="width:100%;height:auto;display:block;border-radius:18px 18px 0 0;object-fit:cover;" />`
+      : '';
+
+    return `
+      <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
+      <div style="background:#f3f4f6;padding:24px;font-family:Arial,sans-serif;color:#111827;line-height:1.6;">
+        <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e5e7eb;">
+          ${bannerHtml}
+          <div style="padding:28px;">
+            <div style="width:52px;height:4px;border-radius:999px;background:${accentColor};margin-bottom:18px;"></div>
+            <h2 style="margin:0 0 14px;color:${accentColor};font-size:24px;line-height:1.25;">${safeSubject}</h2>
+            <p style="margin:0;font-size:15px;line-height:1.8;">${safeMessage}</p>
+            ${ctaHtml}
+            <p style="margin-top:28px;color:#6b7280;font-size:13px;">${escapeHtml(audienceNote || 'You are receiving this because you created an Akademi account.')}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   private buildUserWhere(filter: UserListFilter) {
     const where: any = { is_deleted: false };
 
@@ -355,15 +399,7 @@ export class AdminService {
       throw new Error('Resend is not configured. Add RESEND_API_KEY before sending campaigns.');
     }
 
-    const safeSubject = escapeHtml(subject);
-    const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
-    const html = `
-      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
-        <h2 style="color:#16a34a;">${safeSubject}</h2>
-        <p>${safeMessage}</p>
-        <p style="margin-top:24px;color:#6b7280;font-size:13px;">You are receiving this because you created an Akademi account.</p>
-      </div>
-    `;
+    const html = this.buildCampaignHtml(subject, message, filter.design, 'You are receiving this because you created an Akademi account.');
 
     let sent = 0;
     const failed: Array<{ email: string; message: string }> = [];
@@ -481,15 +517,7 @@ export class AdminService {
       throw new Error('Resend is not configured. Add RESEND_API_KEY before sending waitlist emails.');
     }
 
-    const safeSubject = escapeHtml(subject);
-    const safeMessage = escapeHtml(message).replace(/\n/g, '<br />');
-    const html = `
-      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
-        <h2 style="color:#16a34a;">${safeSubject}</h2>
-        <p>${safeMessage}</p>
-        <p style="margin-top:24px;color:#6b7280;font-size:13px;">You are receiving this because you joined the Akademi waitlist.</p>
-      </div>
-    `;
+    const html = this.buildCampaignHtml(subject, message, filter.design, 'You are receiving this because you joined the Akademi waitlist.');
 
     let sent = 0;
     const failed: Array<{ email: string; message: string }> = [];

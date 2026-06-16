@@ -9,6 +9,7 @@ export const JOB_NAMES = {
   INGEST_MATERIAL: 'INGEST_MATERIAL',
   GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
+  ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -36,6 +37,11 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       if (!payload.materialId) throw new Error('GENERATE_QUESTIONS requires materialId');
       const { generateQuestionsJob } = await import('../jobs/generateQuestions.job');
       await generateQuestionsJob(payload.materialId);
+      return;
+    }
+    case JOB_NAMES.ACTIVATE_TOURNAMENTS: {
+      const { activateTournamentsJob } = await import('../jobs/activateTournaments.job');
+      await activateTournamentsJob();
       return;
     }
     default:

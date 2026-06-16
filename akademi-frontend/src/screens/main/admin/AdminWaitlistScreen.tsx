@@ -25,6 +25,13 @@ export const AdminWaitlistScreen: React.FC = () => {
   const [message, setMessage] = useState(
     "Hi,\n\nThank you for joining the Akademi waitlist. We are preparing access for more Nigerian students and will notify you as soon as your school or department is ready.\n\n- Akademi"
   );
+  const [campaignDesign, setCampaignDesign] = useState({
+    preheader: "",
+    bannerImageUrl: "",
+    accentColor: "#16A34A",
+    ctaLabel: "",
+    ctaUrl: "",
+  });
 
   const loadWaitlist = useCallback(async (isRefresh = false) => {
     try {
@@ -52,6 +59,7 @@ export const AdminWaitlistScreen: React.FC = () => {
       const result = await adminService.sendWaitlistEmailCampaign({
         subject: subject.trim(),
         message: message.trim(),
+        design: campaignDesign,
         previewOnly: true,
       });
       Alert.alert("Waitlist recipients", `${result.recipientCount || 0} people will receive this email.`);
@@ -78,6 +86,7 @@ export const AdminWaitlistScreen: React.FC = () => {
               const result = await adminService.sendWaitlistEmailCampaign({
                 subject: subject.trim(),
                 message: message.trim(),
+                design: campaignDesign,
               });
               Alert.alert("Email sent", `Sent ${result.sent || 0} of ${result.recipientCount || 0}. Failed: ${result.failedCount || 0}.`);
             } catch (error: any) {
@@ -184,6 +193,44 @@ export const AdminWaitlistScreen: React.FC = () => {
                 multiline
                 textAlignVertical="top"
               />
+              <Text style={[typography.caption, { color: colors.textMuted }]}>Campaign design</Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                placeholder="Preheader text"
+                placeholderTextColor={colors.textMuted}
+                value={campaignDesign.preheader}
+                onChangeText={(preheader) => setCampaignDesign((current) => ({ ...current, preheader }))}
+              />
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                placeholder="Banner image URL"
+                placeholderTextColor={colors.textMuted}
+                value={campaignDesign.bannerImageUrl}
+                onChangeText={(bannerImageUrl) => setCampaignDesign((current) => ({ ...current, bannerImageUrl }))}
+              />
+              <View style={styles.designRow}>
+                <TextInput
+                  style={[styles.input, styles.designInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="#16A34A"
+                  placeholderTextColor={colors.textMuted}
+                  value={campaignDesign.accentColor}
+                  onChangeText={(accentColor) => setCampaignDesign((current) => ({ ...current, accentColor }))}
+                />
+                <TextInput
+                  style={[styles.input, styles.designInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="CTA label"
+                  placeholderTextColor={colors.textMuted}
+                  value={campaignDesign.ctaLabel}
+                  onChangeText={(ctaLabel) => setCampaignDesign((current) => ({ ...current, ctaLabel }))}
+                />
+              </View>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                placeholder="CTA URL"
+                placeholderTextColor={colors.textMuted}
+                value={campaignDesign.ctaUrl}
+                onChangeText={(ctaUrl) => setCampaignDesign((current) => ({ ...current, ctaUrl }))}
+              />
               <View style={styles.emailActions}>
                 <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border }]} onPress={previewCampaign} disabled={sending}>
                   <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: "800" }]}>Preview count</Text>
@@ -281,6 +328,13 @@ const styles = StyleSheet.create({
   emailActions: {
     flexDirection: "row",
     gap: 10,
+  },
+  designRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  designInput: {
+    flex: 1,
   },
   secondaryButton: {
     alignItems: "center",

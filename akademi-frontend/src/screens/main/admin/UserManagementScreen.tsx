@@ -25,6 +25,13 @@ export const UserManagementScreen: React.FC = () => {
   const [emailLoading, setEmailLoading] = useState(false);
   const [recipientPreview, setRecipientPreview] = useState<any>(null);
   const [emailForm, setEmailForm] = useState({ subject: "", message: "" });
+  const [campaignDesign, setCampaignDesign] = useState({
+    preheader: "",
+    bannerImageUrl: "",
+    accentColor: "#16A34A",
+    ctaLabel: "",
+    ctaUrl: "",
+  });
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -81,6 +88,7 @@ export const UserManagementScreen: React.FC = () => {
       const data = await adminService.sendUserEmailCampaign(currentFilters({
         subject: emailForm.subject,
         message: emailForm.message,
+        design: campaignDesign,
         previewOnly: true,
       }));
       setRecipientPreview(data);
@@ -102,6 +110,7 @@ export const UserManagementScreen: React.FC = () => {
       const data = await adminService.sendUserEmailCampaign(currentFilters({
         subject: emailForm.subject,
         message: emailForm.message,
+        design: campaignDesign,
       }));
       setEmailVisible(false);
       setRecipientPreview(null);
@@ -483,6 +492,60 @@ export const UserManagementScreen: React.FC = () => {
               }}
             />
 
+            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8, marginTop: 16 }]}>CAMPAIGN DESIGN</Text>
+            <TextInput
+              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
+              placeholder="Preheader text"
+              placeholderTextColor={colors.textMuted}
+              value={campaignDesign.preheader}
+              onChangeText={(preheader) => {
+                setRecipientPreview(null);
+                setCampaignDesign((current) => ({ ...current, preheader }));
+              }}
+            />
+            <TextInput
+              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border, marginTop: 10 }]}
+              placeholder="Banner image URL"
+              placeholderTextColor={colors.textMuted}
+              value={campaignDesign.bannerImageUrl}
+              onChangeText={(bannerImageUrl) => {
+                setRecipientPreview(null);
+                setCampaignDesign((current) => ({ ...current, bannerImageUrl }));
+              }}
+            />
+            <View style={styles.designRow}>
+              <TextInput
+                style={[styles.modalInput, styles.designInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="#16A34A"
+                placeholderTextColor={colors.textMuted}
+                value={campaignDesign.accentColor}
+                onChangeText={(accentColor) => {
+                  setRecipientPreview(null);
+                  setCampaignDesign((current) => ({ ...current, accentColor }));
+                }}
+              />
+              <TextInput
+                style={[styles.modalInput, styles.designInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                placeholder="CTA label"
+                placeholderTextColor={colors.textMuted}
+                value={campaignDesign.ctaLabel}
+                onChangeText={(ctaLabel) => {
+                  setRecipientPreview(null);
+                  setCampaignDesign((current) => ({ ...current, ctaLabel }));
+                }}
+              />
+            </View>
+            <TextInput
+              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border, marginTop: 10 }]}
+              placeholder="CTA URL"
+              placeholderTextColor={colors.textMuted}
+              value={campaignDesign.ctaUrl}
+              onChangeText={(ctaUrl) => {
+                setRecipientPreview(null);
+                setCampaignDesign((current) => ({ ...current, ctaUrl }));
+              }}
+            />
+
             <View style={[styles.previewBox, { borderColor: colors.border }]}>
               <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
                 {recipientPreview ? `${recipientPreview.recipientCount} matching recipients` : "Preview recipients before sending"}
@@ -703,6 +766,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginTop: 18,
+  },
+  designRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
+  },
+  designInput: {
+    flex: 1,
   },
   secondaryButton: {
     alignItems: "center",

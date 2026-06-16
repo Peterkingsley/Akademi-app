@@ -15,6 +15,7 @@ import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { competitionService, CompetitionLeaderboardEntry, CompetitionRoom, CompetitionSummary, Tournament } from "../../services/competition";
+import { socketService } from "../../services/socket";
 
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -54,6 +55,23 @@ export const CompetitionHubScreen: React.FC = () => {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const handleTournamentLive = () => {
+      loadData(true);
+    };
+
+    const setup = async () => {
+      const socket = await socketService.connect();
+      socket.on("tournament:live", handleTournamentLive);
+    };
+
+    setup().catch((error) => console.error("Tournament socket setup failed", error));
+
+    return () => {
+      socketService.off("tournament:live", handleTournamentLive);
+    };
   }, []);
 
   const statCards = [
@@ -134,7 +152,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <Text style={styles.roomCode}>{room.code}</Text>
                   </View>
                   <Text style={styles.roomMeta}>
-                    {room.format === "SHARED_COURSE" ? room.shared_course_code || "Shared course" : "Dual course"} · {room.participants.length}/{room.max_participants} players
+                    {room.format === "SHARED_COURSE" ? room.shared_course_code || "Shared course" : "Dual course"} | {room.participants.length}/{room.max_participants} players
                   </Text>
                   <Text style={styles.roomStatus}>{room.status}</Text>
                 </Card>
@@ -157,7 +175,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <Text style={styles.roomCode}>{room.code}</Text>
                   </View>
                   <Text style={styles.roomMeta}>
-                    Host: {room.host.name} · {room.shared_course_code || "Mixed"}
+                    Host: {room.host.name} | {room.shared_course_code || "Mixed"}
                   </Text>
                   <Text style={styles.roomStatus}>{room.participants.length}/{room.max_participants} joined</Text>
                 </Card>
@@ -180,7 +198,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <Text style={styles.roomCode}>{tournament.status}</Text>
                   </View>
                   <Text style={styles.roomMeta}>
-                    {tournament.shared_course_code || "Multi-course"} · {new Date(tournament.scheduled_at).toLocaleString()}
+                    {tournament.shared_course_code || "Multi-course"} | {new Date(tournament.scheduled_at).toLocaleString()}
                   </Text>
                   {tournament.prize_summary ? (
                     <Text style={styles.roomStatus}>{tournament.prize_summary}</Text>
@@ -220,7 +238,7 @@ export const CompetitionHubScreen: React.FC = () => {
                     <View style={styles.leaderTextWrap}>
                       <Text style={styles.leaderName}>{entry.name}</Text>
                       <Text style={styles.leaderMeta}>
-                        {entry.wins} wins · {entry.matchesPlayed} matches · {entry.winRate}% win rate
+                        {entry.wins} wins | {entry.matchesPlayed} matches | {entry.winRate}% win rate
                       </Text>
                     </View>
                     <Text style={styles.leaderScore}>{entry.totalScore}</Text>

@@ -7,6 +7,7 @@ import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { competitionService, Tournament } from "../../services/competition";
+import { socketService } from "../../services/socket";
 
 export const TournamentDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -26,6 +27,28 @@ export const TournamentDetailScreen: React.FC = () => {
   useEffect(() => {
     loadTournament();
   }, [tournamentId]);
+
+  useEffect(() => {
+    const handleTournamentLive = (payload: { tournamentId: string; roomId: string }) => {
+      if (payload.tournamentId !== tournamentId) return;
+      loadTournament();
+      Alert.alert("Tournament is live", "Your event room is ready. Jump in now.", [
+        { text: "Later", style: "cancel" },
+        { text: "Open", onPress: () => navigation.navigate("CompetitionLobby", { roomId: payload.roomId }) },
+      ]);
+    };
+
+    const setup = async () => {
+      const socket = await socketService.connect();
+      socket.on("tournament:live", handleTournamentLive);
+    };
+
+    setup().catch((error) => console.error("Tournament live listener failed", error));
+
+    return () => {
+      socketService.off("tournament:live", handleTournamentLive);
+    };
+  }, [navigation, tournamentId]);
 
   const joinTournament = async () => {
     try {

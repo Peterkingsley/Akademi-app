@@ -7,6 +7,8 @@ import {
   TournamentStatus,
 } from '@prisma/client';
 import prisma from '../../config/db';
+import { notificationsService } from '../notifications/notifications.service';
+import { emitToUser } from '../websocket/websocket.emitter';
 import {
   CompetitionLeaderboardEntry,
   CompetitionMatchState,
@@ -146,6 +148,36 @@ export class CompetitionsService {
   }
 
   private async ensureTournamentRooms() {
+    await this.activateDueTournaments();
+  }
+
+  private async getRoomQuestions(room: {
+    format: CompetitionFormat;
+    shared_course_code: string | null;
+    question_count: number;
+    participants: Array<{ course_code: string | null }>;
+  }) {
+    const courseCodes = room.format === CompetitionFormat.SHARED_COURSE
+      ? [room.shared_course_code].filter(Boolean) as string[]
+      : room.participants.map((participant) => participant.course_code).filter(Boolean) as string[];
+
+    const questions = await prisma.question.findMany({
+      where: {
+        correct_answer: { not: null },
+        course_code: { in: courseCodes.length > 0 ? courseCodes : [''] },
+      },
+      take: room.question_count,
+      orderBy: { generated_at: 'desc' },
+    });
+
+    if (questions.length < Math.min(5, room.question_count)) {
+      throw new Error('Not enough scored questions are available for this match yet');
+    }
+
+    return questions;
+  }
+
+  async activateDueTournaments() {
     const readyTournaments = await prisma.tournament.findMany({
       where: {
         status: {
@@ -162,8 +194,14 @@ export class CompetitionsService {
             user: {
               select: {
                 id: true,
+                name: true,
               },
             },
+          },
+        },
+        room: {
+          include: {
+            participants: true,
           },
         },
       },
@@ -174,30 +212,37 @@ export class CompetitionsService {
         continue;
       }
 
-      const hostEntry = tournament.entries[0];
-      await prisma.competitionRoom.create({
-        data: {
-          code: await this.generateUniqueCode(),
-          host_user_id: hostEntry.user_id,
-          tournament_id: tournament.id,
-          title: tournament.title,
-          visibility: CompetitionVisibility.TOURNAMENT,
-          format: tournament.format,
-          status: CompetitionStatus.LIVE,
-          shared_course_code: tournament.shared_course_code,
-          question_count: tournament.question_count,
-          question_timer_sec: tournament.question_timer_sec,
-          max_participants: tournament.max_participants || Math.max(2, tournament.entries.length),
-          starts_at: new Date(),
-          participants: {
-            create: tournament.entries.map((entry) => ({
-              user_id: entry.user_id,
-              course_code: tournament.shared_course_code,
-              status: CompetitionParticipantStatus.JOINED,
-            })),
+      let room = tournament.room;
+
+      if (!room) {
+        const hostEntry = tournament.entries[0];
+        room = await prisma.competitionRoom.create({
+          data: {
+            code: await this.generateUniqueCode(),
+            host_user_id: hostEntry.user_id,
+            tournament_id: tournament.id,
+            title: tournament.title,
+            visibility: CompetitionVisibility.TOURNAMENT,
+            format: tournament.format,
+            status: CompetitionStatus.LIVE,
+            shared_course_code: tournament.shared_course_code,
+            question_count: tournament.question_count,
+            question_timer_sec: tournament.question_timer_sec,
+            max_participants: tournament.max_participants || Math.max(2, tournament.entries.length),
+            starts_at: new Date(),
+            participants: {
+              create: tournament.entries.map((entry) => ({
+                user_id: entry.user_id,
+                course_code: tournament.shared_course_code,
+                status: CompetitionParticipantStatus.JOINED,
+              })),
+            },
           },
-        },
-      });
+          include: {
+            participants: true,
+          },
+        });
+      }
 
       await prisma.tournament.update({
         where: { id: tournament.id },
@@ -205,6 +250,32 @@ export class CompetitionsService {
           status: TournamentStatus.LIVE,
         },
       });
+
+      try {
+        await this.startMatch(room.id);
+      } catch (error) {
+        console.warn(`Unable to seed tournament match ${tournament.id}:`, (error as Error)?.message || error);
+      }
+
+      const startsAt = room.starts_at || new Date();
+      await Promise.all(
+        tournament.entries.map(async (entry) => {
+          await notificationsService.createNotification({
+            user_id: entry.user_id,
+            title: `${tournament.title} is live`,
+            message: `Your tournament room is ready. Join now and compete live.`,
+            type: 'tournament_live',
+          });
+
+          emitToUser(entry.user_id, 'tournament:live', {
+            tournamentId: tournament.id,
+            roomId: room!.id,
+            title: tournament.title,
+            scheduledAt: tournament.scheduled_at.toISOString(),
+            startsAt: startsAt.toISOString(),
+          });
+        }),
+      );
     }
   }
 
@@ -412,6 +483,11 @@ export class CompetitionsService {
   }
 
   async startMatch(roomId: string) {
+    const existing = activeMatches.get(roomId);
+    if (existing) {
+      return this.buildMatchState(existing);
+    }
+
     const room = await prisma.competitionRoom.findUnique({
       where: { id: roomId },
       include: {
@@ -427,22 +503,7 @@ export class CompetitionsService {
     if (!room) throw new Error('Competition room not found');
     if (room.participants.length < 2) throw new Error('At least two participants are required');
 
-    const courseCodes = room.format === CompetitionFormat.SHARED_COURSE
-      ? [room.shared_course_code].filter(Boolean) as string[]
-      : room.participants.map((participant) => participant.course_code).filter(Boolean) as string[];
-
-    const questions = await prisma.question.findMany({
-      where: {
-        correct_answer: { not: null },
-        course_code: { in: courseCodes.length > 0 ? courseCodes : [''] },
-      },
-      take: room.question_count,
-      orderBy: { generated_at: 'desc' },
-    });
-
-    if (questions.length < Math.min(5, room.question_count)) {
-      throw new Error('Not enough scored questions are available for this match yet');
-    }
+    const questions = await this.getRoomQuestions(room);
 
     const scoreboard = room.participants.reduce<Record<string, CompetitionScoreboardEntry>>((acc, participant) => {
       acc[participant.user_id] = {
@@ -793,7 +854,7 @@ export class CompetitionsService {
     });
 
     if (!tournament) throw new Error('Tournament not found');
-    if (![TournamentStatus.PUBLISHED, TournamentStatus.LIVE].includes(tournament.status)) {
+    if (tournament.status !== TournamentStatus.PUBLISHED && tournament.status !== TournamentStatus.LIVE) {
       throw new Error('Tournament is not open for registration');
     }
     if (tournament.registration_closes_at && tournament.registration_closes_at.getTime() < Date.now()) {

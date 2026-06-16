@@ -55,6 +55,14 @@ interface CompetitionScoreboardPayload {
   hasAnsweredCurrent: boolean;
 }
 
+interface TournamentLivePayload {
+  tournamentId: string;
+  roomId: string;
+  title: string;
+  scheduledAt: string;
+  startsAt: string;
+}
+
 export interface ServerToClientEvents {
   'session:joined': (payload: { sessionId: string }) => void;
   'message:typing': () => void;
@@ -70,6 +78,7 @@ export interface ServerToClientEvents {
   'competition:question': (payload: { roomId: string; question: CompetitionQuestionPayload }) => void;
   'competition:score-update': (payload: { roomId: string; scoreboard: CompetitionScoreboardPayload[] }) => void;
   'competition:match-ended': (payload: { roomId: string; winner_user_id?: string | null; scoreboard: CompetitionScoreboardPayload[] }) => void;
+  'tournament:live': (payload: TournamentLivePayload) => void;
   'competition:left': (payload: { roomId: string }) => void;
   'error': (payload: { message: string }) => void;
 }

@@ -21,6 +21,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import notificationRoutes from "./modules/notifications/notifications.routes";
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
 import { initWebSocket } from './modules/websocket/websocket.server';
+import { startCompetitionScheduler } from './modules/competitions/competition.scheduler';
 
 // Sentry Initialization — only runs if a real DSN is provided
 if (config.sentryDsn && config.sentryDsn !== 'your_sentry_dsn' && config.sentryDsn.startsWith('http')) {
@@ -86,6 +87,7 @@ const startServer = async () => {
     if (config.serviceType === 'api') {
       // await typesenseService.initCollections();
       initWebSocket(server);
+      startCompetitionScheduler();
       server.listen(config.port, () => {
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
       });
@@ -96,6 +98,7 @@ const startServer = async () => {
       });
     } else if (config.serviceType === 'jobs') {
       console.log('Jobs Processor mode active');
+      startCompetitionScheduler();
       server.listen(config.port, () => {
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
       });
@@ -103,6 +106,7 @@ const startServer = async () => {
       console.warn(`Unknown service type: ${config.serviceType}. Starting all components.`);
       // await typesenseService.initCollections();
       initWebSocket(server);
+      startCompetitionScheduler();
       server.listen(config.port, () => {
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });

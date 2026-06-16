@@ -61,6 +61,7 @@ export interface EmailCampaignRequest extends UserListFilter {
   subject: string;
   message: string;
   previewOnly?: boolean;
+  design?: CampaignDesignInput;
 }
 
 export interface WaitlistFilter {
@@ -79,6 +80,15 @@ export interface WaitlistEmailRequest extends WaitlistFilter {
   subject: string;
   message: string;
   previewOnly?: boolean;
+  design?: CampaignDesignInput;
+}
+
+export interface CampaignDesignInput {
+  bannerImageUrl?: string;
+  accentColor?: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  preheader?: string;
 }
 
 export interface GrantAccessRequest {

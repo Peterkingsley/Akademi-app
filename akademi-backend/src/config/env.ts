@@ -34,4 +34,5 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   serviceType: process.env.SERVICE_TYPE || 'api',
   unlockAllFeatures: process.env.UNLOCK_ALL_FEATURES === 'true',
+  tournamentActivationIntervalMs: parseInt(process.env.TOURNAMENT_ACTIVATION_INTERVAL_MS || '15000', 10),
 };

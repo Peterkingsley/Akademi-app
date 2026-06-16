@@ -45,6 +45,7 @@ export const initWebSocket = (server: http.Server) => {
 
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.data.user?.userId}`);
+    socket.join(`user:${socket.data.user.userId}`);
     registerHandlers(io, socket);
   });
 
