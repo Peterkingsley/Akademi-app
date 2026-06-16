@@ -119,6 +119,21 @@ export type MainStackParamList = {
   PrivacyData: undefined;
   HelpSupport: undefined;
   RateAkademi: undefined;
+  CompetitionHub: undefined;
+  CreateCompetition: undefined;
+  CompetitionLobby: { roomId: string };
+  CompetitionResult: {
+    roomId: string;
+    winnerUserId?: string | null;
+    scoreboard: Array<{
+      user_id: string;
+      name: string;
+      score: number;
+      correct_answers: number;
+      wrong_answers: number;
+      hasAnsweredCurrent: boolean;
+    }>;
+  };
 };
 
 export type RootStackParamList = {

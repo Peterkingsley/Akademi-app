@@ -95,6 +95,32 @@ enum DeviceType {
   IOS
 }
 
+enum CompetitionVisibility {
+  PRIVATE
+  PUBLIC
+  TOURNAMENT
+}
+
+enum CompetitionStatus {
+  WAITING
+  LIVE
+  FINISHED
+  CANCELLED
+}
+
+enum CompetitionFormat {
+  SHARED_COURSE
+  DUAL_COURSE
+}
+
+enum CompetitionParticipantStatus {
+  INVITED
+  JOINED
+  READY
+  ELIMINATED
+  LEFT
+}
+
 // Models
 model User {
   id                           String         @id @default(uuid())
@@ -129,8 +155,10 @@ model User {
   exam_prep_plans   ExamPrepPlan[]
   mock_attempts     MockAttempt[]
   transactions      Transaction[]
-  notifications     Notification[]
-  student_courses   StudentCourse[]
+  notifications        Notification[]
+  student_courses      StudentCourse[]
+  hosted_competitions  CompetitionRoom[]        @relation("CompetitionHost")
+  competition_entries  CompetitionParticipant[]
 
   @@index([email])
   @@index([university])
@@ -444,6 +472,56 @@ model MockAttempt {
   started_at     DateTime  @default(now())
   completed_at   DateTime?
   @@map("mock_attempts")
+}
+
+model CompetitionRoom {
+  id                 String                @id @default(uuid())
+  code               String                @unique
+  host_user_id       String
+  title              String
+  visibility         CompetitionVisibility @default(PRIVATE)
+  format             CompetitionFormat     @default(SHARED_COURSE)
+  status             CompetitionStatus     @default(WAITING)
+  max_participants   Int                   @default(2)
+  question_count     Int                   @default(10)
+  question_timer_sec Int                   @default(20)
+  shared_course_code String?
+  starts_at          DateTime?
+  ended_at           DateTime?
+  winner_user_id     String?
+  created_at         DateTime              @default(now())
+  updated_at         DateTime              @updatedAt
+
+  host         User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
+  participants CompetitionParticipant[]
+
+  @@index([host_user_id])
+  @@index([status])
+  @@index([visibility])
+  @@map("competition_rooms")
+}
+
+model CompetitionParticipant {
+  id                 String                       @id @default(uuid())
+  room_id            String
+  user_id            String
+  course_code        String?
+  score              Int                          @default(0)
+  correct_answers    Int                          @default(0)
+  wrong_answers      Int                          @default(0)
+  average_response_ms Int?
+  joined_at          DateTime                     @default(now())
+  ready_at           DateTime?
+  finished_at        DateTime?
+  status             CompetitionParticipantStatus @default(JOINED)
+
+  room  CompetitionRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([room_id, user_id])
+  @@index([user_id])
+  @@index([room_id])
+  @@map("competition_participants")
 }
 
 model Transaction {

@@ -1,5 +1,59 @@
 import { SessionType, ReplyMode } from '@prisma/client';
 import { JwtPayload } from '../auth/auth.types';
+import { CompetitionParticipantStatus, CompetitionStatus } from '@prisma/client';
+
+interface CompetitionParticipantPayload {
+  id: string;
+  user_id: string;
+  name: string;
+  course_code: string | null;
+  score: number;
+  correct_answers: number;
+  wrong_answers: number;
+  status: CompetitionParticipantStatus;
+  ready_at: Date | null;
+  joined_at: Date;
+}
+
+interface CompetitionRoomPayload {
+  id: string;
+  code: string;
+  title: string;
+  visibility: string;
+  format: string;
+  status: CompetitionStatus;
+  shared_course_code: string | null;
+  question_count: number;
+  question_timer_sec: number;
+  max_participants: number;
+  created_at: Date;
+  starts_at: Date | null;
+  ended_at: Date | null;
+  host: {
+    id: string;
+    name: string;
+  };
+  participants: CompetitionParticipantPayload[];
+}
+
+interface CompetitionQuestionPayload {
+  id: string;
+  text: string;
+  options: string[];
+  difficulty: string;
+  index: number;
+  total: number;
+  expires_at: string;
+}
+
+interface CompetitionScoreboardPayload {
+  user_id: string;
+  name: string;
+  score: number;
+  correct_answers: number;
+  wrong_answers: number;
+  hasAnsweredCurrent: boolean;
+}
 
 export interface ServerToClientEvents {
   'session:joined': (payload: { sessionId: string }) => void;
@@ -11,6 +65,12 @@ export interface ServerToClientEvents {
   'session:resumed': (payload: { resumeFrom: number }) => void;
   'session:summary': (payload: { summary: any }) => void;
   'session:ended': () => void;
+  'competition:room-state': (payload: { room: CompetitionRoomPayload }) => void;
+  'competition:started': (payload: { roomId: string; startsAt: Date | null }) => void;
+  'competition:question': (payload: { roomId: string; question: CompetitionQuestionPayload }) => void;
+  'competition:score-update': (payload: { roomId: string; scoreboard: CompetitionScoreboardPayload[] }) => void;
+  'competition:match-ended': (payload: { roomId: string; winner_user_id?: string | null; scoreboard: CompetitionScoreboardPayload[] }) => void;
+  'competition:left': (payload: { roomId: string }) => void;
   'error': (payload: { message: string }) => void;
 }
 
@@ -20,6 +80,11 @@ export interface ClientToServerEvents {
   'session:pause': (payload: { sessionId: string; position?: number }) => void;
   'session:resume': (payload: { sessionId: string }) => void;
   'session:end': (payload: { sessionId: string }) => void;
+  'competition:join-room': (payload: { roomId: string }) => void;
+  'competition:leave-room': (payload: { roomId: string }) => void;
+  'competition:ready': (payload: { roomId: string }) => void;
+  'competition:unready': (payload: { roomId: string }) => void;
+  'competition:submit-answer': (payload: { roomId: string; answer: string }) => void;
 }
 
 export interface InterServerEvents {

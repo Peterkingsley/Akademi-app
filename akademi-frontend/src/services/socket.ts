@@ -60,8 +60,8 @@ class SocketService {
     this.socket?.on(event, callback);
   }
 
-  off(event: string) {
-    this.socket?.off(event);
+  off(event: string, callback?: (data: any) => void) {
+    this.socket?.off(event, callback);
   }
 }
 

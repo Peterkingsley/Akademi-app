@@ -4,9 +4,16 @@ import { SessionsService } from '../sessions/sessions.service';
 import { streamAudio } from './websocket.audio';
 import redisClient from '../../config/redis';
 import { config } from '../../config/env';
-import { SessionType } from '@prisma/client';
+import { CompetitionParticipantStatus, SessionType } from '@prisma/client';
+import { CompetitionsService } from '../competitions/competitions.service';
 
 const sessionsService = new SessionsService();
+const competitionsService = new CompetitionsService();
+const competitionTimers = new Map<string, NodeJS.Timeout>();
+
+function competitionRoomName(roomId: string) {
+  return `competition:${roomId}`;
+}
 
 const getClientSafeError = (error: any) => {
   const message = error?.message || '';
@@ -32,8 +39,71 @@ export const registerHandlers = (
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
 ) => {
   const userId = socket.data.user.userId;
+  const clearCompetitionTimer = (roomId: string) => {
+    const existing = competitionTimers.get(roomId);
+    if (existing) {
+      clearTimeout(existing);
+      competitionTimers.delete(roomId);
+    }
+  };
 
-  socket.on('session:start', async ({ sessionId, courseCode, sessionType, replyMode }) => {
+  const scheduleCompetitionAdvance = (roomId: string, expiresAt?: string | null) => {
+    clearCompetitionTimer(roomId);
+    if (!expiresAt) return;
+    const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now());
+    const timeout = setTimeout(async () => {
+      try {
+        const state = await competitionsService.advanceMatch(roomId);
+        io.to(competitionRoomName(roomId)).emit('competition:score-update', {
+          roomId,
+          scoreboard: state.scoreboard,
+        });
+        if (state.finished) {
+          io.to(competitionRoomName(roomId)).emit('competition:match-ended', {
+            roomId,
+            winner_user_id: state.winner_user_id,
+            scoreboard: state.scoreboard,
+          });
+          clearCompetitionTimer(roomId);
+        } else if (state.question) {
+          io.to(competitionRoomName(roomId)).emit('competition:question', {
+            roomId,
+            question: state.question,
+          });
+          scheduleCompetitionAdvance(roomId, state.question.expires_at);
+        }
+      } catch (error) {
+        clearCompetitionTimer(roomId);
+      }
+    }, delay + 50);
+    competitionTimers.set(roomId, timeout);
+  };
+
+  const broadcastCompetitionState = async (roomId: string) => {
+    const room = await competitionsService.getLobby(userId, roomId);
+    io.to(competitionRoomName(roomId)).emit('competition:room-state', { room });
+    if (room.status === 'LIVE') {
+      const matchState = await competitionsService.startMatch(roomId).catch(() => competitionsService.getMatchState(roomId));
+      io.to(competitionRoomName(roomId)).emit('competition:started', {
+        roomId,
+        startsAt: room.starts_at,
+      });
+      if (matchState.question) {
+        io.to(competitionRoomName(roomId)).emit('competition:question', {
+          roomId,
+          question: matchState.question,
+        });
+        scheduleCompetitionAdvance(roomId, matchState.question.expires_at);
+      }
+      io.to(competitionRoomName(roomId)).emit('competition:score-update', {
+        roomId,
+        scoreboard: matchState.scoreboard,
+      });
+    }
+    return room;
+  };
+
+  socket.on('session:start', async ({ sessionId, courseCode, topic, sessionType, replyMode }) => {
     try {
       if (sessionId) {
         const session = await sessionsService.getSession(sessionId);
@@ -57,6 +127,7 @@ export const registerHandlers = (
       if (!session) {
         session = await sessionsService.startSession(userId, {
           course_code: normalizedCourseCode,
+          topic,
           session_type: sessionType || SessionType.TUTOR,
           reply_mode: replyMode,
         });
@@ -121,6 +192,67 @@ export const registerHandlers = (
       socket.leave(sessionId);
     } catch (error: any) {
       socket.emit('error', { message: getClientSafeError(error) });
+    }
+  });
+
+  socket.on('competition:join-room', async ({ roomId }) => {
+    try {
+      socket.join(competitionRoomName(roomId));
+      const room = await competitionsService.getLobby(userId, roomId);
+      socket.emit('competition:room-state', { room });
+      socket.to(competitionRoomName(roomId)).emit('competition:room-state', { room });
+    } catch (error: any) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('competition:leave-room', async ({ roomId }) => {
+    socket.leave(competitionRoomName(roomId));
+    socket.emit('competition:left', { roomId });
+  });
+
+  socket.on('competition:ready', async ({ roomId }) => {
+    try {
+      await competitionsService.updateParticipantStatus(userId, roomId, CompetitionParticipantStatus.READY);
+      await broadcastCompetitionState(roomId);
+    } catch (error: any) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('competition:unready', async ({ roomId }) => {
+    try {
+      await competitionsService.updateParticipantStatus(userId, roomId, CompetitionParticipantStatus.JOINED);
+      await broadcastCompetitionState(roomId);
+    } catch (error: any) {
+      socket.emit('error', { message: error.message });
+    }
+  });
+
+  socket.on('competition:submit-answer', async ({ roomId, answer }) => {
+    try {
+      const state = await competitionsService.submitAnswer(roomId, userId, answer);
+      io.to(competitionRoomName(roomId)).emit('competition:score-update', {
+        roomId,
+        scoreboard: state.scoreboard,
+      });
+
+      if (state.finished) {
+        clearCompetitionTimer(roomId);
+        io.to(competitionRoomName(roomId)).emit('competition:match-ended', {
+          roomId,
+          winner_user_id: state.winner_user_id,
+          scoreboard: state.scoreboard,
+        });
+      } else if (state.question) {
+        io.to(competitionRoomName(roomId)).emit('competition:question', {
+          roomId,
+          question: state.question,
+        });
+        scheduleCompetitionAdvance(roomId, state.question.expires_at);
+      }
+    } catch (error: any) {
+      socket.emit('error', { message: error.message });
     }
   });
 

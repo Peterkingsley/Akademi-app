@@ -21,6 +21,7 @@ interface InputProps {
   error?: string;
   secureTextEntry?: boolean;
   keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
   labelStyle?: TextStyle;
@@ -34,6 +35,7 @@ export const Input: React.FC<InputProps> = ({
   error,
   secureTextEntry,
   keyboardType = "default",
+  autoCapitalize = "none",
   leftIcon,
   style,
   labelStyle,
@@ -70,7 +72,7 @@ export const Input: React.FC<InputProps> = ({
           onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
-          autoCapitalize="none"
+          autoCapitalize={autoCapitalize}
         />
         {secureTextEntry && (
           <TouchableOpacity
