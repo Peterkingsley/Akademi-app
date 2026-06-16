@@ -14,6 +14,7 @@ import { Screen } from "../../components/layout/Screen";
 import { sessionService, Message } from "../../services/session";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+import { MathFormula } from "../../components/ui/MathFormula";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
 
@@ -29,8 +30,9 @@ export const BoardReplayScreen: React.FC = () => {
   const [error, setError] = useState("");
   const [question, setQuestion] = useState("");
   const [title, setTitle] = useState("Board walkthrough");
-  const [steps, setSteps] = useState<Array<{ id: string; type: "write" | "highlight" | "answer"; text: string; note: string }>>([]);
+  const [steps, setSteps] = useState<Array<{ id: string; type: "write" | "highlight" | "answer"; text: string; math?: string; note: string }>>([]);
   const [finalAnswer, setFinalAnswer] = useState("");
+  const [finalAnswerMath, setFinalAnswerMath] = useState("");
   const [summary, setSummary] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -62,6 +64,7 @@ export const BoardReplayScreen: React.FC = () => {
         setTitle(payload.title || "Board walkthrough");
         setSteps(payload.steps || []);
         setFinalAnswer(payload.final_answer || "");
+        setFinalAnswerMath(payload.final_answer_math || "");
         setSummary(payload.summary || "");
       } catch (loadError) {
         console.error("Failed to load board replay", loadError);
@@ -151,7 +154,12 @@ export const BoardReplayScreen: React.FC = () => {
                 ]}
               >
                 <Text style={styles.stepIndex}>Step {index + 1}</Text>
-                <Text style={styles.stepText}>{step.text}</Text>
+                {!!step.text && <Text style={styles.stepText}>{step.text}</Text>}
+                {!!step.math && (
+                  <View style={styles.mathBlock}>
+                    <MathFormula latex={step.math} />
+                  </View>
+                )}
                 {!!step.note && <Text style={styles.stepNote}>{step.note}</Text>}
               </View>
             ))
@@ -161,7 +169,14 @@ export const BoardReplayScreen: React.FC = () => {
         {currentStep >= steps.length && (
           <View style={styles.answerCard}>
             <Text style={styles.answerLabel}>Final answer</Text>
-            <Text style={styles.answerText}>{finalAnswer}</Text>
+            {!!finalAnswerMath ? (
+              <View style={styles.finalMathBlock}>
+                <MathFormula latex={finalAnswerMath} fontSize={28} />
+              </View>
+            ) : (
+              <Text style={styles.answerText}>{finalAnswer}</Text>
+            )}
+            {!!finalAnswer && finalAnswerMath && <Text style={styles.answerTextFallback}>{finalAnswer}</Text>}
             {!!summary && <Text style={styles.summaryText}>{summary}</Text>}
           </View>
         )}
@@ -297,6 +312,10 @@ const createStyles = (colors: any) =>
       color: "#F7FAFC",
       lineHeight: 23,
     },
+    mathBlock: {
+      marginTop: 8,
+      minHeight: 32,
+    },
     stepNote: {
       ...typography.bodySmall,
       color: "rgba(247,250,252,0.76)",
@@ -319,6 +338,15 @@ const createStyles = (colors: any) =>
       ...typography.h3,
       color: colors.textPrimary,
       fontSize: 22,
+    },
+    finalMathBlock: {
+      marginTop: 2,
+      minHeight: 40,
+    },
+    answerTextFallback: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      marginTop: 6,
     },
     summaryText: {
       ...typography.bodySmall,

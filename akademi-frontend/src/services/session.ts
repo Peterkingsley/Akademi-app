@@ -32,9 +32,11 @@ export interface Message {
           id: string;
           type: "write" | "highlight" | "answer";
           text: string;
+          math?: string;
           note: string;
         }>;
         final_answer: string;
+        final_answer_math?: string;
         summary?: string;
       };
     };

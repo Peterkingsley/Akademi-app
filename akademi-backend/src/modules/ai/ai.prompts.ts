@@ -117,10 +117,12 @@ Schema:
       "id": string,
       "type": "write" | "highlight" | "answer",
       "text": string,
+      "math": string,
       "note": string
     }
   ],
   "final_answer": string,
+  "final_answer_math": string,
   "summary": string
 }
 
@@ -129,7 +131,9 @@ Rules:
 - Focus on maths, quantitative chemistry, or quantitative physics working.
 - Each step must be short and classroom-clear.
 - Show one operation or reasoning move per step.
-- Use plain readable equations.
+- Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
+- Use "text" for plain spoken explanation of the step.
+- If a step has no equation, set "math" to an empty string.
 - Do not skip intermediate arithmetic.
 - Keep steps between 4 and 12.
 - The final step should clearly state the answer.

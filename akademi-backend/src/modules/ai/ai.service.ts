@@ -84,7 +84,22 @@ export class AIService {
       'ratio',
       'simplify',
       'differentiate',
+      'derivative',
+      'dy/dx',
+      'dydx',
+      'differentiate',
       'integrate',
+      'integration',
+      'limit',
+      'find x',
+      'solve for x',
+      'quadratic',
+      'factorize',
+      'logarithm',
+      'trigonometry',
+      'sin',
+      'cos',
+      'tan',
       'equation',
       'simultaneous',
       'matrix',
@@ -96,21 +111,38 @@ export class AIService {
       'velocity',
       'acceleration',
       'force',
+      'kinetic energy',
       'mole',
       'molar',
+      'stoichiometry',
       'balance this reaction',
     ];
 
-    const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]/.test(studentMessage);
+    const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]|\bdy\/dx\b|\bdx\b|\bx\^|\bx²|\bx³/.test(studentMessage);
     const keywordSignal = mathSignals.some((signal) => text.includes(signal));
     const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
 
     return symbolSignals || keywordSignal || courseSignal;
   }
 
+  private extractJsonObject(raw: string) {
+    const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fencedMatch?.[1]) {
+      return fencedMatch[1].trim();
+    }
+
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return raw.slice(firstBrace, lastBrace + 1);
+    }
+
+    return raw.trim();
+  }
+
   private parseWhiteboardPayload(raw: string) {
     try {
-      const parsed = JSON.parse(raw);
+      const parsed = JSON.parse(this.extractJsonObject(raw));
       const steps = Array.isArray(parsed?.steps) ? parsed.steps : [];
       if (typeof parsed?.final_answer !== 'string' || steps.length === 0) {
         return null;
@@ -121,9 +153,10 @@ export class AIService {
           id: typeof step?.id === 'string' ? step.id : `step-${index + 1}`,
           type: ['write', 'highlight', 'answer'].includes(step?.type) ? step.type : 'write',
           text: String(step?.text || '').trim(),
+          math: String(step?.math || '').trim(),
           note: String(step?.note || '').trim(),
         }))
-        .filter((step: { text: string }) => step.text.length > 0)
+        .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0)
         .slice(0, 12);
 
       if (normalizedSteps.length === 0) return null;
@@ -133,6 +166,7 @@ export class AIService {
         board_style: 'digital-whiteboard',
         steps: normalizedSteps,
         final_answer: parsed.final_answer.trim(),
+        final_answer_math: String(parsed?.final_answer_math || parsed?.final_answer || '').trim(),
         summary: String(parsed?.summary || '').trim(),
       };
     } catch {
