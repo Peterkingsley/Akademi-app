@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuthStore } from "../store/useAuthStore";
 
 const SOCKET_URL =
   process.env.EXPO_PUBLIC_SOCKET_URL ||
@@ -9,6 +10,25 @@ const SOCKET_URL =
 
 class SocketService {
   private socket: Socket | null = null;
+  private async getAccessToken() {
+    const storeToken = useAuthStore.getState().accessToken;
+    if (storeToken) return storeToken;
+
+    const directToken = await AsyncStorage.getItem("accessToken");
+    if (directToken) return directToken;
+
+    const authStorage = await AsyncStorage.getItem("auth-storage");
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        return parsed.state?.accessToken || null;
+      } catch (error) {
+        console.warn("Failed to parse auth-storage for socket token:", error);
+      }
+    }
+
+    return null;
+  }
 
   async connect() {
     if (this.socket?.connected) return this.socket;
@@ -19,7 +39,7 @@ class SocketService {
       this.socket = null;
     }
 
-    const token = await AsyncStorage.getItem("accessToken");
+    const token = await this.getAccessToken();
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
@@ -28,6 +48,7 @@ class SocketService {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      forceNew: true,
     });
 
     this.socket.on("connect", () => {
