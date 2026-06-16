@@ -1,4 +1,4 @@
-import { CompetitionFormat, CompetitionParticipantStatus, CompetitionStatus, CompetitionVisibility } from '@prisma/client';
+import { CompetitionFormat, CompetitionParticipantStatus, CompetitionStatus, CompetitionVisibility, TournamentEntryStatus, TournamentStatus } from '@prisma/client';
 
 export interface CreateCompetitionRequest {
   title?: string;
@@ -95,4 +95,36 @@ export interface CompetitionLeaderboardEntry {
   wins: number;
   matchesPlayed: number;
   winRate: number;
+}
+
+export interface CreateTournamentRequest {
+  title: string;
+  description?: string;
+  format?: CompetitionFormat;
+  shared_course_code?: string;
+  question_count?: number;
+  question_timer_sec?: number;
+  max_participants?: number;
+  prize_summary?: string;
+  scheduled_at: string;
+  registration_closes_at?: string;
+}
+
+export interface TournamentView {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TournamentStatus;
+  format: CompetitionFormat;
+  shared_course_code: string | null;
+  question_count: number;
+  question_timer_sec: number;
+  max_participants: number | null;
+  prize_summary: string | null;
+  scheduled_at: Date;
+  registration_closes_at: Date | null;
+  published_at: Date | null;
+  entry_count: number;
+  joined?: boolean;
+  entry_status?: TournamentEntryStatus | null;
 }

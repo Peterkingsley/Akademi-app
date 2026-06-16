@@ -41,6 +41,9 @@ router.get('/dashboard/stats', (req, res) => adminController.getStats(req, res))
 router.get('/dashboard/charts', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getCharts(req, res));
 router.get('/dashboard/activity', (req, res) => adminController.getActivity(req, res));
 router.get('/dashboard/system-health', (req, res) => adminController.getSystemHealth(req, res));
+router.get('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.listTournaments(req, res));
+router.post('/competitions/tournaments', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.createTournament(req, res));
+router.patch('/competitions/tournaments/:id/publish', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.publishTournament(req, res));
 
 // Pillar 2: User Management
 router.get('/users', (req, res) => adminController.listUsers(req, res));

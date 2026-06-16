@@ -83,4 +83,24 @@ export class CompetitionsController {
       res.status(500).json({ message: 'Failed to fetch leaderboard' });
     }
   }
+
+  async getTournaments(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const tournaments = await competitionsService.listPublicTournaments(userId);
+      res.status(200).json(tournaments);
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to fetch tournaments' });
+    }
+  }
+
+  async joinTournament(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const tournament = await competitionsService.joinTournament(userId, req.params.id);
+      res.status(200).json(tournament);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to join tournament' });
+    }
+  }
 }

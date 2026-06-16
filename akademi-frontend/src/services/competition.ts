@@ -75,6 +75,28 @@ export interface CompetitionLeaderboardEntry {
   winRate: number;
 }
 
+export type TournamentStatus = "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
+export type TournamentEntryStatus = "REGISTERED" | "CHECKED_IN" | "ELIMINATED" | "WINNER";
+
+export interface Tournament {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TournamentStatus;
+  format: CompetitionFormat;
+  shared_course_code: string | null;
+  question_count: number;
+  question_timer_sec: number;
+  max_participants: number | null;
+  prize_summary: string | null;
+  scheduled_at: string;
+  registration_closes_at: string | null;
+  published_at: string | null;
+  entry_count: number;
+  joined?: boolean;
+  entry_status?: TournamentEntryStatus | null;
+}
+
 export const competitionService = {
   async createRoom(payload: {
     title?: string;
@@ -122,6 +144,16 @@ export const competitionService = {
 
   async getLeaderboard() {
     const { data } = await api.get<CompetitionLeaderboardEntry[]>("/competitions/leaderboard");
+    return data;
+  },
+
+  async getTournaments() {
+    const { data } = await api.get<Tournament[]>("/competitions/tournaments");
+    return data;
+  },
+
+  async joinTournament(tournamentId: string) {
+    const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/join`);
     return data;
   },
 };

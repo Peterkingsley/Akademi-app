@@ -3,6 +3,8 @@ import {
   CompetitionParticipantStatus,
   CompetitionStatus,
   CompetitionVisibility,
+  TournamentEntryStatus,
+  TournamentStatus,
 } from '@prisma/client';
 import prisma from '../../config/db';
 import {
@@ -13,6 +15,8 @@ import {
   CompetitionSummary,
   CompetitionQuestionView,
   CreateCompetitionRequest,
+  CreateTournamentRequest,
+  TournamentView,
 } from './competitions.types';
 
 type ActiveMatchQuestion = {
@@ -115,6 +119,28 @@ export class CompetitionsService {
         ready_at: participant.ready_at,
         joined_at: participant.joined_at,
       })),
+    };
+  }
+
+  private formatTournament(tournament: any, userId?: string): TournamentView {
+    const entry = userId ? tournament.entries?.find((item: any) => item.user_id === userId) || null : null;
+    return {
+      id: tournament.id,
+      title: tournament.title,
+      description: tournament.description || null,
+      status: tournament.status,
+      format: tournament.format,
+      shared_course_code: tournament.shared_course_code || null,
+      question_count: tournament.question_count,
+      question_timer_sec: tournament.question_timer_sec,
+      max_participants: tournament.max_participants ?? null,
+      prize_summary: tournament.prize_summary || null,
+      scheduled_at: tournament.scheduled_at,
+      registration_closes_at: tournament.registration_closes_at || null,
+      published_at: tournament.published_at || null,
+      entry_count: tournament.entries?.length || 0,
+      joined: !!entry,
+      entry_status: entry?.status || null,
     };
   }
 
@@ -608,5 +634,112 @@ export class CompetitionsService {
         return b.totalScore - a.totalScore;
       })
       .slice(0, limit);
+  }
+
+  async createTournament(adminId: string, payload: CreateTournamentRequest) {
+    const tournament = await prisma.tournament.create({
+      data: {
+        title: payload.title.trim(),
+        description: payload.description?.trim() || null,
+        format: payload.format || CompetitionFormat.SHARED_COURSE,
+        shared_course_code: payload.shared_course_code?.trim().toUpperCase() || null,
+        question_count: Math.min(Math.max(payload.question_count || 10, 5), 25),
+        question_timer_sec: Math.min(Math.max(payload.question_timer_sec || 20, 10), 60),
+        max_participants: payload.max_participants || null,
+        prize_summary: payload.prize_summary?.trim() || null,
+        scheduled_at: new Date(payload.scheduled_at),
+        registration_closes_at: payload.registration_closes_at ? new Date(payload.registration_closes_at) : null,
+        created_by_admin_id: adminId,
+      },
+      include: {
+        entries: true,
+      },
+    });
+
+    return this.formatTournament(tournament);
+  }
+
+  async publishTournament(tournamentId: string) {
+    const tournament = await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: {
+        status: TournamentStatus.PUBLISHED,
+        published_at: new Date(),
+      },
+      include: {
+        entries: true,
+      },
+    });
+
+    return this.formatTournament(tournament);
+  }
+
+  async listAdminTournaments() {
+    const tournaments = await prisma.tournament.findMany({
+      include: {
+        entries: true,
+      },
+      orderBy: { scheduled_at: 'asc' },
+      take: 50,
+    });
+
+    return tournaments.map((tournament) => this.formatTournament(tournament));
+  }
+
+  async listPublicTournaments(userId: string) {
+    const tournaments = await prisma.tournament.findMany({
+      where: {
+        status: {
+          in: [TournamentStatus.PUBLISHED, TournamentStatus.LIVE],
+        },
+      },
+      include: {
+        entries: true,
+      },
+      orderBy: { scheduled_at: 'asc' },
+      take: 20,
+    });
+
+    return tournaments.map((tournament) => this.formatTournament(tournament, userId));
+  }
+
+  async joinTournament(userId: string, tournamentId: string) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+      },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    if (![TournamentStatus.PUBLISHED, TournamentStatus.LIVE].includes(tournament.status)) {
+      throw new Error('Tournament is not open for registration');
+    }
+    if (tournament.registration_closes_at && tournament.registration_closes_at.getTime() < Date.now()) {
+      throw new Error('Tournament registration is closed');
+    }
+    if (tournament.max_participants && tournament.entries.length >= tournament.max_participants) {
+      throw new Error('Tournament is full');
+    }
+
+    const existing = tournament.entries.find((entry) => entry.user_id === userId);
+    if (!existing) {
+      await prisma.tournamentEntry.create({
+        data: {
+          tournament_id: tournamentId,
+          user_id: userId,
+          status: TournamentEntryStatus.REGISTERED,
+        },
+      });
+    }
+
+    const updated = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+      },
+    });
+
+    return this.formatTournament(updated, userId);
   }
 }

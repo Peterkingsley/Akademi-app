@@ -8,19 +8,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Swords, Trophy, Users, Radio } from "lucide-react-native";
+import { Swords, Trophy, Users, Radio, CalendarDays } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { competitionService, CompetitionLeaderboardEntry, CompetitionRoom, CompetitionSummary } from "../../services/competition";
+import { competitionService, CompetitionLeaderboardEntry, CompetitionRoom, CompetitionSummary, Tournament } from "../../services/competition";
 
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [summary, setSummary] = useState<CompetitionSummary | null>(null);
   const [myRooms, setMyRooms] = useState<CompetitionRoom[]>([]);
   const [publicRooms, setPublicRooms] = useState<CompetitionRoom[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,17 +31,19 @@ export const CompetitionHubScreen: React.FC = () => {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const [summaryData, mineData, publicData, leaderboardData] = await Promise.all([
+      const [summaryData, mineData, publicData, leaderboardData, tournamentData] = await Promise.all([
         competitionService.getSummary(),
         competitionService.getMyRooms(),
         competitionService.getPublicRooms(),
         competitionService.getLeaderboard(),
+        competitionService.getTournaments(),
       ]);
 
       setSummary(summaryData);
       setMyRooms(mineData);
       setPublicRooms(publicData);
       setLeaderboard(leaderboardData);
+      setTournaments(tournamentData);
     } catch (error) {
       console.error("Failed to load competitions", error);
     } finally {
@@ -59,6 +62,17 @@ export const CompetitionHubScreen: React.FC = () => {
     { label: "Win Rate", value: `${summary?.winRate ?? 0}%`, icon: Radio },
     { label: "Live", value: summary?.liveMatches ?? 0, icon: Users },
   ];
+
+  const joinTournament = async (tournamentId: string) => {
+    try {
+      const updated = await competitionService.joinTournament(tournamentId);
+      setTournaments((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (error) {
+      console.error("Failed to join tournament", error);
+    }
+  };
 
   return (
     <Screen style={styles.screen}>
@@ -146,6 +160,46 @@ export const CompetitionHubScreen: React.FC = () => {
                     Host: {room.host.name} · {room.shared_course_code || "Mixed"}
                   </Text>
                   <Text style={styles.roomStatus}>{room.participants.length}/{room.max_participants} joined</Text>
+                </Card>
+              ))
+            )}
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Scheduled Tournaments</Text>
+            </View>
+            {tournaments.length === 0 ? (
+              <Card style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>No tournaments yet</Text>
+                <Text style={styles.emptyText}>Published campus and national events will appear here.</Text>
+              </Card>
+            ) : (
+              tournaments.map((tournament) => (
+                <Card key={tournament.id} style={styles.roomCard}>
+                  <View style={styles.roomTop}>
+                    <Text style={styles.roomTitle}>{tournament.title}</Text>
+                    <Text style={styles.roomCode}>{tournament.status}</Text>
+                  </View>
+                  <Text style={styles.roomMeta}>
+                    {tournament.shared_course_code || "Multi-course"} · {new Date(tournament.scheduled_at).toLocaleString()}
+                  </Text>
+                  {tournament.prize_summary ? (
+                    <Text style={styles.roomStatus}>{tournament.prize_summary}</Text>
+                  ) : null}
+                  <View style={styles.tournamentFooter}>
+                    <View style={styles.tournamentCount}>
+                      <CalendarDays size={14} color={colors.textMuted} />
+                      <Text style={styles.tournamentCountText}>{tournament.entry_count} joined</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.joinButton, tournament.joined && styles.joinedButton]}
+                      onPress={() => joinTournament(tournament.id)}
+                      disabled={!!tournament.joined}
+                    >
+                      <Text style={[styles.joinButtonText, tournament.joined && styles.joinedButtonText]}>
+                        {tournament.joined ? "Joined" : "Join Event"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </Card>
               ))
             )}
@@ -297,6 +351,40 @@ const styles = StyleSheet.create({
   roomStatus: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  tournamentFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  tournamentCount: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tournamentCountText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  joinButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  joinedButton: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  joinButtonText: {
+    ...typography.caption,
+    color: "#04110A",
+    fontWeight: "700",
+  },
+  joinedButtonText: {
+    color: colors.textSecondary,
   },
   leaderboardCard: {
     gap: 12,

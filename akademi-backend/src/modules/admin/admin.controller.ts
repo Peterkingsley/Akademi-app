@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import { extractDisciplineDocumentText } from './document-extraction';
+import { CompetitionsService } from '../competitions/competitions.service';
 
 const adminService = new AdminService();
+const competitionsService = new CompetitionsService();
 
 export class AdminController {
   async login(req: Request, res: Response) {
@@ -48,6 +50,33 @@ export class AdminController {
       res.json(health);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  }
+
+  async listTournaments(req: Request, res: Response) {
+    try {
+      const tournaments = await competitionsService.listAdminTournaments();
+      res.json(tournaments);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async createTournament(req: Request, res: Response) {
+    try {
+      const result = await competitionsService.createTournament(req.admin!.adminId, req.body);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async publishTournament(req: Request, res: Response) {
+    try {
+      const result = await competitionsService.publishTournament(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   }
 

@@ -121,6 +121,21 @@ enum CompetitionParticipantStatus {
   LEFT
 }
 
+enum TournamentStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentEntryStatus {
+  REGISTERED
+  CHECKED_IN
+  ELIMINATED
+  WINNER
+}
+
 // Models
 model User {
   id                           String         @id @default(uuid())
@@ -159,6 +174,7 @@ model User {
   student_courses      StudentCourse[]
   hosted_competitions  CompetitionRoom[]        @relation("CompetitionHost")
   competition_entries  CompetitionParticipant[]
+  tournament_entries   TournamentEntry[]
 
   @@index([email])
   @@index([university])
@@ -522,6 +538,47 @@ model CompetitionParticipant {
   @@index([user_id])
   @@index([room_id])
   @@map("competition_participants")
+}
+
+model Tournament {
+  id                  String            @id @default(uuid())
+  title               String
+  description         String?
+  status              TournamentStatus  @default(DRAFT)
+  format              CompetitionFormat @default(SHARED_COURSE)
+  shared_course_code  String?
+  question_count      Int               @default(10)
+  question_timer_sec  Int               @default(20)
+  max_participants    Int?
+  prize_summary       String?
+  scheduled_at        DateTime
+  registration_closes_at DateTime?
+  published_at        DateTime?
+  created_by_admin_id String
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+
+  entries TournamentEntry[]
+
+  @@index([status])
+  @@index([scheduled_at])
+  @@map("tournaments")
+}
+
+model TournamentEntry {
+  id            String              @id @default(uuid())
+  tournament_id String
+  user_id       String
+  status        TournamentEntryStatus @default(REGISTERED)
+  joined_at     DateTime            @default(now())
+
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tournament_id, user_id])
+  @@index([user_id])
+  @@index([tournament_id])
+  @@map("tournament_entries")
 }
 
 model Transaction {
