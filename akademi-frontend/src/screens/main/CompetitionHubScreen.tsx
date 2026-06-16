@@ -31,13 +31,16 @@ export const CompetitionHubScreen: React.FC = () => {
   const [joinCode, setJoinCode] = useState("");
   const [joinCourseCode, setJoinCourseCode] = useState("");
   const [joining, setJoining] = useState(false);
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const [summaryData, mineData, publicData, leaderboardData, tournamentData] = await Promise.all([
+      setLoadNotice(null);
+
+      const results = await Promise.allSettled([
         competitionService.getSummary(),
         competitionService.getMyRooms(),
         competitionService.getPublicRooms(),
@@ -45,13 +48,34 @@ export const CompetitionHubScreen: React.FC = () => {
         competitionService.getTournaments(),
       ]);
 
-      setSummary(summaryData);
-      setMyRooms(mineData);
-      setPublicRooms(publicData);
-      setLeaderboard(leaderboardData);
-      setTournaments(tournamentData);
-    } catch (error) {
-      console.error("Failed to load competitions", error);
+      const [summaryResult, mineResult, publicResult, leaderboardResult, tournamentResult] = results;
+      const hasMissingRoute = results.some(
+        (result) => result.status === "rejected" && result.reason?.response?.status === 404,
+      );
+
+      if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
+      else setSummary({
+        matchesPlayed: 0,
+        wins: 0,
+        liveMatches: 0,
+        averageScore: 0,
+        winRate: 0,
+      });
+
+      setMyRooms(mineResult.status === "fulfilled" ? mineResult.value : []);
+      setPublicRooms(publicResult.status === "fulfilled" ? publicResult.value : []);
+      setLeaderboard(leaderboardResult.status === "fulfilled" ? leaderboardResult.value : []);
+      setTournaments(tournamentResult.status === "fulfilled" ? tournamentResult.value : []);
+
+      if (hasMissingRoute) {
+        setLoadNotice("Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here.");
+      }
+    } catch (error: any) {
+      setLoadNotice(
+        error?.response?.status === 404
+          ? "Competition routes are not live on this backend yet. Once Render deploys the latest branch, matches and tournaments will appear here."
+          : "We could not refresh competition data right now. Pull to try again.",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -141,6 +165,13 @@ export const CompetitionHubScreen: React.FC = () => {
           </View>
         ) : (
           <>
+            {loadNotice ? (
+              <Card style={styles.noticeCard}>
+                <Text style={styles.noticeTitle}>Competition update pending</Text>
+                <Text style={styles.noticeText}>{loadNotice}</Text>
+              </Card>
+            ) : null}
+
             <View style={styles.statsGrid}>
               {statCards.map((item) => {
                 const Icon = item.icon;
@@ -367,6 +398,22 @@ const styles = StyleSheet.create({
   callout: {
     backgroundColor: colors.surfaceElevated,
     gap: 8,
+  },
+  noticeCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderWidth: 1,
+    gap: 8,
+  },
+  noticeTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  noticeText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   calloutTitle: {
     ...typography.body,

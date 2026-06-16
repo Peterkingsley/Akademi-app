@@ -28,6 +28,7 @@ export const AdminTournamentsScreen: React.FC = () => {
   const [audienceFaculty, setAudienceFaculty] = useState("");
   const [audienceDepartment, setAudienceDepartment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const formCardStyle: ViewStyle = {
     ...styles.formCard,
@@ -37,10 +38,16 @@ export const AdminTournamentsScreen: React.FC = () => {
 
   const loadTournaments = async () => {
     try {
+      setLoadNotice(null);
       const data = await adminService.listTournaments();
       setTournaments(data);
-    } catch (error) {
-      console.error("Failed to load tournaments", error);
+    } catch (error: any) {
+      setTournaments([]);
+      setLoadNotice(
+        error?.response?.status === 404
+          ? "Tournament admin routes are not live on this backend yet. Deploy the latest backend branch on Render and this screen will start loading real events."
+          : "We could not load tournaments right now. Please try again in a moment.",
+      );
     }
   };
 
@@ -167,6 +174,20 @@ export const AdminTournamentsScreen: React.FC = () => {
         <View style={styles.sectionHeader}>
           <Text style={[typography.h3, { color: colors.textPrimary }]}>Existing Tournaments</Text>
         </View>
+        {loadNotice ? (
+          <Card
+            style={{
+              ...styles.noticeCard,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            }}
+          >
+            <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700" }]}>Tournament feed unavailable</Text>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+              {loadNotice}
+            </Text>
+          </Card>
+        ) : null}
         <ScrollView contentContainerStyle={styles.list}>
           {tournaments.map((tournament) => (
             <Card
@@ -246,6 +267,12 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     marginTop: 8,
+  },
+  noticeCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
   },
   list: {
     gap: 12,

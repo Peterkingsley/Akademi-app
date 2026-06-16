@@ -36,6 +36,8 @@ export const Screen: React.FC<ScreenProps> = ({
   refreshControl,
 }) => {
   const { colors } = useTheme();
+  const shouldShowHeader =
+    !hideHeader && Boolean(title || onBack || leftAction || rightAction);
 
   return (
     <SafeArea style={{ backgroundColor: colors.background }}>
@@ -43,7 +45,7 @@ export const Screen: React.FC<ScreenProps> = ({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={[styles.container, { backgroundColor: colors.background }]}
       >
-        {!hideHeader && (
+        {shouldShowHeader && (
           <Header
             title={title}
             onBack={onBack}
