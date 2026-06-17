@@ -92,7 +92,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         style={[styles.textInput, typography.body]}
         onSelectionChange={handleSelectionChange}
         onChangeText={() => {}}
-        contextMenuHidden={true}
+        contextMenuHidden={false}
       />
 
       <Modal
