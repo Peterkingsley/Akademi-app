@@ -48,23 +48,30 @@ interface ReaderStructure {
 }
 
 const BOOK_PAGE_TARGET_CHARS = 1800;
+const PAGE_FILL_MIN_RATIO = 0.68;
 
 const HEADING_PATTERNS = [
-  /^slide\s+\d+/i,
   /^chapter\s+\d+/i,
   /^section\s+\d+/i,
   /^unit\s+\d+/i,
   /^\d+(\.\d+)*\s+[A-Z]/,
 ];
 
+const SOFT_HEADING_PATTERNS = [
+  /^slide\s+\d+/i,
+];
+
 const isLikelyHeading = (line: string) => {
   const trimmed = line.trim();
   if (!trimmed) return false;
   if (HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
+  if (SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   const words = trimmed.split(/\s+/);
   const uppercaseWords = words.filter((word) => /[A-Z]/.test(word) && word === word.toUpperCase()).length;
   return words.length <= 10 && uppercaseWords >= Math.max(1, Math.floor(words.length * 0.6));
 };
+
+const isSoftHeading = (line: string) => SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 
 const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] => {
   const paragraphs = body
@@ -100,17 +107,58 @@ const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_T
 const repaginateStructuredPages = (pages: ReaderPage[]): ReaderPage[] => {
   if (!pages.length) return pages;
 
-  const chapterBuckets = new Map<string, string[]>();
+  const mergedPages: ReaderPage[] = [];
+  let currentTitle = "";
+  let currentContent = "";
+  let currentStartTitle = "";
+
+  const flushCurrent = () => {
+    if (!currentContent.trim()) return;
+    const title = currentStartTitle || currentTitle || "Reading";
+    mergedPages.push(...chunkSection(title, currentContent.trim(), BOOK_PAGE_TARGET_CHARS));
+    currentTitle = "";
+    currentContent = "";
+    currentStartTitle = "";
+  };
+
   pages.forEach((page) => {
-    const key = page.chapterTitle || "Reading";
-    const existing = chapterBuckets.get(key) || [];
-    existing.push(page.content);
-    chapterBuckets.set(key, existing);
+    const title = page.chapterTitle || page.pageTitle || "Reading";
+    const renderedSection = title && title !== "Reading"
+      ? `${title}\n\n${page.content.trim()}`
+      : page.content.trim();
+
+    if (!renderedSection) return;
+
+    if (!isSoftHeading(title)) {
+      flushCurrent();
+      mergedPages.push(...chunkSection(title, page.content.trim(), BOOK_PAGE_TARGET_CHARS));
+      return;
+    }
+
+    if (!currentContent) {
+      currentStartTitle = title;
+      currentTitle = title;
+      currentContent = renderedSection;
+      return;
+    }
+
+    const candidate = `${currentContent}\n\n${renderedSection}`.trim();
+    const hasEnoughFill = currentContent.length >= BOOK_PAGE_TARGET_CHARS * PAGE_FILL_MIN_RATIO;
+    if (candidate.length > BOOK_PAGE_TARGET_CHARS && hasEnoughFill) {
+      flushCurrent();
+      currentStartTitle = title;
+      currentTitle = title;
+      currentContent = renderedSection;
+      return;
+    }
+
+    currentContent = candidate;
+    currentTitle = title;
   });
 
-  return Array.from(chapterBuckets.entries()).flatMap(([chapterTitle, contents]) =>
-    chunkSection(chapterTitle, contents.join("\n\n"), BOOK_PAGE_TARGET_CHARS),
-  );
+  flushCurrent();
+
+  return mergedPages.length ? mergedPages : pages;
 };
 
 const buildReaderPages = (rawContent: string): ReaderPage[] => {

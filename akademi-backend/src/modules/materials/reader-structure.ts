@@ -14,13 +14,17 @@ export interface ReaderStructure {
 }
 
 const BOOK_PAGE_TARGET_CHARS = 1800;
+const PAGE_FILL_MIN_RATIO = 0.68;
 
 const HEADING_PATTERNS = [
-  /^slide\s+\d+/i,
   /^chapter\s+\d+/i,
   /^section\s+\d+/i,
   /^unit\s+\d+/i,
   /^\d+(\.\d+)*\s+[A-Z]/,
+];
+
+const SOFT_HEADING_PATTERNS = [
+  /^slide\s+\d+/i,
 ];
 
 export function normalizeExtractedText(value: string) {
@@ -37,9 +41,14 @@ function isLikelyHeading(line: string) {
   const trimmed = line.trim();
   if (!trimmed) return false;
   if (HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
+  if (SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   const words = trimmed.split(/\s+/);
   const uppercaseWords = words.filter((word) => /[A-Z]/.test(word) && word === word.toUpperCase()).length;
   return words.length <= 10 && uppercaseWords >= Math.max(1, Math.floor(words.length * 0.6));
+}
+
+function isSoftHeading(line: string) {
+  return SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 }
 
 function chunkSection(sectionTitle: string, body: string): ReaderPage[] {
@@ -116,7 +125,60 @@ export function buildReaderStructure(rawText: string): ReaderStructure {
 
   const pages =
     sections.length > 0
-      ? sections.flatMap((section) => chunkSection(section.title, section.body.join('\n')))
+      ? (() => {
+          const mergedPages: ReaderPage[] = [];
+          let currentTitle = '';
+          let currentContent = '';
+          let currentStartTitle = '';
+
+          const flushCurrent = () => {
+            if (!currentContent.trim()) return;
+            const title = currentStartTitle || currentTitle || 'Reading';
+            mergedPages.push(...chunkSection(title, currentContent.trim()));
+            currentTitle = '';
+            currentContent = '';
+            currentStartTitle = '';
+          };
+
+          for (const section of sections) {
+            const sectionBody = section.body.join('\n').trim();
+            if (!sectionBody) continue;
+
+            const renderedSection =
+              section.title && section.title !== 'Reading'
+                ? `${section.title}\n\n${sectionBody}`
+                : sectionBody;
+
+            if (!isSoftHeading(section.title)) {
+              flushCurrent();
+              mergedPages.push(...chunkSection(section.title, sectionBody));
+              continue;
+            }
+
+            if (!currentContent) {
+              currentStartTitle = section.title;
+              currentTitle = section.title;
+              currentContent = renderedSection;
+              continue;
+            }
+
+            const candidate = `${currentContent}\n\n${renderedSection}`.trim();
+            const hasEnoughFill = currentContent.length >= BOOK_PAGE_TARGET_CHARS * PAGE_FILL_MIN_RATIO;
+            if (candidate.length > BOOK_PAGE_TARGET_CHARS && hasEnoughFill) {
+              flushCurrent();
+              currentStartTitle = section.title;
+              currentTitle = section.title;
+              currentContent = renderedSection;
+              continue;
+            }
+
+            currentContent = candidate;
+            currentTitle = section.title;
+          }
+
+          flushCurrent();
+          return mergedPages;
+        })()
       : chunkSection('Reading', normalized);
 
   return {
