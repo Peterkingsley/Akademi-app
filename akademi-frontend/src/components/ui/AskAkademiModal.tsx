@@ -10,6 +10,8 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { BookOpen, ClipboardList, GraduationCap, ListChecks, Send, Sparkles, X } from "lucide-react-native";
 import { colors } from "../../theme/colors";
@@ -72,6 +74,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     if (action === "ask" && !question.trim()) return;
     if (!contextText.trim()) return;
 
+    Keyboard.dismiss();
     setLoading(true);
     setActiveAction(action);
     try {
@@ -110,98 +113,113 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.titleGroup}>
-              <Sparkles size={20} color={colors.primary} />
-              <Text style={[styles.title, typography.h3]}>Ask Akademi</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.contextBox}>
-              <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
-              <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
-                {materialTitle ? `${materialTitle}\n` : ""}{contextText}
-              </Text>
-            </View>
-
-            <View style={styles.actionRow}>
-              {actions.map((action) => (
-                <TouchableOpacity
-                  key={action.key}
-                  style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
-                  onPress={() => handleAction(action.key)}
-                  disabled={loading}
-                >
-                  {action.icon}
-                  <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.overlayInner}>
+            <View style={styles.container}>
+              <View style={styles.header}>
+                <View style={styles.titleGroup}>
+                  <Sparkles size={20} color={colors.primary} />
+                  <Text style={[styles.title, typography.h3]}>Ask Akademi</Text>
+                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                  <X size={24} color="#FFFFFF" />
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
 
-            {response ? (
-              <View style={styles.responseContainer}>
-                <View style={styles.aiHeader}>
-                  <Avatar size={24} name="Akademi" />
-                  <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
-                    Akademi AI
+              <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.contextBox}>
+                  <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
+                  <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
+                    {materialTitle ? `${materialTitle}\n` : ""}{contextText}
                   </Text>
                 </View>
-                <Text style={[styles.responseText, typography.bodySmall]}>
-                  {response}
-                </Text>
-                <Button
-                  label="Clear and ask another"
-                  variant="ghost"
-                  onPress={() => {
-                    setResponse(null);
-                    setQuestion("");
-                    setActiveAction("ask");
-                  }}
-                  style={styles.clearBtn}
-                />
-              </View>
-            ) : (
-              <View style={styles.inputArea}>
-                <Text style={[styles.inputLabel, typography.bodySmall]}>
-                  What would you like to know about this?
-                </Text>
-                <TextInput
-                  style={[styles.input, typography.bodySmall]}
-                  placeholder="Type your question here..."
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  value={question}
-                  onChangeText={setQuestion}
-                  autoFocus
-                />
-              </View>
-            )}
-          </ScrollView>
 
-          {!response && (
-            <View style={styles.footer}>
-              <Button
-                label="Ask Akademi"
-                onPress={() => handleAction("ask")}
-                loading={loading}
-                disabled={!question.trim()}
-                icon={<Send size={18} color="#FFFFFF" />}
-              />
+                <View style={styles.actionRow}>
+                  {actions.map((action) => (
+                    <TouchableOpacity
+                      key={action.key}
+                      style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
+                      onPress={() => handleAction(action.key)}
+                      disabled={loading}
+                    >
+                      {action.icon}
+                      <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {response ? (
+                  <View style={styles.responseContainer}>
+                    <View style={styles.aiHeader}>
+                      <Avatar size={24} name="Akademi" />
+                      <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
+                        Akademi AI
+                      </Text>
+                    </View>
+                    <Text style={[styles.responseText, typography.bodySmall]}>
+                      {response}
+                    </Text>
+                    <View style={styles.responseActions}>
+                      <Button
+                        label="Ask another"
+                        variant="ghost"
+                        onPress={() => {
+                          setResponse(null);
+                          setQuestion("");
+                          setActiveAction("ask");
+                        }}
+                        style={styles.clearBtn}
+                      />
+                      <Button
+                        label="Done"
+                        onPress={onClose}
+                        style={styles.doneBtn}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.inputArea}>
+                    <Text style={[styles.inputLabel, typography.bodySmall]}>
+                      What would you like to know about this?
+                    </Text>
+                    <TextInput
+                      style={[styles.input, typography.bodySmall]}
+                      placeholder="Type your question here..."
+                      placeholderTextColor={colors.textMuted}
+                      multiline
+                      value={question}
+                      onChangeText={setQuestion}
+                      autoFocus
+                    />
+                  </View>
+                )}
+              </ScrollView>
+
+              {!response && (
+                <View style={styles.footer}>
+                  <Button
+                    label="Ask Akademi"
+                    onPress={() => handleAction("ask")}
+                    loading={loading}
+                    disabled={!question.trim()}
+                    icon={<Send size={18} color="#FFFFFF" />}
+                  />
+                </View>
+              )}
             </View>
-          )}
-        </View>
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -211,14 +229,20 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 32,
+  },
+  overlayInner: {
+    flex: 1,
+    justifyContent: "center",
   },
   container: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     paddingTop: 20,
-    maxHeight: "80%",
+    maxHeight: "72%",
+    minHeight: "48%",
   },
   header: {
     flexDirection: "row",
@@ -241,7 +265,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
   },
   contextBox: {
     backgroundColor: colors.surfaceElevated,
@@ -306,6 +331,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
   },
+  responseActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 16,
+    justifyContent: "space-between",
+  },
   aiHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -319,8 +350,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   clearBtn: {
-    marginTop: 16,
-    alignSelf: "flex-start",
+    flex: 1,
+  },
+  doneBtn: {
+    flex: 1,
   },
   footer: {
     padding: 20,
