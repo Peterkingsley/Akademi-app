@@ -135,6 +135,9 @@ Rules:
 - If a solution is long, split it into more steps instead of stuffing many ideas into one step.
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
+- Keep each "math" line short enough for a phone screen.
+- If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
+- Prefer one displayed equation per step, or at most one short carry-forward transformation.
 - Use "text" for plain spoken explanation of the step.
 - If a step has no equation, set "math" to an empty string.
 - Do not skip intermediate arithmetic.

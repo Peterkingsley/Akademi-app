@@ -74,6 +74,56 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 }
 
 export class AIService {
+  private splitEquationChain(math: string) {
+    const compact = math.replace(/\s+/g, ' ').trim();
+    if (!compact) return [];
+
+    const multilineParts = compact
+      .split(/\s*\\\\\s*/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const splitPartOnEquals = (value: string) => {
+      const segments = value.split(/\s=\s/g).map((segment) => segment.trim()).filter(Boolean);
+      if (segments.length <= 2) return [value.trim()];
+
+      const chained: string[] = [];
+      for (let index = 0; index < segments.length - 1; index += 1) {
+        chained.push(`${segments[index]} = ${segments[index + 1]}`);
+      }
+      return chained;
+    };
+
+    return multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+  }
+
+  private expandWideBoardSteps(steps: Array<{ id: string; type: string; text: string; math: string; note: string }>) {
+    const expanded: Array<{ id: string; type: string; text: string; math: string; note: string }> = [];
+
+    steps.forEach((step) => {
+      const mathSegments = this.splitEquationChain(step.math);
+      const shouldSplit = mathSegments.length > 1 || step.math.length > 110;
+
+      if (!step.math || !shouldSplit) {
+        expanded.push(step);
+        return;
+      }
+
+      const segments = mathSegments.length > 0 ? mathSegments : [step.math];
+      segments.forEach((segment, index) => {
+        expanded.push({
+          ...step,
+          id: `${step.id}-${index + 1}`,
+          text: index === 0 ? step.text : index === segments.length - 1 ? 'Continue the simplification.' : 'Next transformation.',
+          math: segment,
+          note: index === segments.length - 1 ? step.note : '',
+        });
+      });
+    });
+
+    return expanded.slice(0, 16);
+  }
+
   private normalizeLatexExpression(value: string) {
     if (!value) return '';
 
@@ -271,15 +321,16 @@ export class AIService {
           note: String(step?.note || '').trim(),
         }))
         .map((step: { id: string; type: string; text: string; math: string; note: string }) => this.normalizeBoardStep(step))
-        .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0)
-        .slice(0, 12);
+        .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0);
 
-      if (normalizedSteps.length === 0) return null;
+      const expandedSteps = this.expandWideBoardSteps(normalizedSteps);
+
+      if (expandedSteps.length === 0) return null;
 
       return {
         title: String(parsed?.title || 'Board walkthrough'),
         board_style: 'digital-whiteboard',
-        steps: normalizedSteps,
+        steps: expandedSteps,
         final_answer: parsed.final_answer.trim(),
         final_answer_math: this.normalizeLatexExpression(String(parsed?.final_answer_math || parsed?.final_answer || '').trim()),
         summary: String(parsed?.summary || '').trim(),
