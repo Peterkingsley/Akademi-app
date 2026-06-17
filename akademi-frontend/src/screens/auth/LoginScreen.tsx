@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { BookOpen, GraduationCap, LockKeyhole, Mail } from "lucide-react-native";
+import { BookOpen, LockKeyhole, Mail } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
@@ -55,10 +56,7 @@ export const LoginScreen: React.FC = () => {
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <View style={styles.brandMark}>
-            <GraduationCap size={22} color={colors.primary} />
-          </View>
-          <Text style={styles.brandText}>Akademi</Text>
+          <BrandWordmark style={styles.brandText} />
         </View>
 
         <View style={styles.heroCard}>
@@ -127,20 +125,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 22,
   },
-  brandMark: {
-    alignItems: "center",
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
   brandText: {
-    ...typography.h3,
-    color: colors.primary,
-    marginLeft: 12,
+    ...typography.h2,
   },
   heroCard: {
     backgroundColor: colors.surface,

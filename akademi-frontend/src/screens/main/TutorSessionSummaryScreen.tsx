@@ -6,6 +6,7 @@ import { typography } from "../../theme/typography";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Button } from "../../components/ui/Button";
 import { Avatar } from "../../components/ui/Avatar";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Settings, BookOpen, CheckCircle, AlertTriangle, Quote, Star } from "lucide-react-native";
 import { sessionService, Session, SessionSummary } from "../../services/session";
@@ -80,7 +81,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <Avatar name={user?.name || "Student"} size={32} />
-        <Text style={[styles.brandText, typography.h3]}>Akademi</Text>
+        <BrandWordmark style={[styles.brandText, typography.h3]} />
       </View>
       <TouchableOpacity>
         <Settings size={24} color={colors.textSecondary} />

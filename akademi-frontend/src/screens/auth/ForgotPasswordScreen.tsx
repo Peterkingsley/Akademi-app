@@ -11,6 +11,7 @@ import { ArrowLeft, RefreshCw, Info, Mail } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
 import api from "../../services/api";
@@ -65,7 +66,7 @@ export const ForgotPasswordScreen: React.FC = () => {
       onBack={() => navigation.goBack()}
       title=""
       rightAction={
-        <Text style={styles.headerTitle}>Akademi</Text>
+        <BrandWordmark style={styles.headerTitle} />
       }
     >
       <ScrollView contentContainerStyle={styles.container}>

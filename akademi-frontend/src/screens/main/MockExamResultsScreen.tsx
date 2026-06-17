@@ -27,6 +27,7 @@ import examPrepService, { ExamPrepPlan, MockResult, MockResultQuestion } from ".
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -332,7 +333,7 @@ export const MockExamResultsScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <Avatar name={user?.name || "Student"} size={36} />
-      <Text style={[styles.headerTitle, typography.h3]}>Akademi</Text>
+      <BrandWordmark style={[styles.headerTitle, typography.h3]} />
       <TouchableOpacity>
         <Settings size={24} color={colors.textSecondary} />
       </TouchableOpacity>

@@ -11,10 +11,11 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowRight, BookOpen, GraduationCap, ScanLine, Target } from "lucide-react-native";
+import { ArrowRight, BookOpen, ScanLine, Target } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { Button } from "../../components/ui/Button";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
@@ -60,8 +61,7 @@ export const OnboardingScreen: React.FC = () => {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.slideContent}>
             <View style={styles.topBar}>
               <View style={styles.logoContainer}>
-                <GraduationCap size={22} color={colors.primary} />
-                <Text style={styles.logoText}>Akademi</Text>
+                <BrandWordmark style={styles.logoText} />
               </View>
               <TouchableOpacity onPress={handleLogin} activeOpacity={0.8}>
                 <Text style={styles.signInTop}>Sign in</Text>
@@ -111,8 +111,7 @@ export const OnboardingScreen: React.FC = () => {
         <View style={styles.slide}>
           <View style={styles.slide2Header}>
             <View style={styles.logoContainer}>
-              <GraduationCap size={22} color={colors.primary} />
-              <Text style={styles.logoText}>Akademi</Text>
+              <BrandWordmark style={styles.logoText} />
             </View>
             <View style={styles.progressIndicators}>
               <View style={styles.indicator} />
@@ -183,9 +182,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   logoText: {
-    ...typography.h4,
-    color: colors.textPrimary,
-    marginLeft: 8,
+    ...typography.h3,
   },
   signInTop: {
     ...typography.bodySmall,

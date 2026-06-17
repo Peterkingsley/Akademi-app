@@ -7,6 +7,7 @@ import Animated, {
   withDelay,
 } from "react-native-reanimated";
 import { Sparkles } from "lucide-react-native";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { SafeArea } from "../../components/layout/SafeArea";
@@ -50,7 +51,7 @@ export const SplashScreen: React.FC = () => {
 
         <View style={styles.center}>
           <Animated.View style={akademiStyle}>
-            <Text style={styles.wordmark}>Akademi</Text>
+            <BrandWordmark style={styles.wordmark} />
           </Animated.View>
           <Animated.View style={taglineStyle}>
             <Text style={styles.tagline}>LEARN DEEPER. GO FURTHER.</Text>

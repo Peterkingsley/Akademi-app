@@ -14,6 +14,7 @@ import { Avatar } from "../../components/ui/Avatar";
 import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { useNavigation } from "@react-navigation/native";
 
 export const ChallengeResultScreen: React.FC = () => {
@@ -24,7 +25,7 @@ export const ChallengeResultScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Avatar size={32} name="Akademi" />
-          <Text style={[styles.headerTitle, typography.bodySmall, { fontWeight: "700" }]}>Akademi</Text>
+          <BrandWordmark style={[styles.headerTitle, typography.bodySmall, { fontWeight: "700" }]} />
         </View>
         <TouchableOpacity style={styles.searchBtn}>
           <Search size={24} color={colors.textSecondary} />
