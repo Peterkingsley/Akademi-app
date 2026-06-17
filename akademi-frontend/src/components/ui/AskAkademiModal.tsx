@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   Modal,
+  Pressable,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -11,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { BookOpen, ClipboardList, GraduationCap, ListChecks, Send, Sparkles, X } from "lucide-react-native";
 import { colors } from "../../theme/colors";
@@ -120,106 +120,107 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.overlayInner}>
-            <View style={styles.container}>
-              <View style={styles.header}>
-                <View style={styles.titleGroup}>
-                  <Sparkles size={20} color={colors.primary} />
-                  <Text style={[styles.title, typography.h3]}>Ask Akademi</Text>
-                </View>
-                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                  <X size={24} color="#FFFFFF" />
-                </TouchableOpacity>
+        <View style={styles.overlayInner}>
+          <Pressable style={styles.backdrop} onPress={Keyboard.dismiss} />
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <View style={styles.titleGroup}>
+                <Sparkles size={20} color={colors.primary} />
+                <Text style={[styles.title, typography.h3]}>Ask Akademi</Text>
+              </View>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <X size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+            >
+              <View style={styles.contextBox}>
+                <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
+                <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
+                  {materialTitle ? `${materialTitle}\n` : ""}{contextText}
+                </Text>
               </View>
 
-              <ScrollView
-                style={styles.content}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.contextBox}>
-                  <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
-                  <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
-                    {materialTitle ? `${materialTitle}\n` : ""}{contextText}
-                  </Text>
-                </View>
+              <View style={styles.actionRow}>
+                {actions.map((action) => (
+                  <TouchableOpacity
+                    key={action.key}
+                    style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
+                    onPress={() => handleAction(action.key)}
+                    disabled={loading}
+                  >
+                    {action.icon}
+                    <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-                <View style={styles.actionRow}>
-                  {actions.map((action) => (
-                    <TouchableOpacity
-                      key={action.key}
-                      style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
-                      onPress={() => handleAction(action.key)}
-                      disabled={loading}
-                    >
-                      {action.icon}
-                      <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                {response ? (
-                  <View style={styles.responseContainer}>
-                    <View style={styles.aiHeader}>
-                      <Avatar size={24} name="Akademi" />
-                      <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
-                        Akademi AI
-                      </Text>
-                    </View>
-                    <Text style={[styles.responseText, typography.bodySmall]}>
-                      {response}
+              {response ? (
+                <View style={styles.responseContainer}>
+                  <View style={styles.aiHeader}>
+                    <Avatar size={24} name="Akademi" />
+                    <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
+                      Akademi AI
                     </Text>
-                    <View style={styles.responseActions}>
-                      <Button
-                        label="Ask another"
-                        variant="ghost"
-                        onPress={() => {
-                          setResponse(null);
-                          setQuestion("");
-                          setActiveAction("ask");
-                        }}
-                        style={styles.clearBtn}
-                      />
-                      <Button
-                        label="Done"
-                        onPress={onClose}
-                        style={styles.doneBtn}
-                      />
-                    </View>
                   </View>
-                ) : (
-                  <View style={styles.inputArea}>
-                    <Text style={[styles.inputLabel, typography.bodySmall]}>
-                      What would you like to know about this?
-                    </Text>
-                    <TextInput
-                      style={[styles.input, typography.bodySmall]}
-                      placeholder="Type your question here..."
-                      placeholderTextColor={colors.textMuted}
-                      multiline
-                      value={question}
-                      onChangeText={setQuestion}
-                      autoFocus
+                  <Text style={[styles.responseText, typography.bodySmall]}>
+                    {response}
+                  </Text>
+                  <View style={styles.responseActions}>
+                    <Button
+                      label="Ask another"
+                      variant="ghost"
+                      onPress={() => {
+                        setResponse(null);
+                        setQuestion("");
+                        setActiveAction("ask");
+                      }}
+                      style={styles.clearBtn}
+                    />
+                    <Button
+                      label="Done"
+                      onPress={onClose}
+                      style={styles.doneBtn}
                     />
                   </View>
-                )}
-              </ScrollView>
-
-              {!response && (
-                <View style={styles.footer}>
-                  <Button
-                    label="Ask Akademi"
-                    onPress={() => handleAction("ask")}
-                    loading={loading}
-                    disabled={!question.trim()}
-                    icon={<Send size={18} color="#FFFFFF" />}
+                </View>
+              ) : (
+                <View style={styles.inputArea}>
+                  <Text style={[styles.inputLabel, typography.bodySmall]}>
+                    What would you like to know about this?
+                  </Text>
+                  <TextInput
+                    style={[styles.input, typography.bodySmall]}
+                    placeholder="Type your question here..."
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={question}
+                    onChangeText={setQuestion}
+                    autoFocus
                   />
                 </View>
               )}
-            </View>
+            </ScrollView>
+
+            {!response && (
+              <View style={styles.footer}>
+                <Button
+                  label="Ask Akademi"
+                  onPress={() => handleAction("ask")}
+                  loading={loading}
+                  disabled={!question.trim()}
+                  icon={<Send size={18} color="#FFFFFF" />}
+                />
+              </View>
+            )}
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -236,6 +237,10 @@ const styles = StyleSheet.create({
   overlayInner: {
     flex: 1,
     justifyContent: "center",
+    position: "relative",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
   container: {
     backgroundColor: colors.surface,
@@ -267,6 +272,9 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,
+  },
+  contentContainer: {
+    paddingBottom: 20,
   },
   contextBox: {
     backgroundColor: colors.surfaceElevated,
