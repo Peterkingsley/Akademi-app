@@ -14,6 +14,7 @@ router.post('/upload', materialsController.upload);
 router.post('/:id/confirm', materialsController.confirm);
 router.get('/:id/download', materialsController.getDownloadUrl);
 router.get('/:id/questions', materialsController.getQuestions);
+router.post('/:id/questions/attempts', materialsController.submitQuestionAttempts);
 router.post('/:id/report', materialsController.report);
 
 export default router;

@@ -6,6 +6,7 @@ import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './
 import { Feature, VerificationStatus } from '@prisma/client';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
+import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -17,6 +18,15 @@ const s3Client = new S3Client({
 });
 
 export class MaterialsService {
+  private shuffleQuestions<T>(items: T[]) {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
   async listMaterials(filter: MaterialFilter) {
     return prisma.material.findMany({
       where: {
@@ -142,11 +152,121 @@ export class MaterialsService {
 
     const take = Math.min(Math.max(Number(limit) || 10, 5), 50);
 
-    return prisma.question.findMany({
-      where: { material_id: id },
-      take,
-      orderBy: { generated_at: 'desc' },
+    const attemptedQuestionIds = await prisma.questionAttempt.findMany({
+      where: {
+        user_id: userId,
+        question: {
+          material_id: id,
+        },
+      },
+      select: {
+        question_id: true,
+      },
+      distinct: ['question_id'],
     });
+
+    const attemptedSet = new Set(attemptedQuestionIds.map((attempt) => attempt.question_id));
+
+    const loadAvailableQuestions = async () =>
+      prisma.question.findMany({
+        where: {
+          material_id: id,
+          id: {
+            notIn: [...attemptedSet],
+          },
+        },
+        orderBy: { generated_at: 'desc' },
+      });
+
+    let availableQuestions = await loadAvailableQuestions();
+
+    if (availableQuestions.length < take) {
+      const existingQuestions = await prisma.question.findMany({
+        where: { material_id: id },
+        select: { question_text: true },
+      });
+
+      const generationTarget = Math.max(take - availableQuestions.length + 5, 10);
+      try {
+        await generateQuestionsJob(id, {
+          count: generationTarget,
+          excludeQuestionTexts: existingQuestions.map((question) => question.question_text),
+        });
+      } catch (error) {
+        console.error(`Failed to generate additional CBT questions for material ${id}:`, error);
+      }
+
+      availableQuestions = await loadAvailableQuestions();
+    }
+
+    if (availableQuestions.length === 0) {
+      throw new Error('No CBT questions are available for this material yet.');
+    }
+
+    return this.shuffleQuestions(availableQuestions).slice(0, take);
+  }
+
+  async submitQuestionAttempts(
+    materialId: string,
+    userId: string,
+    answers: Array<{ questionId: string; answer?: string | null }>
+  ) {
+    const questionIds = answers.map((entry) => entry.questionId).filter(Boolean);
+    if (questionIds.length === 0) {
+      return { created: 0 };
+    }
+
+    const questions = await prisma.question.findMany({
+      where: {
+        id: { in: questionIds },
+        material_id: materialId,
+      },
+      select: {
+        id: true,
+        correct_answer: true,
+        explanation: true,
+        approach_guide: true,
+      },
+    });
+
+    const byId = new Map(questions.map((question) => [question.id, question]));
+
+    const payload = answers
+      .map((entry) => {
+        const question = byId.get(entry.questionId);
+        if (!question) return null;
+        const answer = String(entry.answer || '').trim();
+        const correct = String(question.correct_answer || '').trim();
+        const isCorrect =
+          !!correct && !!answer && answer.toLowerCase() === correct.toLowerCase();
+
+        return {
+          user_id: userId,
+          question_id: question.id,
+          answer,
+          is_correct: isCorrect,
+          feedback: isCorrect
+            ? 'Correct. Nice work.'
+            : question.explanation || question.approach_guide,
+        };
+      })
+      .filter(Boolean) as Array<{
+        user_id: string;
+        question_id: string;
+        answer: string;
+        is_correct: boolean;
+        feedback: string;
+      }>;
+
+    if (payload.length === 0) {
+      return { created: 0 };
+    }
+
+    await prisma.questionAttempt.createMany({
+      data: payload,
+    });
+
+    return { created: payload.length };
   }
 
   async reportMaterial(id: string, userId: string, data: ReportMaterialRequest) {

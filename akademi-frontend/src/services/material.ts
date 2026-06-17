@@ -84,6 +84,16 @@ export const materialService = {
     });
     return data;
   },
+
+  submitMaterialQuestionAttempts: async (
+    id: string,
+    answers: Array<{ questionId: string; answer?: string | null }>,
+  ) => {
+    const { data } = await api.post<{ created: number }>(`/materials/${id}/questions/attempts`, {
+      answers,
+    });
+    return data;
+  },
 };
 
 import * as FileSystem from 'expo-file-system';

@@ -46,6 +46,7 @@ export const MaterialPracticeScreen: React.FC = () => {
   const [setupReady, setSetupReady] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [setupError, setSetupError] = useState("");
+  const [persistingResults, setPersistingResults] = useState(false);
 
   const checkPass = useCallback(async () => {
     try {
@@ -89,22 +90,6 @@ export const MaterialPracticeScreen: React.FC = () => {
   useEffect(() => {
     checkPass();
   }, [checkPass]);
-
-  useEffect(() => {
-    if (!setupReady || submitted || questions.length === 0 || remainingSeconds <= 0) return;
-    const timer = setInterval(() => {
-      setRemainingSeconds((current) => {
-        if (current <= 1) {
-          clearInterval(timer);
-          setSubmitted(true);
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [setupReady, submitted, questions.length, remainingSeconds]);
 
   const currentQuestion = questions[currentIndex];
   const progress = questions.length ? (Object.keys(answers).length / questions.length) * 100 : 0;
@@ -160,15 +145,55 @@ export const MaterialPracticeScreen: React.FC = () => {
     }
   };
 
+  const finalizePractice = useCallback(async () => {
+    if (submitted || persistingResults || questions.length === 0) return;
+
+    try {
+      setPersistingResults(true);
+      await materialService.submitMaterialQuestionAttempts(
+        materialId,
+        questions.map((question) => ({
+          questionId: question.id,
+          answer: answers[question.id] || "",
+        })),
+      );
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Failed to save CBT attempts:", error);
+      Alert.alert(
+        "Could not save CBT",
+        "We could not save this CBT attempt yet. Check your connection and try submitting again.",
+      );
+    } finally {
+      setPersistingResults(false);
+    }
+  }, [answers, materialId, persistingResults, questions, submitted]);
+
+  useEffect(() => {
+    if (!setupReady || submitted || questions.length === 0 || remainingSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setRemainingSeconds((current) => {
+        if (current <= 1) {
+          clearInterval(timer);
+          void finalizePractice();
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [finalizePractice, setupReady, submitted, questions.length, remainingSeconds]);
+
   const handleSubmit = () => {
     if (Object.keys(answers).length < questions.length) {
       Alert.alert("Submit CBT?", "Some questions are unanswered.", [
         { text: "Keep going", style: "cancel" },
-        { text: "Submit", onPress: () => setSubmitted(true) },
+        { text: "Submit", onPress: () => void finalizePractice() },
       ]);
       return;
     }
-    setSubmitted(true);
+    void finalizePractice();
   };
 
   const openCheckout = async () => {
@@ -497,13 +522,20 @@ export const MaterialPracticeScreen: React.FC = () => {
                 <Text style={[styles.navBtnText, typography.bodySmall]}>Previous</Text>
               </TouchableOpacity>
               <Button
-                label={currentIndex === questions.length - 1 ? "Submit" : "Next"}
+                label={
+                  currentIndex === questions.length - 1
+                    ? persistingResults
+                      ? "Saving..."
+                      : "Submit"
+                    : "Next"
+                }
                 icon={<ChevronRight size={18} color="#FFFFFF" />}
                 onPress={() =>
                   currentIndex === questions.length - 1
                     ? handleSubmit()
                     : setCurrentIndex((prev) => prev + 1)
                 }
+                disabled={persistingResults}
                 style={styles.nextBtn}
               />
             </View>

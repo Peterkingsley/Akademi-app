@@ -12,6 +12,11 @@ type GeneratedQuestion = {
   difficulty: 'EASY' | 'MEDIUM' | 'HARD';
 };
 
+type GenerateQuestionOptions = {
+  count?: number;
+  excludeQuestionTexts?: string[];
+};
+
 function parseJsonObject(text: string) {
   const cleaned = text
     .trim()
@@ -58,7 +63,7 @@ function normalizeQuestion(raw: any): GeneratedQuestion | null {
   };
 }
 
-export async function generateQuestionsJob(materialId: string) {
+export async function generateQuestionsJob(materialId: string, options: GenerateQuestionOptions = {}) {
   let material = await prisma.material.findUnique({
     where: { id: materialId },
   });
@@ -76,20 +81,25 @@ export async function generateQuestionsJob(materialId: string) {
     throw new Error('Cannot generate questions before material content is ingested');
   }
 
+  const requestedCount = Math.min(Math.max(options.count || 10, 5), 30);
+  const existingQuestionTexts = options.excludeQuestionTexts?.filter(Boolean) || [];
   const disciplineDocument = await prisma.disciplineDocument.findFirst({
     where: { department: material.department, is_active: true },
     orderBy: { version: 'desc' },
   });
 
-  const prompt = `Generate 10 exam-prep multiple-choice questions from the following material based on the disciplinary context.
+  const prompt = `Generate exam-prep multiple-choice questions from the following material based on the disciplinary context.
   Material title: ${material.title}
   Course code: ${material.course_code || 'General'}
   Material content:
   ${materialContent.slice(0, 24000)}
 
   Context: ${JSON.stringify(disciplineDocument)}
-  Distribution: 30% EASY, 40% MEDIUM, 30% HARD.
+  Generate ${requestedCount} multiple-choice questions.
+  Distribution: 20% EASY, 30% MEDIUM, 50% HARD.
+  Goal: cover the full breadth of the material and make the set academically challenging, rigorous, and exam-standard.
   Each question must have exactly 4 concise options. The correct_answer must exactly match one option.
+  ${existingQuestionTexts.length ? `Do not repeat or closely paraphrase any of these existing questions:\n${existingQuestionTexts.slice(0, 80).map((text, index) => `${index + 1}. ${text}`).join('\n')}` : ''}
   Format as JSON: { "questions": [{ "question_text": string, "options": string[], "correct_answer": string, "approach_guide": string, "explanation": string, "difficulty": "EASY"|"MEDIUM"|"HARD" }] }`;
 
   const aiOutput = await aiProvider.generateResponse(prompt, {
@@ -106,6 +116,7 @@ export async function generateQuestionsJob(materialId: string) {
     throw new Error('AI returned no usable questions');
   }
 
+  let createdCount = 0;
   for (const q of questions) {
     // Check for duplicates
     const existing = await prisma.question.findFirst({
@@ -137,6 +148,9 @@ export async function generateQuestionsJob(materialId: string) {
       } catch (error) {
         console.error('Question saved, but Typesense indexing failed:', error);
       }
+      createdCount += 1;
     }
   }
+
+  return createdCount;
 }

@@ -70,6 +70,19 @@ export class MaterialsController {
     }
   }
 
+  async submitQuestionAttempts(req: Request, res: Response) {
+    try {
+      const result = await materialsService.submitQuestionAttempts(
+        req.params.id,
+        req.user!.userId,
+        Array.isArray(req.body?.answers) ? req.body.answers : [],
+      );
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async report(req: Request, res: Response) {
     try {
       await materialsService.reportMaterial(req.params.id, req.user!.userId, req.body);
