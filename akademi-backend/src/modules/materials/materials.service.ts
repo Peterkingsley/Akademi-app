@@ -7,6 +7,7 @@ import { Feature, VerificationStatus } from '@prisma/client';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+import { buildReaderStructure } from './reader-structure';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -43,7 +44,7 @@ export class MaterialsService {
   }
 
   async getMaterial(id: string) {
-    const material = await prisma.material.findUnique({
+    let material = await prisma.material.findUnique({
       where: { id },
       include: {
         user: {
@@ -56,6 +57,23 @@ export class MaterialsService {
 
     if (!material) {
       throw new Error('Material not found');
+    }
+
+    if (!material.reader_structure && material.content?.trim()) {
+      const readerStructure = buildReaderStructure(material.content);
+      material = await prisma.material.update({
+        where: { id },
+        data: {
+          reader_structure: readerStructure as any,
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      });
     }
 
     return material;

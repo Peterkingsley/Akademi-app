@@ -41,6 +41,12 @@ interface ReaderPage {
   pageCountInChapter: number;
 }
 
+interface ReaderStructure {
+  version: number;
+  generated_at: string;
+  pages: ReaderPage[];
+}
+
 const HEADING_PATTERNS = [
   /^slide\s+\d+/i,
   /^chapter\s+\d+/i,
@@ -142,6 +148,27 @@ const buildReaderPages = (rawContent: string): ReaderPage[] => {
   return sections.flatMap((section) => chunkSection(section.title, section.body.join("\n")));
 };
 
+const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderStructure | null => {
+  if (!value || !Array.isArray(value.pages) || value.pages.length === 0) return null;
+  const pages = value.pages
+    .map((page) => ({
+      id: String(page.id || ""),
+      chapterTitle: String(page.chapterTitle || "Reading"),
+      pageTitle: String(page.pageTitle || page.chapterTitle || "Reading"),
+      content: String(page.content || "").trim(),
+      pageNumber: Number(page.pageNumber || 1),
+      pageCountInChapter: Number(page.pageCountInChapter || 1),
+    }))
+    .filter((page) => page.content);
+
+  if (!pages.length) return null;
+  return {
+    version: Number(value.version || 1),
+    generated_at: String(value.generated_at || ""),
+    pages,
+  };
+};
+
 export const StudyModeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -158,7 +185,8 @@ export const StudyModeScreen: React.FC = () => {
   const courseCode = material?.course_code || "General";
   const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
   const displayContent = formatStudyContent(content || "No content available.");
-  const readerPages = buildReaderPages(displayContent);
+  const backendReaderStructure = normalizeReaderStructure(material?.reader_structure);
+  const readerPages = backendReaderStructure?.pages || buildReaderPages(displayContent);
   const currentPage = readerPages[Math.min(currentPageIndex, Math.max(readerPages.length - 1, 0))];
   const materialContext = material
     ? [
@@ -209,7 +237,7 @@ export const StudyModeScreen: React.FC = () => {
       "Selected passage:",
       text || currentPage?.content || materialContext,
       "",
-      "Full material context:",
+      backendReaderStructure ? "Structured material context:" : "Full material context:",
       materialContext,
     ].filter(Boolean).join("\n");
 

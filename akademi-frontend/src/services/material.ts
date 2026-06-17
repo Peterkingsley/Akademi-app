@@ -16,6 +16,18 @@ export interface Material {
   verification_status: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   file_ref: string;
   content?: string;
+  reader_structure?: {
+    version: number;
+    generated_at: string;
+    pages: Array<{
+      id: string;
+      chapterTitle: string;
+      pageTitle: string;
+      content: string;
+      pageNumber: number;
+      pageCountInChapter: number;
+    }>;
+  } | null;
   created_at?: string;
   updated_at?: string;
   rating?: number;

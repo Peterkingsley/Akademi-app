@@ -250,6 +250,7 @@ model Material {
   admin_reviewed_at   DateTime?
   created_at          DateTime           @default(now())
   content             String?            @db.Text
+  reader_structure    Json?
 
   user        User               @relation("UploadedBy", fields: [uploaded_by], references: [id])
   questions   Question[]

@@ -7,6 +7,7 @@ import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
+import { buildReaderStructure, normalizeExtractedText } from '../modules/materials/reader-structure';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -140,14 +141,18 @@ export async function ingestMaterialJob(materialId: string) {
     throw new Error('No text extracted from material');
   }
 
-  // Save extracted text to material content
+  const normalizedText = normalizeExtractedText(extractedText);
+  const readerStructure = buildReaderStructure(normalizedText);
+
   await prisma.material.update({
     where: { id: materialId },
-    data: { content: extractedText }
+    data: {
+      content: normalizedText,
+      reader_structure: readerStructure as any,
+    }
   });
 
-  // Chunk text (~500 tokens, roughly 2000 characters for estimation)
-  const chunks = chunkText(extractedText, 2000);
+  const chunks = chunkText(normalizedText, 2000);
 
   await prisma.materialEmbedding.deleteMany({
     where: { material_id: materialId },
