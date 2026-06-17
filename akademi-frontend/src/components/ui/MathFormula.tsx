@@ -22,7 +22,7 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   latex,
   textColor = "#F7FAFC",
   backgroundColor = "transparent",
-  fontSize = 22,
+  fontSize = 17,
   block = true,
 }) => {
   const [height, setHeight] = useState(block ? 92 : 52);

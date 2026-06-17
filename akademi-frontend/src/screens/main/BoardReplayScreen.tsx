@@ -157,7 +157,7 @@ export const BoardReplayScreen: React.FC = () => {
                 {!!step.text && <Text style={styles.stepText}>{step.text}</Text>}
                 {!!step.math && (
                   <View style={styles.mathBlock}>
-                    <MathFormula latex={step.math} />
+                    <MathFormula latex={step.math} fontSize={17} />
                   </View>
                 )}
                 {!!step.note && <Text style={styles.stepNote}>{step.note}</Text>}
@@ -171,7 +171,7 @@ export const BoardReplayScreen: React.FC = () => {
             <Text style={styles.answerLabel}>Final answer</Text>
             {!!finalAnswerMath ? (
               <View style={styles.finalMathBlock}>
-                <MathFormula latex={finalAnswerMath} fontSize={28} />
+                <MathFormula latex={finalAnswerMath} fontSize={21} />
               </View>
             ) : (
               <Text style={styles.answerText}>{finalAnswer}</Text>
