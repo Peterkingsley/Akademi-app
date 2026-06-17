@@ -84,11 +84,14 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
     <View style={styles.container}>
       <TextInput
         multiline
-        editable={false}
+        editable={true}
+        showSoftInputOnFocus={false}
+        caretHidden={true}
         scrollEnabled={false}
         value={displayContent}
         style={[styles.textInput, typography.body]}
         onSelectionChange={handleSelectionChange}
+        onChangeText={() => {}}
         contextMenuHidden={true}
       />
 

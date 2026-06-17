@@ -47,6 +47,8 @@ interface ReaderStructure {
   pages: ReaderPage[];
 }
 
+const BOOK_PAGE_TARGET_CHARS = 1800;
+
 const HEADING_PATTERNS = [
   /^slide\s+\d+/i,
   /^chapter\s+\d+/i,
@@ -64,7 +66,7 @@ const isLikelyHeading = (line: string) => {
   return words.length <= 10 && uppercaseWords >= Math.max(1, Math.floor(words.length * 0.6));
 };
 
-const chunkSection = (sectionTitle: string, body: string): ReaderPage[] => {
+const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] => {
   const paragraphs = body
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
@@ -72,8 +74,6 @@ const chunkSection = (sectionTitle: string, body: string): ReaderPage[] => {
 
   const chunks: string[] = [];
   let current = "";
-  const maxChars = 900;
-
   paragraphs.forEach((paragraph) => {
     const candidate = current ? `${current}\n\n${paragraph}` : paragraph;
     if (candidate.length > maxChars && current) {
@@ -90,11 +90,27 @@ const chunkSection = (sectionTitle: string, body: string): ReaderPage[] => {
   return chunks.map((chunk, index) => ({
     id: `${sectionTitle}-${index + 1}`,
     chapterTitle: sectionTitle,
-    pageTitle: chunks.length > 1 ? `${sectionTitle} · Page ${index + 1}` : sectionTitle,
+    pageTitle: chunks.length > 1 ? `${sectionTitle} | Page ${index + 1}` : sectionTitle,
     content: chunk,
     pageNumber: index + 1,
     pageCountInChapter: chunks.length,
   }));
+};
+
+const repaginateStructuredPages = (pages: ReaderPage[]): ReaderPage[] => {
+  if (!pages.length) return pages;
+
+  const chapterBuckets = new Map<string, string[]>();
+  pages.forEach((page) => {
+    const key = page.chapterTitle || "Reading";
+    const existing = chapterBuckets.get(key) || [];
+    existing.push(page.content);
+    chapterBuckets.set(key, existing);
+  });
+
+  return Array.from(chapterBuckets.entries()).flatMap(([chapterTitle, contents]) =>
+    chunkSection(chapterTitle, contents.join("\n\n"), BOOK_PAGE_TARGET_CHARS),
+  );
 };
 
 const buildReaderPages = (rawContent: string): ReaderPage[] => {
@@ -165,7 +181,7 @@ const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderSt
   return {
     version: Number(value.version || 1),
     generated_at: String(value.generated_at || ""),
-    pages,
+    pages: repaginateStructuredPages(pages),
   };
 };
 
@@ -188,6 +204,7 @@ export const StudyModeScreen: React.FC = () => {
   const backendReaderStructure = normalizeReaderStructure(material?.reader_structure);
   const readerPages = backendReaderStructure?.pages || buildReaderPages(displayContent);
   const currentPage = readerPages[Math.min(currentPageIndex, Math.max(readerPages.length - 1, 0))];
+  const isLastPage = currentPageIndex === readerPages.length - 1;
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -330,7 +347,7 @@ export const StudyModeScreen: React.FC = () => {
               </Text>
               <Text style={styles.readerPageMeta}>
                 Page {currentPageIndex + 1} of {readerPages.length}
-                {currentPage.pageCountInChapter > 1 ? ` · Chapter page ${currentPage.pageNumber}/${currentPage.pageCountInChapter}` : ""}
+                {currentPage.pageCountInChapter > 1 ? ` | Chapter page ${currentPage.pageNumber}/${currentPage.pageCountInChapter}` : ""}
               </Text>
             </View>
             <View style={styles.readerBadge}>
@@ -439,21 +456,23 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
 
-        <View style={styles.bottomBar}>
-          {material && (
+        {isLastPage && (
+          <View style={styles.bottomBar}>
+            {material && (
+              <Button
+                label="Practice CBT"
+                icon={<ClipboardList size={18} color="#FFFFFF" />}
+                onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
+                style={styles.practiceBtn}
+              />
+            )}
             <Button
-              label="Practice CBT"
-              icon={<ClipboardList size={18} color="#FFFFFF" />}
-              onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
-              style={styles.practiceBtn}
+              label="Finish Study"
+              onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+              style={styles.finishBtn}
             />
-          )}
-          <Button
-            label="Finish Study"
-            onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
-            style={styles.finishBtn}
-          />
-        </View>
+          </View>
+        )}
       </ScrollView>
 
       <AskAkademiModal
@@ -536,6 +555,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
     padding: 18,
+    minHeight: 520,
   },
   readerStatusBand: {
     backgroundColor: "#101412",

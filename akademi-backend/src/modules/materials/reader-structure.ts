@@ -13,6 +13,8 @@ export interface ReaderStructure {
   pages: ReaderPage[];
 }
 
+const BOOK_PAGE_TARGET_CHARS = 1800;
+
 const HEADING_PATTERNS = [
   /^slide\s+\d+/i,
   /^chapter\s+\d+/i,
@@ -48,7 +50,7 @@ function chunkSection(sectionTitle: string, body: string): ReaderPage[] {
 
   const chunks: string[] = [];
   let current = '';
-  const maxChars = 900;
+  const maxChars = BOOK_PAGE_TARGET_CHARS;
 
   for (const paragraph of paragraphs) {
     const candidate = current ? `${current}\n\n${paragraph}` : paragraph;
@@ -66,7 +68,7 @@ function chunkSection(sectionTitle: string, body: string): ReaderPage[] {
   return chunks.map((chunk, index) => ({
     id: `${sectionTitle}-${index + 1}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     chapterTitle: sectionTitle,
-    pageTitle: chunks.length > 1 ? `${sectionTitle} · Page ${index + 1}` : sectionTitle,
+    pageTitle: chunks.length > 1 ? `${sectionTitle} | Page ${index + 1}` : sectionTitle,
     content: chunk,
     pageNumber: index + 1,
     pageCountInChapter: chunks.length,
