@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  TouchableWithoutFeedback,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, Headphones, BookOpen } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, Headphones, BookOpen, ChevronLeft, ChevronRight, PanelRightOpen } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -31,6 +32,116 @@ const formatStudyContent = (value: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+interface ReaderPage {
+  id: string;
+  chapterTitle: string;
+  pageTitle: string;
+  content: string;
+  pageNumber: number;
+  pageCountInChapter: number;
+}
+
+const HEADING_PATTERNS = [
+  /^slide\s+\d+/i,
+  /^chapter\s+\d+/i,
+  /^section\s+\d+/i,
+  /^unit\s+\d+/i,
+  /^\d+(\.\d+)*\s+[A-Z]/,
+];
+
+const isLikelyHeading = (line: string) => {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (HEADING_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
+  const words = trimmed.split(/\s+/);
+  const uppercaseWords = words.filter((word) => /[A-Z]/.test(word) && word === word.toUpperCase()).length;
+  return words.length <= 10 && uppercaseWords >= Math.max(1, Math.floor(words.length * 0.6));
+};
+
+const chunkSection = (sectionTitle: string, body: string): ReaderPage[] => {
+  const paragraphs = body
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+
+  const chunks: string[] = [];
+  let current = "";
+  const maxChars = 900;
+
+  paragraphs.forEach((paragraph) => {
+    const candidate = current ? `${current}\n\n${paragraph}` : paragraph;
+    if (candidate.length > maxChars && current) {
+      chunks.push(current);
+      current = paragraph;
+    } else {
+      current = candidate;
+    }
+  });
+
+  if (current) chunks.push(current);
+  if (!chunks.length && body.trim()) chunks.push(body.trim());
+
+  return chunks.map((chunk, index) => ({
+    id: `${sectionTitle}-${index + 1}`,
+    chapterTitle: sectionTitle,
+    pageTitle: chunks.length > 1 ? `${sectionTitle} · Page ${index + 1}` : sectionTitle,
+    content: chunk,
+    pageNumber: index + 1,
+    pageCountInChapter: chunks.length,
+  }));
+};
+
+const buildReaderPages = (rawContent: string): ReaderPage[] => {
+  const normalized = formatStudyContent(rawContent);
+  if (!normalized) {
+    return [{
+      id: "empty-1",
+      chapterTitle: "Reading",
+      pageTitle: "Reading",
+      content: "No content available.",
+      pageNumber: 1,
+      pageCountInChapter: 1,
+    }];
+  }
+
+  const lines = normalized.split("\n").map((line) => line.trimEnd());
+  const sections: Array<{ title: string; body: string[] }> = [];
+  let activeTitle = "Introduction";
+  let activeBody: string[] = [];
+
+  const flushSection = () => {
+    const bodyText = activeBody.join("\n").trim();
+    if (bodyText) {
+      sections.push({ title: activeTitle, body: [bodyText] });
+    }
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      activeBody.push("");
+      return;
+    }
+
+    if (isLikelyHeading(trimmed)) {
+      flushSection();
+      activeTitle = trimmed.replace(/^#+\s*/, "");
+      activeBody = [];
+      return;
+    }
+
+    activeBody.push(trimmed);
+  });
+
+  flushSection();
+
+  if (!sections.length) {
+    return chunkSection("Reading", normalized);
+  }
+
+  return sections.flatMap((section) => chunkSection(section.title, section.body.join("\n")));
+};
+
 export const StudyModeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -43,9 +154,12 @@ export const StudyModeScreen: React.FC = () => {
   const [highlights, setHighlights] = useState<string[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const courseCode = material?.course_code || "General";
   const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
   const displayContent = formatStudyContent(content || "No content available.");
+  const readerPages = buildReaderPages(displayContent);
+  const currentPage = readerPages[Math.min(currentPageIndex, Math.max(readerPages.length - 1, 0))];
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -81,8 +195,25 @@ export const StudyModeScreen: React.FC = () => {
     fetchContent();
   }, [sessionId, materialId]);
 
+  useEffect(() => {
+    setCurrentPageIndex(0);
+  }, [content, materialId, sessionId]);
+
   const handleAskAkademi = (text: string) => {
-    setSelectedText(text || materialContext);
+    const focusedContext = [
+      material?.title ? `Material: ${material.title}` : "",
+      currentPage?.chapterTitle ? `Chapter: ${currentPage.chapterTitle}` : "",
+      currentPage?.pageTitle && currentPage?.pageTitle !== currentPage?.chapterTitle
+        ? `Page: ${currentPage.pageTitle}`
+        : "",
+      "Selected passage:",
+      text || currentPage?.content || materialContext,
+      "",
+      "Full material context:",
+      materialContext,
+    ].filter(Boolean).join("\n");
+
+    setSelectedText(focusedContext);
     setIsAskModalVisible(true);
   };
 
@@ -116,6 +247,9 @@ export const StudyModeScreen: React.FC = () => {
       </Screen>
     );
   }
+
+  const goToPreviousPage = () => setCurrentPageIndex((index) => Math.max(index - 1, 0));
+  const goToNextPage = () => setCurrentPageIndex((index) => Math.min(index + 1, readerPages.length - 1));
 
   return (
     <Screen style={styles.screen} hideHeader={true}>
@@ -159,6 +293,25 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
+        {material && (
+          <View style={styles.readerStatusBand}>
+            <View style={styles.readerStatusLeft}>
+              <Text style={[styles.readerEyebrow, typography.label]}>Chapter View</Text>
+              <Text style={[styles.readerChapterTitle, typography.h3]} numberOfLines={2}>
+                {currentPage.chapterTitle}
+              </Text>
+              <Text style={styles.readerPageMeta}>
+                Page {currentPageIndex + 1} of {readerPages.length}
+                {currentPage.pageCountInChapter > 1 ? ` · Chapter page ${currentPage.pageNumber}/${currentPage.pageCountInChapter}` : ""}
+              </Text>
+            </View>
+            <View style={styles.readerBadge}>
+              <PanelRightOpen size={16} color={colors.primary} />
+              <Text style={styles.readerBadgeText}>{readerPages.length} pages</Text>
+            </View>
+          </View>
+        )}
+
         <Card style={styles.studyCard}>
           {!material && (
             <View style={styles.aiHeader}>
@@ -184,13 +337,47 @@ export const StudyModeScreen: React.FC = () => {
               />
             </View>
           ) : (
-            <SelectableText
-              content={displayContent}
-              onAskAkademi={handleAskAkademi}
-              onHighlight={handleHighlight}
-            />
+            <View>
+              {material && currentPage.pageTitle !== currentPage.chapterTitle ? (
+                <Text style={[styles.pageTitle, typography.bodySmall]}>{currentPage.pageTitle}</Text>
+              ) : null}
+              <SelectableText
+                content={material ? currentPage.content : displayContent}
+                onAskAkademi={handleAskAkademi}
+                onHighlight={handleHighlight}
+              />
+            </View>
           )}
         </Card>
+
+        {material && readerPages.length > 1 && (
+          <View style={styles.pageNavigator}>
+            <TouchableOpacity
+              style={[styles.pageNavButton, currentPageIndex === 0 && styles.pageNavButtonDisabled]}
+              onPress={goToPreviousPage}
+              disabled={currentPageIndex === 0}
+            >
+              <ChevronLeft size={18} color={currentPageIndex === 0 ? colors.textMuted : colors.textPrimary} />
+              <Text style={[styles.pageNavText, currentPageIndex === 0 && styles.pageNavTextDisabled]}>Previous</Text>
+            </TouchableOpacity>
+            <View style={styles.pageDots}>
+              {readerPages.slice(0, Math.min(readerPages.length, 8)).map((page, index) => (
+                <View
+                  key={page.id}
+                  style={[styles.pageDot, index === currentPageIndex && styles.pageDotActive]}
+                />
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.pageNavButton, currentPageIndex === readerPages.length - 1 && styles.pageNavButtonDisabled]}
+              onPress={goToNextPage}
+              disabled={currentPageIndex === readerPages.length - 1}
+            >
+              <Text style={[styles.pageNavText, currentPageIndex === readerPages.length - 1 && styles.pageNavTextDisabled]}>Next</Text>
+              <ChevronRight size={18} color={currentPageIndex === readerPages.length - 1 ? colors.textMuted : colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {highlights.length > 0 && (
           <View style={styles.highlightSummary}>
@@ -218,7 +405,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
           <View style={styles.tutorTextContainer}>
             <Text style={[styles.tutorText, typography.bodySmall]}>
-              Still stuck? Start a live tutor session from this exact material.
+              Still stuck on this page? Start a live tutor session from the exact passage you are reading.
             </Text>
             <Text style={styles.tutorLink}>Ask the Live Tutor</Text>
           </View>
@@ -322,6 +509,54 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     padding: 18,
   },
+  readerStatusBand: {
+    backgroundColor: "#101412",
+    borderColor: "#1D3528",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  readerStatusLeft: {
+    flex: 1,
+  },
+  readerEyebrow: {
+    color: colors.primary,
+    marginBottom: 6,
+  },
+  readerChapterTitle: {
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  readerPageMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  readerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#0D1711",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+  },
+  readerBadgeText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+  },
+  pageTitle: {
+    color: colors.primary,
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
   aiHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -340,6 +575,53 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "flex-start",
     marginBottom: 28,
+  },
+  pageNavigator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: -4,
+    marginBottom: 20,
+    gap: 12,
+  },
+  pageNavButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  pageNavButtonDisabled: {
+    opacity: 0.5,
+  },
+  pageNavText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  pageNavTextDisabled: {
+    color: colors.textMuted,
+  },
+  pageDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    flex: 1,
+  },
+  pageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+  },
+  pageDotActive: {
+    width: 18,
+    backgroundColor: colors.primary,
   },
   extractionPending: {
     backgroundColor: colors.surfaceElevated,

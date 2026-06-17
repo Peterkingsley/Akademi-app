@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   TouchableWithoutFeedback,
   Platform,
   TextInput,
+  Alert,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Copy, Highlighter, MessageSquare } from "lucide-react-native";
@@ -28,6 +30,12 @@ const formatDisplayText = (value: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+const toPlainSelectedText = (value: string) =>
+  value
+    .replace(/\s{2,}/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+
 export const SelectableText: React.FC<SelectableTextProps> = ({
   content,
   onAskAkademi,
@@ -35,15 +43,12 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
 }) => {
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [menuVisible, setMenuVisible] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const displayContent = formatDisplayText(content);
+  const displayContent = useMemo(() => formatDisplayText(content), [content]);
 
   const handleSelectionChange = (event: any) => {
     const { start, end } = event.nativeEvent.selection;
     if (start !== end) {
       setSelection({ start, end });
-      // In a real app, we would calculate coordinates.
-      // For now, we'll show a centered menu or a bottom bar.
       setMenuVisible(true);
     } else {
       setMenuVisible(false);
@@ -51,11 +56,17 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   };
 
   const getSelectedText = () => {
-    return displayContent.substring(selection.start, selection.end);
+    return toPlainSelectedText(displayContent.substring(selection.start, selection.end));
   };
 
-  const handleCopy = () => {
-    // Clipboard logic
+  const handleCopy = async () => {
+    const selected = getSelectedText();
+    if (!selected) {
+      setMenuVisible(false);
+      return;
+    }
+    await Clipboard.setStringAsync(selected);
+    Alert.alert("Copied", "Selected text copied to clipboard.");
     setMenuVisible(false);
   };
 
@@ -78,7 +89,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         value={displayContent}
         style={[styles.textInput, typography.body]}
         onSelectionChange={handleSelectionChange}
-        contextMenuHidden={true} // Hide native menu to show ours
+        contextMenuHidden={true}
       />
 
       <Modal
