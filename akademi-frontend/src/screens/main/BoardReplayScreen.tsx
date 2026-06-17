@@ -11,12 +11,20 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lu
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { Screen } from "../../components/layout/Screen";
-import { sessionService, Message } from "../../services/session";
+import { sessionService } from "../../services/session";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { MathFormula } from "../../components/ui/MathFormula";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
+
+type BoardStep = {
+  id: string;
+  type: "write" | "highlight" | "answer";
+  text: string;
+  math?: string;
+  note: string;
+};
 
 export const BoardReplayScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -30,7 +38,7 @@ export const BoardReplayScreen: React.FC = () => {
   const [error, setError] = useState("");
   const [question, setQuestion] = useState("");
   const [title, setTitle] = useState("Board walkthrough");
-  const [steps, setSteps] = useState<Array<{ id: string; type: "write" | "highlight" | "answer"; text: string; math?: string; note: string }>>([]);
+  const [steps, setSteps] = useState<BoardStep[]>([]);
   const [finalAnswer, setFinalAnswer] = useState("");
   const [finalAnswerMath, setFinalAnswerMath] = useState("");
   const [summary, setSummary] = useState("");
@@ -38,6 +46,7 @@ export const BoardReplayScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(true);
 
   const visibleSteps = steps.slice(0, currentStep);
+  const visibleStepCount = Math.min(currentStep, steps.length);
 
   useEffect(() => {
     const load = async () => {
@@ -97,6 +106,10 @@ export const BoardReplayScreen: React.FC = () => {
     }
   }, [currentStep, steps.length]);
 
+  const moveToStep = (nextStep: number) => {
+    setCurrentStep(Math.max(0, Math.min(nextStep, steps.length)));
+  };
+
   if (loading) {
     return (
       <Screen style={styles.screen}>
@@ -117,10 +130,6 @@ export const BoardReplayScreen: React.FC = () => {
     );
   }
 
-  const moveToStep = (nextStep: number) => {
-    setCurrentStep(Math.max(0, Math.min(nextStep, steps.length)));
-  };
-
   return (
     <Screen style={styles.screen}>
       <View style={styles.header}>
@@ -140,9 +149,14 @@ export const BoardReplayScreen: React.FC = () => {
         </View>
 
         <View style={styles.board}>
-          <Text style={styles.boardHeading}>Akademi board</Text>
+          <View style={styles.boardHeadingRow}>
+            <Text style={styles.boardHeading}>Akademi board</Text>
+            <Text style={styles.boardProgress}>
+              {steps.length > 0 ? `${visibleStepCount}/${steps.length} steps` : "Starting"}
+            </Text>
+          </View>
           {visibleSteps.length === 0 ? (
-            <Text style={styles.boardPlaceholder}>Preparing the first step…</Text>
+            <Text style={styles.boardPlaceholder}>Setting up the first step...</Text>
           ) : (
             visibleSteps.map((step, index) => (
               <View
@@ -168,7 +182,7 @@ export const BoardReplayScreen: React.FC = () => {
 
         {currentStep >= steps.length && (
           <View style={styles.answerCard}>
-            <Text style={styles.answerLabel}>Final answer</Text>
+            <Text style={styles.answerLabel}>Worked answer</Text>
             {!!finalAnswerMath ? (
               <View style={styles.finalMathBlock}>
                 <MathFormula latex={finalAnswerMath} fontSize={21} />
@@ -193,7 +207,13 @@ export const BoardReplayScreen: React.FC = () => {
         <TouchableOpacity style={styles.iconControl} onPress={() => moveToStep(currentStep + 1)} disabled={currentStep >= steps.length}>
           <ChevronRight size={18} color={currentStep >= steps.length ? colors.textMuted : colors.textPrimary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconControl} onPress={() => { setIsPlaying(false); moveToStep(0); }}>
+        <TouchableOpacity
+          style={styles.iconControl}
+          onPress={() => {
+            setIsPlaying(false);
+            moveToStep(0);
+          }}
+        >
           <RotateCcw size={18} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -278,10 +298,19 @@ const createStyles = (colors: any) =>
       minHeight: 340,
       padding: 16,
     },
+    boardHeadingRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
     boardHeading: {
       ...typography.label,
       color: "#9AE6B4",
-      marginBottom: 12,
+    },
+    boardProgress: {
+      ...typography.caption,
+      color: "rgba(247,250,252,0.74)",
     },
     boardPlaceholder: {
       ...typography.body,
@@ -360,10 +389,10 @@ const createStyles = (colors: any) =>
       borderTopColor: colors.border,
       borderTopWidth: 1,
       flexDirection: "row",
-      gap: 10,
       justifyContent: "center",
       paddingHorizontal: 18,
       paddingVertical: 14,
+      gap: 10,
     },
     iconControl: {
       alignItems: "center",
@@ -378,11 +407,12 @@ const createStyles = (colors: any) =>
     playControl: {
       alignItems: "center",
       backgroundColor: colors.primary,
-      borderRadius: 12,
+      borderRadius: 10,
       flexDirection: "row",
       gap: 8,
       height: 44,
       justifyContent: "center",
+      minWidth: 120,
       paddingHorizontal: 18,
     },
     playControlText: {

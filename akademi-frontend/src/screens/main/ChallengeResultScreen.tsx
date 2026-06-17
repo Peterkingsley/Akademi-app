@@ -4,9 +4,8 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
 } from "react-native";
-import { X, Search, CheckCircle2, XCircle, Settings, Sparkles } from "lucide-react-native";
+import { X, CheckCircle2, XCircle, Settings, Sparkles } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,18 +26,16 @@ export const ChallengeResultScreen: React.FC = () => {
           <Avatar size={32} name="Akademi" />
           <BrandWordmark style={[styles.headerTitle, typography.bodySmall, { fontWeight: "700" }]} />
         </View>
-        <TouchableOpacity style={styles.searchBtn}>
-          <Search size={24} color={colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.badgeContainer}>
-          <Badge label="⚠ CHALLENGE" variant="warning" style={styles.challengeBadge} />
+          <Badge label="Challenge review" variant="warning" style={styles.challengeBadge} />
         </View>
 
         <Text style={[styles.title, typography.h2]}>Challenge Result</Text>
-        <Text style={[styles.subtitle, typography.bodySmall]}>Neural Analysis of your last submission</Text>
+        <Text style={[styles.subtitle, typography.bodySmall]}>A quick review of your last submission</Text>
 
         <Card style={StyleSheet.flatten([styles.resultCard, { borderLeftColor: colors.success }])}>
           <View style={styles.cardHeader}>
@@ -85,21 +82,13 @@ export const ChallengeResultScreen: React.FC = () => {
             <Text style={[styles.rememberLabel, typography.mono]}>REMEMBER THIS</Text>
           </View>
           <Text style={[styles.rememberText, typography.bodySmall]}>
-            "Reactance is resistance to AC current caused by electric or magnetic fields, and it always acts perpendicularly to standard DC resistance."
+            Reactance is resistance to AC current caused by electric or magnetic fields, and it acts at right angles to standard resistance.
           </Text>
-          <View style={styles.tagPills}>
-            <View style={styles.tagPill}>
-              <Text style={[styles.tagText, typography.mono]}>BITWISE-SAFETY</Text>
-            </View>
-            <View style={styles.tagPill}>
-              <Text style={[styles.tagText, typography.mono]}>ALGO-CHALLENGE</Text>
-            </View>
-          </View>
         </View>
 
         <Button
-          label="Review Step-by-Step"
-          onPress={() => navigation.navigate("StudyMode")}
+          label="Back to session"
+          onPress={() => navigation.goBack()}
           style={styles.reviewBtn}
         />
         <Button
@@ -133,8 +122,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginLeft: 12,
   },
-  searchBtn: {
-    padding: 8,
+  headerSpacer: {
+    width: 40,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -216,22 +205,7 @@ const styles = StyleSheet.create({
   rememberText: {
     color: "#FFFFFF",
     lineHeight: 20,
-    marginBottom: 16,
     fontStyle: "italic",
-  },
-  tagPills: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  tagPill: {
-    backgroundColor: colors.background,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  tagText: {
-    color: colors.textMuted,
-    fontSize: 6.75,
   },
   reviewBtn: {
     marginBottom: 12,

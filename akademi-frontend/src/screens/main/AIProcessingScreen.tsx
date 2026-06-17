@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import { Sparkles, Loader2 } from "lucide-react-native";
+import { Sparkles } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -16,9 +16,9 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService } from "../../services/session";
 
 const STATUS_TEXTS = [
-  "ANALYSING PROBLEM STRUCTURE",
-  "CHECKING COURSE CONTEXT",
-  "BUILDING YOUR ANSWER",
+  "UNDERSTANDING YOUR QUESTION",
+  "CHECKING THE USEFUL CONTEXT",
+  "PUTTING THE ANSWER TOGETHER",
 ];
 
 export const AIProcessingScreen: React.FC = () => {
@@ -31,7 +31,6 @@ export const AIProcessingScreen: React.FC = () => {
   const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulsing glow animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -49,7 +48,6 @@ export const AIProcessingScreen: React.FC = () => {
       ])
     ).start();
 
-    // Progress bar animation
     Animated.loop(
       Animated.timing(progressAnim, {
         toValue: 1,
@@ -59,12 +57,10 @@ export const AIProcessingScreen: React.FC = () => {
       })
     ).start();
 
-    // Status text cycling
     const interval = setInterval(() => {
       setStatusIndex((prev) => (prev + 1) % STATUS_TEXTS.length);
     }, 1500);
 
-    // Simulate completion and navigation after 5 seconds
     const timeout = setTimeout(async () => {
       if (type === "assignment") {
         try {
@@ -97,27 +93,28 @@ export const AIProcessingScreen: React.FC = () => {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, []);
+  }, [glowAnim, navigation, progressAnim, reply_mode, sessionId, type]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
 
+  const title =
+    type === "assignment" && reply_mode === "STUDY"
+      ? "Building your walkthrough..."
+      : type === "assignment"
+        ? "Reading your question..."
+        : "Starting your tutor session";
+
   return (
     <Screen style={styles.screen}>
-      <View style={styles.systemStats}>
-        <Text style={[styles.statText, typography.mono]}>LATENCY: 42MS</Text>
-        <Text style={[styles.statText, typography.mono]}>TOKEN_GEN: ACTIVE</Text>
-        <Text style={[styles.statText, typography.mono]}>MODEL: AKADEMI_OS_V2</Text>
-      </View>
-
       <View style={styles.centerContent}>
         <View style={styles.iconContainer}>
           <Animated.View
             style={[
               styles.glow,
-              { opacity: glowAnim }
+              { opacity: glowAnim },
             ]}
           />
           <View style={styles.sparkleCircle}>
@@ -125,16 +122,22 @@ export const AIProcessingScreen: React.FC = () => {
           </View>
         </View>
 
-        <Text style={[styles.title, typography.h2]}>Reading your question…</Text>
+        <Text style={[styles.title, typography.h2]}>{title}</Text>
 
         <View style={styles.statusPill}>
           <ActivityIndicator size="small" color={colors.textSecondary} style={styles.spinner} />
           <Text style={[styles.statusText, typography.mono]}>{STATUS_TEXTS[statusIndex]}</Text>
         </View>
 
-        <Text style={[styles.contextText, typography.bodySmall]}>
-          Checking against your course: <Text style={styles.courseCode}>{courseCode || "your course"}</Text>
-        </Text>
+        {courseCode ? (
+          <Text style={[styles.contextText, typography.bodySmall]}>
+            Using course context from <Text style={styles.courseCode}>{courseCode}</Text>
+          </Text>
+        ) : (
+          <Text style={[styles.contextText, typography.bodySmall]}>
+            We are shaping the clearest response before we bring it back.
+          </Text>
+        )}
       </View>
 
       <View style={styles.footer}>
@@ -159,17 +162,10 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     flex: 1,
   },
-  systemStats: {
-    paddingHorizontal: 20,
-    alignItems: "flex-end",
-  },
-  statText: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    lineHeight: 18,
-  },
   centerContent: {
     alignItems: "center",
+    flex: 1,
+    justifyContent: "center",
     paddingHorizontal: 40,
   },
   iconContainer: {
@@ -224,6 +220,7 @@ const styles = StyleSheet.create({
   },
   contextText: {
     color: colors.textSecondary,
+    textAlign: "center",
   },
   courseCode: {
     color: "#FFFFFF",

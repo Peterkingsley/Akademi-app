@@ -145,7 +145,7 @@ export const StudyModeScreen: React.FC = () => {
               )}
             </TouchableOpacity>
           )}
-          <Badge label={material ? "Material" : "Study Reply"} variant="purple" />
+          <Badge label={material ? "Material" : "Study session"} variant="purple" />
         </View>
       </View>
 
@@ -218,7 +218,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
           <View style={styles.tutorTextContainer}>
             <Text style={[styles.tutorText, typography.bodySmall]}>
-              Still confused? Our scholars are online to help you 1-on-1.
+              Still stuck? Start a live tutor session from this exact material.
             </Text>
             <Text style={styles.tutorLink}>Ask the Live Tutor</Text>
           </View>

@@ -10,7 +10,7 @@ import {
   Share,
   Alert,
 } from "react-native";
-import { ArrowLeft, Share2, Bookmark, RefreshCw, Book, Send } from "lucide-react-native";
+import { ArrowLeft, Share2, RefreshCw, Book, Send, ChevronRight } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -28,6 +28,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const route = useRoute<any>();
   const { sessionId } = route.params || {};
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [replyMode, setReplyMode] = useState<string | null>(null);
@@ -60,9 +61,11 @@ export const AssignmentResultScreen: React.FC = () => {
 
   const loadSession = async () => {
     if (!sessionId) {
+      setLoadFailed(true);
       setLoading(false);
       return;
     }
+
     try {
       const [session, sessionMessages] = await Promise.all([
         sessionService.getSession(sessionId),
@@ -77,8 +80,10 @@ export const AssignmentResultScreen: React.FC = () => {
       setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
       if (studentMsg) setQuestion(studentMsg.content);
       if (firstAiMsg) setAnswer(firstAiMsg.content);
+      setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -132,13 +137,30 @@ export const AssignmentResultScreen: React.FC = () => {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
         <AskAkademiModal
-        visible={isAskModalVisible}
-        onClose={() => setIsAskModalVisible(false)}
-        contextText={selectedText}
-      />
-    </Screen>
+          visible={isAskModalVisible}
+          onClose={() => setIsAskModalVisible(false)}
+          contextText={selectedText}
+        />
+      </Screen>
     );
   }
+
+  if (loadFailed) {
+    return (
+      <Screen style={styles.screen}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.emptyTitle, typography.h3]}>Could not load this answer</Text>
+          <Text style={[styles.emptyText, typography.bodySmall]}>
+            Check your connection and try again. We will reopen this session once it loads.
+          </Text>
+          <Button label="Try again" onPress={loadSession} style={styles.retryButton} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const answerStatusLabel = modeLabels[replyMode || "DIRECT"] || "Akademi reply";
+  const threadMessages = messages.filter((message) => message.id !== initialAiMessageId).slice(1);
 
   return (
     <Screen style={styles.screen}>
@@ -149,7 +171,7 @@ export const AssignmentResultScreen: React.FC = () => {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, typography.h3]}>Assignment Result</Text>
         </View>
-        <Badge label={modeLabels[replyMode || "DIRECT"] || "AI Reply"} variant="blue" />
+        <Badge label={answerStatusLabel} variant="blue" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -157,7 +179,10 @@ export const AssignmentResultScreen: React.FC = () => {
           <Text style={[styles.monoLabel, typography.mono]}>YOUR INQUIRY</Text>
           <SelectableText
             content={question || "No question found."}
-            onAskAkademi={(text) => { setSelectedText(text); setIsAskModalVisible(true); }}
+            onAskAkademi={(text) => {
+              setSelectedText(text);
+              setIsAskModalVisible(true);
+            }}
           />
         </Card>
 
@@ -167,23 +192,26 @@ export const AssignmentResultScreen: React.FC = () => {
               <Avatar size={32} name="Akademi Synthesis" />
               <View style={styles.aiNameContainer}>
                 <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700" }]}>Akademi Synthesis</Text>
-                <Text style={[styles.aiModel, typography.caption]}>v2.4 Technical Model</Text>
+                <Text style={[styles.aiModel, typography.caption]}>{answerStatusLabel}</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.answerContainer}>
             <SelectableText
-              content={answer || "Thinking..."}
-              onAskAkademi={(text) => { setSelectedText(text); setIsAskModalVisible(true); }}
+              content={answer || "Akademi is still preparing a reply."}
+              onAskAkademi={(text) => {
+                setSelectedText(text);
+                setIsAskModalVisible(true);
+              }}
             />
           </View>
         </Card>
 
-        {messages.filter((message) => message.id !== initialAiMessageId).slice(1).length > 0 && (
+        {threadMessages.length > 0 && (
           <Card style={styles.threadCard}>
             <Text style={[styles.monoLabel, typography.mono]}>FOLLOW-UP THREAD</Text>
-            {messages.filter((message) => message.id !== initialAiMessageId).slice(1).map((message) => (
+            {threadMessages.map((message) => (
               <View
                 key={message.id}
                 style={[
@@ -205,7 +233,7 @@ export const AssignmentResultScreen: React.FC = () => {
             Continue this session
           </Text>
           <Text style={[styles.followUpHint, typography.caption]}>
-            Reply to Akademi, ask for another example, or answer the question it asked you.
+            Ask for another example, ask for a slower explanation, or answer the question Akademi asked.
           </Text>
           <View style={styles.followUpRow}>
             <TextInput
@@ -237,21 +265,21 @@ export const AssignmentResultScreen: React.FC = () => {
           <View style={styles.bannerLeft}>
             <Book size={24} color={colors.warning} />
             <View style={styles.bannerTextContainer}>
-              <Text style={[styles.bannerTitle, typography.bodySmall, { fontWeight: "700" }]}>Want to truly understand this?</Text>
-              <Text style={[styles.bannerSubtext, typography.caption]}>Switch to Study Mode for a step-by-step learning walkthrough.</Text>
+              <Text style={[styles.bannerTitle, typography.bodySmall, { fontWeight: "700" }]}>
+                Want to truly understand this?
+              </Text>
+              <Text style={[styles.bannerSubtext, typography.caption]}>
+                Switch to Study Mode for a step-by-step learning walkthrough.
+              </Text>
             </View>
           </View>
-          <Text style={styles.bannerArrow}>→</Text>
+          <ChevronRight size={18} color={colors.primary} />
         </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
             <Share2 size={20} color={colors.textSecondary} />
             <Text style={[styles.actionLabel, typography.caption]}>SHARE</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Bookmark size={20} color={colors.textSecondary} />
-            <Text style={[styles.actionLabel, typography.caption]}>SAVE</Text>
           </TouchableOpacity>
           <Button
             label="Try Another"
@@ -279,6 +307,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: "row",
@@ -313,10 +342,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 8.25,
     marginBottom: 8,
-  },
-  questionText: {
-    color: colors.textSecondary,
-    lineHeight: 22,
   },
   aiResponseCard: {
     backgroundColor: colors.surface,
@@ -416,10 +441,6 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     opacity: 0.45,
   },
-  explanation: {
-    color: "#FFFFFF",
-    lineHeight: 24,
-  },
   studyModeBanner: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -447,11 +468,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  bannerArrow: {
-    color: colors.primary,
-    fontSize: 15,
-    marginLeft: 12,
-  },
   actions: {
     flexDirection: "row",
     alignItems: "center",
@@ -469,5 +485,19 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 24,
+  },
+  emptyTitle: {
+    color: "#FFFFFF",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    marginBottom: 16,
+    maxWidth: 280,
+    textAlign: "center",
+  },
+  retryButton: {
+    minWidth: 140,
   },
 });
