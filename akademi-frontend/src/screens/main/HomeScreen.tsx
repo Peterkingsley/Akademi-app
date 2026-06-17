@@ -258,6 +258,7 @@ export const HomeScreen: React.FC = () => {
   }, []);
 
   const firstName = user?.name?.split(" ")[0] || "Student";
+  const avatarUrl = user?.avatar_url || user?.profile_photo_url || undefined;
   const nextExam = exams[0];
   const nextExamDays = getDaysLeft(nextExam?.exam_date);
   const sessionCount = progress?.summary.sessions ?? sessions.length;
@@ -428,7 +429,7 @@ export const HomeScreen: React.FC = () => {
           <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.75}>
             <Avatar
               name={user?.name || "Student"}
-              uri={user?.avatar_url || undefined}
+              uri={avatarUrl}
               size={44}
               style={styles.avatar}
             />
