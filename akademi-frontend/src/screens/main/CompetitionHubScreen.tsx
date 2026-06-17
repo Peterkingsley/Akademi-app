@@ -51,7 +51,7 @@ const getTournamentJoinState = (tournament: Tournament) => {
     : null;
 
   if (tournament.joined) {
-    return { canJoin: false, label: "View Event" };
+    return { canJoin: false, label: "Open event" };
   }
 
   if (registrationCloses && registrationCloses < now) {
@@ -64,7 +64,7 @@ const getTournamentJoinState = (tournament: Tournament) => {
 
   return {
     canJoin: true,
-    label: tournament.campaign_cta_label || "Register now",
+    label: tournament.campaign_cta_label || "Register",
   };
 };
 
@@ -173,8 +173,8 @@ export const CompetitionHubScreen: React.FC = () => {
         <View style={styles.header}>
           <Text style={styles.title}>Compete Live</Text>
           <Text style={styles.subtitle}>
-            Live campaigns come first here. Your own rooms, code invites, and rankings now sit
-            behind dedicated action buttons.
+            Join live campaigns first, then open your own rooms, code invites, and rankings when
+            you need them.
           </Text>
         </View>
 
@@ -319,7 +319,7 @@ export const CompetitionHubScreen: React.FC = () => {
                             !featuredJoinState?.canJoin && styles.heroSecondaryButtonText,
                           ]}
                         >
-                          {featuredJoinState?.label || "Register now"}
+                          {featuredJoinState?.label || "Register"}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -372,10 +372,7 @@ export const CompetitionHubScreen: React.FC = () => {
                         </Text>
                         <Text style={styles.campaignStatus}>{tournament.status}</Text>
                       </View>
-                      <Text style={styles.campaignListMeta}>
-                        {tournament.shared_course_code || "Multi-course"} ·{" "}
-                        {formatEventDate(tournament.scheduled_at)}
-                      </Text>
+                      <Text style={styles.campaignListMeta}>{`${tournament.shared_course_code || "Multi-course"} - ${formatEventDate(tournament.scheduled_at)}`}</Text>
                       <Text style={styles.campaignListAudience} numberOfLines={1}>
                         {campaignAudienceLabel(tournament)}
                       </Text>
@@ -673,3 +670,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+

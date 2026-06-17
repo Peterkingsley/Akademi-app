@@ -23,13 +23,17 @@ export const TournamentDetailScreen: React.FC = () => {
   const route = useRoute<any>();
   const { tournamentId } = route.params;
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const loadTournament = async () => {
     try {
+      setLoading(true);
       const data = await competitionService.getTournament(tournamentId);
       setTournament(data);
     } catch (error: any) {
       Alert.alert("Unable to load tournament", error?.response?.data?.message || "Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,15 +130,24 @@ export const TournamentDetailScreen: React.FC = () => {
     return { canCheckIn, checkInText, canJoin, joinText };
   }, [tournament]);
 
-  if (!tournament) {
+  if (loading || !tournament) {
     return (
       <Screen style={styles.screen}>
         <View style={styles.center}>
-          <Text style={styles.loadingText}>Loading tournament...</Text>
+          <Text style={styles.loadingText}>Loading event...</Text>
         </View>
       </Screen>
     );
   }
+
+  const audienceLabel =
+    tournament.audience_scope === "UNIVERSITY"
+      ? tournament.audience_university || "University event"
+      : tournament.audience_scope === "FACULTY"
+        ? `${tournament.audience_faculty || "Faculty"} across schools`
+        : tournament.audience_scope === "DEPARTMENT"
+          ? `${tournament.audience_department || "Department"} across schools`
+          : "Open to every student on Akademi";
 
   return (
     <Screen style={styles.screen}>
@@ -159,7 +172,7 @@ export const TournamentDetailScreen: React.FC = () => {
           <View style={styles.metaRow}>
             <Swords size={16} color={colors.textMuted} />
             <Text style={styles.metaText}>
-              {tournament.shared_course_code || "Mixed course event"} · {tournament.question_count} questions
+              {`${tournament.shared_course_code || "Mixed course event"} - ${tournament.question_count} questions`}
             </Text>
           </View>
           <View style={styles.metaRow}>
@@ -184,17 +197,13 @@ export const TournamentDetailScreen: React.FC = () => {
         </Card>
 
         <Card style={styles.campaignCard}>
-          <Text style={styles.campaignEyebrow}>Why join this challenge</Text>
-          <Text style={styles.campaignTitle}>{tournament.title}</Text>
+          <Text style={styles.campaignEyebrow}>What to expect</Text>
+          <Text style={styles.campaignTitle}>{audienceLabel}</Text>
           <Text style={styles.campaignText}>
-            {tournament.prize_summary || "Prepare for the live competition event."}
+            {tournament.description ||
+              tournament.prize_summary ||
+              "Register before the deadline, check in when the event opens, then join the live room once the challenge starts."}
           </Text>
-          <TouchableOpacity
-            style={[styles.campaignButton, { backgroundColor: tournament.campaign_accent_color || colors.primary }]}
-            onPress={() => navigation.navigate("TournamentDetail", { tournamentId: tournament.id })}
-          >
-            <Text style={styles.campaignButtonText}>{tournament.campaign_cta_label || "Register for challenge"}</Text>
-          </TouchableOpacity>
         </Card>
 
         {tournament.room_id && tournament.status === "LIVE" ? (
@@ -358,3 +367,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
+

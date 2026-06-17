@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -17,16 +25,27 @@ export const CompetitionMatchesScreen: React.FC = () => {
   const [publicRooms, setPublicRooms] = useState<CompetitionRoom[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<MatchTab>("created");
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
+      setLoadNotice(null);
+
       const [myData, publicData] = await Promise.all([
         competitionService.getMyRooms(),
         competitionService.getPublicRooms(),
       ]);
       setMyRooms(myData);
       setPublicRooms(publicData);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "We could not refresh your matches right now.";
+      if (isRefresh) {
+        Alert.alert("Unable to refresh matches", message);
+      } else {
+        setLoadNotice(message);
+      }
     } finally {
       setRefreshing(false);
     }
@@ -67,9 +86,17 @@ export const CompetitionMatchesScreen: React.FC = () => {
         <View style={styles.intro}>
           <Text style={styles.introTitle}>Your live room history</Text>
           <Text style={styles.introText}>
-            Switch between rooms you hosted, rooms you joined, and open public rooms.
+            Switch between rooms you hosted, rooms you joined, and public rooms waiting for
+            players.
           </Text>
         </View>
+
+        {loadNotice ? (
+          <Card style={styles.noticeCard}>
+            <Text style={styles.noticeTitle}>Match list unavailable</Text>
+            <Text style={styles.noticeText}>{loadNotice}</Text>
+          </Card>
+        ) : null}
 
         <View style={styles.tabRow}>
           {[
@@ -96,14 +123,14 @@ export const CompetitionMatchesScreen: React.FC = () => {
                 ? "No created matches yet"
                 : activeTab === "joined"
                   ? "No joined matches yet"
-                  : "No public rooms waiting"}
+                  : "No public rooms yet"}
             </Text>
             <Text style={styles.emptyText}>
               {activeTab === "created"
-                ? "Once you host a match room, it will appear here."
+                ? "Once you host a live room, it will appear here."
                 : activeTab === "joined"
                   ? "Rooms you joined from friends or campaigns will appear here."
-                  : "When public rooms open up, you'll see them here."}
+                  : "When public rooms open up, you will see them here first."}
             </Text>
           </Card>
         ) : (
@@ -118,10 +145,10 @@ export const CompetitionMatchesScreen: React.FC = () => {
                 <Text style={styles.roomCode}>{room.code}</Text>
               </View>
               <Text style={styles.roomMeta}>
-                {room.format === "SHARED_COURSE"
+                {(room.format === "SHARED_COURSE"
                   ? room.shared_course_code || "Shared course"
-                  : "Dual course"}{" "}
-                · {room.participants.length}/{room.max_participants} players
+                  : "Dual course") +
+                  ` • ${room.participants.length}/${room.max_participants} players`}
               </Text>
               <Text style={styles.roomStatus}>
                 {activeTab === "created"
@@ -151,6 +178,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   introText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  noticeCard: {
+    gap: 8,
+  },
+  noticeTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  noticeText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,

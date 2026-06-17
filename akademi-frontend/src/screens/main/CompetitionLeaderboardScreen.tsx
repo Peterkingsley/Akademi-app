@@ -1,21 +1,36 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { competitionService, CompetitionLeaderboardEntry, CompetitionSummary } from "../../services/competition";
+import {
+  competitionService,
+  CompetitionLeaderboardEntry,
+  CompetitionSummary,
+} from "../../services/competition";
 
 export const CompetitionLeaderboardScreen: React.FC = () => {
   const [summary, setSummary] = useState<CompetitionSummary | null>(null);
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
+
+      setLoadNotice(null);
 
       const [summaryData, leaderboardData] = await Promise.all([
         competitionService.getSummary(),
@@ -24,6 +39,14 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
 
       setSummary(summaryData);
       setLeaderboard(leaderboardData);
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || "We could not load the competition rankings right now.";
+      if (isRefresh) {
+        Alert.alert("Unable to refresh leaderboard", message);
+      } else {
+        setLoadNotice(message);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -45,7 +68,13 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
     <Screen title="Leaderboard" scrollable>
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={colors.primary}
+          />
+        }
       >
         {loading ? (
           <View style={styles.center}>
@@ -53,6 +82,13 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
           </View>
         ) : (
           <>
+            {loadNotice ? (
+              <Card style={styles.noticeCard}>
+                <Text style={styles.noticeTitle}>Leaderboard unavailable</Text>
+                <Text style={styles.noticeText}>{loadNotice}</Text>
+              </Card>
+            ) : null}
+
             <View style={styles.statsGrid}>
               {stats.map((item) => (
                 <Card key={item.label} style={styles.statCard}>
@@ -64,9 +100,10 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
 
             {leaderboard.length === 0 ? (
               <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No leaderboard yet</Text>
+                <Text style={styles.emptyTitle}>No rankings yet</Text>
                 <Text style={styles.emptyText}>
-                  Once more live matches finish, your ranking and the wider competition table will show here.
+                  Once more live matches finish, your ranking and the wider competition table will
+                  appear here.
                 </Text>
               </Card>
             ) : (
@@ -77,7 +114,7 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
                     <View style={styles.leaderTextWrap}>
                       <Text style={styles.leaderName}>{entry.name}</Text>
                       <Text style={styles.leaderMeta}>
-                        {entry.wins} wins · {entry.matchesPlayed} matches · {entry.winRate}% win rate
+                        {`${entry.wins} wins • ${entry.matchesPlayed} matches • ${entry.winRate}% win rate`}
                       </Text>
                     </View>
                     <Text style={styles.leaderScore}>{entry.totalScore}</Text>
@@ -100,6 +137,19 @@ const styles = StyleSheet.create({
   center: {
     paddingTop: 80,
     alignItems: "center",
+  },
+  noticeCard: {
+    gap: 8,
+  },
+  noticeTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  noticeText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   statsGrid: {
     flexDirection: "row",
