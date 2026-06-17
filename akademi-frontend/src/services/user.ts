@@ -37,6 +37,15 @@ export interface FeatureAccess {
   expiresAt?: string;
 }
 
+export interface FeatureAccessCheck {
+  hasAccess: boolean;
+  expiresAt?: string | null;
+  usesRemaining?: number | null;
+  scopeType?: string | null;
+  scopeId?: string | null;
+  productCode?: string | null;
+}
+
 export interface PurchaseSubscriptionResponse {
   paymentUrl: string;
   reference: string;
@@ -224,6 +233,20 @@ export const userService = {
 
   getFeatureAccess: async () => {
     const response = await api.get<FeatureAccess[]>("/users/me/feature-access");
+    return response.data;
+  },
+
+  checkFeatureAccess: async (
+    feature: string,
+    scopeType?: "MATERIAL" | "COURSE" | "GLOBAL",
+    scopeId?: string,
+  ) => {
+    const response = await api.get<FeatureAccessCheck>(`/feature-access/check/${feature}`, {
+      params: {
+        scopeType,
+        scopeId,
+      },
+    });
     return response.data;
   },
 

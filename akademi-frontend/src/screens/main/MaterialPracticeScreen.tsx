@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -45,33 +45,50 @@ export const MaterialPracticeScreen: React.FC = () => {
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [setupReady, setSetupReady] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [setupError, setSetupError] = useState("");
+
+  const checkPass = useCallback(async () => {
+    try {
+      setSetupError("");
+      setCheckoutUrl("");
+      setSetupReady(false);
+      setPassStatus("Checking CBT pass...");
+      const access = await userService.checkFeatureAccess("EXAM_PREP", "MATERIAL", materialId);
+      if (access.hasAccess) {
+        setPassStatus("CBT ready");
+        setSetupReady(true);
+        return;
+      }
+
+      const pass = await userService.purchaseFeaturePass(
+        MATERIAL_CBT_DAY_PASS,
+        materialId,
+        "MATERIAL",
+      );
+      if (pass.betaUnlocked) {
+        setPassStatus("Free beta active");
+        setSetupReady(true);
+      } else if (pass.paymentUrl) {
+        setPassStatus("Pass required");
+        setCheckoutUrl(pass.paymentUrl);
+        return;
+      } else {
+        setPassStatus(pass.message || "CBT access is not ready yet");
+        setSetupError("We could not confirm CBT access for this material yet.");
+      }
+    } catch (error) {
+      console.error("Failed to check CBT access:", error);
+      setPassStatus("CBT unavailable");
+      setSetupError("We could not prepare CBT access for this material.");
+      Alert.alert("CBT unavailable", "We could not prepare CBT access for this material.");
+    } finally {
+      setLoading(false);
+    }
+  }, [materialId]);
 
   useEffect(() => {
-    const checkPass = async () => {
-      try {
-        setPassStatus("Checking CBT pass...");
-        const pass = await userService.purchaseFeaturePass(
-          MATERIAL_CBT_DAY_PASS,
-          materialId,
-          "MATERIAL",
-        );
-        if (pass.betaUnlocked) {
-          setPassStatus("Free beta active");
-          setSetupReady(true);
-        } else if (pass.paymentUrl) {
-          setCheckoutUrl(pass.paymentUrl);
-          return;
-        }
-      } catch (error) {
-        console.error("Failed to check CBT access:", error);
-        Alert.alert("CBT unavailable", "We could not prepare CBT access for this material.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     checkPass();
-  }, [materialId]);
+  }, [checkPass]);
 
   useEffect(() => {
     if (!setupReady || submitted || questions.length === 0 || remainingSeconds <= 0) return;
@@ -119,6 +136,14 @@ export const MaterialPracticeScreen: React.FC = () => {
   }, [remainingSeconds]);
 
   const startPractice = async () => {
+    if (!setupReady) {
+      Alert.alert(
+        "CBT not ready",
+        setupError || passStatus || "We are still preparing CBT access for this material.",
+      );
+      return;
+    }
+
     try {
       setSetupLoading(true);
       const data = await materialService.getMaterialQuestions(materialId, questionCount);
@@ -306,10 +331,33 @@ export const MaterialPracticeScreen: React.FC = () => {
               </Text>
             </Card>
 
+            {!!passStatus && (
+              <Text style={[styles.setupStatus, typography.bodySmall]}>
+                {passStatus}
+              </Text>
+            )}
+
+            {!!setupError && (
+              <Card style={styles.setupErrorCard}>
+                <Text style={[styles.setupErrorText, typography.bodySmall]}>
+                  {setupError}
+                </Text>
+                <TouchableOpacity onPress={checkPass} style={styles.retryLink}>
+                  <Text style={[styles.retryLinkText, typography.bodySmall]}>Retry access check</Text>
+                </TouchableOpacity>
+              </Card>
+            )}
+
             <Button
-              label={setupLoading ? "Preparing..." : "Start CBT"}
+              label={
+                setupLoading
+                  ? "Preparing..."
+                  : setupReady
+                    ? "Start CBT"
+                    : "CBT not ready yet"
+              }
               onPress={startPractice}
-              disabled={setupLoading || !setupReady}
+              disabled={setupLoading}
               style={styles.startButton}
             />
           </Card>
@@ -624,6 +672,28 @@ const styles = StyleSheet.create({
   setupSummaryTitle: {
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  setupStatus: {
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  setupErrorCard: {
+    backgroundColor: colors.error + "10",
+    borderColor: colors.error + "33",
+    borderWidth: 1,
+    gap: 10,
+  },
+  setupErrorText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  retryLink: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  retryLinkText: {
+    color: colors.primary,
+    fontWeight: "700",
   },
   startButton: {
     marginTop: 6,
