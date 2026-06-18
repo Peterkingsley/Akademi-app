@@ -18,9 +18,8 @@ export const MainTabs = () => {
       }}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Solve" component={SolveScreen} options={{ tabBarLabel: "Solve" }} />
-      <Tab.Screen name="AskAI" component={SolveScreen} options={{ tabBarLabel: "Ask AI" }} />
-      <Tab.Screen name="Library" component={LibraryScreen} options={{ tabBarLabel: "Learn" }} />
+      <Tab.Screen name="Solve" component={SolveScreen} />
+      <Tab.Screen name="Library" component={LibraryScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
