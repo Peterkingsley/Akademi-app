@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   TouchableWithoutFeedback,
+  useWindowDimensions,
 } from "react-native";
 import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, PanelRightOpen } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
@@ -260,6 +261,7 @@ const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderSt
 };
 
 export const StudyModeScreen: React.FC = () => {
+  const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { sessionId, materialId } = route.params || {};
@@ -280,6 +282,12 @@ export const StudyModeScreen: React.FC = () => {
   const readerPages = backendReaderStructure?.pages || buildReaderPages(displayContent);
   const currentPage = readerPages[Math.min(currentPageIndex, Math.max(readerPages.length - 1, 0))];
   const isLastPage = currentPageIndex === readerPages.length - 1;
+  const currentImageBlocks = currentPage?.blocks?.filter((block) => block.type === "image" && !!block.src) || [];
+  const hasImagePage = currentImageBlocks.length > 0;
+  const pageSurfaceMinHeight = Math.max(520, Math.floor(windowHeight * 0.62));
+  const embeddedImageHeight = hasImagePage
+    ? Math.max(280, Math.floor(windowHeight * 0.32))
+    : 220;
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -485,7 +493,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <Card style={styles.studyCard}>
+        <Card style={{ ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
           {!material && (
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
@@ -510,21 +518,21 @@ export const StudyModeScreen: React.FC = () => {
               />
             </View>
           ) : (
-            <View>
+            <View style={hasImagePage ? styles.pageContentWithImage : undefined}>
               {material && currentPage.pageTitle !== currentPage.chapterTitle ? (
                 <Text style={[styles.pageTitle, typography.bodySmall]}>{currentPage.pageTitle}</Text>
               ) : null}
               {material && currentPage.blocks?.length ? (
-                <View style={styles.readerBlocks}>
+                <View style={[styles.readerBlocks, hasImagePage && styles.readerBlocksWithImage]}>
                   {currentPage.blocks.map((block) =>
                     block.type === "image" && block.src ? (
                       <TouchableOpacity
                         key={block.id}
                         activeOpacity={0.92}
-                        style={styles.imageBlock}
+                        style={[styles.imageBlock, hasImagePage && styles.imageBlockExpanded]}
                         onPress={() => handleAskAboutImage(block)}
                       >
-                        <Image source={{ uri: block.src }} style={styles.embeddedImage} resizeMode="contain" />
+                        <Image source={{ uri: block.src }} style={[styles.embeddedImage, { height: embeddedImageHeight }]} resizeMode="contain" />
                         <Text style={[styles.imageHint, typography.caption]}>
                           Tap image to ask Akademi about it
                         </Text>
@@ -781,8 +789,16 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
+  pageContentWithImage: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
   readerBlocks: {
     gap: 18,
+  },
+  readerBlocksWithImage: {
+    flex: 1,
+    justifyContent: "center",
   },
   imageBlock: {
     backgroundColor: colors.surfaceElevated,
@@ -790,6 +806,10 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  imageBlockExpanded: {
+    flexGrow: 1,
+    justifyContent: "center",
   },
   embeddedImage: {
     width: "100%",
