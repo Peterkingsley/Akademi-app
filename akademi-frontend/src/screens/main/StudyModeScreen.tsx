@@ -247,14 +247,15 @@ const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderSt
             }))
             .filter((block) => (block.type === "image" ? !!block.src : !!block.text))
         : undefined,
-    }))
-    .filter((page) => page.content);
+      }))
+      .filter((page) => page.content);
 
   if (!pages.length) return null;
+  const hasStructuredBlocks = pages.some((page) => Array.isArray(page.blocks) && page.blocks.length > 0);
   return {
     version: Number(value.version || 1),
     generated_at: String(value.generated_at || ""),
-    pages: repaginateStructuredPages(pages),
+    pages: hasStructuredBlocks ? pages : repaginateStructuredPages(pages),
   };
 };
 
