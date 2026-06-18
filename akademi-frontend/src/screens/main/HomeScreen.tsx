@@ -674,9 +674,6 @@ export const HomeScreen: React.FC = () => {
                           <Text style={styles.resumeButtonText}>Resume</Text>
                         </TouchableOpacity>
                       </View>
-                      <Text style={styles.continueRowTitle} numberOfLines={1}>
-                        {getSessionTitle(item)}
-                      </Text>
                       <Text style={styles.continueRowTime}>{getTimeAgo(item.started_at || item.created_at)}</Text>
                     </View>
                   </TouchableOpacity>
@@ -1114,12 +1111,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     overflow: "hidden",
     paddingHorizontal: 7,
     paddingVertical: 2,
-  },
-  continueRowTitle: {
-    ...typography.h4,
-    color: colors.textPrimary,
-    fontSize: 11,
-    marginBottom: 1,
   },
   continueRowTime: {
     ...typography.bodySmall,
