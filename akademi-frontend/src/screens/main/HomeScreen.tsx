@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Dimensions,
   FlatList,
+  ImageBackground,
   Modal,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import {
   Camera,
   ChevronRight,
   Clock,
+  CalendarDays,
   GraduationCap,
   Library,
   Sparkles,
@@ -35,6 +38,7 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { notificationService } from "../../services/notificationService";
 import api from "../../services/api";
 import { userService, ProgressSummary } from "../../services/user";
+import { competitionService, Tournament } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -179,16 +183,20 @@ export const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
+  const bannerWidth = Dimensions.get("window").width - 36;
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
   const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [exams, setExams] = useState<ExamPrepPlan[]>([]);
+  const [campaigns, setCampaigns] = useState<Tournament[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isStreakBannerDismissed, setIsStreakBannerDismissed] = useState(false);
   const [isTourVisible, setIsTourVisible] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
+  const [activeCampaignIndex, setActiveCampaignIndex] = useState(0);
+  const campaignScrollRef = React.useRef<ScrollView | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -196,14 +204,32 @@ export const HomeScreen: React.FC = () => {
     checkHomeTour();
   }, []);
 
+  useEffect(() => {
+    if (campaigns.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setActiveCampaignIndex((current) => {
+        const nextIndex = (current + 1) % campaigns.length;
+        campaignScrollRef.current?.scrollTo({
+          x: nextIndex * bannerWidth,
+          animated: true,
+        });
+        return nextIndex;
+      });
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [bannerWidth, campaigns.length]);
+
   const fetchData = async () => {
     try {
-      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes] = await Promise.all([
+      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.all([
         api.get("/users/me/sessions?limit=4"),
         api.get("/users/me/learning-profile"),
         userService.getProgress(),
         api.get("/exam-prep"),
         notificationService.list(),
+        competitionService.getTournaments().catch(() => []),
       ]);
 
       setSessions(sessionsRes.data || []);
@@ -211,6 +237,10 @@ export const HomeScreen: React.FC = () => {
       setProgress(progressRes);
       setExams(examsRes.data || []);
       setUnreadNotifications(notificationsRes.filter((item) => !item.read).length);
+      const liveCampaigns = (tournamentsRes || []).filter(
+        (item) => item.status === "PUBLISHED" || item.status === "LIVE"
+      );
+      setCampaigns(liveCampaigns);
     } catch (error) {
       console.error("Error fetching home data:", error);
     } finally {
@@ -422,6 +452,21 @@ export const HomeScreen: React.FC = () => {
     </Animated.View>
   );
 
+  const formatCampaignTime = (value: string) =>
+    new Date(value).toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const getAudienceLabel = (campaign: Tournament) => {
+    if (campaign.audience_scope === "UNIVERSITY") return campaign.audience_university || "University event";
+    if (campaign.audience_scope === "FACULTY") return `${campaign.audience_faculty || "Faculty"} only`;
+    if (campaign.audience_scope === "DEPARTMENT") return `${campaign.audience_department || "Department"} only`;
+    return "Open to all students";
+  };
+
   return (
     <Screen scrollable hideHeader style={styles.screen}>
       <View style={styles.container}>
@@ -449,6 +494,93 @@ export const HomeScreen: React.FC = () => {
             {unreadNotifications > 0 && <View style={styles.unreadDot} />}
           </TouchableOpacity>
         </View>
+
+        {campaigns.length > 0 && (
+          <View style={styles.campaignSection}>
+            <ScrollView
+              ref={campaignScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={bannerWidth}
+              decelerationRate="fast"
+              onMomentumScrollEnd={(event) => {
+                const nextIndex = Math.round(event.nativeEvent.contentOffset.x / bannerWidth);
+                setActiveCampaignIndex(nextIndex);
+              }}
+            >
+              {campaigns.map((campaign) => (
+                <TouchableOpacity
+                  key={campaign.id}
+                  activeOpacity={0.92}
+                  style={[styles.campaignCard, { width: bannerWidth }]}
+                  onPress={() => navigation.navigate("TournamentDetail", { tournamentId: campaign.id })}
+                >
+                  <ImageBackground
+                    source={campaign.campaign_banner_url ? { uri: campaign.campaign_banner_url } : undefined}
+                    resizeMode="cover"
+                    style={styles.campaignBackground}
+                    imageStyle={styles.campaignBackgroundImage}
+                  >
+                    <View style={styles.campaignOverlay} />
+                    <View style={styles.campaignBody}>
+                      <View style={styles.campaignHeaderRow}>
+                        <Badge
+                          label={campaign.campaign_preheader || "Live campaign"}
+                          variant={campaign.status === "LIVE" ? "warning" : "success"}
+                        />
+                        <Text style={styles.campaignAudience}>{getAudienceLabel(campaign)}</Text>
+                      </View>
+
+                      <View style={styles.campaignCopy}>
+                        <Text style={styles.campaignTitle} numberOfLines={2}>
+                          {campaign.title}
+                        </Text>
+                        <Text style={styles.campaignSubtitle} numberOfLines={2}>
+                          {campaign.description || campaign.prize_summary || "Join the live challenge and compete with other students."}
+                        </Text>
+                      </View>
+
+                      <View style={styles.campaignMetaRow}>
+                        <View style={styles.campaignMetaItem}>
+                          <CalendarDays size={14} color="#D4D4D8" />
+                          <Text style={styles.campaignMetaText}>{formatCampaignTime(campaign.scheduled_at)}</Text>
+                        </View>
+                        <View style={styles.campaignMetaItem}>
+                          <Swords size={14} color="#D4D4D8" />
+                          <Text style={styles.campaignMetaText}>{campaign.entry_count} joined</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.campaignCtaWrap}>
+                        <View style={styles.campaignCta}>
+                          <Text style={styles.campaignCtaText}>
+                            {campaign.campaign_cta_label || "Open event"}
+                          </Text>
+                          <ChevronRight size={16} color={colors.background} />
+                        </View>
+                      </View>
+                    </View>
+                  </ImageBackground>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {campaigns.length > 1 && (
+              <View style={styles.campaignDots}>
+                {campaigns.map((campaign, index) => (
+                  <View
+                    key={campaign.id}
+                    style={[
+                      styles.campaignDot,
+                      index === activeCampaignIndex && styles.campaignDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.heroPanel}>
           <View style={styles.heroTopRow}>
@@ -667,6 +799,110 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderWidth: 1,
     marginBottom: 14,
     padding: 18,
+  },
+  campaignSection: {
+    marginBottom: 14,
+  },
+  campaignCard: {
+    borderRadius: 12,
+    marginRight: 12,
+    overflow: "hidden",
+  },
+  campaignBackground: {
+    backgroundColor: "#0E1711",
+    height: 214,
+    justifyContent: "flex-end",
+  },
+  campaignBackgroundImage: {
+    borderRadius: 12,
+  },
+  campaignOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(3,8,6,0.52)",
+  },
+  campaignBody: {
+    flex: 1,
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  campaignHeaderRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  campaignAudience: {
+    ...typography.caption,
+    color: "#D4D4D8",
+    fontSize: 11,
+    marginLeft: 12,
+    marginTop: 4,
+    textAlign: "right",
+  },
+  campaignCopy: {
+    marginTop: 18,
+  },
+  campaignTitle: {
+    ...typography.h1,
+    color: "#FFFFFF",
+    fontSize: 28,
+    lineHeight: 34,
+    marginBottom: 8,
+  },
+  campaignSubtitle: {
+    ...typography.body,
+    color: "#E4E4E7",
+    fontSize: 13,
+    lineHeight: 20,
+    maxWidth: "76%",
+  },
+  campaignMetaRow: {
+    flexDirection: "row",
+    marginTop: 12,
+  },
+  campaignMetaItem: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginRight: 14,
+  },
+  campaignMetaText: {
+    ...typography.caption,
+    color: "#D4D4D8",
+    fontSize: 11,
+    marginLeft: 5,
+  },
+  campaignCtaWrap: {
+    alignItems: "flex-start",
+  },
+  campaignCta: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  campaignCtaText: {
+    ...typography.h4,
+    color: colors.background,
+    marginRight: 6,
+  },
+  campaignDots: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  campaignDot: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 999,
+    height: 7,
+    marginHorizontal: 4,
+    width: 7,
+  },
+  campaignDotActive: {
+    backgroundColor: colors.primary,
+    width: 22,
   },
   heroTopRow: {
     alignItems: "center",
