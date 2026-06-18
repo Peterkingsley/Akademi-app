@@ -14,11 +14,9 @@ import {
   Bell,
   BookOpen,
   Bot,
-  Camera,
   ChevronRight,
   Clock,
   CalendarDays,
-  GraduationCap,
   Library,
   Sparkles,
   Swords,
@@ -49,14 +47,6 @@ const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 const HOME_TOUR_PENDING_KEY = "home_tour_pending";
 
 const QUICK_ACTIONS = [
-  {
-    id: "solve",
-    label: "Solve",
-    description: "Scan assignment",
-    icon: Camera,
-    tint: "#38BDF8",
-    screen: "Solve",
-  },
   {
     id: "library",
     label: "Library",
@@ -135,6 +125,8 @@ const getTimeAgo = (dateString: string) => {
   return `${Math.floor(diffInHours / 24)}d ago`;
 };
 
+type QuickAction = (typeof QUICK_ACTIONS)[number];
+
 const getDaysLeft = (dateString?: string) => {
   if (!dateString) return null;
   return Math.max(
@@ -142,8 +134,6 @@ const getDaysLeft = (dateString?: string) => {
     Math.ceil((new Date(dateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   );
 };
-
-type QuickAction = (typeof QUICK_ACTIONS)[number];
 
 const QuickActionTile = ({
   action,
@@ -292,14 +282,6 @@ export const HomeScreen: React.FC = () => {
   const nextExam = exams[0];
   const nextExamDays = getDaysLeft(nextExam?.exam_date);
   const sessionCount = progress?.summary.sessions ?? sessions.length;
-  const examPlanCount = progress?.summary.examPlans ?? exams.length;
-
-  const heroSubtext = useMemo(() => {
-    if (nextExam && nextExamDays !== null) {
-      return `${nextExam.course_code} is ${nextExamDays === 0 ? "today" : `in ${nextExamDays} day${nextExamDays === 1 ? "" : "s"}`}.`;
-    }
-    return "Pick one learning flow and keep moving.";
-  }, [nextExam, nextExamDays]);
 
   const recommendations: Recommendation[] = useMemo(() => {
     const recs: Recommendation[] = [];
@@ -582,33 +564,6 @@ export const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        <View style={styles.heroPanel}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroIcon}>
-              <GraduationCap size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.heroStatus}>MVP beta</Text>
-          </View>
-          <Text style={styles.heroTitle}>Your study command center</Text>
-          <Text style={styles.heroSubtitle}>{heroSubtext}</Text>
-          <View style={styles.heroStats}>
-            <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{sessionCount}</Text>
-              <Text style={styles.statLabel}>sessions</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{examPlanCount}</Text>
-              <Text style={styles.statLabel}>exam plans</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBlock}>
-              <Text style={styles.statValue}>{nextExamDays ?? "-"}</Text>
-              <Text style={styles.statLabel}>days left</Text>
-            </View>
-          </View>
-        </View>
-
         {showStreakBanner && (
           <Animated.View entering={FadeInUp} style={styles.streakBanner}>
             <TrendingUp size={18} color={colors.warning} />
@@ -792,14 +747,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     top: 9,
     width: 8,
   },
-  heroPanel: {
-    backgroundColor: colors.surface,
-    borderColor: "rgba(34,197,94,0.24)",
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 14,
-    padding: 18,
-  },
   campaignSection: {
     marginBottom: 14,
   },
@@ -903,68 +850,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   campaignDotActive: {
     backgroundColor: colors.primary,
     width: 22,
-  },
-  heroTopRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  heroIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  heroStatus: {
-    ...typography.label,
-    color: colors.primary,
-    letterSpacing: 0,
-  },
-  heroTitle: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    fontSize: 25,
-    lineHeight: 31,
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  heroStats: {
-    alignItems: "center",
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    marginTop: 18,
-    paddingVertical: 12,
-  },
-  statBlock: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statValue: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    fontSize: 20,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 10,
-    marginTop: 2,
-  },
-  statDivider: {
-    backgroundColor: colors.border,
-    height: 28,
-    width: 1,
   },
   streakBanner: {
     alignItems: "center",
