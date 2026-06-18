@@ -664,21 +664,19 @@ export const HomeScreen: React.FC = () => {
                       <AccentIcon size={20} color={accent.color} />
                     </View>
                     <View style={styles.continueRowText}>
-                      <View style={styles.continueTopLine}>
-                        <Text style={styles.continueRowCourse}>{item.course_code || "SESSION"}</Text>
-                        <TouchableOpacity
-                          activeOpacity={0.85}
-                          style={styles.resumeButton}
-                          onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
-                        >
-                          <Text style={styles.resumeButtonText}>Resume</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <Text style={styles.continueRowCourse}>{item.course_code || "SESSION"}</Text>
                       <Text style={styles.continueRowTitle} numberOfLines={1}>
                         {getSessionTitle(item)}
                       </Text>
                       <Text style={styles.continueRowTime}>{getTimeAgo(item.started_at || item.created_at)}</Text>
                     </View>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      style={styles.resumeButton}
+                      onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+                    >
+                      <Text style={styles.resumeButtonText}>Resume</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })
@@ -1059,17 +1057,17 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   dualPanelTitle: {
     ...typography.h2,
     color: colors.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
   },
   seeAll: {
     ...typography.h4,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 11,
   },
   dualPanelSkeleton: {
     marginBottom: 10,
@@ -1081,7 +1079,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     lineHeight: 18,
   },
   continueRow: {
-    alignItems: "flex-start",
+    alignItems: "center",
     flexDirection: "row",
     marginBottom: 10,
   },
@@ -1095,13 +1093,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   continueRowText: {
     flex: 1,
+    marginRight: 8,
     minWidth: 0,
-  },
-  continueTopLine: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
   },
   continueRowCourse: {
     ...typography.caption,
@@ -1118,27 +1111,27 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   continueRowTitle: {
     ...typography.h4,
     color: colors.textPrimary,
-    fontSize: 11,
+    fontSize: 12,
     marginBottom: 1,
   },
   continueRowTime: {
     ...typography.bodySmall,
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: 10,
   },
   resumeButton: {
     alignItems: "center",
     backgroundColor: "rgba(34,197,94,0.16)",
     borderRadius: 9,
     justifyContent: "center",
-    minWidth: 58,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    minWidth: 66,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   resumeButtonText: {
     ...typography.h4,
     color: colors.primary,
-    fontSize: 10,
+    fontSize: 11,
   },
   upcomingRow: {
     flexDirection: "row",
@@ -1161,21 +1154,21 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   upcomingDay: {
     ...typography.h4,
-    fontSize: 10,
+    fontSize: 11,
     marginBottom: 3,
   },
   upcomingTitle: {
     ...typography.body,
     color: colors.textPrimary,
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 17,
   },
   upcomingIconWrap: {
     alignItems: "center",
     borderRadius: 10,
-    height: 32,
+    height: 36,
     justifyContent: "center",
-    width: 32,
+    width: 36,
   },
   sectionHeader: {
     alignItems: "center",
