@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -191,6 +192,8 @@ export const HomeScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
   const bannerWidth = Dimensions.get("window").width - 36;
+  const { width } = useWindowDimensions();
+  const isCompactLayout = width < 420;
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
@@ -632,8 +635,8 @@ export const HomeScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.dualPanels}>
-          <View style={[styles.dualPanelCard, styles.dualPanelLeft]}>
+        <View style={[styles.dualPanels, isCompactLayout && styles.dualPanelsCompact]}>
+          <View style={[styles.dualPanelCard, styles.dualPanelLeft, isCompactLayout && styles.dualPanelFullWidth]}>
             <View style={styles.dualPanelHeader}>
               <Text style={styles.dualPanelTitle}>Continue Learning</Text>
               <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("Sessions")}>
@@ -650,7 +653,7 @@ export const HomeScreen: React.FC = () => {
             ) : sessions.length === 0 ? (
               <Text style={styles.dualPanelEmpty}>Your recent study sessions will show here.</Text>
             ) : (
-              sessions.slice(0, 2).map((item, index) => {
+              sessions.slice(0, 3).map((item, index) => {
                 const accent = getContinueAccent(item, index);
                 const AccentIcon = accent.icon;
                 return (
@@ -683,7 +686,7 @@ export const HomeScreen: React.FC = () => {
             )}
           </View>
 
-          <View style={[styles.dualPanelCard, styles.dualPanelRight]}>
+          <View style={[styles.dualPanelCard, styles.dualPanelRight, isCompactLayout && styles.dualPanelFullWidth]}>
             <View style={styles.dualPanelHeader}>
               <Text style={styles.dualPanelTitle}>Upcoming</Text>
               <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("ExamPrep")}>
@@ -700,7 +703,7 @@ export const HomeScreen: React.FC = () => {
             ) : upcomingEvents.length === 0 ? (
               <Text style={styles.dualPanelEmpty}>Your upcoming exams and deadlines will show here.</Text>
             ) : (
-              upcomingEvents.slice(0, 2).map((item, index) => {
+              upcomingEvents.map((item, index) => {
                 const accent = getUpcomingAccent(index);
                 return (
                   <TouchableOpacity
@@ -1039,19 +1042,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     gap: 12,
     marginBottom: 24,
   },
+  dualPanelsCompact: {
+    flexDirection: "column",
+  },
   dualPanelCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    minHeight: 196,
-    padding: 12,
+    padding: 14,
   },
   dualPanelLeft: {
-    flex: 1,
+    flex: 1.08,
   },
   dualPanelRight: {
-    flex: 1,
+    flex: 0.92,
+  },
+  dualPanelFullWidth: {
+    flex: 0,
+    width: "100%",
   },
   dualPanelHeader: {
     alignItems: "center",
@@ -1062,12 +1071,12 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   dualPanelTitle: {
     ...typography.h2,
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 16,
   },
   seeAll: {
     ...typography.h4,
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 12,
   },
   dualPanelSkeleton: {
     marginBottom: 10,
@@ -1081,19 +1090,19 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   continueRow: {
     alignItems: "center",
     flexDirection: "row",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   continueIconWrap: {
     alignItems: "center",
-    borderRadius: 10,
-    height: 38,
+    borderRadius: 12,
+    height: 42,
     justifyContent: "center",
-    marginRight: 8,
-    width: 38,
+    marginRight: 10,
+    width: 42,
   },
   continueRowText: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
     minWidth: 0,
   },
   continueRowCourse: {
@@ -1102,45 +1111,45 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backgroundColor: "rgba(34,197,94,0.14)",
     borderRadius: 8,
     color: colors.primary,
-    fontSize: 9,
-    marginBottom: 3,
+    fontSize: 10,
+    marginBottom: 4,
     overflow: "hidden",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   continueRowTitle: {
     ...typography.h4,
     color: colors.textPrimary,
-    fontSize: 12,
-    marginBottom: 1,
+    fontSize: 14,
+    marginBottom: 2,
   },
   continueRowTime: {
     ...typography.bodySmall,
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 11,
   },
   resumeButton: {
     alignItems: "center",
     backgroundColor: "rgba(34,197,94,0.16)",
-    borderRadius: 9,
+    borderRadius: 10,
     justifyContent: "center",
-    minWidth: 66,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    minWidth: 78,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   resumeButtonText: {
     ...typography.h4,
     color: colors.primary,
-    fontSize: 11,
+    fontSize: 12,
   },
   upcomingRow: {
     flexDirection: "row",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   timelineColumn: {
     alignItems: "center",
-    marginRight: 8,
-    width: 10,
+    marginRight: 10,
+    width: 12,
   },
   timelineLine: {
     backgroundColor: colors.border,
@@ -1150,25 +1159,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   upcomingCopy: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 10,
   },
   upcomingDay: {
     ...typography.h4,
-    fontSize: 11,
-    marginBottom: 3,
+    fontSize: 12,
+    marginBottom: 4,
   },
   upcomingTitle: {
     ...typography.body,
     color: colors.textPrimary,
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 14,
+    lineHeight: 20,
   },
   upcomingIconWrap: {
     alignItems: "center",
-    borderRadius: 10,
-    height: 36,
+    borderRadius: 12,
+    height: 42,
     justifyContent: "center",
-    width: 36,
+    width: 42,
   },
   sectionHeader: {
     alignItems: "center",
