@@ -60,6 +60,12 @@ interface ReaderStructure {
   pages: ReaderPage[];
 }
 
+interface ReaderSection {
+  id: string;
+  title: string;
+  blocks: ReaderBlock[];
+}
+
 const BOOK_PAGE_TARGET_CHARS = 1800;
 const PAGE_FILL_MIN_RATIO = 0.68;
 
@@ -301,6 +307,27 @@ export const StudyModeScreen: React.FC = () => {
         material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
       ].join("\n")
     : content;
+  const continuousSections: ReaderSection[] = material
+    ? readerPages.reduce<ReaderSection[]>((sections, page, index) => {
+        const lastSection = sections[sections.length - 1];
+        const pageBlocks =
+          page.blocks && page.blocks.length
+            ? page.blocks
+            : [{ id: `text-fallback-${index}`, type: "text" as const, text: page.content }];
+
+        if (lastSection && lastSection.title === page.chapterTitle) {
+          lastSection.blocks = [...lastSection.blocks, ...pageBlocks];
+          return sections;
+        }
+
+        sections.push({
+          id: `${page.chapterTitle}-${index}`,
+          title: page.chapterTitle,
+          blocks: [...pageBlocks],
+        });
+        return sections;
+      }, [])
+    : [];
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -461,18 +488,17 @@ export const StudyModeScreen: React.FC = () => {
         {material && (
           <View style={styles.readerStatusBand}>
             <View style={styles.readerStatusLeft}>
-              <Text style={[styles.readerEyebrow, typography.label]}>Chapter View</Text>
+              <Text style={[styles.readerEyebrow, typography.label]}>Material View</Text>
               <Text style={[styles.readerChapterTitle, typography.h3]} numberOfLines={2}>
-                {currentPage.chapterTitle}
+                {material.title}
               </Text>
               <Text style={styles.readerPageMeta}>
-                Page {currentPageIndex + 1} of {readerPages.length}
-                {currentPage.pageCountInChapter > 1 ? ` | Chapter page ${currentPage.pageNumber}/${currentPage.pageCountInChapter}` : ""}
+                {continuousSections.length} section{continuousSections.length === 1 ? "" : "s"} | {readerPages.length} extracted page{readerPages.length === 1 ? "" : "s"}
               </Text>
             </View>
             <View style={styles.readerBadge}>
               <PanelRightOpen size={16} color={colors.primary} />
-              <Text style={styles.readerBadgeText}>{readerPages.length} pages</Text>
+              <Text style={styles.readerBadgeText}>Continuous reading</Text>
             </View>
           </View>
         )}
@@ -496,7 +522,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <Card style={{ ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
+        <Card style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
           {!material && (
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
@@ -519,6 +545,45 @@ export const StudyModeScreen: React.FC = () => {
                 onPress={() => handleAskAkademi(materialContext)}
                 style={styles.pendingAskBtn}
               />
+            </View>
+          ) : material ? (
+            <View style={styles.documentFlow}>
+              {continuousSections.map((section, sectionIndex) => (
+                <View
+                  key={section.id}
+                  style={[
+                    styles.documentSection,
+                    sectionIndex < continuousSections.length - 1 && styles.documentSectionSpacing,
+                  ]}
+                >
+                  <Text style={[styles.documentHeading, typography.h2]}>{section.title}</Text>
+                  <View style={styles.documentSectionContent}>
+                    {section.blocks.map((block, blockIndex) =>
+                      block.type === "image" && block.src ? (
+                        <TouchableOpacity
+                          key={block.id}
+                          activeOpacity={0.92}
+                          style={styles.documentImageWrap}
+                          onPress={() => handleAskAboutImage(block)}
+                        >
+                          <Image source={{ uri: block.src }} style={styles.documentImage} resizeMode="contain" />
+                          {block.caption ? (
+                            <Text style={[styles.documentCaption, typography.bodySmall]}>{block.caption}</Text>
+                          ) : null}
+                        </TouchableOpacity>
+                      ) : (
+                        <SelectableText
+                          key={block.id || `text-${sectionIndex}-${blockIndex}`}
+                          content={block.text || ""}
+                          onAskAkademi={handleAskAkademi}
+                          onHighlight={handleHighlight}
+                        />
+                      )
+                    )}
+                  </View>
+                  {sectionIndex < continuousSections.length - 1 ? <View style={styles.documentDivider} /> : null}
+                </View>
+              ))}
             </View>
           ) : (
             <View style={hasImagePage ? styles.pageContentWithImage : undefined}>
@@ -569,7 +634,7 @@ export const StudyModeScreen: React.FC = () => {
           )}
         </Card>
 
-        {material && readerPages.length > 1 && (
+        {!material && readerPages.length > 1 && (
           <View style={styles.pageNavigator}>
             <TouchableOpacity
               style={[styles.pageNavButton, currentPageIndex === 0 && styles.pageNavButtonDisabled]}
@@ -609,7 +674,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
-        {isLastPage && (
+        {(material || isLastPage) && (
           <View style={styles.bottomBar}>
             {material && (
               <Button
@@ -716,6 +781,14 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 520,
   },
+  documentCard: {
+    backgroundColor: "#050505",
+    borderRadius: 8,
+    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 22,
+  },
   readerStatusBand: {
     backgroundColor: "#101412",
     borderColor: "#1D3528",
@@ -791,6 +864,43 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: "uppercase",
     letterSpacing: 0.8,
+  },
+  documentFlow: {
+    gap: 0,
+  },
+  documentSection: {
+    gap: 10,
+  },
+  documentSectionSpacing: {
+    marginBottom: 18,
+  },
+  documentHeading: {
+    color: "#D6E4FF",
+    fontWeight: "700",
+    lineHeight: 34,
+  },
+  documentSectionContent: {
+    gap: 12,
+  },
+  documentImageWrap: {
+    gap: 10,
+  },
+  documentImage: {
+    width: "100%",
+    height: 240,
+    backgroundColor: "#FFFFFF",
+  },
+  documentCaption: {
+    color: "#E5E7EB",
+    fontStyle: "italic",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  documentDivider: {
+    height: 1,
+    backgroundColor: "#5D6B85",
+    opacity: 0.65,
+    marginTop: 10,
   },
   pageContentWithImage: {
     flex: 1,
