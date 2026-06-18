@@ -55,6 +55,7 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Home: undefined;
   Solve: undefined;
+  AskAI: undefined;
   Library: undefined;
   Profile: undefined;
 };

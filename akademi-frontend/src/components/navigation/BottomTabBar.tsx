@@ -1,15 +1,22 @@
 import React from "react";
 import {
-  View,
+  Platform,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Platform,
+  View,
 } from "react-native";
-import { BarChart3, Clock3, House, Camera, Library, User } from "lucide-react-native";
+import {
+  Bot,
+  BookOpen,
+  Camera,
+  Home,
+  User,
+} from "lucide-react-native";
+import * as Haptics from "expo-haptics";
+
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
-import * as Haptics from "expo-haptics";
 
 interface BottomTabBarProps {
   state: any;
@@ -27,113 +34,152 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   const getIcon = (name: string, color: string) => {
     switch (name) {
       case "Home":
-        return <House size={24} color={color} />;
+        return <Home size={23} color={color} />;
       case "Solve":
-        return <Camera size={24} color={color} />;
+        return <Camera size={23} color={color} />;
+      case "AskAI":
+        return <Bot size={22} color={color} />;
       case "Library":
-        return <Library size={24} color={color} />;
-      case "SessionsMain":
-        return <Clock3 size={24} color={color} />;
-      case "Progress":
-        return <BarChart3 size={24} color={color} />;
+        return <BookOpen size={23} color={color} />;
       case "Profile":
-        return <User size={24} color={color} />;
+        return <User size={23} color={color} />;
       default:
         return null;
     }
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.surface, borderTopColor: colors.border },
-      ]}
-    >
-      {state.routes.map((route: any, index: number) => {
-        const { options } = descriptors[route.key];
-        const label =
-          options.tabBarLabel !== undefined
-            ? options.tabBarLabel
-            : options.title !== undefined
-              ? options.title
-              : route.name;
+    <View style={styles.wrapper}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {state.routes.map((route: any, index: number) => {
+          const { options } = descriptors[route.key];
+          const label =
+            options.tabBarLabel !== undefined
+              ? options.tabBarLabel
+              : options.title !== undefined
+                ? options.title
+                : route.name;
 
-        const isFocused = state.index === index;
+          const isFocused = state.index === index;
+          const activeColor = colors.primary;
+          const inactiveColor = colors.textMuted;
+          const isAskAi = route.name === "AskAI";
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: "tabPress",
-            target: route.key,
-            canPreventDefault: true,
-          });
+          const onPress = () => {
+            const event = navigation.emit({
+              type: "tabPress",
+              target: route.key,
+              canPreventDefault: true,
+            });
 
-          if (!isFocused && !event.defaultPrevented) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation.navigate(route.name);
-          }
-        };
+            if (!isFocused && !event.defaultPrevented) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate(route.name);
+            }
+          };
 
-        const onLongPress = () => {
-          navigation.emit({
-            type: "tabLongPress",
-            target: route.key,
-          });
-        };
-
-        const activeColor = colors.primary;
-        const inactiveColor = colors.textMuted;
-
-        return (
-          <TouchableOpacity
-            key={route.key}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            testID={options.tabBarTestID}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            style={styles.tabItem}
-            activeOpacity={0.8}
-          >
-            {isFocused && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
-            {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
-            <Text
-              style={[
-                styles.label,
-                typography.caption,
-                { color: isFocused ? activeColor : inactiveColor },
-              ]}
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              onPress={onPress}
+              activeOpacity={0.88}
+              style={[styles.tabItem, isAskAi && styles.askAiTabItem]}
             >
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              {isAskAi ? (
+                <>
+                  <View
+                    style={[
+                      styles.askAiButton,
+                      {
+                        backgroundColor: isFocused ? colors.primary : colors.surfaceElevated,
+                        borderColor: isFocused ? "rgba(255,255,255,0.18)" : colors.border,
+                      },
+                    ]}
+                  >
+                    {getIcon(route.name, isFocused ? "#FFFFFF" : colors.textPrimary)}
+                  </View>
+                  <Text
+                    style={[
+                      styles.label,
+                      typography.caption,
+                      { color: isFocused ? activeColor : inactiveColor },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
+                  <Text
+                    style={[
+                      styles.label,
+                      typography.caption,
+                      { color: isFocused ? activeColor : inactiveColor },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: "transparent",
+    paddingBottom: Platform.OS === "ios" ? 16 : 10,
+    paddingHorizontal: 10,
+    paddingTop: 4,
+  },
   container: {
+    alignItems: "flex-end",
+    borderRadius: 24,
+    borderWidth: 1,
     flexDirection: "row",
-    height: Platform.OS === "ios" ? 88 : 64,
-    borderTopWidth: 1,
-    paddingBottom: Platform.OS === "ios" ? 24 : 0,
+    height: Platform.OS === "ios" ? 84 : 72,
+    paddingBottom: Platform.OS === "ios" ? 18 : 10,
+    paddingHorizontal: 10,
+    paddingTop: 8,
   },
   tabItem: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  askAiTabItem: {
+    justifyContent: "space-between",
+    marginTop: -24,
+  },
+  askAiButton: {
+    alignItems: "center",
+    borderRadius: 28,
+    borderWidth: 1,
+    elevation: 6,
+    height: 56,
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    width: 56,
   },
   label: {
-    marginTop: 4,
-  },
-  indicator: {
-    position: "absolute",
-    top: 10,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    marginTop: 5,
   },
 });
