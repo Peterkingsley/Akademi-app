@@ -1,24 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  Pressable,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
   Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { BookOpen, ClipboardList, GraduationCap, ListChecks, Send, Sparkles, X } from "lucide-react-native";
+
+import { sessionService } from "../../services/session";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { Button } from "./Button";
 import { Avatar } from "./Avatar";
-import { sessionService } from "../../services/session";
+import { Button } from "./Button";
+
+type AskAction = "ask" | "summarize" | "explain" | "teach" | "practice";
+
+interface ChatMessage {
+  id: string;
+  role: "student" | "ai";
+  content: string;
+}
 
 interface AskAkademiModalProps {
   visible: boolean;
@@ -26,6 +34,11 @@ interface AskAkademiModalProps {
   contextText: string;
   courseCode?: string;
   materialTitle?: string;
+  selectedPassage?: string;
+  surroundingPassage?: string;
+  chapterTitle?: string;
+  pageTitle?: string;
+  materialContext?: string;
 }
 
 export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
@@ -34,69 +47,157 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   contextText,
   courseCode,
   materialTitle,
+  selectedPassage,
+  surroundingPassage,
+  chapterTitle,
+  pageTitle,
+  materialContext,
 }) => {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [activeAction, setActiveAction] = useState<"ask" | "summarize" | "explain" | "teach" | "practice">("ask");
+  const [activeAction, setActiveAction] = useState<AskAction>("ask");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const scrollRef = useRef<ScrollView | null>(null);
 
   useEffect(() => {
     if (visible) {
       setQuestion("");
-      setResponse(null);
+      setMessages([]);
       setSessionId(null);
       setActiveAction("ask");
     }
   }, [visible]);
 
-  const buildPrompt = (action: typeof activeAction) => {
-    const trimmedQuestion = question.trim();
+  useEffect(() => {
+    if (messages.length) {
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [messages]);
+
+  const previewContext = useMemo(() => {
+    return [
+      materialTitle ? `Material: ${materialTitle}` : "",
+      chapterTitle ? `Chapter: ${chapterTitle}` : "",
+      pageTitle && pageTitle !== chapterTitle ? `Page: ${pageTitle}` : "",
+      selectedPassage ? `Selected: ${selectedPassage}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }, [chapterTitle, materialTitle, pageTitle, selectedPassage]);
+
+  const buildPrompt = (action: AskAction, outgoingQuestion: string) => {
     const safeContext = contextText.trim();
-    const materialLine = materialTitle ? `Material: ${materialTitle}\n` : "";
+    const highlighted = selectedPassage?.trim() || "";
+    const nearbyPassage = surroundingPassage?.trim() || "";
+    const widerMaterial = materialContext?.trim() || "";
+    const location = [chapterTitle ? `Chapter: ${chapterTitle}` : "", pageTitle ? `Page: ${pageTitle}` : ""]
+      .filter(Boolean)
+      .join("\n");
+
+    const sharedGuide = [
+      "You are Akademi's in-material study companion.",
+      "The student is actively reading one specific material.",
+      "Your first job is to understand the highlighted part in the context of this material.",
+      "Use the selected text first. If that text is incomplete or ambiguous, use the surrounding passage to infer what it refers to.",
+      "If the student's question is still genuinely ambiguous after using the material context, ask one short clarifying question before explaining further.",
+      "Do not jump into a long generic answer. Keep replies short, grounded, and conversational.",
+      "Explain in the context of this material first. Any outside analogy must stay close to the material and should only support understanding.",
+      "If the material's meaning and general-world meaning could differ, always privilege the meaning that fits this material.",
+      "End in a way that keeps the conversation open so the student can reply from where they are stuck.",
+      materialTitle ? `Material title: ${materialTitle}` : "",
+      courseCode ? `Course code: ${courseCode}` : "",
+      location,
+      highlighted ? `Highlighted text:\n${highlighted}` : "",
+      nearbyPassage ? `Surrounding passage:\n${nearbyPassage}` : "",
+      widerMaterial ? `Material-wide context:\n${widerMaterial}` : "",
+      safeContext ? `Reader context package:\n${safeContext}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
 
     switch (action) {
       case "summarize":
-        return `${materialLine}Summarize this material context clearly for a student.\n\nContext:\n${safeContext}`;
+        return `${sharedGuide}\n\nTask: Give a short study summary of this exact part of the material. Focus on what this section is saying and why it matters in this material.`;
       case "explain":
-        return `${materialLine}Explain this material context step by step. Use simple language and connect it to ${courseCode || "this course"}.\n\nContext:\n${safeContext}`;
+        return `${sharedGuide}\n\nTask: Explain this exact part step by step in simple language. Start from what the highlighted line is referring to in this material.`;
       case "teach":
-        return `${materialLine}Teach this material context in depth like a patient university tutor. Start from intuition, then definitions, examples, likely exam angles, and common mistakes.\n\nContext:\n${safeContext}`;
+        return `${sharedGuide}\n\nTask: Teach this part like a patient tutor. Start with the exact confusion point, connect it to the material, then build understanding carefully.`;
       case "practice":
-        return `${materialLine}Create a short CBT-style practice from this material context. Give 5 multiple-choice questions with options, answers, and explanations.\n\nContext:\n${safeContext}`;
+        return `${sharedGuide}\n\nTask: Create a short CBT-style practice from this exact part of the material only. Give 5 multiple-choice questions with options, answers, and short explanations.`;
       case "ask":
       default:
-        return `${materialLine}Use this material context, then answer the student's question.\n\nContext:\n${safeContext}\n\nStudent question:\n${trimmedQuestion}`;
+        return `${sharedGuide}\n\nStudent question:\n${outgoingQuestion}\n\nTask: Understand exactly what the student is confused about in this material. If the question is ambiguous, ask one short clarifying question first. Otherwise answer briefly and in-context, then end with one focused check-in question.`;
     }
   };
 
-  const handleAction = async (action: typeof activeAction = activeAction) => {
-    if (action === "ask" && !question.trim()) return;
+  const handleAction = async (action: AskAction = activeAction) => {
     if (!contextText.trim()) return;
+
+    const outgoingQuestion =
+      action === "ask"
+        ? question.trim()
+        : action === "summarize"
+          ? "Please summarize this part for me."
+          : action === "explain"
+            ? "Please explain this part clearly."
+            : action === "teach"
+              ? "Teach me this part carefully."
+              : "Give me practice questions from this part.";
+
+    if (!outgoingQuestion) return;
 
     Keyboard.dismiss();
     setLoading(true);
     setActiveAction(action);
+
     try {
-      const activeSessionId = sessionId || (
-        await sessionService.createSession({
-          session_type: "STUDY",
-          course_code: courseCode || "GENERAL",
-          reply_mode: action === "practice" ? "QUESTION" : "STUDY",
-        })
-      ).id;
+      const activeSessionId =
+        sessionId ||
+        (
+          await sessionService.createSession({
+            session_type: "STUDY",
+            course_code: courseCode || "GENERAL",
+            reply_mode: action === "practice" ? "QUESTION" : "STUDY",
+            topic: materialTitle || chapterTitle || "Material study help",
+          })
+        ).id;
 
       if (!sessionId) setSessionId(activeSessionId);
 
+      setMessages((current) => [
+        ...current,
+        {
+          id: `student-${Date.now()}`,
+          role: "student",
+          content: outgoingQuestion,
+        },
+      ]);
+
       const aiMessage = await sessionService.sendMessage(activeSessionId, {
-        content: buildPrompt(action),
+        content: buildPrompt(action, outgoingQuestion),
         reply_mode: action === "practice" ? "QUESTION" : "STUDY",
       });
 
-      setResponse(aiMessage.content);
+      setMessages((current) => [
+        ...current,
+        {
+          id: aiMessage.id || `ai-${Date.now()}`,
+          role: "ai",
+          content: aiMessage.content,
+        },
+      ]);
+      setQuestion("");
     } catch (error) {
       console.error("Failed to ask Akademi:", error);
-      setResponse("I could not reach Akademi AI for this material yet. Please try again in a moment.");
+      setMessages((current) => [
+        ...current,
+        {
+          id: `ai-error-${Date.now()}`,
+          role: "ai",
+          content: "I could not reach Akademi AI for this material yet. Please try again in a moment.",
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -110,12 +211,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.overlay}
@@ -134,6 +230,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
             </View>
 
             <ScrollView
+              ref={scrollRef}
               style={styles.content}
               contentContainerStyle={styles.contentContainer}
               showsVerticalScrollIndicator={false}
@@ -142,8 +239,8 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
             >
               <View style={styles.contextBox}>
                 <Text style={[styles.contextLabel, typography.mono]}>CONTEXT</Text>
-                <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={3}>
-                  {materialTitle ? `${materialTitle}\n` : ""}{contextText}
+                <Text style={[styles.contextText, typography.bodySmall]} numberOfLines={4}>
+                  {previewContext || contextText}
                 </Text>
               </View>
 
@@ -161,64 +258,65 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 ))}
               </View>
 
-              {response ? (
-                <View style={styles.responseContainer}>
-                  <View style={styles.aiHeader}>
-                    <Avatar size={24} name="Akademi" />
-                    <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
-                      Akademi AI
-                    </Text>
-                  </View>
-                  <Text style={[styles.responseText, typography.bodySmall]}>
-                    {response}
-                  </Text>
-                  <View style={styles.responseActions}>
-                    <Button
-                      label="Ask another"
-                      variant="ghost"
-                      onPress={() => {
-                        setResponse(null);
-                        setQuestion("");
-                        setActiveAction("ask");
-                      }}
-                      style={styles.clearBtn}
-                    />
-                    <Button
-                      label="Done"
-                      onPress={onClose}
-                      style={styles.doneBtn}
-                    />
-                  </View>
+              <View style={styles.inputArea}>
+                <Text style={[styles.inputLabel, typography.bodySmall]}>
+                  What would you like to know about this?
+                </Text>
+                <TextInput
+                  style={[styles.input, typography.bodySmall]}
+                  placeholder="Tell Akademi exactly where you got confused..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  value={question}
+                  onChangeText={setQuestion}
+                  autoFocus
+                />
+              </View>
+
+              {messages.length > 0 ? (
+                <View style={styles.messagesContainer}>
+                  {messages.map((message) => (
+                    <View
+                      key={message.id}
+                      style={[
+                        styles.messageBubble,
+                        message.role === "student" ? styles.studentBubble : styles.aiBubble,
+                      ]}
+                    >
+                      {message.role === "ai" ? (
+                        <View style={styles.aiHeader}>
+                          <Avatar size={24} name="Akademi" />
+                          <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 8 }]}>
+                            Akademi AI
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={[styles.studentLabel, typography.caption]}>You</Text>
+                      )}
+                      <Text style={[styles.responseText, typography.bodySmall]}>{message.content}</Text>
+                    </View>
+                  ))}
                 </View>
               ) : (
-                <View style={styles.inputArea}>
-                  <Text style={[styles.inputLabel, typography.bodySmall]}>
-                    What would you like to know about this?
-                  </Text>
-                  <TextInput
-                    style={[styles.input, typography.bodySmall]}
-                    placeholder="Type your question here..."
-                    placeholderTextColor={colors.textMuted}
-                    multiline
-                    value={question}
-                    onChangeText={setQuestion}
-                    autoFocus
-                  />
-                </View>
+                <Text style={[styles.helperText, typography.bodySmall]}>
+                  Ask about the highlighted line, and Akademi will explain it using this material first.
+                </Text>
               )}
             </ScrollView>
 
-            {!response && (
-              <View style={styles.footer}>
-                <Button
-                  label="Ask Akademi"
-                  onPress={() => handleAction("ask")}
-                  loading={loading}
-                  disabled={!question.trim()}
-                  icon={<Send size={18} color="#FFFFFF" />}
-                />
-              </View>
-            )}
+            <View style={styles.footer}>
+              <Button
+                label={messages.length ? "Send reply" : "Ask Akademi"}
+                onPress={() => handleAction("ask")}
+                loading={loading}
+                disabled={!question.trim()}
+                icon={<Send size={18} color="#FFFFFF" />}
+                style={styles.askBtn}
+              />
+              <TouchableOpacity onPress={onClose} style={styles.doneInline}>
+                <Text style={styles.doneInlineText}>Done</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -246,8 +344,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     paddingTop: 20,
-    maxHeight: "72%",
-    minHeight: "48%",
+    maxHeight: "78%",
+    minHeight: "56%",
   },
   header: {
     flexDirection: "row",
@@ -284,6 +382,15 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.primary,
     marginBottom: 24,
   },
+  contextLabel: {
+    color: colors.textMuted,
+    fontSize: 8,
+    marginBottom: 4,
+  },
+  contextText: {
+    color: colors.textSecondary,
+    fontStyle: "italic",
+  },
   actionRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -303,23 +410,14 @@ const styles = StyleSheet.create({
   },
   actionChipActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + "22",
+    backgroundColor: `${colors.primary}22`,
   },
   actionText: {
     color: "#FFFFFF",
     fontWeight: "700",
   },
-  contextLabel: {
-    color: colors.textMuted,
-    fontSize: 8,
-    marginBottom: 4,
-  },
-  contextText: {
-    color: colors.textSecondary,
-    fontStyle: "italic",
-  },
   inputArea: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
     color: "#FFFFFF",
@@ -330,20 +428,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     color: "#FFFFFF",
-    minHeight: 100,
+    minHeight: 96,
     textAlignVertical: "top",
   },
-  responseContainer: {
-    backgroundColor: colors.surfaceElevated,
+  messagesContainer: {
+    gap: 12,
+  },
+  messageBubble: {
     padding: 16,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 8,
   },
-  responseActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 16,
-    justifyContent: "space-between",
+  aiBubble: {
+    backgroundColor: colors.surfaceElevated,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  studentBubble: {
+    backgroundColor: "rgba(34,197,94,0.12)",
   },
   aiHeader: {
     flexDirection: "row",
@@ -353,20 +455,37 @@ const styles = StyleSheet.create({
   aiName: {
     color: colors.primary,
   },
+  studentLabel: {
+    color: colors.primary,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
   responseText: {
     color: "#FFFFFF",
     lineHeight: 20,
   },
-  clearBtn: {
-    flex: 1,
-  },
-  doneBtn: {
-    flex: 1,
+  helperText: {
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   footer: {
-    padding: 20,
-    paddingBottom: Platform.OS === "ios" ? 40 : 20,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === "ios" ? 34 : 18,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: 10,
+    alignItems: "center",
+  },
+  askBtn: {
+    width: "100%",
+  },
+  doneInline: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  doneInlineText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
   },
 });

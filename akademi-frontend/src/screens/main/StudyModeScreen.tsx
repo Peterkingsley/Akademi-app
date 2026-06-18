@@ -242,6 +242,7 @@ export const StudyModeScreen: React.FC = () => {
   const [material, setMaterial] = useState<Material | null>(null);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [selectedPassage, setSelectedPassage] = useState("");
   const [highlights, setHighlights] = useState<string[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -293,6 +294,8 @@ export const StudyModeScreen: React.FC = () => {
   }, [content, materialId, sessionId]);
 
   const handleAskAkademi = (text: string) => {
+    const focusedPassage = text?.trim() || "";
+    const surroundingPassage = currentPage?.content?.trim() || "";
     const focusedContext = [
       material?.title ? `Material: ${material.title}` : "",
       currentPage?.chapterTitle ? `Chapter: ${currentPage.chapterTitle}` : "",
@@ -300,12 +303,16 @@ export const StudyModeScreen: React.FC = () => {
         ? `Page: ${currentPage.pageTitle}`
         : "",
       "Selected passage:",
-      text || currentPage?.content || materialContext,
+      focusedPassage || surroundingPassage || materialContext,
+      "",
+      "Surrounding passage:",
+      surroundingPassage,
       "",
       backendReaderStructure ? "Structured material context:" : "Full material context:",
       materialContext,
     ].filter(Boolean).join("\n");
 
+    setSelectedPassage(focusedPassage);
     setSelectedText(focusedContext);
     setIsAskModalVisible(true);
   };
@@ -529,6 +536,11 @@ export const StudyModeScreen: React.FC = () => {
         contextText={selectedText}
         courseCode={courseCode}
         materialTitle={material?.title}
+        selectedPassage={selectedPassage || undefined}
+        surroundingPassage={currentPage?.content || undefined}
+        chapterTitle={currentPage?.chapterTitle}
+        pageTitle={currentPage?.pageTitle}
+        materialContext={materialContext}
       />
     </Screen>
   );

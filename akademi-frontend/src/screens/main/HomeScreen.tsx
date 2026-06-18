@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   ImageBackground,
@@ -39,6 +40,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { notificationService } from "../../services/notificationService";
 import api from "../../services/api";
+import { sessionService } from "../../services/session";
 import { userService, ProgressSummary } from "../../services/user";
 import { competitionService, Tournament } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
@@ -206,6 +208,7 @@ export const HomeScreen: React.FC = () => {
   const [isTourVisible, setIsTourVisible] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const [activeCampaignIndex, setActiveCampaignIndex] = useState(0);
+  const [openingSessionId, setOpeningSessionId] = useState<string | null>(null);
   const campaignScrollRef = React.useRef<ScrollView | null>(null);
 
   useEffect(() => {
@@ -394,6 +397,68 @@ export const HomeScreen: React.FC = () => {
   const getSessionTypeLabel = (item: Session) =>
     (item.session_type || item.type || "study").replace(/_/g, " ").toLowerCase();
 
+  const getContinueActionLabel = (item: Session) => {
+    const type = item.session_type || item.type || "STUDY";
+
+    switch (type) {
+      case "STUDY":
+        return "Open";
+      case "TUTOR":
+        return "Continue";
+      case "ASSIGNMENT":
+        return "Review";
+      case "EXAM_PREP":
+        return "Continue";
+      default:
+        return "Open";
+    }
+  };
+
+  const openSessionFlow = async (item: Session) => {
+    const sessionType = item.session_type || item.type || "STUDY";
+
+    try {
+      setOpeningSessionId(item.id);
+
+      if (sessionType === "TUTOR") {
+        navigation.navigate("LiveTutorSession", { sessionId: item.id });
+        return;
+      }
+
+      if (sessionType === "STUDY") {
+        navigation.navigate("StudyMode", { sessionId: item.id });
+        return;
+      }
+
+      if (sessionType === "ASSIGNMENT" || sessionType === "EXAM_PREP") {
+        const messages = await sessionService.listMessages(item.id);
+        const hasWhiteboardPayload = messages.some(
+          (message) => message.role === "AI" && message.metadata?.whiteboard?.payload?.steps?.length
+        );
+
+        if (hasWhiteboardPayload) {
+          navigation.navigate("BoardReplay", { sessionId: item.id });
+          return;
+        }
+
+        if (item.reply_mode === "STUDY") {
+          navigation.navigate("StudyMode", { sessionId: item.id });
+          return;
+        }
+
+        navigation.navigate("AssignmentResult", { sessionId: item.id });
+        return;
+      }
+
+      navigation.navigate("SessionDetail", { id: item.id });
+    } catch (error) {
+      console.error("Failed to reopen session flow:", error);
+      Alert.alert("Could not open this session", "Please try again in a moment.");
+    } finally {
+      setOpeningSessionId(null);
+    }
+  };
+
   const openRecommendation = (item: Recommendation) => {
     if (item.id.startsWith("rec-exam-")) {
       navigation.navigate("PrepPlan", { examId: item.id.replace("rec-exam-", "") });
@@ -416,7 +481,7 @@ export const HomeScreen: React.FC = () => {
       <TouchableOpacity
         activeOpacity={0.82}
         style={styles.sessionCard}
-        onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+        onPress={() => openSessionFlow(item)}
       >
         <View style={styles.sessionHeader}>
           <Text style={styles.coursePill}>{item.course_code || "SESSION"}</Text>
@@ -661,7 +726,7 @@ export const HomeScreen: React.FC = () => {
                     key={item.id}
                     activeOpacity={0.86}
                     style={styles.continueRow}
-                    onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+                    onPress={() => openSessionFlow(item)}
                   >
                     <View style={[styles.continueIconWrap, { backgroundColor: `${accent.color}22` }]}>
                       <AccentIcon size={20} color={accent.color} />
@@ -676,9 +741,12 @@ export const HomeScreen: React.FC = () => {
                     <TouchableOpacity
                       activeOpacity={0.85}
                       style={styles.resumeButton}
-                      onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+                      onPress={() => openSessionFlow(item)}
+                      disabled={openingSessionId === item.id}
                     >
-                      <Text style={styles.resumeButtonText}>Resume</Text>
+                      <Text style={styles.resumeButtonText}>
+                        {openingSessionId === item.id ? "Opening..." : getContinueActionLabel(item)}
+                      </Text>
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );

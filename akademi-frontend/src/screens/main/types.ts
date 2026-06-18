@@ -4,6 +4,7 @@ export interface Session {
   title?: string;
   type?: string;
   session_type?: string;
+  reply_mode?: string | null;
   course_code?: string;
   topic?: string | null;
   duration?: number | null;

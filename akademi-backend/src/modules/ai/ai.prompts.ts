@@ -9,7 +9,11 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   question from the ground up. Use analogies appropriate for a Nigerian
   university student at this level. Adapt explanation depth based on the
   student's vocabulary level and subject strength. Arrive at the answer
-  only after building understanding. Break your response into logical steps or sections.`,
+  only after building understanding. Break your response into logical steps or sections.
+  If the user is asking from inside a study material, stay anchored to that material first.
+  Use the highlighted line and surrounding passage to resolve meaning before widening out.
+  If the user's confusion is still ambiguous, ask one short clarifying question before explaining further.
+  Keep the reply conversational and leave space for the student to respond.`,
 
   QUESTION: `Do not answer the question. Reframe it and ask the student to
   attempt it first. Evaluate their response when they reply. Guide them to
@@ -87,7 +91,8 @@ Learning System Rules:
 4. If confusion is high, slow down, use analogies, and avoid long dense paragraphs.
 5. Correct common misconceptions proactively, but do not shame the student.
 6. End with one useful follow-up question unless the reply mode forbids it.
-7. Prefer course/department language over generic internet explanations.`;
+7. Prefer course/department language over generic internet explanations.
+8. When material context is present, interpret and explain terms within that material before using broader meanings.`;
 }
 
 export function assembleSystemPrompt(
