@@ -210,6 +210,7 @@ export const HomeScreen: React.FC = () => {
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const [activeCampaignIndex, setActiveCampaignIndex] = useState(0);
   const [openingSessionId, setOpeningSessionId] = useState<string | null>(null);
+  const [welcomeBackName, setWelcomeBackName] = useState<string | null>(null);
   const campaignScrollRef = React.useRef<ScrollView | null>(null);
 
   useEffect(() => {
@@ -230,10 +231,7 @@ export const HomeScreen: React.FC = () => {
 
           if (welcomeBackName) {
             await AsyncStorage.removeItem(WELCOME_BACK_PENDING_KEY);
-            Alert.alert(
-              `Welcome back, ${welcomeBackName}`,
-              "Good to see you again. Your study space is ready."
-            );
+            setWelcomeBackName(welcomeBackName);
           }
         } catch (error) {
           console.error("Failed to refresh home signals:", error);
@@ -884,6 +882,37 @@ export const HomeScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        transparent
+        visible={!!welcomeBackName}
+        animationType="fade"
+        onRequestClose={() => setWelcomeBackName(null)}
+      >
+        <View style={styles.welcomeOverlay}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.welcomeScrim}
+            onPress={() => setWelcomeBackName(null)}
+          />
+          <View style={styles.welcomeCard}>
+            <View style={styles.welcomeIcon}>
+              <Sparkles size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.welcomeTitle}>Welcome back, {welcomeBackName}</Text>
+            <Text style={styles.welcomeBody}>
+              Good to see you again. Your study space is ready.
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.welcomeButton}
+              onPress={() => setWelcomeBackName(null)}
+            >
+              <Text style={styles.welcomeButtonText}>Let&apos;s continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -1501,5 +1530,56 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     ...typography.h4,
     color: colors.background,
     marginRight: 6,
+  },
+  welcomeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  welcomeScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.62)",
+  },
+  welcomeCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    zIndex: 1,
+  },
+  welcomeIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.14)",
+    borderRadius: 999,
+    height: 38,
+    justifyContent: "center",
+    marginBottom: 14,
+    width: 38,
+  },
+  welcomeTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 24,
+    lineHeight: 30,
+    marginBottom: 8,
+  },
+  welcomeBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  welcomeButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    justifyContent: "center",
+    minHeight: 50,
+  },
+  welcomeButtonText: {
+    ...typography.h4,
+    color: colors.background,
   },
 });
