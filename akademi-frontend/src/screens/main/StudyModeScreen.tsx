@@ -11,7 +11,7 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, PanelRightOpen } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -476,33 +476,6 @@ export const StudyModeScreen: React.FC = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {material && (
-          <View style={styles.materialHeader}>
-            <Text style={[styles.materialTitle, typography.h2]}>{material.title}</Text>
-            <Text style={styles.materialMeta}>
-              {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
-            </Text>
-          </View>
-        )}
-
-        {material && (
-          <View style={styles.readerStatusBand}>
-            <View style={styles.readerStatusLeft}>
-              <Text style={[styles.readerEyebrow, typography.label]}>Material View</Text>
-              <Text style={[styles.readerChapterTitle, typography.h3]} numberOfLines={2}>
-                {material.title}
-              </Text>
-              <Text style={styles.readerPageMeta}>
-                {continuousSections.length} section{continuousSections.length === 1 ? "" : "s"} | {readerPages.length} extracted page{readerPages.length === 1 ? "" : "s"}
-              </Text>
-            </View>
-            <View style={styles.readerBadge}>
-              <PanelRightOpen size={16} color={colors.primary} />
-              <Text style={styles.readerBadgeText}>Continuous reading</Text>
-            </View>
-          </View>
-        )}
-
         {material?.diagnostics?.warnings?.length ? (
           <View style={styles.diagnosticBanner}>
             <Text style={[styles.diagnosticTitle, typography.bodySmall]}>
@@ -522,6 +495,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         ) : null}
 
+        <View style={material ? styles.documentSurface : undefined}>
         <Card style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
           {!material && (
             <View style={styles.aiHeader}>
@@ -548,6 +522,10 @@ export const StudyModeScreen: React.FC = () => {
             </View>
           ) : material ? (
             <View style={styles.documentFlow}>
+              <Text style={[styles.documentTitle, typography.h1]}>{material.title}</Text>
+              <Text style={styles.documentMeta}>
+                {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
+              </Text>
               {continuousSections.map((section, sectionIndex) => (
                 <View
                   key={section.id}
@@ -556,7 +534,14 @@ export const StudyModeScreen: React.FC = () => {
                     sectionIndex < continuousSections.length - 1 && styles.documentSectionSpacing,
                   ]}
                 >
-                  <Text style={[styles.documentHeading, typography.h2]}>{section.title}</Text>
+                  <Text
+                    style={[
+                      sectionIndex === 0 ? styles.documentLeadHeading : styles.documentHeading,
+                      sectionIndex === 0 ? typography.h2 : typography.h2,
+                    ]}
+                  >
+                    {section.title}
+                  </Text>
                   <View style={styles.documentSectionContent}>
                     {section.blocks.map((block, blockIndex) =>
                       block.type === "image" && block.src ? (
@@ -633,6 +618,7 @@ export const StudyModeScreen: React.FC = () => {
             </View>
           )}
         </Card>
+        </View>
 
         {!material && readerPages.length > 1 && (
           <View style={styles.pageNavigator}>
@@ -675,7 +661,7 @@ export const StudyModeScreen: React.FC = () => {
         )}
 
         {(material || isLastPage) && (
-          <View style={styles.bottomBar}>
+          <View style={[styles.bottomBar, material && styles.bottomBarDocument]}>
             {material && (
               <Button
                 label="Practice CBT"
@@ -756,24 +742,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  materialHeader: {
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 16,
-    padding: 16,
-  },
-  materialTitle: {
-    color: colors.textPrimary,
-    lineHeight: 27,
-    marginBottom: 6,
-  },
-  materialMeta: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
   studyCard: {
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -781,55 +749,19 @@ const styles = StyleSheet.create({
     padding: 18,
     minHeight: 520,
   },
-  documentCard: {
-    backgroundColor: "#050505",
-    borderRadius: 8,
+  documentSurface: {
     marginBottom: 20,
-    paddingHorizontal: 14,
-    paddingTop: 18,
-    paddingBottom: 22,
   },
-  readerStatusBand: {
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 16,
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  readerStatusLeft: {
-    flex: 1,
-  },
-  readerEyebrow: {
-    color: colors.primary,
-    marginBottom: 6,
-  },
-  readerChapterTitle: {
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  readerPageMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  readerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+  documentCard: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    marginBottom: 0,
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#0D1711",
-    borderWidth: 1,
-    borderColor: "#1D3528",
-  },
-  readerBadgeText: {
-    ...typography.caption,
-    color: colors.textPrimary,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   diagnosticBanner: {
     backgroundColor: "#2A1606",
@@ -868,26 +800,45 @@ const styles = StyleSheet.create({
   documentFlow: {
     gap: 0,
   },
+  documentTitle: {
+    color: "#D6E4FF",
+    lineHeight: 46,
+    marginBottom: 10,
+  },
+  documentMeta: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    fontSize: 12,
+    marginBottom: 22,
+  },
   documentSection: {
     gap: 10,
   },
   documentSectionSpacing: {
-    marginBottom: 18,
+    marginBottom: 12,
   },
   documentHeading: {
     color: "#D6E4FF",
     fontWeight: "700",
     lineHeight: 34,
+    marginTop: 6,
+  },
+  documentLeadHeading: {
+    color: "#E5E7EB",
+    fontStyle: "italic",
+    fontWeight: "400",
+    lineHeight: 34,
   },
   documentSectionContent: {
-    gap: 12,
+    gap: 10,
   },
   documentImageWrap: {
-    gap: 10,
+    gap: 8,
+    marginVertical: 2,
   },
   documentImage: {
     width: "100%",
-    height: 240,
+    height: 250,
     backgroundColor: "#FFFFFF",
   },
   documentCaption: {
@@ -900,7 +851,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#5D6B85",
     opacity: 0.65,
-    marginTop: 10,
+    marginTop: 12,
   },
   pageContentWithImage: {
     flex: 1,
@@ -1042,6 +993,9 @@ const styles = StyleSheet.create({
   bottomBar: {
     flexDirection: "row",
     gap: 12,
+  },
+  bottomBarDocument: {
+    marginTop: 4,
   },
   backBtn: {
     flex: 1,
