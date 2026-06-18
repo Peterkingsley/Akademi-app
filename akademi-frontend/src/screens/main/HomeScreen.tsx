@@ -810,7 +810,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignBackground: {
     backgroundColor: "#0E1711",
-    height: 214,
+    height: 198,
     justifyContent: "flex-end",
   },
   campaignBackgroundImage: {
@@ -823,7 +823,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   campaignBody: {
     flex: 1,
     justifyContent: "space-between",
-    padding: 16,
+    padding: 14,
   },
   campaignHeaderRow: {
     alignItems: "flex-start",
@@ -839,25 +839,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     textAlign: "right",
   },
   campaignCopy: {
-    marginTop: 18,
+    marginTop: 10,
   },
   campaignTitle: {
     ...typography.h1,
     color: "#FFFFFF",
-    fontSize: 28,
-    lineHeight: 34,
-    marginBottom: 8,
+    fontSize: 22,
+    lineHeight: 27,
+    marginBottom: 6,
   },
   campaignSubtitle: {
     ...typography.body,
     color: "#E4E4E7",
-    fontSize: 13,
-    lineHeight: 20,
-    maxWidth: "76%",
+    fontSize: 12,
+    lineHeight: 18,
+    maxWidth: "82%",
   },
   campaignMetaRow: {
     flexDirection: "row",
-    marginTop: 12,
+    marginTop: 10,
   },
   campaignMetaItem: {
     alignItems: "center",
@@ -879,8 +879,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backgroundColor: colors.primary,
     borderRadius: 999,
     flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   campaignCtaText: {
     ...typography.h4,
