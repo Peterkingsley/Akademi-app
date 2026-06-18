@@ -37,6 +37,17 @@ export interface Material {
       }>;
     }>;
   } | null;
+  diagnostics?: {
+    fileType: "PDF" | "IMAGE" | "DOC" | null;
+    pageCount: number;
+    imageBlockCount: number;
+    hasFigureLanguage: boolean;
+    warnings: Array<{
+      code: string;
+      message: string;
+      detail?: string;
+    }>;
+  };
   created_at?: string;
   updated_at?: string;
   rating?: number;

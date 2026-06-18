@@ -45,6 +45,7 @@ export class MaterialsService {
   }
 
   async getMaterial(id: string) {
+    let docImageDiagnostic: { code: string; message: string; detail?: string } | null = null;
     let material = await prisma.material.findUnique({
       where: { id },
       include: {
@@ -85,6 +86,11 @@ export class MaterialsService {
         });
       } catch (error) {
         console.error(`Failed to re-ingest DOC material ${id} for reader images:`, error);
+        docImageDiagnostic = {
+          code: 'DOC_REINGEST_FAILED',
+          message: 'This document could not be re-processed for embedded images.',
+          detail: error instanceof Error ? error.message : 'Unknown re-ingest error',
+        };
       }
     }
 
@@ -109,7 +115,12 @@ export class MaterialsService {
       });
     }
 
-    return material;
+    const diagnostics = this.buildMaterialDiagnostics(material, docImageDiagnostic);
+
+    return {
+      ...material,
+      diagnostics,
+    };
   }
 
   async createUpload(userId: string, data: UploadMaterialRequest) {
@@ -395,5 +406,47 @@ export class MaterialsService {
     const startsPreviousYear = date.getMonth() < 7;
     const startYear = startsPreviousYear ? year - 1 : year;
     return `${startYear}/${startYear + 1}`;
+  }
+
+  private buildMaterialDiagnostics(
+    material: any,
+    existingDiagnostic?: { code: string; message: string; detail?: string } | null,
+  ) {
+    const pages = Array.isArray(material?.reader_structure?.pages) ? material.reader_structure.pages : [];
+    const imageBlocks = pages.flatMap((page: any) =>
+      Array.isArray(page?.blocks) ? page.blocks.filter((block: any) => block?.type === 'image' && block?.src) : []
+    );
+    const contentText = String(material?.content || '');
+    const hasFigureLanguage = /(figure\s*\d+|diagram|chart|graph|illustration|image)/i.test(contentText);
+
+    const warnings: Array<{ code: string; message: string; detail?: string }> = [];
+
+    if (existingDiagnostic) {
+      warnings.push(existingDiagnostic);
+    }
+
+    if (material?.file_type === 'DOC' && hasFigureLanguage && imageBlocks.length === 0) {
+      warnings.push({
+        code: 'DOC_IMAGES_MISSING',
+        message: 'This material mentions figures or diagrams, but no embedded images were extracted.',
+        detail: 'The DOCX text was extracted, but the image layer did not make it into the reader payload.',
+      });
+    }
+
+    if (material?.file_type === 'DOC' && pages.length === 0 && contentText.trim()) {
+      warnings.push({
+        code: 'READER_STRUCTURE_EMPTY',
+        message: 'The reader structure could not be built from this document.',
+        detail: 'Text exists, but page blocks were not generated as expected.',
+      });
+    }
+
+    return {
+      fileType: material?.file_type || null,
+      pageCount: pages.length,
+      imageBlockCount: imageBlocks.length,
+      hasFigureLanguage,
+      warnings,
+    };
   }
 }

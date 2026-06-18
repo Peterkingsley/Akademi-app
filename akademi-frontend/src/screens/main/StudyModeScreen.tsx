@@ -465,6 +465,25 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
+        {material?.diagnostics?.warnings?.length ? (
+          <View style={styles.diagnosticBanner}>
+            <Text style={[styles.diagnosticTitle, typography.bodySmall]}>
+              Material processing warning
+            </Text>
+            {material.diagnostics.warnings.map((warning, index) => (
+              <View key={`${warning.code}-${index}`} style={styles.diagnosticItem}>
+                <Text style={[styles.diagnosticMessage, typography.bodySmall]}>{warning.message}</Text>
+                {warning.detail ? (
+                  <Text style={[styles.diagnosticDetail, typography.caption]}>{warning.detail}</Text>
+                ) : null}
+              </View>
+            ))}
+            <Text style={[styles.diagnosticMeta, typography.caption]}>
+              File type: {material.diagnostics.fileType || "Unknown"} | Pages: {material.diagnostics.pageCount} | Images found: {material.diagnostics.imageBlockCount}
+            </Text>
+          </View>
+        ) : null}
+
         <Card style={styles.studyCard}>
           {!material && (
             <View style={styles.aiHeader}>
@@ -726,6 +745,34 @@ const styles = StyleSheet.create({
   readerBadgeText: {
     ...typography.caption,
     color: colors.textPrimary,
+  },
+  diagnosticBanner: {
+    backgroundColor: "#2A1606",
+    borderColor: "#7C4A10",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+  },
+  diagnosticTitle: {
+    color: "#FBBF24",
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  diagnosticItem: {
+    marginBottom: 8,
+  },
+  diagnosticMessage: {
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  diagnosticDetail: {
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  diagnosticMeta: {
+    color: "#FCD34D",
+    marginTop: 4,
   },
   pageTitle: {
     color: colors.primary,
