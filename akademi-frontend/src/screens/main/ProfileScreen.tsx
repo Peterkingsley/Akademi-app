@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
@@ -50,6 +51,9 @@ export const ProfileScreen: React.FC = () => {
   const [featureAccess, setFeatureAccess] = useState<any>(null);
   const [progress, setProgress] = useState<ProgressSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isSubmittingAction, setIsSubmittingAction] = useState<"logout" | "delete" | null>(null);
 
   const fetchProfile = async () => {
     try {
@@ -115,43 +119,36 @@ export const ProfileScreen: React.FC = () => {
     : "Free Beta";
 
   const handleLogout = () => {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await userService.logout();
-            clearAuth();
-          } catch (error) {
-            clearAuth();
-          }
-        },
-      },
-    ]);
+    setIsLogoutModalVisible(true);
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This action is permanent and cannot be undone. All your data will be deleted.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete My Account",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await userService.deleteAccount();
-              clearAuth();
-            } catch (error) {
-              Alert.alert("Error", "Failed to delete account");
-            }
-          },
-        },
-      ]
-    );
+    setIsDeleteModalVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setIsSubmittingAction("logout");
+      await userService.logout();
+      clearAuth();
+    } catch (error) {
+      clearAuth();
+    } finally {
+      setIsSubmittingAction(null);
+      setIsLogoutModalVisible(false);
+    }
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      setIsSubmittingAction("delete");
+      await userService.deleteAccount();
+      clearAuth();
+    } catch (error) {
+      setIsSubmittingAction(null);
+      setIsDeleteModalVisible(false);
+      Alert.alert("Error", "Failed to delete account");
+    }
   };
 
   if (loading && !profile) {
@@ -322,6 +319,28 @@ export const ProfileScreen: React.FC = () => {
           />
         </MenuSection>
       </ScrollView>
+
+      <ConfirmationModal
+        visible={isLogoutModalVisible}
+        title="Log out"
+        body="Are you sure you want to log out of Akademi on this device?"
+        confirmLabel={isSubmittingAction === "logout" ? "Logging out..." : "Log out"}
+        onCancel={() => isSubmittingAction !== "logout" && setIsLogoutModalVisible(false)}
+        onConfirm={confirmLogout}
+        destructive
+        loading={isSubmittingAction === "logout"}
+      />
+
+      <ConfirmationModal
+        visible={isDeleteModalVisible}
+        title="Delete account"
+        body="This action is permanent and cannot be undone. All your data will be deleted."
+        confirmLabel={isSubmittingAction === "delete" ? "Deleting..." : "Delete account"}
+        onCancel={() => isSubmittingAction !== "delete" && setIsDeleteModalVisible(false)}
+        onConfirm={confirmDeleteAccount}
+        destructive
+        loading={isSubmittingAction === "delete"}
+      />
     </Screen>
   );
 };
@@ -361,6 +380,61 @@ const SectionDivider: React.FC = () => {
 
   return (
     <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, marginHorizontal: 20 }} />
+  );
+};
+
+const ConfirmationModal: React.FC<{
+  visible: boolean;
+  title: string;
+  body: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  destructive?: boolean;
+  loading?: boolean;
+}> = ({ visible, title, body, confirmLabel, onCancel, onConfirm, destructive = false, loading = false }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.confirmOverlay}>
+        <TouchableOpacity style={styles.confirmScrim} activeOpacity={1} onPress={onCancel} />
+        <View style={styles.confirmCard}>
+          <Text style={styles.confirmTitle}>{title}</Text>
+          <Text style={styles.confirmBody}>{body}</Text>
+          <View style={styles.confirmActions}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.confirmSecondaryButton}
+              onPress={onCancel}
+              disabled={loading}
+            >
+              <Text style={styles.confirmSecondaryText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.confirmPrimaryButton,
+                destructive && styles.confirmDestructiveButton,
+                loading && styles.confirmButtonDisabled,
+              ]}
+              onPress={onConfirm}
+              disabled={loading}
+            >
+              <Text
+                style={[
+                  styles.confirmPrimaryText,
+                  destructive && styles.confirmDestructiveText,
+                ]}
+              >
+                {confirmLabel}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -549,5 +623,77 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     fontSize: 11,
     fontFamily: "Inter-Medium",
     color: colors.textPrimary,
+  },
+  confirmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  confirmScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.64)",
+  },
+  confirmCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    zIndex: 1,
+  },
+  confirmTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 24,
+    lineHeight: 30,
+    marginBottom: 10,
+  },
+  confirmBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  confirmSecondaryButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  confirmSecondaryText: {
+    ...typography.h4,
+    color: colors.textPrimary,
+  },
+  confirmPrimaryButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  confirmPrimaryText: {
+    ...typography.h4,
+    color: colors.background,
+  },
+  confirmDestructiveButton: {
+    backgroundColor: "rgba(239,68,68,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.28)",
+  },
+  confirmDestructiveText: {
+    color: colors.error,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.7,
   },
 });
