@@ -284,7 +284,10 @@ export const StudyModeScreen: React.FC = () => {
   const isLastPage = currentPageIndex === readerPages.length - 1;
   const currentImageBlocks = currentPage?.blocks?.filter((block) => block.type === "image" && !!block.src) || [];
   const hasImagePage = currentImageBlocks.length > 0;
-  const pageSurfaceMinHeight = Math.max(520, Math.floor(windowHeight * 0.62));
+  const pageTextLength = (currentPage?.content || "").trim().length;
+  const pageSurfaceMinHeight = hasImagePage
+    ? Math.max(520, Math.floor(windowHeight * 0.62))
+    : Math.max(320, Math.min(460, 180 + Math.floor(pageTextLength * 0.42)));
   const embeddedImageHeight = hasImagePage
     ? Math.max(280, Math.floor(windowHeight * 0.32))
     : 220;
