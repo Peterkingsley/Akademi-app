@@ -26,6 +26,15 @@ export interface Material {
       content: string;
       pageNumber: number;
       pageCountInChapter: number;
+      blocks?: Array<{
+        id: string;
+        type: "text" | "image";
+        text?: string;
+        src?: string;
+        alt?: string;
+        caption?: string;
+        description?: string;
+      }>;
     }>;
   } | null;
   created_at?: string;

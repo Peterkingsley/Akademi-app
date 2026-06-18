@@ -7,7 +7,7 @@ import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
-import { buildReaderStructure, normalizeExtractedText } from '../modules/materials/reader-structure';
+import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -104,6 +104,42 @@ async function extractPdfText(buffer: Buffer) {
   throw new Error('PDF parser is not available');
 }
 
+async function describeEmbeddedImage(buffer: Buffer, mimeType: string) {
+  const client = getGeminiClient();
+
+  if (client) {
+    try {
+      const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent([
+        {
+          text: 'Describe this image briefly for a student reading a study material. Focus on what the image shows, such as a diagram, chart, table, or labeled object. Keep it to 2 sentences maximum.',
+        },
+        {
+          inlineData: {
+            mimeType,
+            data: buffer.toString('base64'),
+          },
+        },
+      ]);
+      return result.response.text().trim();
+    } catch (error) {
+      console.error('Gemini image description failed, falling back:', error);
+    }
+  }
+
+  try {
+    const [result] = await getVisionClient().textDetection(buffer);
+    const text = result.textAnnotations?.[0]?.description?.trim();
+    if (text) {
+      return `Image contains visible text: ${text.slice(0, 220)}`;
+    }
+  } catch (error) {
+    console.error('Vision image description fallback failed:', error);
+  }
+
+  return '';
+}
+
 export async function ingestMaterialJob(materialId: string) {
   const material = await prisma.material.findUnique({
     where: { id: materialId },
@@ -122,12 +158,36 @@ export async function ingestMaterialJob(materialId: string) {
   const buffer = Buffer.from(body);
 
   let extractedText = '';
+  let readerStructure: any = null;
 
   if (material.file_type === FileType.PDF) {
     extractedText = await extractPdfText(buffer);
   } else if (material.file_type === FileType.DOC) {
-    const result = await mammoth.extractRawText({ buffer });
-    extractedText = result.value;
+    const rawTextResult = await mammoth.extractRawText({ buffer });
+    extractedText = rawTextResult.value;
+
+    const imageMetaBySrc = new Map<string, { description?: string; alt?: string }>();
+    const htmlResult = await mammoth.convertToHtml(
+      { buffer },
+      {
+        convertImage: mammoth.images.imgElement(async (image) => {
+          const base64 = await image.read('base64');
+          const src = `data:${image.contentType};base64,${base64}`;
+          const imageBuffer = Buffer.from(base64, 'base64');
+          const description = await describeEmbeddedImage(imageBuffer, image.contentType);
+          imageMetaBySrc.set(src, {
+            description,
+          });
+          return { src };
+        }),
+      },
+    );
+
+    readerStructure = buildReaderStructureFromHtml(
+      htmlResult.value,
+      normalizeExtractedText(extractedText),
+      imageMetaBySrc,
+    );
   } else if (material.file_type === FileType.IMAGE) {
     const [result] = await getVisionClient().textDetection(buffer);
     const detections = result.textAnnotations;
@@ -142,13 +202,13 @@ export async function ingestMaterialJob(materialId: string) {
   }
 
   const normalizedText = normalizeExtractedText(extractedText);
-  const readerStructure = buildReaderStructure(normalizedText);
+  const resolvedReaderStructure = readerStructure || buildReaderStructure(normalizedText);
 
   await prisma.material.update({
     where: { id: materialId },
     data: {
       content: normalizedText,
-      reader_structure: readerStructure as any,
+      reader_structure: resolvedReaderStructure as any,
     }
   });
 

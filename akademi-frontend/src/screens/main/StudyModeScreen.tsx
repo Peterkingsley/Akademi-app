@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   View,
   Text,
   StyleSheet,
@@ -9,7 +10,7 @@ import {
   Alert,
   TouchableWithoutFeedback,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, Headphones, BookOpen, ChevronLeft, ChevronRight, PanelRightOpen } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, PanelRightOpen } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -39,6 +40,17 @@ interface ReaderPage {
   content: string;
   pageNumber: number;
   pageCountInChapter: number;
+  blocks?: ReaderBlock[];
+}
+
+interface ReaderBlock {
+  id: string;
+  type: "text" | "image";
+  text?: string;
+  src?: string;
+  alt?: string;
+  caption?: string;
+  description?: string;
 }
 
 interface ReaderStructure {
@@ -215,13 +227,26 @@ const buildReaderPages = (rawContent: string): ReaderPage[] => {
 const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderStructure | null => {
   if (!value || !Array.isArray(value.pages) || value.pages.length === 0) return null;
   const pages = value.pages
-    .map((page) => ({
+    .map((page): ReaderPage => ({
       id: String(page.id || ""),
       chapterTitle: String(page.chapterTitle || "Reading"),
       pageTitle: String(page.pageTitle || page.chapterTitle || "Reading"),
       content: String(page.content || "").trim(),
       pageNumber: Number(page.pageNumber || 1),
       pageCountInChapter: Number(page.pageCountInChapter || 1),
+      blocks: Array.isArray(page.blocks)
+        ? page.blocks
+            .map((block: any): ReaderBlock => ({
+              id: String(block.id || ""),
+              type: block.type === "image" ? "image" : "text",
+              text: block.text ? String(block.text) : undefined,
+              src: block.src ? String(block.src) : undefined,
+              alt: block.alt ? String(block.alt) : undefined,
+              caption: block.caption ? String(block.caption) : undefined,
+              description: block.description ? String(block.description) : undefined,
+            }))
+            .filter((block) => (block.type === "image" ? !!block.src : !!block.text))
+        : undefined,
     }))
     .filter((page) => page.content);
 
@@ -321,6 +346,34 @@ export const StudyModeScreen: React.FC = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     setHighlights((current) => current.includes(trimmed) ? current : [...current, trimmed]);
+  };
+
+  const handleAskAboutImage = (block: ReaderBlock) => {
+    const imageFocus = block.caption || block.description || block.alt || "Embedded image from this material.";
+    const imageContext = [
+      material?.title ? `Material: ${material.title}` : "",
+      currentPage?.chapterTitle ? `Chapter: ${currentPage.chapterTitle}` : "",
+      currentPage?.pageTitle && currentPage.pageTitle !== currentPage.chapterTitle
+        ? `Page: ${currentPage.pageTitle}`
+        : "",
+      "Selected image:",
+      imageFocus,
+      "",
+      "Image details:",
+      block.description || "",
+      block.caption ? `Caption: ${block.caption}` : "",
+      block.alt ? `Alt text: ${block.alt}` : "",
+      "",
+      "Surrounding passage:",
+      currentPage?.content || materialContext,
+      "",
+      "Full material context:",
+      materialContext,
+    ].filter(Boolean).join("\n");
+
+    setSelectedPassage(imageFocus);
+    setSelectedText(imageContext);
+    setIsAskModalVisible(true);
   };
 
   const handleDownload = async () => {
@@ -441,11 +494,46 @@ export const StudyModeScreen: React.FC = () => {
               {material && currentPage.pageTitle !== currentPage.chapterTitle ? (
                 <Text style={[styles.pageTitle, typography.bodySmall]}>{currentPage.pageTitle}</Text>
               ) : null}
-              <SelectableText
-                content={material ? currentPage.content : displayContent}
-                onAskAkademi={handleAskAkademi}
-                onHighlight={handleHighlight}
-              />
+              {material && currentPage.blocks?.length ? (
+                <View style={styles.readerBlocks}>
+                  {currentPage.blocks.map((block) =>
+                    block.type === "image" && block.src ? (
+                      <TouchableOpacity
+                        key={block.id}
+                        activeOpacity={0.92}
+                        style={styles.imageBlock}
+                        onPress={() => handleAskAboutImage(block)}
+                      >
+                        <Image source={{ uri: block.src }} style={styles.embeddedImage} resizeMode="contain" />
+                        <Text style={[styles.imageHint, typography.caption]}>
+                          Tap image to ask Akademi about it
+                        </Text>
+                        {block.caption ? (
+                          <Text style={[styles.imageCaption, typography.bodySmall]}>{block.caption}</Text>
+                        ) : null}
+                        {block.description ? (
+                          <Text style={[styles.imageDescription, typography.caption]} numberOfLines={3}>
+                            {block.description}
+                          </Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    ) : (
+                      <SelectableText
+                        key={block.id}
+                        content={block.text || ""}
+                        onAskAkademi={handleAskAkademi}
+                        onHighlight={handleHighlight}
+                      />
+                    )
+                  )}
+                </View>
+              ) : (
+                <SelectableText
+                  content={material ? currentPage.content : displayContent}
+                  onAskAkademi={handleAskAkademi}
+                  onHighlight={handleHighlight}
+                />
+              )}
             </View>
           )}
         </Card>
@@ -490,27 +578,6 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
-        <TouchableOpacity
-          style={styles.tutorBanner}
-          onPress={() => navigation.navigate("LiveTutorEntry", {
-            courseCode,
-            topic: material?.title || courseCode,
-            materialId: material?.id,
-            materialTitle: material?.title,
-            materialContext,
-          })}
-        >
-          <View style={styles.tutorIcon}>
-            <Headphones size={18} color={colors.primary} />
-          </View>
-          <View style={styles.tutorTextContainer}>
-            <Text style={[styles.tutorText, typography.bodySmall]}>
-              Still stuck on this page? Start a live tutor session from the exact passage you are reading.
-            </Text>
-            <Text style={styles.tutorLink}>Ask the Live Tutor</Text>
-          </View>
-        </TouchableOpacity>
-
         {isLastPage && (
           <View style={styles.bottomBar}>
             {material && (
@@ -523,6 +590,7 @@ export const StudyModeScreen: React.FC = () => {
             )}
             <Button
               label="Finish Study"
+              variant="secondary"
               onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
               style={styles.finishBtn}
             />
@@ -665,6 +733,35 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
+  readerBlocks: {
+    gap: 18,
+  },
+  imageBlock: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  embeddedImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 10,
+    backgroundColor: "#050505",
+    marginBottom: 10,
+  },
+  imageHint: {
+    color: colors.primary,
+    marginBottom: 6,
+  },
+  imageCaption: {
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  imageDescription: {
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   aiHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -672,17 +769,6 @@ const styles = StyleSheet.create({
   },
   aiName: {
     color: "#FFFFFF",
-  },
-  tutorBanner: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "flex-start",
-    marginBottom: 28,
   },
   pageNavigator: {
     flexDirection: "row",
@@ -772,39 +858,17 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 16,
   },
-  tutorIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary + "18",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  tutorTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-    minWidth: 0,
-  },
-  tutorText: {
-    color: colors.textPrimary,
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  tutorLink: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: "600",
-  },
   bottomBar: {
-    gap: 16,
+    flexDirection: "row",
+    gap: 12,
   },
   backBtn: {
     flex: 1,
   },
   practiceBtn: {
-    marginBottom: 12,
+    flex: 1,
   },
   finishBtn: {
+    flex: 1,
   },
 });

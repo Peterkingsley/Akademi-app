@@ -258,21 +258,6 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 ))}
               </View>
 
-              <View style={styles.inputArea}>
-                <Text style={[styles.inputLabel, typography.bodySmall]}>
-                  What would you like to know about this?
-                </Text>
-                <TextInput
-                  style={[styles.input, typography.bodySmall]}
-                  placeholder="Tell Akademi exactly where you got confused..."
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  value={question}
-                  onChangeText={setQuestion}
-                  autoFocus
-                />
-              </View>
-
               {messages.length > 0 ? (
                 <View style={styles.messagesContainer}>
                   {messages.map((message) => (
@@ -302,6 +287,25 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                   Ask about the highlighted line, and Akademi will explain it using this material first.
                 </Text>
               )}
+
+              <View style={styles.inputArea}>
+                <Text style={[styles.inputLabel, typography.bodySmall]}>
+                  {messages.length > 0 ? "Reply to keep going" : "What would you like to know about this?"}
+                </Text>
+                <TextInput
+                  style={[styles.input, typography.bodySmall]}
+                  placeholder={
+                    messages.length > 0
+                      ? "Reply here..."
+                      : "Tell Akademi exactly where you got confused..."
+                  }
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  value={question}
+                  onChangeText={setQuestion}
+                  autoFocus
+                />
+              </View>
             </ScrollView>
 
             <View style={styles.footer}>

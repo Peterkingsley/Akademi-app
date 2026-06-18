@@ -8,6 +8,7 @@ import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { buildReaderStructure } from './reader-structure';
+import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -54,6 +55,38 @@ export class MaterialsService {
         },
       },
     });
+
+    if (!material) {
+      throw new Error('Material not found');
+    }
+
+    const needsDocReingest =
+      material.file_type === 'DOC' &&
+      (
+        !material.reader_structure ||
+        !Array.isArray((material.reader_structure as any)?.pages) ||
+        !(material.reader_structure as any).pages.some((page: any) =>
+          Array.isArray(page.blocks) && page.blocks.some((block: any) => block?.type === 'image' && block?.src)
+        )
+      );
+
+    if (needsDocReingest) {
+      try {
+        await ingestMaterialJob(id);
+        material = await prisma.material.findUnique({
+          where: { id },
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.error(`Failed to re-ingest DOC material ${id} for reader images:`, error);
+      }
+    }
 
     if (!material) {
       throw new Error('Material not found');
