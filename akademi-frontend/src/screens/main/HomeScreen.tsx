@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -191,6 +192,8 @@ export const HomeScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
   const bannerWidth = Dimensions.get("window").width - 36;
+  const { width } = useWindowDimensions();
+  const isCompactLayout = width < 420;
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
@@ -632,8 +635,8 @@ export const HomeScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.dualPanels}>
-          <View style={[styles.dualPanelCard, styles.dualPanelLeft]}>
+        <View style={[styles.dualPanels, isCompactLayout && styles.dualPanelsCompact]}>
+          <View style={[styles.dualPanelCard, styles.dualPanelLeft, isCompactLayout && styles.dualPanelFullWidth]}>
             <View style={styles.dualPanelHeader}>
               <Text style={styles.dualPanelTitle}>Continue Learning</Text>
               <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("Sessions")}>
@@ -683,7 +686,7 @@ export const HomeScreen: React.FC = () => {
             )}
           </View>
 
-          <View style={[styles.dualPanelCard, styles.dualPanelRight]}>
+          <View style={[styles.dualPanelCard, styles.dualPanelRight, isCompactLayout && styles.dualPanelFullWidth]}>
             <View style={styles.dualPanelHeader}>
               <Text style={styles.dualPanelTitle}>Upcoming</Text>
               <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("ExamPrep")}>
@@ -1039,6 +1042,9 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     gap: 12,
     marginBottom: 24,
   },
+  dualPanelsCompact: {
+    flexDirection: "column",
+  },
   dualPanelCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -1051,6 +1057,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   dualPanelRight: {
     flex: 0.92,
+  },
+  dualPanelFullWidth: {
+    flex: 0,
+    width: "100%",
   },
   dualPanelHeader: {
     alignItems: "center",
@@ -1066,7 +1076,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   seeAll: {
     ...typography.h4,
     color: colors.primary,
-    fontSize: 13,
+    fontSize: 12,
   },
   dualPanelSkeleton: {
     marginBottom: 10,
