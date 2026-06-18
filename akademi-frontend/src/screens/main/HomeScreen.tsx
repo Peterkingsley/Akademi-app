@@ -14,10 +14,13 @@ import {
   Bell,
   BookOpen,
   Bot,
+  Circle,
   ChevronRight,
   Clock,
   CalendarDays,
+  FileText,
   Library,
+  PlayCircle,
   Sparkles,
   Swords,
   Target,
@@ -27,7 +30,7 @@ import {
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInUp } from "react-native-reanimated";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import { Avatar } from "../../components/ui/Avatar";
 import { Badge } from "../../components/ui/Badge";
@@ -125,6 +128,20 @@ const getTimeAgo = (dateString: string) => {
   return `${Math.floor(diffInHours / 24)}d ago`;
 };
 
+const formatDeadlineTag = (value?: string) => {
+  if (!value) return "SOON";
+  const date = new Date(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  if (target.getTime() === today.getTime()) return "Today";
+  if (target.getTime() === tomorrow.getTime()) return "Tomorrow";
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+};
+
 type QuickAction = (typeof QUICK_ACTIONS)[number];
 
 const getDaysLeft = (dateString?: string) => {
@@ -193,6 +210,21 @@ export const HomeScreen: React.FC = () => {
     checkStreakBanner();
     checkHomeTour();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const refreshNotifications = async () => {
+        try {
+          const notifications = await notificationService.list();
+          setUnreadNotifications(notifications.filter((item) => !item.read).length);
+        } catch (error) {
+          console.error("Failed to refresh notifications:", error);
+        }
+      };
+
+      refreshNotifications();
+    }, [])
+  );
 
   useEffect(() => {
     if (campaigns.length <= 1) return;
@@ -449,6 +481,19 @@ export const HomeScreen: React.FC = () => {
     return "Open to all students";
   };
 
+  const upcomingEvents = useMemo(() => exams.slice(0, 3), [exams]);
+
+  const getContinueAccent = (session: Session, index: number) => {
+    const type = session.session_type || session.type || "";
+    if (type.includes("TUTOR")) return { color: "#A855F7", icon: PlayCircle };
+    if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.primary, icon: FileText };
+    return { color: ["#22C55E", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
+  };
+
+  const getUpcomingAccent = (index: number) => {
+    return ["#F59E0B", "#22C55E", "#3B82F6"][index % 3];
+  };
+
   return (
     <Screen scrollable hideHeader style={styles.screen}>
       <View style={styles.container}>
@@ -587,36 +632,104 @@ export const HomeScreen: React.FC = () => {
           ))}
         </View>
 
-        {(loading || sessions.length > 0) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Continue learning</Text>
-              <Clock size={17} color={colors.textMuted} />
+        <View style={styles.dualPanels}>
+          <View style={[styles.dualPanelCard, styles.dualPanelLeft]}>
+            <View style={styles.dualPanelHeader}>
+              <Text style={styles.dualPanelTitle}>Continue Learning</Text>
+              <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("Sessions")}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
             </View>
+
             {loading ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <>
                 {[1, 2, 3].map((i) => (
-                  <Skeleton
-                    key={i}
-                    width={190}
-                    height={132}
-                    borderRadius={10}
-                    style={styles.sessionSkeleton}
-                  />
+                  <Skeleton key={i} height={62} borderRadius={10} style={styles.dualPanelSkeleton} />
                 ))}
-              </ScrollView>
+              </>
+            ) : sessions.length === 0 ? (
+              <Text style={styles.dualPanelEmpty}>Your recent study sessions will show here.</Text>
             ) : (
-              <FlatList
-                data={sessions}
-                renderItem={renderSessionCard}
-                keyExtractor={(item) => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-              />
+              sessions.slice(0, 3).map((item, index) => {
+                const accent = getContinueAccent(item, index);
+                const AccentIcon = accent.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.86}
+                    style={styles.continueRow}
+                    onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+                  >
+                    <View style={[styles.continueIconWrap, { backgroundColor: `${accent.color}22` }]}>
+                      <AccentIcon size={20} color={accent.color} />
+                    </View>
+                    <View style={styles.continueRowText}>
+                      <Text style={styles.continueRowCourse}>{item.course_code || "SESSION"}</Text>
+                      <Text style={styles.continueRowTitle} numberOfLines={1}>
+                        {getSessionTitle(item)}
+                      </Text>
+                      <Text style={styles.continueRowTime}>{getTimeAgo(item.started_at || item.created_at)}</Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      style={styles.resumeButton}
+                      onPress={() => navigation.navigate("SessionDetail", { id: item.id })}
+                    >
+                      <Text style={styles.resumeButtonText}>Resume</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </View>
-        )}
+
+          <View style={[styles.dualPanelCard, styles.dualPanelRight]}>
+            <View style={styles.dualPanelHeader}>
+              <Text style={styles.dualPanelTitle}>Upcoming</Text>
+              <TouchableOpacity activeOpacity={0.82} onPress={() => navigation.navigate("ExamPrep")}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} height={62} borderRadius={10} style={styles.dualPanelSkeleton} />
+                ))}
+              </>
+            ) : upcomingEvents.length === 0 ? (
+              <Text style={styles.dualPanelEmpty}>Your upcoming exams and deadlines will show here.</Text>
+            ) : (
+              upcomingEvents.map((item, index) => {
+                const accent = getUpcomingAccent(index);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    activeOpacity={0.86}
+                    style={styles.upcomingRow}
+                    onPress={() => navigation.navigate("PrepPlan", { examId: item.id })}
+                  >
+                    <View style={styles.timelineColumn}>
+                      <Circle size={10} color={accent} fill={accent} />
+                      {index < upcomingEvents.length - 1 && <View style={styles.timelineLine} />}
+                    </View>
+                    <View style={styles.upcomingCopy}>
+                      <Text style={[styles.upcomingDay, { color: accent }]}>
+                        {formatDeadlineTag(item.exam_date)}
+                      </Text>
+                      <Text style={styles.upcomingTitle} numberOfLines={1}>
+                        {item.course_code} Exam
+                      </Text>
+                    </View>
+                    <View style={[styles.upcomingIconWrap, { backgroundColor: `${accent}22` }]}>
+                      <CalendarDays size={18} color={accent} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -920,6 +1033,141 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   section: {
     marginBottom: 24,
+  },
+  dualPanels: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  dualPanelCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+  },
+  dualPanelLeft: {
+    flex: 1.08,
+  },
+  dualPanelRight: {
+    flex: 0.92,
+  },
+  dualPanelHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  dualPanelTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontSize: 16,
+  },
+  seeAll: {
+    ...typography.h4,
+    color: colors.primary,
+    fontSize: 13,
+  },
+  dualPanelSkeleton: {
+    marginBottom: 10,
+  },
+  dualPanelEmpty: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  continueRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  continueIconWrap: {
+    alignItems: "center",
+    borderRadius: 12,
+    height: 42,
+    justifyContent: "center",
+    marginRight: 10,
+    width: 42,
+  },
+  continueRowText: {
+    flex: 1,
+    marginRight: 10,
+    minWidth: 0,
+  },
+  continueRowCourse: {
+    ...typography.caption,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(34,197,94,0.14)",
+    borderRadius: 8,
+    color: colors.primary,
+    fontSize: 10,
+    marginBottom: 4,
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  continueRowTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  continueRowTime: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  resumeButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.16)",
+    borderRadius: 10,
+    justifyContent: "center",
+    minWidth: 78,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  resumeButtonText: {
+    ...typography.h4,
+    color: colors.primary,
+    fontSize: 12,
+  },
+  upcomingRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  timelineColumn: {
+    alignItems: "center",
+    marginRight: 10,
+    width: 12,
+  },
+  timelineLine: {
+    backgroundColor: colors.border,
+    flex: 1,
+    marginTop: 4,
+    width: 1,
+  },
+  upcomingCopy: {
+    flex: 1,
+    marginRight: 10,
+  },
+  upcomingDay: {
+    ...typography.h4,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  upcomingTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  upcomingIconWrap: {
+    alignItems: "center",
+    borderRadius: 12,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
   },
   sectionHeader: {
     alignItems: "center",
