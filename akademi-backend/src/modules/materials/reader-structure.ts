@@ -278,6 +278,31 @@ function parseAttributes(attributeString: string) {
   return attributes;
 }
 
+function appendImagesFromHtmlFragment(
+  fragment: string,
+  targetBlocks: ReaderBlock[],
+  imageMetaBySrc: Map<string, ImageMeta> | undefined,
+  getNextImageId: () => string,
+) {
+  const imagePattern = /<img\b([^>]*)\/?>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = imagePattern.exec(fragment))) {
+    const attrs = parseAttributes(match[1] || '');
+    const src = attrs.src;
+    if (!src) continue;
+    const meta = imageMetaBySrc?.get(src);
+    targetBlocks.push({
+      id: getNextImageId(),
+      type: 'image',
+      src,
+      alt: attrs.alt || meta?.alt || '',
+      description: meta?.description || '',
+      caption: meta?.caption || '',
+    });
+  }
+}
+
 export function buildReaderStructureFromHtml(
   rawHtml: string,
   fallbackText: string,
@@ -330,7 +355,14 @@ export function buildReaderStructureFromHtml(
     }
 
     const tag = match[2]?.toLowerCase();
-    const text = stripHtml(match[3] || '');
+    const innerHtml = match[3] || '';
+    appendImagesFromHtmlFragment(
+      innerHtml,
+      activeBlocks,
+      imageMetaBySrc,
+      () => `image-${++imageBlockIndex}`,
+    );
+    const text = stripHtml(innerHtml.replace(/<img\b[^>]*\/?>/gi, ' '));
     if (!text) continue;
 
     if (tag?.startsWith('h') || isLikelyHeading(text)) {
