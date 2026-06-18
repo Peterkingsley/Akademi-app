@@ -13,6 +13,8 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
+const WELCOME_BACK_PENDING_KEY = "welcome_back_pending";
+
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -44,6 +46,10 @@ export const LoginScreen: React.FC = () => {
       const { user, accessToken, refreshToken } = response.data;
       await AsyncStorage.setItem("accessToken", accessToken);
       await AsyncStorage.setItem("refreshToken", refreshToken);
+      await AsyncStorage.setItem(
+        WELCOME_BACK_PENDING_KEY,
+        user?.name?.split(" ")[0] || "Student"
+      );
       setAuth(user, accessToken, refreshToken);
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid email or password.");

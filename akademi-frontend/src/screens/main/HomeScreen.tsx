@@ -51,6 +51,7 @@ import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types"
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 const HOME_TOUR_PENDING_KEY = "home_tour_pending";
+const WELCOME_BACK_PENDING_KEY = "welcome_back_pending";
 
 const QUICK_ACTIONS = [
   {
@@ -219,16 +220,27 @@ export const HomeScreen: React.FC = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      const refreshNotifications = async () => {
+      const refreshHomeSignals = async () => {
         try {
-          const notifications = await notificationService.list();
+          const [notifications, welcomeBackName] = await Promise.all([
+            notificationService.list(),
+            AsyncStorage.getItem(WELCOME_BACK_PENDING_KEY),
+          ]);
           setUnreadNotifications(notifications.filter((item) => !item.read).length);
+
+          if (welcomeBackName) {
+            await AsyncStorage.removeItem(WELCOME_BACK_PENDING_KEY);
+            Alert.alert(
+              `Welcome back, ${welcomeBackName}`,
+              "Good to see you again. Your study space is ready."
+            );
+          }
         } catch (error) {
-          console.error("Failed to refresh notifications:", error);
+          console.error("Failed to refresh home signals:", error);
         }
       };
 
-      refreshNotifications();
+      refreshHomeSignals();
     }, [])
   );
 
