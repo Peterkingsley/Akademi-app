@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/useAuthStore";
 import { captureFrontendException } from "../lib/sentry";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://akademi-app.onrender.com";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://akademi-app-1jir.onrender.com";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
