@@ -101,7 +101,7 @@ export const SolveScreen: React.FC = () => {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerEyebrow}>Assignment Solver</Text>
-          <Text style={styles.headerTitle}>Ask Akademi to solve it</Text>
+          <Text style={styles.headerTitle}>Solve it and learn it</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
           <X size={22} color={colors.textPrimary} />
@@ -203,10 +203,10 @@ export const SolveScreen: React.FC = () => {
             >
               <Zap size={18} color={answerMode === "DIRECT" ? colors.background : colors.primary} />
               <Text style={[styles.answerTitle, answerMode === "DIRECT" && styles.activeAnswerText]}>
-                Direct answer
+                Quick solve
               </Text>
               <Text style={[styles.answerText, answerMode === "DIRECT" && styles.activeAnswerSubtext]}>
-                Fast result with key steps.
+                Short worked example with the answer, key steps, and a quick self-check.
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -216,10 +216,10 @@ export const SolveScreen: React.FC = () => {
             >
               <BookOpen size={18} color={answerMode === "STUDY" ? colors.background : colors.primary} />
               <Text style={[styles.answerTitle, answerMode === "STUDY" && styles.activeAnswerText]}>
-                Teach me
+                Learn step by step
               </Text>
               <Text style={[styles.answerText, answerMode === "STUDY" && styles.activeAnswerSubtext]}>
-                Slower explanation for learning.
+                Full worked example with why each step happens and when to use it again.
               </Text>
             </TouchableOpacity>
           </View>

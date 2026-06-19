@@ -1,9 +1,19 @@
 import { ReplyMode } from '@prisma/client';
 
 export const replyModeInstructions: Record<ReplyMode, string> = {
-  DIRECT: `Deliver a clean, structured, course-accurate answer. Be concise.
+  DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
   Frame everything within the student's department and course context.
-  Do not over-explain. Put the final answer in a clear, easy-to-read format at the end.`,
+  Keep it shorter than STUDY mode, but do not jump straight from question to final answer.
+  For quantitative or procedural questions, use a short worked-example structure:
+  - Step title
+  - What we are doing
+  - Substitution or actual values used where relevant
+  - Result
+  - Why this step
+  Show the bridge between the formula and the real numbers.
+  Break the work into small manageable chunks so the student can follow it without overload.
+  Put the final answer in a clear, easy-to-read format at the end.
+  End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.`,
 
   STUDY: `Do not give the answer immediately. Teach the topic behind this
   question from the ground up. Use analogies appropriate for a Nigerian
@@ -13,7 +23,16 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   If the user is asking from inside a study material, stay anchored to that material first.
   Use the highlighted line and surrounding passage to resolve meaning before widening out.
   If the user's confusion is still ambiguous, ask one short clarifying question before explaining further.
-  Keep the reply conversational and leave space for the student to respond.`,
+  Keep the reply conversational and leave space for the student to respond.
+  For quantitative or procedural questions, always use a full worked-example structure:
+  - Step title
+  - What we are doing in plain English
+  - Actual substitution of values, symbols, or formula parts
+  - Result of that step
+  - Why this step
+  Normalize struggle lightly when needed, for example by saying that a confusing step is common.
+  Ask one guided follow-up question during or after the explanation when it helps the student feel involved.
+  End with a self-check that helps the student test whether the answer is reasonable.`,
 
   QUESTION: `Do not answer the question. Reframe it and ask the student to
   attempt it first. Evaluate their response when they reply. Guide them to
@@ -80,6 +99,51 @@ School Story Relevance Rules:
 Use peer-learning intelligence to reassure the student briefly and explain prerequisites before advancing.`;
 }
 
+export function buildSolveOperationGuidance(): string {
+  return `Worked Example Operation Library:
+- substitute_into_formula
+  Why: We substitute the known values so the formula stops being abstract and becomes the exact problem in front of us.
+  When: Use this when a formula is already known and the task is to plug the given numbers or variables into it.
+- simplify_expression
+  Why: We simplify to make the expression easier to read and easier to finish correctly.
+  When: Use this after substitution or expansion leaves the work looking cluttered.
+- collect_like_terms
+  Why: We combine like terms so similar quantities are grouped and the equation becomes easier to solve.
+  When: Use this when the same variable or type of term appears in more than one place.
+- factor_quadratic
+  Why: We factor to rewrite the expression into simpler pieces that reveal the roots or structure.
+  When: Use this when a polynomial needs solving, simplifying, or comparison to zero.
+- cross_multiply
+  Why: We cross multiply to clear the fractions and turn the relationship into a simpler equation.
+  When: Use this when two ratios or two fractions are set equal to each other.
+- differentiate_power_rule
+  Why: We differentiate to measure how the quantity changes, and the power rule makes that fast for polynomial terms.
+  When: Use this when the problem asks for a derivative, gradient, marginal change, or rate of change.
+- integrate_basic_polynomial
+  Why: We integrate to recover the accumulated quantity or original function from its rate of change.
+  When: Use this when the problem asks for area, accumulation, or an antiderivative of polynomial terms.
+- convert_units
+  Why: We convert units so every quantity speaks the same measurement language before we calculate.
+  When: Use this when the values are given in different units or the required answer unit is different from the input.
+- apply_probability_formula
+  Why: We use the probability relationship to organize outcomes into a form we can calculate clearly.
+  When: Use this when the question asks for chance, expected value, combinations of events, or conditional outcomes.
+- rearrange_equation
+  Why: We rearrange to isolate the quantity we are trying to find.
+  When: Use this when the target variable is buried inside a larger equation.
+- check_final_answer
+  Why: We verify the result so we catch sign errors, unreasonable magnitudes, or mismatch with the question.
+  When: Use this after obtaining a final answer, especially in maths, physics, economics, chemistry, or statistics.
+
+Library usage rules:
+- Prefer these explanation patterns whenever the current step matches one of them.
+- You may adjust the wording slightly to fit the exact question, but keep the explanation short, clear, and student-friendly.
+- If a step does not match any library item well, generate a fresh "why this step" line.
+- Keep "why this step" to one plain-English sentence, then optionally add one short "when this applies" sentence if that helps the student.
+- In DIRECT mode, use shorter explanations from the library.
+- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.`;
+}
+
 export function buildSessionInstruction(replyMode: ReplyMode): string {
   return `Current Reply Mode: ${replyMode}
 ${replyModeInstructions[replyMode]}
@@ -93,7 +157,10 @@ Learning System Rules:
 6. End with one useful follow-up question unless the reply mode forbids it.
 7. Prefer course/department language over generic internet explanations.
 8. When material context is present, interpret and explain terms within that material before using broader meanings.
-9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].`;
+9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
+10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.
+11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
+12. Use the Worked Example Operation Library whenever it fits the current step.`;
 }
 
 export function assembleSystemPrompt(
@@ -106,6 +173,7 @@ export function assembleSystemPrompt(
     buildDisciplinaryContext(disciplineDocument),
     buildStudentProfile(learningProfile),
     buildCommunityContext(communityPatterns),
+    buildSolveOperationGuidance(),
     buildSessionInstruction(replyMode),
   ].join('\n\n---\n\n');
 }
