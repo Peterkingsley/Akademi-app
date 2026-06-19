@@ -1,12 +1,13 @@
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/useAuthStore";
+import { currentApiBaseUrl, findHealthyApiBaseUrl } from "./api";
 
 const SOCKET_URL =
   process.env.EXPO_PUBLIC_SOCKET_URL ||
   process.env.EXPO_PUBLIC_WEBSOCKET_URL ||
   process.env.EXPO_PUBLIC_API_URL ||
-  "https://akademi-app.onrender.com";
+  currentApiBaseUrl;
 
 class SocketService {
   private socket: Socket | null = null;
@@ -40,8 +41,10 @@ class SocketService {
     }
 
     const token = await this.getAccessToken();
+    const healthyBaseUrl = await findHealthyApiBaseUrl();
+    const socketUrl = healthyBaseUrl || SOCKET_URL;
 
-    this.socket = io(SOCKET_URL, {
+    this.socket = io(socketUrl, {
       auth: { token },
       transports: ["websocket"],
       autoConnect: true,
