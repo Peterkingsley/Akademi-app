@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { UsersController } from './users.controller';
 import { authenticate } from '../auth/auth.middleware';
+import { generalAuthenticatedApiLimiter } from '../../shared/middleware/rate-limit';
 
 const router = Router();
 const usersController = new UsersController();
@@ -19,6 +20,7 @@ const upload = multer({
 });
 
 router.use(authenticate);
+router.use(generalAuthenticatedApiLimiter);
 
 router.get('/me', usersController.getMe);
 router.patch('/me', usersController.updateMe);

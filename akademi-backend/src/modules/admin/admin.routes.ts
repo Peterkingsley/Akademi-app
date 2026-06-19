@@ -3,6 +3,10 @@ import { AdminController } from './admin.controller';
 import { adminAuthenticate, authorizeRoles } from './admin.middleware';
 import { AdminRole } from '@prisma/client';
 import multer from 'multer';
+import {
+  adminLoginRateLimiter,
+  generalAuthenticatedApiLimiter,
+} from '../../shared/middleware/rate-limit';
 
 const router = Router();
 const adminController = new AdminController();
@@ -48,10 +52,11 @@ const tournamentBannerUpload = multer({
 });
 
 // Auth
-router.post('/login', (req, res) => adminController.login(req, res));
+router.post('/login', adminLoginRateLimiter, (req, res) => adminController.login(req, res));
 
 // All subsequent routes require admin authentication
 router.use(adminAuthenticate);
+router.use(generalAuthenticatedApiLimiter);
 
 // Pillar 1: Dashboard
 router.get('/dashboard/stats', (req, res) => adminController.getStats(req, res));

@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { authenticate } from '../auth/auth.middleware';
 import { CompetitionsController } from './competitions.controller';
+import { generalAuthenticatedApiLimiter } from '../../shared/middleware/rate-limit';
 
 const router = Router();
 const controller = new CompetitionsController();
 
 router.use(authenticate);
+router.use(generalAuthenticatedApiLimiter);
 
 router.post('/', controller.create);
 router.post('/join', controller.join);

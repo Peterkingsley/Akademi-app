@@ -1,19 +1,23 @@
 import { Router } from 'express';
 import { ExamPrepController } from './exam-prep.controller';
 import { authenticate } from '../auth/auth.middleware';
+import { generalAuthenticatedApiLimiter } from '../../shared/middleware/rate-limit';
 
 const router = Router();
 const controller = new ExamPrepController();
 
-router.post('/', authenticate, controller.createPlan);
-router.get('/', authenticate, controller.getPlans);
-router.get('/:id', authenticate, controller.getPlan);
-router.patch('/:id/progress', authenticate, controller.updateProgress);
-router.get('/:id/readiness', authenticate, controller.getReadiness);
-router.get('/:id/mock-history', authenticate, controller.getMockHistory);
-router.post('/:id/mock-exam', authenticate, controller.startMock);
-router.get('/:id/mock-exam/:examId', authenticate, controller.getMockExam);
-router.post('/:id/mock-exam/:examId/submit', authenticate, controller.submitMock);
-router.get('/:id/mock-exam/:examId/results', authenticate, controller.getMockResults);
+router.use(authenticate);
+router.use(generalAuthenticatedApiLimiter);
+
+router.post('/', controller.createPlan);
+router.get('/', controller.getPlans);
+router.get('/:id', controller.getPlan);
+router.patch('/:id/progress', controller.updateProgress);
+router.get('/:id/readiness', controller.getReadiness);
+router.get('/:id/mock-history', controller.getMockHistory);
+router.post('/:id/mock-exam', controller.startMock);
+router.get('/:id/mock-exam/:examId', controller.getMockExam);
+router.post('/:id/mock-exam/:examId/submit', controller.submitMock);
+router.get('/:id/mock-exam/:examId/results', controller.getMockResults);
 
 export default router;

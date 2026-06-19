@@ -3,10 +3,10 @@ import { typesenseService } from './shared/search/typesense.service';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import http from 'http';
 import { config } from './config/env';
 import { connectRedis } from './config/redis';
+import { generalPublicApiLimiter } from './shared/middleware/rate-limit';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import materialsRoutes from './modules/materials/materials.routes';
@@ -41,19 +41,12 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { poli
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 100,
-});
-app.use(limiter);
-
 // Routes
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/materials', materialsRoutes);
 app.use('/sessions', sessionsRoutes);
-app.use('/universities', universitiesRoutes);
+app.use('/universities', generalPublicApiLimiter, universitiesRoutes);
 app.use('/questions', questionsRoutes);
 app.use('/feature-access', featureAccessRoutes);
 app.use('/exam-prep', examPrepRoutes);
@@ -61,7 +54,7 @@ app.use('/competitions', competitionsRoutes);
 app.use('/search', searchRoutes);
 app.use('/admin', adminRoutes);
 app.use('/notifications', notificationRoutes);
-app.use('/waitlist', waitlistRoutes);
+app.use('/waitlist', generalPublicApiLimiter, waitlistRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

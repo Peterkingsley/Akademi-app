@@ -10,6 +10,7 @@ type RedisLike = {
   set: (key: string, value: string, options?: { EX?: number }) => Promise<void>;
   incr: (key: string) => Promise<number>;
   expire: (key: string, ttlSeconds: number) => Promise<void>;
+  ttl: (key: string) => Promise<number>;
   keys: (pattern: string) => Promise<string[]>;
   del: (keys: string[] | string) => Promise<number>;
   ping: () => Promise<string>;
@@ -67,6 +68,12 @@ function createInMemoryRedis(): RedisLike {
       const entry = getEntry(key);
       if (!entry) return;
       store.set(key, { value: entry.value, expiresAt: getNow() + ttlSeconds * 1000 });
+    },
+    async ttl(key) {
+      const entry = getEntry(key);
+      if (!entry) return -2;
+      if (typeof entry.expiresAt !== 'number') return -1;
+      return Math.max(0, Math.ceil((entry.expiresAt - getNow()) / 1000));
     },
     async keys(pattern) {
       return Array.from(store.keys()).filter((k) => matchPattern(k, pattern));
