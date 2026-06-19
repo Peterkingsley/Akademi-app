@@ -19,12 +19,17 @@ export const initWebSocket = (server: http.Server) => {
   setIO(io);
 
   // Redis Adapter Setup
-  if (config.nodeEnv !== 'test' && config.enableRedis) {
+  if (config.nodeEnv !== 'test' && config.enableRedis && config.enableWebSocketRedisAdapter) {
       const pubClient = redisClient;
       const subClient = pubClient.duplicate();
-      subClient.connect().then(() => {
-        io.adapter(createAdapter(pubClient, subClient));
-      });
+      subClient.connect()
+        .then(() => {
+          io.adapter(createAdapter(pubClient, subClient));
+          console.log('WebSocket Redis adapter enabled');
+        })
+        .catch((error) => {
+          console.error('Failed to enable WebSocket Redis adapter:', error);
+        });
   }
 
   // Auth Middleware
