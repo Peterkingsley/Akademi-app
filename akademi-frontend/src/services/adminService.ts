@@ -64,6 +64,17 @@ export interface AdminRateLimitMonitoring {
   topRoutes: RateLimitTopRoute[];
   topUsers: RateLimitTopUser[];
   topIps: RateLimitTopIp[];
+  alerts: {
+    id: string;
+    type: 'auth-abuse' | 'ai-session-spam' | 'competition-spam' | 'socket-offender';
+    severity: 'high' | 'medium';
+    title: string;
+    message: string;
+    count: number;
+    windowMinutes: number;
+    target?: string;
+    lastSeenAt?: string;
+  }[];
   persistence: 'redis' | 'memory-fallback';
 }
 

@@ -4,7 +4,7 @@ import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, AdminRateLimitMonitoring } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
-import { Cpu, Zap, Activity, RefreshCcw, HardDrive, Server, Globe, Database, Gauge, Ban, Clock3 } from "lucide-react-native";
+import { Cpu, Zap, Activity, RefreshCcw, HardDrive, Server, Globe, Database, Gauge, Ban, Clock3, Siren, TriangleAlert } from "lucide-react-native";
 import { Badge } from "../../../components/ui/Badge";
 
 export const SystemMonitoringScreen: React.FC = () => {
@@ -111,6 +111,74 @@ export const SystemMonitoringScreen: React.FC = () => {
               <View style={[styles.progressBarFill, { backgroundColor: colors.primary, width: '65%' }]} />
             </View>
             <Text style={[typography.caption, { color: colors.textMuted, marginTop: 8 }]}>65% of daily soft limit reached</Text>
+          </Card>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>ABUSE ALERTS</Text>
+          <Card style={styles.alertsCard}>
+            {rateLimitData?.alerts?.length ? (
+              rateLimitData.alerts.map((alert, index) => {
+                const isHigh = alert.severity === "high";
+                return (
+                  <View
+                    key={alert.id}
+                    style={[
+                      styles.alertRow,
+                      {
+                        borderBottomColor: colors.border,
+                        backgroundColor: isHigh ? "rgba(239, 68, 68, 0.08)" : "rgba(245, 158, 11, 0.08)",
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.alertIcon,
+                        { backgroundColor: isHigh ? "rgba(239, 68, 68, 0.16)" : "rgba(245, 158, 11, 0.16)" },
+                      ]}
+                    >
+                      {isHigh ? <Siren size={18} color="#EF4444" /> : <TriangleAlert size={18} color="#F59E0B" />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.alertHeaderRow}>
+                        <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700", flex: 1 }]}>
+                          {alert.title}
+                        </Text>
+                        <Badge label={alert.severity} variant={isHigh ? "error" : "warning"} />
+                      </View>
+                      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+                        {alert.message}
+                      </Text>
+                      <View style={styles.alertMetaRow}>
+                        <Text style={[typography.caption, { color: colors.textMuted }]}>
+                          {alert.windowMinutes}m window
+                        </Text>
+                        <Text style={[typography.caption, { color: colors.textMuted }]}>
+                          count {alert.count}
+                        </Text>
+                        {alert.target ? (
+                          <Text style={[typography.caption, { color: colors.textMuted }]} numberOfLines={1}>
+                            target {truncateMiddle(alert.target, 16)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.alertsEmptyState}>
+                <View style={[styles.alertIcon, { backgroundColor: "rgba(34, 197, 94, 0.12)" }]}>
+                  <Activity size={18} color="#22C55E" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700" }]}>No abuse alerts right now</Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+                    Rate limiting is active, but nothing is spiking hard enough to raise an alert yet.
+                  </Text>
+                </View>
+              </View>
+            )}
           </Card>
         </View>
 
@@ -275,6 +343,41 @@ const styles = StyleSheet.create({
   },
   tokenCard: {
     padding: 16,
+  },
+  alertsCard: {
+    padding: 0,
+    overflow: "hidden",
+  },
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  alertsEmptyState: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 16,
+  },
+  alertIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  alertMetaRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+    flexWrap: "wrap",
   },
   rateLimitCard: {
     padding: 16,

@@ -13,6 +13,20 @@ export type RateLimitEventRecord = {
   timestamp: string;
 };
 
+type RateLimitAlertSeverity = 'high' | 'medium';
+
+type RateLimitAlert = {
+  id: string;
+  type: 'auth-abuse' | 'ai-session-spam' | 'competition-spam' | 'socket-offender';
+  severity: RateLimitAlertSeverity;
+  title: string;
+  message: string;
+  count: number;
+  windowMinutes: number;
+  target?: string;
+  lastSeenAt?: string;
+};
+
 const MAX_RECORDS = 500;
 const RECENT_LIMIT = 50;
 const REDIS_KEY = 'monitoring:rate-limits:v1';
@@ -31,6 +45,102 @@ const sortEntries = (map: Map<string, number>, keyLabel: string) =>
     .map(([key, count]) => ({ [keyLabel]: key, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
+
+const filterWindow = (records: RateLimitEventRecord[], windowMinutes: number) => {
+  const cutoff = Date.now() - windowMinutes * 60 * 1000;
+  return records.filter((record) => {
+    const ts = new Date(record.timestamp).getTime();
+    return !Number.isNaN(ts) && ts >= cutoff;
+  });
+};
+
+const buildAlerts = (records: RateLimitEventRecord[]): RateLimitAlert[] => {
+  const alerts: RateLimitAlert[] = [];
+  const window15 = filterWindow(records, 15);
+  const window10 = filterWindow(records, 10);
+  const window5 = filterWindow(records, 5);
+
+  const authNamespaces = new Set(['auth-login', 'auth-register', 'auth-forgot-password', 'admin-login']);
+  const aiNamespaces = new Set(['session-interaction']);
+
+  const authRecords = window15.filter((record) => authNamespaces.has(record.namespaceOrEvent));
+  if (authRecords.length >= 20) {
+    alerts.push({
+      id: 'auth-abuse',
+      type: 'auth-abuse',
+      severity: authRecords.length >= 40 ? 'high' : 'medium',
+      title: 'Auth abuse spike',
+      message: `${authRecords.length} blocked auth attempts in the last 15 minutes.`,
+      count: authRecords.length,
+      windowMinutes: 15,
+      lastSeenAt: authRecords[0]?.timestamp,
+    });
+  }
+
+  const aiRecords = window10.filter((record) => aiNamespaces.has(record.namespaceOrEvent));
+  if (aiRecords.length >= 15) {
+    alerts.push({
+      id: 'ai-session-spam',
+      type: 'ai-session-spam',
+      severity: aiRecords.length >= 30 ? 'high' : 'medium',
+      title: 'AI or session spam pressure',
+      message: `${aiRecords.length} blocked AI or session interaction hits in the last 10 minutes.`,
+      count: aiRecords.length,
+      windowMinutes: 10,
+      lastSeenAt: aiRecords[0]?.timestamp,
+    });
+  }
+
+  const competitionRecords = window10.filter((record) => {
+    const key = `${record.namespaceOrEvent} ${record.routeOrEvent}`.toLowerCase();
+    return key.includes('competition');
+  });
+  if (competitionRecords.length >= 12) {
+    alerts.push({
+      id: 'competition-spam',
+      type: 'competition-spam',
+      severity: competitionRecords.length >= 24 ? 'high' : 'medium',
+      title: 'Competition spam pressure',
+      message: `${competitionRecords.length} blocked competition events in the last 10 minutes.`,
+      count: competitionRecords.length,
+      windowMinutes: 10,
+      lastSeenAt: competitionRecords[0]?.timestamp,
+    });
+  }
+
+  const socketOffenderCounts = new Map<string, { count: number; lastSeenAt?: string }>();
+  for (const record of window5) {
+    if (record.transport !== 'socket') continue;
+    const key = record.userId || record.ip || 'unknown';
+    const current = socketOffenderCounts.get(key);
+    socketOffenderCounts.set(key, {
+      count: (current?.count || 0) + 1,
+      lastSeenAt: current?.lastSeenAt || record.timestamp,
+    });
+  }
+
+  const topSocketOffender = Array.from(socketOffenderCounts.entries())
+    .sort((a, b) => b[1].count - a[1].count)[0];
+
+  if (topSocketOffender && topSocketOffender[1].count >= 8) {
+    alerts.push({
+      id: 'socket-offender',
+      type: 'socket-offender',
+      severity: topSocketOffender[1].count >= 16 ? 'high' : 'medium',
+      title: 'Repeated socket throttling from one source',
+      message: `${topSocketOffender[1].count} blocked socket events from ${topSocketOffender[0]} in the last 5 minutes.`,
+      count: topSocketOffender[1].count,
+      windowMinutes: 5,
+      target: topSocketOffender[0],
+      lastSeenAt: topSocketOffender[1].lastSeenAt,
+    });
+  }
+
+  return alerts.sort((a, b) => {
+    if (a.severity === b.severity) return b.count - a.count;
+    return a.severity === 'high' ? -1 : 1;
+  });
+};
 
 const buildSnapshot = (records: RateLimitEventRecord[]) => {
   const recent = records.slice(0, RECENT_LIMIT);
@@ -54,6 +164,7 @@ const buildSnapshot = (records: RateLimitEventRecord[]) => {
     topRoutes: sortEntries(byRoute, 'routeOrEvent'),
     topUsers: sortEntries(byUser, 'userId'),
     topIps: sortEntries(byIp, 'ip'),
+    alerts: buildAlerts(records),
     persistence: redisClient.isOpen ? 'redis' : 'memory-fallback',
   };
 };
