@@ -297,12 +297,9 @@ export class MaterialsService {
       ContentLength: validated.fileSize,
     });
 
-    let presignedUrl: string;
-    try {
-      presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-    } catch (error) {
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }).catch((error) => {
       this.mapStorageError(error, 'Material storage is currently unavailable.');
-    }
+    });
 
     return {
       materialId: material.id,
