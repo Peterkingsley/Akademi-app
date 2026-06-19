@@ -104,12 +104,26 @@ function createInMemoryRedis(): RedisLike {
 const inMemoryRedis = createInMemoryRedis();
 const RETRY_WINDOW_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
+const MAX_RECONNECT_ATTEMPTS = Math.ceil(RETRY_WINDOW_MS / RETRY_DELAY_MS);
 
 let redisState: RedisState = config.enableRedis ? 'connecting' : 'disabled';
 let lastRedisError: string | null = null;
+let suppressRedisReconnects = false;
 
 const rawRedisClient: RedisClientType | null = config.enableRedis
-  ? createClient({ url: config.redisUrl })
+  ? createClient({
+      url: config.redisUrl,
+      socket: {
+        reconnectStrategy: (retries: number) => {
+          if (suppressRedisReconnects || retries >= MAX_RECONNECT_ATTEMPTS) {
+            suppressRedisReconnects = true;
+            markRedisState('degraded', lastRedisError || 'Redis reconnect limit reached');
+            return false;
+          }
+          return RETRY_DELAY_MS;
+        },
+      },
+    })
   : null;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -139,6 +153,9 @@ if (rawRedisClient) {
   });
 
   rawRedisClient.on('reconnecting', () => {
+    if (suppressRedisReconnects) {
+      return;
+    }
     markRedisState('connecting');
     if (config.nodeEnv !== 'test') {
       console.warn('Redis client reconnecting...');
@@ -222,6 +239,8 @@ export const connectRedis = async () => {
     return;
   }
 
+  suppressRedisReconnects = false;
+
   if (rawRedisClient.isOpen) {
     markRedisState('connected');
     return;
@@ -248,6 +267,12 @@ export const connectRedis = async () => {
   }
 
   markRedisState('degraded', lastRedisError || 'Redis connection timed out');
+  suppressRedisReconnects = true;
+  try {
+    await rawRedisClient.disconnect();
+  } catch {
+    // ignore disconnect errors; the goal is to stop reconnect churn
+  }
   if (config.nodeEnv !== 'test') {
     console.warn('Redis unavailable after 30 seconds; starting in degraded mode');
   }
