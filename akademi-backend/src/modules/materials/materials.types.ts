@@ -21,6 +21,9 @@ export interface UploadMaterialRequest {
   semester_end?: string | null;
   academic_year?: string | null;
   file_type: FileType;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
 }
 
 export interface UploadMaterialResponse {

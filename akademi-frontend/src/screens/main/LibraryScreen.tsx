@@ -158,9 +158,28 @@ export const LibraryScreen: React.FC = () => {
       const fileType =
         fileExtension === "PDF"
           ? "PDF"
-          : ["JPG", "JPEG", "PNG"].includes(fileExtension || "")
+          : ["JPG", "JPEG", "PNG", "WEBP"].includes(fileExtension || "")
             ? "IMAGE"
             : "DOC";
+      const mimeType =
+        file.mimeType ||
+        (fileType === "PDF"
+          ? "application/pdf"
+          : fileType === "IMAGE"
+            ? fileExtension === "PNG"
+              ? "image/png"
+              : fileExtension === "WEBP"
+                ? "image/webp"
+                : "image/jpeg"
+            : fileExtension === "DOC"
+              ? "application/msword"
+              : fileExtension === "TXT"
+                ? "text/plain"
+                : fileExtension === "MD"
+                  ? "text/markdown"
+                  : fileExtension === "CSV"
+                    ? "text/csv"
+                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
       const { materialId, presignedUrl } = await materialService.uploadMaterial({
         title: uploadTitle.trim(),
@@ -173,6 +192,9 @@ export const LibraryScreen: React.FC = () => {
         semester_start: selectedCourseMeta?.semester_start || null,
         semester_end: selectedCourseMeta?.semester_end || null,
         file_type: fileType,
+        file_name: file.name,
+        file_size: file.size || 0,
+        mime_type: mimeType,
       });
 
       const response = await fetch(file.uri);
@@ -181,7 +203,7 @@ export const LibraryScreen: React.FC = () => {
       await fetch(presignedUrl, {
         method: "PUT",
         body: blob,
-        headers: { "Content-Type": "application/octet-stream" },
+        headers: { "Content-Type": mimeType },
       });
 
       await materialService.confirmUpload(materialId);

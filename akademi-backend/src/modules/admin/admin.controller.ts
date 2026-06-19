@@ -246,10 +246,11 @@ export class AdminController {
 
   async getMaterialDownloadUrl(req: Request, res: Response) {
     try {
-      const url = await adminService.getMaterialDownloadUrl(req.params.id);
+      const url = await adminService.getMaterialDownloadUrl(req.params.id, req.admin!.role);
       res.json({ url });
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      const status = error.message === 'Material not found' ? 404 : 403;
+      res.status(status).json({ message: error.message });
     }
   }
 

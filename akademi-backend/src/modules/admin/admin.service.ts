@@ -840,8 +840,8 @@ export class AdminService {
     });
   }
 
-  async getMaterialDownloadUrl(id: string) {
-    return this.materialsService.getDownloadUrl(id);
+  async getMaterialDownloadUrl(id: string, role: AdminRole) {
+    return this.materialsService.getDownloadUrl(id, { requestingAdminRole: role });
   }
 
   async approveMaterial(id: string, adminId: string) {

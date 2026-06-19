@@ -15,10 +15,13 @@ export class MaterialsController {
 
   async getOne(req: Request, res: Response) {
     try {
-      const material = await materialsService.getMaterial(req.params.id);
+      const material = await materialsService.getMaterial(req.params.id, {
+        requestingUserId: req.user!.userId,
+      });
       res.status(200).json(material);
     } catch (error: any) {
-      res.status(404).json({ message: error.message });
+      const status = error.message === 'Material not found' ? 404 : 403;
+      res.status(status).json({ message: error.message });
     }
   }
 
@@ -42,10 +45,13 @@ export class MaterialsController {
 
   async getDownloadUrl(req: Request, res: Response) {
     try {
-      const url = await materialsService.getDownloadUrl(req.params.id);
+      const url = await materialsService.getDownloadUrl(req.params.id, {
+        requestingUserId: req.user!.userId,
+      });
       res.status(200).json({ url });
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      const status = error.message === 'Material not found' ? 404 : 403;
+      res.status(status).json({ message: error.message });
     }
   }
 

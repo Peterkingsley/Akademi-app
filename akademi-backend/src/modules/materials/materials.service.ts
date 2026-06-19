@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
-import { Feature, VerificationStatus } from '@prisma/client';
+import { AdminRole, Feature, FileType, VerificationStatus } from '@prisma/client';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
@@ -20,6 +20,32 @@ const s3Client = new S3Client({
 });
 
 export class MaterialsService {
+  private readonly allowedUploadMimeTypes: Record<FileType, string[]> = {
+    PDF: ['application/pdf'],
+    DOC: [
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'text/csv',
+      'application/json',
+      'text/json',
+    ],
+    IMAGE: ['image/jpeg', 'image/png', 'image/webp'],
+  };
+
+  private readonly allowedUploadExtensions: Record<FileType, string[]> = {
+    PDF: ['pdf'],
+    DOC: ['doc', 'docx', 'txt', 'md', 'csv', 'json'],
+    IMAGE: ['jpg', 'jpeg', 'png', 'webp'],
+  };
+
+  private readonly uploadSizeLimits: Record<FileType, number> = {
+    PDF: 20 * 1024 * 1024,
+    DOC: 20 * 1024 * 1024,
+    IMAGE: 10 * 1024 * 1024,
+  };
+
   private shuffleQuestions<T>(items: T[]) {
     const copy = [...items];
     for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -44,7 +70,88 @@ export class MaterialsService {
     });
   }
 
-  async getMaterial(id: string) {
+  private getFileExtension(fileName: string) {
+    const parts = fileName.trim().split('.');
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
+  }
+
+  private normalizeMimeType(mimeType: string) {
+    return mimeType.trim().toLowerCase();
+  }
+
+  private sanitizeFileName(fileName: string) {
+    return fileName.replace(/[^\w.\-() ]+/g, '_').trim();
+  }
+
+  private assertUploadPayload(data: UploadMaterialRequest) {
+    const title = data.title?.trim();
+    if (!title || title.length < 3 || title.length > 180) {
+      throw new Error('Title must be between 3 and 180 characters');
+    }
+
+    if (!data.university?.trim() || !data.faculty?.trim() || !data.department?.trim()) {
+      throw new Error('Academic profile details are required for uploads');
+    }
+
+    const fileName = this.sanitizeFileName(data.file_name || '');
+    if (!fileName || fileName.length > 180) {
+      throw new Error('A valid file name is required');
+    }
+
+    const fileSize = Number(data.file_size);
+    if (!Number.isFinite(fileSize) || fileSize <= 0) {
+      throw new Error('A valid file size is required');
+    }
+
+    const mimeType = this.normalizeMimeType(data.mime_type || '');
+    if (!mimeType) {
+      throw new Error('A valid MIME type is required');
+    }
+
+    const extension = this.getFileExtension(fileName);
+    const allowedMimeTypes = this.allowedUploadMimeTypes[data.file_type] || [];
+    const allowedExtensions = this.allowedUploadExtensions[data.file_type] || [];
+    const maxSize = this.uploadSizeLimits[data.file_type];
+
+    if (!allowedMimeTypes.includes(mimeType)) {
+      throw new Error(`Unsupported MIME type for ${data.file_type} upload`);
+    }
+
+    if (!allowedExtensions.includes(extension)) {
+      throw new Error(`Unsupported file extension for ${data.file_type} upload`);
+    }
+
+    if (fileSize > maxSize) {
+      throw new Error(`File exceeds the ${Math.round(maxSize / (1024 * 1024))}MB upload limit for ${data.file_type}`);
+    }
+
+    return {
+      title,
+      fileName,
+      fileSize,
+      mimeType,
+      extension,
+      courseCode: data.course_code?.trim().toUpperCase() || null,
+      academicYear: data.academic_year?.trim() || null,
+      university: data.university.trim(),
+      faculty: data.faculty.trim(),
+      department: data.department.trim(),
+    };
+  }
+
+  private canAccessMaterial(material: { verification_status: VerificationStatus; uploaded_by: string }, requestingUserId?: string | null, requestingAdminRole?: AdminRole | null) {
+    if (material.verification_status === VerificationStatus.VERIFIED) {
+      return true;
+    }
+
+    if (requestingAdminRole) {
+      return true;
+    }
+
+    return Boolean(requestingUserId && material.uploaded_by === requestingUserId);
+  }
+
+  async getMaterial(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
     let docImageDiagnostic: { code: string; message: string; detail?: string } | null = null;
     let material = await prisma.material.findUnique({
       where: { id },
@@ -59,6 +166,10 @@ export class MaterialsService {
 
     if (!material) {
       throw new Error('Material not found');
+    }
+
+    if (!this.canAccessMaterial(material, access?.requestingUserId, access?.requestingAdminRole)) {
+      throw new Error('You do not have access to this material');
     }
 
     const needsDocReingest =
@@ -124,7 +235,8 @@ export class MaterialsService {
   }
 
   async createUpload(userId: string, data: UploadMaterialRequest) {
-    const courseCode = data.course_code?.trim().toUpperCase() || null;
+    const validated = this.assertUploadPayload(data);
+    const courseCode = validated.courseCode;
     const matchingStudentCourse = courseCode
       ? await prisma.studentCourse.findFirst({
           where: {
@@ -147,16 +259,16 @@ export class MaterialsService {
 
     const material = await prisma.material.create({
       data: {
-        title: data.title,
+        title: validated.title,
         course_code: courseCode,
-        university: data.university,
-        faculty: data.faculty,
-        department: data.department,
+        university: validated.university,
+        faculty: validated.faculty,
+        department: validated.department,
         level: data.level,
         semester,
         semester_start: semesterStart,
         semester_end: semesterEnd,
-        academic_year: data.academic_year?.trim() || this.getAcademicYear(semesterStart),
+        academic_year: validated.academicYear || this.getAcademicYear(semesterStart),
         file_type: data.file_type,
         verification_status: VerificationStatus.PENDING,
         uploaded_by: userId,
@@ -165,7 +277,7 @@ export class MaterialsService {
       },
     });
 
-    const fileKey = `materials/pending/${material.id}`;
+    const fileKey = `materials/pending/${material.id}.${validated.extension}`;
 
     // Update material with file_ref
     await prisma.material.update({
@@ -176,7 +288,8 @@ export class MaterialsService {
     const command = new PutObjectCommand({
       Bucket: config.r2BucketName,
       Key: fileKey,
-      ContentType: 'application/octet-stream', // Generic, or use file_type to map
+      ContentType: validated.mimeType,
+      ContentLength: validated.fileSize,
     });
 
     const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
@@ -187,15 +300,16 @@ export class MaterialsService {
     };
   }
 
-  async getDownloadUrl(id: string) {
-    const material = await this.getMaterial(id);
+  async getDownloadUrl(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
+    const material = await this.getMaterial(id, access);
 
     const command = new GetObjectCommand({
       Bucket: config.r2BucketName,
       Key: material.file_ref,
+      ResponseContentDisposition: `attachment; filename="${this.sanitizeFileName(material.title || 'material')}"`,
     });
 
-    return getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    return getSignedUrl(s3Client, command, { expiresIn: 900 });
   }
 
   async getQuestions(id: string, userId: string, limit?: number) {

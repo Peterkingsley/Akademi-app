@@ -84,14 +84,14 @@ router.get('/waitlist', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adm
 router.post('/waitlist/email-campaign', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.emailWaitlistEntries(req, res));
 
 // Pillar 3: Content Moderation
-router.get('/materials/flagged', (req, res) => adminController.getFlaggedMaterials(req, res));
-router.get('/materials/pending', (req, res) => adminController.getPendingMaterials(req, res));
-router.get('/materials/verified', (req, res) => adminController.getVerifiedMaterials(req, res));
-router.get('/materials/archived', (req, res) => adminController.getArchivedMaterials(req, res));
-router.get('/materials/:id/download', (req, res) => adminController.getMaterialDownloadUrl(req, res));
-router.patch('/materials/:id/approve', (req, res) => adminController.approveMaterial(req, res));
-router.patch('/materials/:id/takedown', (req, res) => adminController.takedownMaterial(req, res));
-router.patch('/materials/:id/restore', (req, res) => adminController.restoreMaterial(req, res));
+router.get('/materials/flagged', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getFlaggedMaterials(req, res));
+router.get('/materials/pending', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getPendingMaterials(req, res));
+router.get('/materials/verified', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getVerifiedMaterials(req, res));
+router.get('/materials/archived', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getArchivedMaterials(req, res));
+router.get('/materials/:id/download', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getMaterialDownloadUrl(req, res));
+router.patch('/materials/:id/approve', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.approveMaterial(req, res));
+router.patch('/materials/:id/takedown', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.takedownMaterial(req, res));
+router.patch('/materials/:id/restore', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.restoreMaterial(req, res));
 router.post('/materials/:id/force-verify', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.forceVerify(req, res));
 
 // Pillar 4: Discipline Documents

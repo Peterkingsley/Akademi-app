@@ -92,6 +92,9 @@ export const materialService = {
     semester_end?: string | null;
     academic_year?: string | null;
     file_type: string;
+    file_name: string;
+    file_size: number;
+    mime_type: string;
   }) => {
     const { data } = await api.post<{ materialId: string; presignedUrl: string }>(
       "/materials/upload",

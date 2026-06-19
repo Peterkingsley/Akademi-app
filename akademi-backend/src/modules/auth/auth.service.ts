@@ -293,7 +293,7 @@ export class AuthService {
       include: { user: true },
     });
 
-    if (!refreshTokenRecord || refreshTokenRecord.user.is_deleted) {
+    if (!refreshTokenRecord || refreshTokenRecord.user.is_deleted || refreshTokenRecord.user.is_banned) {
       throw new Error('Invalid or expired refresh token');
     }
 
@@ -324,13 +324,17 @@ export class AuthService {
     };
   }
 
-  async logout(token: string): Promise<void> {
+  async logout(token: string, userId: string): Promise<void> {
     if (!token) throw new Error("Refresh token is required");
     const tokenHash = this.hashToken(token);
-    await prisma.refreshToken.updateMany({
-      where: { token_hash: tokenHash },
+    const result = await prisma.refreshToken.updateMany({
+      where: { token_hash: tokenHash, user_id: userId },
       data: { is_active: false },
     });
+
+    if (result.count === 0) {
+      throw new Error('Refresh token not found for this account');
+    }
   }
 
   async logoutAll(userId: string): Promise<void> {
@@ -395,6 +399,11 @@ export class AuthService {
         verification_token_expires_at: null,
       },
     });
+
+    await prisma.refreshToken.updateMany({
+      where: { user_id: user.id },
+      data: { is_active: false },
+    });
   }
 
   async resendVerification(email: string): Promise<void> {
@@ -446,6 +455,11 @@ export class AuthService {
     await prisma.user.update({
       where: { id: userId },
       data: { password_hash: newPasswordHash },
+    });
+
+    await prisma.refreshToken.updateMany({
+      where: { user_id: userId },
+      data: { is_active: false },
     });
   }
 }

@@ -15,13 +15,13 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
 
-    // Check if user is deleted
+    // Deny deleted or banned users even if they still hold a valid token.
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { is_deleted: true }
+      select: { is_deleted: true, is_banned: true }
     });
 
-    if (!user || user.is_deleted) {
+    if (!user || user.is_deleted || user.is_banned) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
@@ -43,13 +43,13 @@ export const optionalAuthenticate = async (req: Request, res: Response, next: Ne
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
 
-    // Check if user is deleted
+    // Ignore deleted or banned accounts for optional auth.
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { is_deleted: true }
+      select: { is_deleted: true, is_banned: true }
     });
 
-    if (user && !user.is_deleted) {
+    if (user && !user.is_deleted && !user.is_banned) {
       req.user = decoded;
     }
     next();
