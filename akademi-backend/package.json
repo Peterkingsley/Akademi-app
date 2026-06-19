@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/app.ts",
     "build": "prisma generate && node fix-db.js && tsc",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit --pretty false",
+    "ci:check": "npm run typecheck",
     "start": "node dist/app.js",
     "migrate": "prisma migrate deploy && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
     "render:build": "npm run build && npx prisma migrate deploy && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
