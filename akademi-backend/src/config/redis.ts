@@ -104,24 +104,14 @@ function createInMemoryRedis(): RedisLike {
 const inMemoryRedis = createInMemoryRedis();
 const RETRY_WINDOW_MS = 30_000;
 const RETRY_DELAY_MS = 2_000;
-const MAX_RECONNECT_ATTEMPTS = Math.ceil(RETRY_WINDOW_MS / RETRY_DELAY_MS);
-
 let redisState: RedisState = config.enableRedis ? 'connecting' : 'disabled';
 let lastRedisError: string | null = null;
-let suppressRedisReconnects = false;
 
 const rawRedisClient: RedisClientType | null = config.enableRedis
   ? createClient({
       url: config.redisUrl,
       socket: {
-        reconnectStrategy: (retries: number) => {
-          if (suppressRedisReconnects || retries >= MAX_RECONNECT_ATTEMPTS) {
-            suppressRedisReconnects = true;
-            markRedisState('degraded', lastRedisError || 'Redis reconnect limit reached');
-            return false;
-          }
-          return RETRY_DELAY_MS;
-        },
+        reconnectStrategy: false,
       },
     })
   : null;
@@ -153,9 +143,6 @@ if (rawRedisClient) {
   });
 
   rawRedisClient.on('reconnecting', () => {
-    if (suppressRedisReconnects) {
-      return;
-    }
     markRedisState('connecting');
     if (config.nodeEnv !== 'test') {
       console.warn('Redis client reconnecting...');
@@ -239,8 +226,6 @@ export const connectRedis = async () => {
     return;
   }
 
-  suppressRedisReconnects = false;
-
   if (rawRedisClient.isOpen) {
     markRedisState('connected');
     return;
@@ -260,16 +245,17 @@ export const connectRedis = async () => {
     } catch (error) {
       markRedisState('connecting', error);
       if (config.nodeEnv !== 'test') {
-        console.warn(`Redis connection attempt ${attempts} failed; retrying...`, error);
+        console.warn(`Redis connection attempt ${attempts} failed; retrying...`, error instanceof Error ? error.message : error);
       }
       await sleep(RETRY_DELAY_MS);
     }
   }
 
   markRedisState('degraded', lastRedisError || 'Redis connection timed out');
-  suppressRedisReconnects = true;
   try {
-    await rawRedisClient.disconnect();
+    if (rawRedisClient.isOpen) {
+      await rawRedisClient.disconnect();
+    }
   } catch {
     // ignore disconnect errors; the goal is to stop reconnect churn
   }
