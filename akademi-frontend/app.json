@@ -14,7 +14,7 @@
     "icon": "./assets/akademi-logo-icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/akademi-logo-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
