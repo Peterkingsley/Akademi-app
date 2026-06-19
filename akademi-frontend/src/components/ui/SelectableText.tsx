@@ -39,6 +39,8 @@ const normalizeText = (value: string) =>
     .trim();
 
 const isBulletLine = (line: string) => /^(?:\u2022|[-*])\s+/.test(line);
+const explicitDisplayMathPattern = /^\\\[(.*)\\\]$/s;
+const explicitInlineMathPattern = /^\\\((.*)\\\)$/s;
 
 const looksLikeStandaloneMath = (line: string) => {
   const trimmed = line.trim();
@@ -55,6 +57,27 @@ const looksLikeStandaloneMath = (line: string) => {
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
+
+const getRenderedLine = (line: string) => {
+  const trimmed = line.trim();
+  const explicitDisplay = trimmed.match(explicitDisplayMathPattern);
+  const explicitInline = trimmed.match(explicitInlineMathPattern);
+  const explicitMatch = explicitDisplay || explicitInline;
+
+  if (explicitMatch) {
+    const inner = explicitMatch[1]?.trim() || "";
+    if (looksLikeStandaloneMath(inner)) {
+      return `<div class="math-line">${escapeHtml(trimmed)}</div>`;
+    }
+    return `<div class="paragraph">${escapeHtml(inner)}</div>`;
+  }
+
+  const safeLine = escapeHtml(trimmed);
+  if (looksLikeStandaloneMath(trimmed)) {
+    return `<div class="math-line">${wrapDisplayMath(safeLine)}</div>`;
+  }
+  return `<div class="paragraph">${safeLine}</div>`;
+};
 
 const buildHtmlContent = (content: string) => {
   const blocks = normalizeText(content).split(/\n{2,}/);
@@ -82,15 +105,7 @@ const buildHtmlContent = (content: string) => {
         return `<ul>${items}</ul>`;
       }
 
-      return lines
-        .map((line) => {
-          const safeLine = escapeHtml(line);
-          if (looksLikeStandaloneMath(line)) {
-            return `<div class="math-line">${wrapDisplayMath(safeLine)}</div>`;
-          }
-          return `<div class="paragraph">${safeLine}</div>`;
-        })
-        .join("");
+      return lines.map(getRenderedLine).join("");
     })
     .join("");
 };
@@ -192,10 +207,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       let hasRenderedMath = false;
 
       function renderMath() {
-        if (hasRenderedMath) {
-          updateHeight();
-          return;
-        }
+        if (hasRenderedMath) return;
 
         try {
           if (window.renderMathInElement) {
@@ -213,6 +225,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         } catch (error) {}
         hasRenderedMath = true;
         updateHeight();
+        setTimeout(updateHeight, 180);
       }
 
       function waitForMathRenderer(attempt) {

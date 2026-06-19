@@ -28,6 +28,8 @@ const normalizeText = (value: string) =>
     .trim();
 
 const isBulletLine = (line: string) => /^(?:\u2022|[-*])\s+/.test(line);
+const explicitDisplayMathPattern = /^\\\[(.*)\\\]$/s;
+const explicitInlineMathPattern = /^\\\((.*)\\\)$/s;
 
 const looksLikeStandaloneMath = (line: string) => {
   const trimmed = line.trim();
@@ -44,6 +46,27 @@ const looksLikeStandaloneMath = (line: string) => {
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
+
+const getRenderedLine = (line: string) => {
+  const trimmed = line.trim();
+  const explicitDisplay = trimmed.match(explicitDisplayMathPattern);
+  const explicitInline = trimmed.match(explicitInlineMathPattern);
+  const explicitMatch = explicitDisplay || explicitInline;
+
+  if (explicitMatch) {
+    const inner = explicitMatch[1]?.trim() || "";
+    if (looksLikeStandaloneMath(inner)) {
+      return `<div class="math-line">${escapeHtml(trimmed)}</div>`;
+    }
+    return `<div class="paragraph">${escapeHtml(inner)}</div>`;
+  }
+
+  const safeLine = escapeHtml(trimmed);
+  if (looksLikeStandaloneMath(trimmed)) {
+    return `<div class="math-line">${wrapDisplayMath(safeLine)}</div>`;
+  }
+  return `<div class="paragraph">${safeLine}</div>`;
+};
 
 const buildHtmlContent = (content: string) => {
   const blocks = normalizeText(content).split(/\n{2,}/);
@@ -71,15 +94,7 @@ const buildHtmlContent = (content: string) => {
         return `<ul>${items}</ul>`;
       }
 
-      return lines
-        .map((line) => {
-          const safeLine = escapeHtml(line);
-          if (looksLikeStandaloneMath(line)) {
-            return `<div class="math-line">${wrapDisplayMath(safeLine)}</div>`;
-          }
-          return `<div class="paragraph">${safeLine}</div>`;
-        })
-        .join("");
+      return lines.map(getRenderedLine).join("");
     })
     .join("");
 };
@@ -151,15 +166,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
       let hasRenderedMath = false;
 
       function render() {
-        if (hasRenderedMath) {
-          const nextHeight = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight,
-            32
-          );
-          window.ReactNativeWebView.postMessage(String(nextHeight));
-          return;
-        }
+        if (hasRenderedMath) return;
 
         try {
           if (window.renderMathInElement) {
@@ -183,6 +190,14 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
           32
         );
         window.ReactNativeWebView.postMessage(String(nextHeight));
+        setTimeout(function () {
+          const settledHeight = Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight,
+            32
+          );
+          window.ReactNativeWebView.postMessage(String(settledHeight));
+        }, 180);
       }
 
       function waitForMathRenderer(attempt) {

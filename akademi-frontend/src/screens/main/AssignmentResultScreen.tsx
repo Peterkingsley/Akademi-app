@@ -180,7 +180,6 @@ export const AssignmentResultScreen: React.FC = () => {
           <Text style={[styles.monoLabel, typography.mono]}>YOUR INQUIRY</Text>
           <SelectableText
             content={question || "No question found."}
-            fixedHeight={360}
             onAskAkademi={(text) => {
               setSelectedText(text);
               setIsAskModalVisible(true);
@@ -202,7 +201,6 @@ export const AssignmentResultScreen: React.FC = () => {
           <View style={styles.answerContainer}>
             <SelectableText
               content={answer || "Akademi is still preparing a reply."}
-              fixedHeight={420}
               onAskAkademi={(text) => {
                 setSelectedText(text);
                 setIsAskModalVisible(true);
