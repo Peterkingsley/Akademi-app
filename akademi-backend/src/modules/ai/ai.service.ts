@@ -74,6 +74,9 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 }
 
 export class AIService {
+  private readonly boardImperativeNotePattern =
+    /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
+
   private splitEquationChain(math: string) {
     const compact = math.replace(/\s+/g, ' ').trim();
     if (!compact) return [];
@@ -164,64 +167,71 @@ export class AIService {
     return symbolMatches.length >= 2 && letterWords.length <= 2;
   }
 
-  private extractLatexCandidates(value: string) {
-    if (!value) return { cleanedText: '', extractedMath: [] as string[] };
+  private extractStandaloneMath(value: string) {
+    if (!value) return { cleanedText: '', extractedMath: '' };
 
-    let working = value;
-    const extractedMath: string[] = [];
+    const trimmed = value.trim();
+    const explicitDisplayMatch = trimmed.match(/^\\\[(.*)\\\]$/s);
+    const explicitInlineMatch = trimmed.match(/^\\\((.*)\\\)$/s);
+    const explicitMatch = explicitDisplayMatch || explicitInlineMatch;
 
-    const pullMatch = (regex: RegExp, formatter?: (match: RegExpExecArray) => string) => {
-      let match: RegExpExecArray | null;
-      while ((match = regex.exec(working)) !== null) {
-        const raw = formatter ? formatter(match) : (match[1] || match[0]);
-        const normalized = this.normalizeLatexExpression(raw);
-        if (normalized) extractedMath.push(normalized);
-      }
-      working = working.replace(regex, ' ');
-    };
+    if (explicitMatch?.[1]) {
+      const normalized = this.normalizeLatexExpression(explicitMatch[1]);
+      return { cleanedText: '', extractedMath: normalized };
+    }
 
-    pullMatch(/\$([^$]+)\$/g);
-    pullMatch(/\\\((.+?)\\\)/g);
-
-    const sentences = working
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
-
-    const keptSentences: string[] = [];
-
-    sentences.forEach((sentence) => {
-      if (this.looksLikeStandaloneMath(sentence)) {
-        const normalized = this.normalizeLatexExpression(sentence);
-        if (normalized) {
-          extractedMath.push(normalized);
-          return;
-        }
-      }
-      keptSentences.push(sentence);
-    });
-
-    const uniqueMath = [...new Set(extractedMath.filter(Boolean))];
+    if (this.looksLikeStandaloneMath(trimmed)) {
+      return {
+        cleanedText: '',
+        extractedMath: this.normalizeLatexExpression(trimmed),
+      };
+    }
 
     return {
-      cleanedText: keptSentences.join(' ').replace(/\s+/g, ' ').trim(),
-      extractedMath: uniqueMath,
+      cleanedText: trimmed.replace(/\s+/g, ' ').trim(),
+      extractedMath: '',
     };
   }
 
+  private cleanBoardCopy(value: string) {
+    return value
+      .replace(/\s+,/g, ',')
+      .replace(/\s+\./g, '.')
+      .replace(/\s+:/g, ':')
+      .replace(/\(\s+\)/g, '()')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  private shouldSuppressBoardNote(note: string, text: string) {
+    if (!note) return true;
+
+    const normalizedNote = note.trim();
+    if (!normalizedNote) return true;
+    if (this.boardImperativeNotePattern.test(normalizedNote)) return true;
+
+    const normalizedText = text.trim().toLowerCase();
+    const noteComparable = normalizedNote.toLowerCase();
+    if (normalizedText && (normalizedText.includes(noteComparable) || noteComparable.includes(normalizedText))) {
+      return true;
+    }
+
+    return false;
+  }
+
   private normalizeBoardStep(step: { id: string; type: string; text: string; math: string; note: string }) {
-    const textExtraction = this.extractLatexCandidates(step.text);
-    const noteExtraction = this.extractLatexCandidates(step.note);
+    const textExtraction = this.extractStandaloneMath(step.text);
+    const noteExtraction = this.extractStandaloneMath(step.note);
     const existingMath = this.normalizeLatexExpression(step.math);
-    const combinedMathParts = [
+    const fallbackMathParts = [
       existingMath,
-      ...(existingMath ? [] : textExtraction.extractedMath),
-      ...(existingMath ? [] : noteExtraction.extractedMath),
+      ...(existingMath ? [] : [textExtraction.extractedMath, noteExtraction.extractedMath]),
     ].filter(Boolean);
 
-    const uniqueMath = [...new Set(combinedMathParts)];
-    const text = textExtraction.cleanedText || step.text.trim();
-    const note = noteExtraction.cleanedText || step.note.trim();
+    const uniqueMath = [...new Set(fallbackMathParts)];
+    const text = this.cleanBoardCopy(textExtraction.cleanedText || step.text.trim());
+    const rawNote = this.cleanBoardCopy(noteExtraction.cleanedText || step.note.trim());
+    const note = this.shouldSuppressBoardNote(rawNote, text) ? '' : rawNote;
 
     const shortenedText = text.length > 180
       ? text.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').trim()

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
@@ -25,8 +25,14 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   fontSize = 17,
   block = true,
 }) => {
-  const [height, setHeight] = useState(block ? 92 : 52);
+  const [height, setHeight] = useState(block ? 48 : 28);
+  const isHeightLockedRef = useRef(false);
   const displayMode = block ? "block" : "inline";
+
+  useEffect(() => {
+    isHeightLockedRef.current = false;
+    setHeight(block ? 48 : 28);
+  }, [backgroundColor, block, fontSize, latex, textColor]);
 
   const html = useMemo(
     () => `
@@ -53,13 +59,13 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
       #formula {
         display: flex;
         justify-content: ${block ? "flex-start" : "center"};
-        align-items: center;
-        min-height: 24px;
+        align-items: flex-start;
+        min-height: ${block ? "32px" : "24px"};
         font-size: ${fontSize}px;
         line-height: 1.4;
       }
       .katex-display {
-        margin: 0.15em 0 0;
+        margin: 0.05em 0 0;
       }
       .katex {
         color: ${textColor};
@@ -69,7 +75,15 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   <body>
     <div id="formula"></div>
     <script>
+      let hasRendered = false;
+
+      function postFinalHeight() {
+        const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, ${block ? 32 : 24});
+        window.ReactNativeWebView.postMessage(String(height));
+      }
+
       function render() {
+        if (hasRendered) return;
         try {
           katex.render(String.raw\`${escapeHtml(latex)}\`, document.getElementById('formula'), {
             throwOnError: false,
@@ -79,12 +93,32 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         } catch (error) {
           document.getElementById('formula').textContent = ${JSON.stringify(latex)};
         }
-        const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, 24);
-        window.ReactNativeWebView.postMessage(String(height));
+        hasRendered = true;
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            setTimeout(postFinalHeight, 60);
+          });
+        });
       }
-      document.addEventListener('DOMContentLoaded', render);
-      window.addEventListener('load', render);
-      setTimeout(render, 120);
+
+      function waitForKatex(attempt) {
+        if (window.katex) {
+          render();
+          return;
+        }
+
+        if (attempt >= 20) {
+          render();
+          return;
+        }
+
+        setTimeout(function () {
+          waitForKatex(attempt + 1);
+        }, 60);
+      }
+
+      document.addEventListener('DOMContentLoaded', function () { waitForKatex(0); });
+      window.addEventListener('load', function () { waitForKatex(0); });
     </script>
   </body>
 </html>`,
@@ -103,9 +137,11 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         style={[styles.webview, { height, backgroundColor }]}
         containerStyle={{ backgroundColor }}
         onMessage={(event) => {
+          if (isHeightLockedRef.current) return;
           const nextHeight = Number(event.nativeEvent.data);
           if (Number.isFinite(nextHeight) && nextHeight > 0) {
-            setHeight(Math.min(Math.max(nextHeight + 8, block ? 44 : 28), 220));
+            isHeightLockedRef.current = true;
+            setHeight(Math.min(Math.max(nextHeight + 4, block ? 32 : 24), 220));
           }
         }}
       />

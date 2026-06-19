@@ -206,15 +206,21 @@ Rules:
 - Each step must be short and classroom-clear.
 - Show one operation or reasoning move per step.
 - Keep "text" to one or two short teaching sentences, not a paragraph.
+- "text" must be a complete teaching sentence. Never leave blanks like "for , the derivative is ." or "we get ,".
+- If you mention a term, variable, derivative, value, or rule in "text", write it explicitly there. Do not assume the reader will infer it from "math".
 - If a solution is long, split it into more steps instead of stuffing many ideas into one step.
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
 - Keep each "math" line short enough for a phone screen.
 - If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
 - Prefer one displayed equation per step, or at most one short carry-forward transformation.
-- Use "text" for plain spoken explanation of the step.
+- Use "text" for the plain spoken explanation of the step.
 - If a step has no equation, set "math" to an empty string.
 - Do not skip intermediate arithmetic.
 - Keep steps between 4 and 12.
 - The final step should clearly state the answer.
-- "note" should explain why that step was taken in simple language.`;
+- "note" should explain why that step was taken in simple language.
+- "note" must never be a student instruction or task prompt. Do not write things like "Define velocity", "Set up the differentiation", "Calculate the derivative", or "Explain the difference".
+- "note" should sound like a tutor's reason, for example "We do this to turn the displacement rule into a velocity formula."
+- Prefer concrete, question-specific wording over generic teaching phrases.
+- For derivative or algebra steps, name the actual rule in "text" if it is being used, such as power rule, substitution, rearrangement, or simplification.`;
