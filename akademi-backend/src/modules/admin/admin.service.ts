@@ -1473,7 +1473,7 @@ export class AdminService {
   }
 
   async getRateLimitMonitoring() {
-    return getRateLimitMonitoringSnapshot();
+    return await getRateLimitMonitoringSnapshot();
   }
 
   async getJobsMonitoring() {
