@@ -31,6 +31,8 @@ export const config = {
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
   sentryDsn: process.env.SENTRY_DSN || null,
+  sentryEnvironment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
+  sentryRelease: process.env.SENTRY_RELEASE || 'akademi-backend@1.0.0',
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   serviceType: process.env.SERVICE_TYPE || 'api',

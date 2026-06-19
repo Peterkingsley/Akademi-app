@@ -1,6 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/useAuthStore";
+import { captureFrontendException } from "../lib/sentry";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "https://akademi-app.onrender.com";
 
@@ -45,6 +46,16 @@ api.interceptors.response.use(
       data: error.response?.data
     });
 
+    if (error.response?.status >= 500 || !error.response) {
+      captureFrontendException(error, {
+        request: {
+          method: originalRequest?.method,
+          url: originalRequest?.url,
+        },
+        responseStatus: error.response?.status,
+      });
+    }
+
     if (error.response?.status === 401) {
         if (!originalRequest._retry) {
           originalRequest._retry = true;
@@ -84,6 +95,12 @@ api.interceptors.response.use(
             return api(originalRequest);
           } catch (refreshError) {
             // Handle refresh token expiration (e.g., logout user)
+            captureFrontendException(refreshError, {
+              request: {
+                method: "post",
+                url: "/auth/refresh",
+              },
+            });
             useAuthStore.getState().clearAuth();
             return Promise.reject(refreshError);
           }

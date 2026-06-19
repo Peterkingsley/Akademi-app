@@ -14,22 +14,42 @@ import { RootNavigator } from "./src/navigation/RootNavigator";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
+import { clearSentryUserContext, initSentry, Sentry, setSentryRouteTag, setSentryUserContext } from "./src/lib/sentry";
+import { useAuthStore } from "./src/store/useAuthStore";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreenNative.preventAutoHideAsync();
+initSentry();
 
 const AppContent = () => {
   const { isDark } = useTheme();
+  const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (user) {
+      setSentryUserContext({
+        id: user.id,
+        role: user.admin_role || null,
+        isAdmin: Boolean(user.admin_role),
+      });
+    } else {
+      clearSentryUserContext();
+    }
+  }, [user]);
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer
+      ref={navigationRef}
+      onReady={() => setSentryRouteTag(navigationRef.getCurrentRoute()?.name)}
+      onStateChange={() => setSentryRouteTag(navigationRef.getCurrentRoute()?.name)}
+    >
       <StatusBar style={isDark ? "light" : "dark"} />
       <RootNavigator />
     </NavigationContainer>
   );
 };
 
-export default function App() {
+function App() {
   const [fontsLoaded, fontError] = useFonts({
     "Inter-Regular": Inter_400Regular,
     "Inter-Medium": Inter_500Medium,
@@ -56,3 +76,5 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+export default Sentry.wrap(App);
