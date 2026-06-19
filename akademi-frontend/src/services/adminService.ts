@@ -32,6 +32,41 @@ export interface AdminSystemHealth {
   r2: 'online' | 'offline';
 }
 
+export interface RateLimitRecentEvent {
+  transport: 'http' | 'socket';
+  namespaceOrEvent: string;
+  routeOrEvent: string;
+  method?: string;
+  ip?: string | null;
+  userId?: string | null;
+  retryAfterSeconds: number;
+  timestamp: string;
+}
+
+export interface RateLimitTopRoute {
+  routeOrEvent: string;
+  count: number;
+}
+
+export interface RateLimitTopUser {
+  userId: string;
+  count: number;
+}
+
+export interface RateLimitTopIp {
+  ip: string;
+  count: number;
+}
+
+export interface AdminRateLimitMonitoring {
+  totalRecorded: number;
+  recent: RateLimitRecentEvent[];
+  topRoutes: RateLimitTopRoute[];
+  topUsers: RateLimitTopUser[];
+  topIps: RateLimitTopIp[];
+  persistence: 'redis' | 'memory-fallback';
+}
+
 export interface DisciplineDocument {
   id: string;
   faculty: string;
@@ -524,6 +559,11 @@ export const adminService = {
 
   getJobsMonitoring: async () => {
     const { data } = await api.get("/admin/system/jobs");
+    return data;
+  },
+
+  getRateLimitMonitoring: async (): Promise<AdminRateLimitMonitoring> => {
+    const { data } = await api.get("/admin/system/rate-limits");
     return data;
   },
 
