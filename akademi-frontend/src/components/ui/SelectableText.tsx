@@ -107,6 +107,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [height, setHeight] = useState(64);
+  const heightRef = useRef(64);
 
   const html = useMemo(
     () => `
@@ -186,7 +187,14 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         post({ type: 'selection', value: text });
       }
 
+      let hasRenderedMath = false;
+
       function renderMath() {
+        if (hasRenderedMath) {
+          updateHeight();
+          return;
+        }
+
         try {
           if (window.renderMathInElement) {
             renderMathInElement(document.getElementById('content'), {
@@ -201,7 +209,24 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
             });
           }
         } catch (error) {}
+        hasRenderedMath = true;
         updateHeight();
+      }
+
+      function waitForMathRenderer(attempt) {
+        if (window.renderMathInElement) {
+          renderMath();
+          return;
+        }
+
+        if (attempt >= 20) {
+          updateHeight();
+          return;
+        }
+
+        setTimeout(function () {
+          waitForMathRenderer(attempt + 1);
+        }, 80);
       }
 
       window.clearNativeSelection = function () {
@@ -216,9 +241,8 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       document.addEventListener('click', function () {
         setTimeout(updateSelection, 20);
       });
-      window.addEventListener('load', renderMath);
-      document.addEventListener('DOMContentLoaded', renderMath);
-      setTimeout(renderMath, 120);
+      window.addEventListener('load', function () { waitForMathRenderer(0); });
+      document.addEventListener('DOMContentLoaded', function () { waitForMathRenderer(0); });
     </script>
   </body>
 </html>`,
@@ -267,7 +291,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           try {
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
-              setHeight(Math.min(Math.max(payload.value + 4, 32), 5000));
+              const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
+              if (Math.abs(nextHeight - heightRef.current) > 2) {
+                heightRef.current = nextHeight;
+                setHeight(nextHeight);
+              }
               return;
             }
 
@@ -315,7 +343,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    width: "100%",
   },
   webviewContainer: {
     backgroundColor: "transparent",

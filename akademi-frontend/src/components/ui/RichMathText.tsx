@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
@@ -92,6 +92,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
   lineHeight = 1.6,
 }) => {
   const [height, setHeight] = useState(64);
+  const heightRef = useRef(64);
 
   const html = useMemo(
     () => `
@@ -147,7 +148,19 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
   <body>
     <div id="content">${buildHtmlContent(content)}</div>
     <script>
+      let hasRenderedMath = false;
+
       function render() {
+        if (hasRenderedMath) {
+          const nextHeight = Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight,
+            32
+          );
+          window.ReactNativeWebView.postMessage(String(nextHeight));
+          return;
+        }
+
         try {
           if (window.renderMathInElement) {
             renderMathInElement(document.getElementById('content'), {
@@ -162,6 +175,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
             });
           }
         } catch (error) {}
+        hasRenderedMath = true;
 
         const nextHeight = Math.max(
           document.body.scrollHeight,
@@ -170,9 +184,25 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         );
         window.ReactNativeWebView.postMessage(String(nextHeight));
       }
-      document.addEventListener('DOMContentLoaded', render);
-      window.addEventListener('load', render);
-      setTimeout(render, 120);
+
+      function waitForMathRenderer(attempt) {
+        if (window.renderMathInElement) {
+          render();
+          return;
+        }
+
+        if (attempt >= 20) {
+          render();
+          return;
+        }
+
+        setTimeout(function () {
+          waitForMathRenderer(attempt + 1);
+        }, 80);
+      }
+
+      document.addEventListener('DOMContentLoaded', function () { waitForMathRenderer(0); });
+      window.addEventListener('load', function () { waitForMathRenderer(0); });
     </script>
   </body>
 </html>`,
@@ -193,7 +223,11 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         onMessage={(event) => {
           const nextHeight = Number(event.nativeEvent.data);
           if (Number.isFinite(nextHeight) && nextHeight > 0) {
-            setHeight(Math.min(Math.max(nextHeight + 4, 32), 4000));
+            const boundedHeight = Math.min(Math.max(nextHeight + 4, 32), 4000);
+            if (Math.abs(boundedHeight - heightRef.current) > 2) {
+              heightRef.current = boundedHeight;
+              setHeight(boundedHeight);
+            }
           }
         }}
       />
