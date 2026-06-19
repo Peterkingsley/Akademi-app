@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, Alert } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
-import { adminService, AdminRateLimitMonitoring } from "../../../services/adminService";
+import { adminService, AdminRateLimitMonitoring, AdminSystemHealth } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
 import { Cpu, Zap, Activity, RefreshCcw, HardDrive, Server, Globe, Database, Gauge, Ban, Clock3, Siren, TriangleAlert } from "lucide-react-native";
 import { Badge } from "../../../components/ui/Badge";
@@ -11,7 +11,7 @@ export const SystemMonitoringScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
   const [loading, setLoading] = useState(true);
   const [aiData, setAiData] = useState<any>(null);
-  const [healthData, setHealthData] = useState<any>(null);
+  const [healthData, setHealthData] = useState<AdminSystemHealth | null>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [rateLimitData, setRateLimitData] = useState<AdminRateLimitMonitoring | null>(null);
 
@@ -50,22 +50,51 @@ export const SystemMonitoringScreen: React.FC = () => {
   };
 
   const HealthRow = ({ name, status, icon: Icon }: any) => {
-    const isOffline = status === 'offline';
+    const color =
+      status === 'online'
+        ? '#22C55E'
+        : status === 'degraded'
+          ? '#F59E0B'
+          : status === 'disabled'
+            ? colors.textMuted
+            : '#EF4444';
+    const backgroundColor =
+      status === 'online'
+        ? 'rgba(34, 197, 94, 0.05)'
+        : status === 'degraded'
+          ? 'rgba(245, 158, 11, 0.05)'
+          : status === 'disabled'
+            ? 'rgba(113, 113, 122, 0.08)'
+            : 'rgba(239, 68, 68, 0.05)';
     return (
-      <View style={[styles.healthRow, isOffline && { backgroundColor: 'rgba(239, 68, 68, 0.05)' }, { borderBottomColor: colors.border }]}>
-        <View style={[styles.healthIcon, { backgroundColor: isOffline ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)' }]}>
-          <Icon size={18} color={isOffline ? '#EF4444' : '#22C55E'} />
+      <View style={[styles.healthRow, { backgroundColor, borderBottomColor: colors.border }]}>
+        <View style={[styles.healthIcon, { backgroundColor }]}>
+          <Icon size={18} color={color} />
         </View>
         <Text style={[typography.body, { flex: 1, color: colors.textPrimary, textTransform: 'capitalize' }]}>{name}</Text>
         <View style={styles.statusBox}>
-          <View style={[styles.statusDot, { backgroundColor: isOffline ? '#EF4444' : '#22C55E' }]} />
-          <Text style={[typography.caption, { color: isOffline ? '#EF4444' : '#22C55E', fontWeight: '700' }]}>
+          <View style={[styles.statusDot, { backgroundColor: color }]} />
+          <Text style={[typography.caption, { color, fontWeight: '700' }]}>
             {status.toUpperCase()}
           </Text>
         </View>
       </View>
     );
   };
+
+  const dependencyRows = useMemo(() => {
+    if (!healthData?.dependencies) return [];
+    return [
+      { name: "Main API", status: healthData.dependencies.api.status, icon: Server, detail: healthData.dependencies.api.detail },
+      { name: "Postgres DB", status: healthData.dependencies.database.status, icon: Database, detail: healthData.dependencies.database.detail },
+      { name: "Redis Cache", status: healthData.dependencies.redis.status, icon: Activity, detail: healthData.dependencies.redis.detail },
+      { name: "Inline Queue", status: healthData.dependencies.queue.status, icon: RefreshCcw, detail: healthData.dependencies.queue.detail },
+      { name: "Typesense", status: healthData.dependencies.typesense.status, icon: HardDrive, detail: healthData.dependencies.typesense.detail },
+      { name: "Claude API", status: healthData.dependencies.claude.status, icon: Cpu, detail: healthData.dependencies.claude.detail },
+      { name: "WebSocket", status: healthData.dependencies.websocket.status, icon: Zap, detail: healthData.dependencies.websocket.detail },
+      { name: "Object Store (R2)", status: healthData.dependencies.r2.status, icon: Globe, detail: healthData.dependencies.r2.detail },
+    ];
+  }, [healthData]);
 
   const formatTimestamp = (value?: string) => {
     if (!value) return "Unknown time";
@@ -185,12 +214,52 @@ export const SystemMonitoringScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>SERVICE HEALTH CHECK</Text>
           <Card style={styles.healthCard}>
-            <HealthRow name="Main API" status={healthData?.api || 'online'} icon={Server} />
-            <HealthRow name="Postgres DB" status={healthData?.database || 'online'} icon={Database} />
-            <HealthRow name="Redis Cache" status={healthData?.redis || 'online'} icon={Activity} />
-            <HealthRow name="Typesense" status={healthData?.typesense || 'online'} icon={HardDrive} />
-            <HealthRow name="Claude API" status={healthData?.claude || 'online'} icon={Cpu} />
-            <HealthRow name="Object Store (R2)" status={healthData?.r2 || 'online'} icon={Globe} />
+            <View style={styles.healthHeaderRow}>
+              <Badge label={healthData?.status || "UNKNOWN"} variant={healthData?.status === "OK" ? "success" : healthData?.status === "DEGRADED" ? "warning" : "error"} />
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {healthData?.ready ? "Ready for traffic" : "Not ready for traffic"}
+              </Text>
+            </View>
+            {dependencyRows.map((row) => (
+              <View key={row.name}>
+                <HealthRow name={row.name} status={row.status} icon={row.icon} />
+                {row.detail ? (
+                  <Text style={[typography.caption, styles.healthDetail, { color: colors.textSecondary }]}>
+                    {row.detail}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
+          </Card>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>RECOVERY POSTURE</Text>
+          <Card style={styles.recoveryCard}>
+            <View style={styles.recoveryBlock}>
+              <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Database backup expectations</Text>
+              {(healthData?.recovery.databaseBackups || []).map((item, index) => (
+                <Text key={`db-${index}`} style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                  • {item}
+                </Text>
+              ))}
+            </View>
+            <View style={styles.recoveryBlock}>
+              <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Storage backup assumptions</Text>
+              {(healthData?.recovery.storageBackups || []).map((item, index) => (
+                <Text key={`storage-${index}`} style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                  • {item}
+                </Text>
+              ))}
+            </View>
+            <View style={styles.recoveryBlock}>
+              <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Restore plan</Text>
+              {(healthData?.recovery.restorePlan || []).map((item, index) => (
+                <Text key={`restore-${index}`} style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                  {index + 1}. {item}
+                </Text>
+              ))}
+            </View>
           </Card>
         </View>
 
@@ -460,12 +529,39 @@ const styles = StyleSheet.create({
     padding: 0,
     overflow: 'hidden',
   },
+  healthHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   healthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
+  },
+  healthDetail: {
+    paddingHorizontal: 60,
+    paddingBottom: 12,
+    marginTop: -4,
+  },
+  recoveryCard: {
+    padding: 16,
+  },
+  recoveryBlock: {
+    marginBottom: 16,
+  },
+  recoveryTitle: {
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  recoveryBullet: {
+    marginBottom: 6,
+    lineHeight: 18,
   },
   healthIcon: {
     width: 32,

@@ -2,10 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
-import { typesenseService } from './shared/search/typesense.service';
 import { config } from './config/env';
 import { captureBackendException, initSentry, isSentryEnabled, setSentryRequestUser, Sentry } from './config/sentry';
-import { connectRedis, getRedisHealth } from './config/redis';
+import { connectRedis, disconnectRedis } from './config/redis';
+import prisma from './config/db';
+import { shutdownQueue } from './config/queue';
 import { generalPublicApiLimiter } from './shared/middleware/rate-limit';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
@@ -20,8 +21,10 @@ import searchRoutes from './modules/search/search.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
-import { initWebSocket } from './modules/websocket/websocket.server';
-import { startCompetitionScheduler } from './modules/competitions/competition.scheduler';
+import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
+import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
+import { getSystemHealthSnapshot } from './shared/system/system-health';
+import { getRuntimeState, markShuttingDown, markStartupComplete } from './shared/system/runtime-state';
 
 initSentry();
 
@@ -66,13 +69,37 @@ app.use('/admin', adminRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/waitlist', generalPublicApiLimiter, waitlistRoutes);
 
-app.get('/health', (_req, res) => {
-  const redis = getRedisHealth();
-  res.status(200).json({
-    status: redis.enabled && redis.state === 'degraded' ? 'DEGRADED' : 'OK',
+app.get('/health', async (_req, res) => {
+  try {
+    const snapshot = await getSystemHealthSnapshot();
+    res.status(snapshot.status === 'NOT_READY' ? 503 : 200).json(snapshot);
+  } catch (error: any) {
+    res.status(500).json({ status: 'ERROR', message: error?.message || 'Health check failed' });
+  }
+});
+
+app.get('/ready', async (_req, res) => {
+  try {
+    const snapshot = await getSystemHealthSnapshot();
+    res.status(snapshot.ready ? 200 : 503).json({
+      status: snapshot.ready ? 'READY' : 'NOT_READY',
+      ready: snapshot.ready,
+      dependencies: snapshot.dependencies,
+      runtime: snapshot.runtime,
+      timestamp: snapshot.timestamp,
+    });
+  } catch (error: any) {
+    res.status(503).json({ status: 'NOT_READY', ready: false, message: error?.message || 'Readiness check failed' });
+  }
+});
+
+app.get('/live', (_req, res) => {
+  const runtime = getRuntimeState();
+  res.status(runtime.shuttingDown ? 503 : 200).json({
+    status: runtime.shuttingDown ? 'DRAINING' : 'ALIVE',
     timestamp: new Date().toISOString(),
     service: config.serviceType,
-    redis,
+    shuttingDown: runtime.shuttingDown,
   });
 });
 
@@ -91,17 +118,20 @@ const startServer = async () => {
       initWebSocket(server);
       startCompetitionScheduler();
       server.listen(config.port, () => {
+        markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
       });
     } else if (config.serviceType === 'websocket') {
       initWebSocket(server);
       server.listen(config.port, () => {
+        markStartupComplete();
         console.log(`WebSocket Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });
     } else if (config.serviceType === 'jobs') {
       console.log('Jobs Processor mode active');
       startCompetitionScheduler();
       server.listen(config.port, () => {
+        markStartupComplete();
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
       });
     } else {
@@ -110,6 +140,7 @@ const startServer = async () => {
       initWebSocket(server);
       startCompetitionScheduler();
       server.listen(config.port, () => {
+        markStartupComplete();
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
       });
     }
@@ -128,6 +159,48 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error);
   captureBackendException(error, { phase: 'uncaughtException' });
+});
+
+const gracefulShutdown = async (signal: string) => {
+  markShuttingDown(signal);
+  console.log(`Received ${signal}. Draining server...`);
+
+  const forceExitTimer = setTimeout(() => {
+    console.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 15000);
+
+  try {
+    stopCompetitionScheduler();
+    await shutdownWebSocket();
+    await shutdownQueue();
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    await disconnectRedis();
+    await prisma.$disconnect();
+    clearTimeout(forceExitTimer);
+    process.exit(0);
+  } catch (error) {
+    clearTimeout(forceExitTimer);
+    console.error('Graceful shutdown failed:', error);
+    captureBackendException(error, { phase: 'shutdown', signal });
+    process.exit(1);
+  }
+};
+
+process.on('SIGTERM', () => {
+  void gracefulShutdown('SIGTERM');
+});
+
+process.on('SIGINT', () => {
+  void gracefulShutdown('SIGINT');
 });
 
 startServer();

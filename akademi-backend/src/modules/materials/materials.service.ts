@@ -20,6 +20,11 @@ const s3Client = new S3Client({
 });
 
 export class MaterialsService {
+  private mapStorageError(error: unknown, fallbackMessage: string) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${fallbackMessage} Please try again shortly. (${detail})`);
+  }
+
   private readonly allowedUploadMimeTypes: Record<FileType, string[]> = {
     PDF: ['application/pdf'],
     DOC: [
@@ -292,7 +297,12 @@ export class MaterialsService {
       ContentLength: validated.fileSize,
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    let presignedUrl: string;
+    try {
+      presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    } catch (error) {
+      this.mapStorageError(error, 'Material storage is currently unavailable.');
+    }
 
     return {
       materialId: material.id,
@@ -473,6 +483,13 @@ export class MaterialsService {
       },
     });
 
+    let processingNotice:
+      | {
+          status: 'queued' | 'degraded';
+          message: string;
+        }
+      | undefined;
+
     try {
       // If chunks exist, trigger assembly
       if (material.upload_chunks.length > 0) {
@@ -481,11 +498,20 @@ export class MaterialsService {
         // Direct upload, trigger ingestion
         await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
       }
+      processingNotice = {
+        status: 'queued',
+        message: 'Upload confirmed and queued for processing.',
+      };
     } catch (error) {
       console.error(`Material ${id} upload confirmed, but ingestion failed:`, error);
+      processingNotice = {
+        status: 'degraded',
+        message: 'Upload saved, but processing is delayed right now. The material will need a retry when queue health recovers.',
+      };
     }
 
-    return this.getMaterial(id);
+    const result = await this.getMaterial(id, { requestingUserId: userId });
+    return processingNotice ? { ...result, processingNotice } : result;
   }
 
   // Helper method for admin or auto-verification to trigger question generation
@@ -499,9 +525,25 @@ export class MaterialsService {
     });
 
     // Trigger question generation job
-    await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
-
-    return material;
+    try {
+      await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
+      return {
+        ...material,
+        processingNotice: {
+          status: 'queued',
+          message: 'Question generation queued successfully.',
+        },
+      };
+    } catch (error) {
+      console.error(`Material ${id} verified, but question generation failed:`, error);
+      return {
+        ...material,
+        processingNotice: {
+          status: 'degraded',
+          message: 'Material verified, but CBT generation is delayed until queue health recovers.',
+        },
+      };
+    }
   }
 
   async getPendingUploads(userId: string) {

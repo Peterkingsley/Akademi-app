@@ -264,6 +264,19 @@ export const connectRedis = async () => {
   }
 };
 
+export const disconnectRedis = async () => {
+  if (!rawRedisClient || !rawRedisClient.isOpen) {
+    return;
+  }
+
+  try {
+    await rawRedisClient.disconnect();
+    markRedisState('degraded', 'Redis connection closed during shutdown');
+  } catch (error) {
+    markRedisState('degraded', error);
+  }
+};
+
 export const getRedisHealth = (): RedisHealth => ({
   enabled: config.enableRedis,
   state: redisState,

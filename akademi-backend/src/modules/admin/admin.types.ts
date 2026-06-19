@@ -30,13 +30,32 @@ export interface DashboardActivity {
 }
 
 export interface SystemHealth {
-  api: 'online' | 'offline';
-  database: 'online' | 'offline';
-  redis: 'online' | 'offline';
-  typesense: 'online' | 'offline';
-  claude: 'online' | 'offline';
-  websocket: 'online' | 'offline';
-  r2: 'online' | 'offline';
+  status: 'OK' | 'DEGRADED' | 'NOT_READY';
+  live: boolean;
+  ready: boolean;
+  dependencies: {
+    api: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    database: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    redis: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    queue: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    typesense: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    claude: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    websocket: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    r2: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+  };
+  runtime: {
+    serviceType: string;
+    startedAt: string;
+    startupCompletedAt: string | null;
+    shuttingDown: boolean;
+    shutdownReason: string | null;
+  };
+  recovery: {
+    databaseBackups: string[];
+    storageBackups: string[];
+    restorePlan: string[];
+  };
+  timestamp: string;
 }
 
 export interface UserListFilter {

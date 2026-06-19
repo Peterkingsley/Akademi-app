@@ -12,6 +12,8 @@ import { SessionType } from '@prisma/client';
 import { MaterialsService } from '../materials/materials.service';
 import { notificationsService } from '../notifications/notifications.service';
 import { Resend } from 'resend';
+import { getSystemHealthSnapshot } from '../../shared/system/system-health';
+import { getQueueHealth } from '../../config/queue';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -227,30 +229,7 @@ export class AdminService {
   }
 
   async getSystemHealth(): Promise<SystemHealth> {
-    const health: SystemHealth = {
-      api: 'online',
-      database: 'online',
-      redis: 'online',
-      typesense: 'online',
-      claude: 'online',
-      websocket: 'online',
-      r2: 'online'
-    };
-
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (e) {
-      health.database = 'offline';
-    }
-
-    try {
-      const redisStatus = await redisClient.ping();
-      if (redisStatus !== 'PONG') health.redis = 'offline';
-    } catch (e) {
-      health.redis = 'offline';
-    }
-
-    return health;
+    return getSystemHealthSnapshot();
   }
 
   // Pillar 2: User Management
@@ -1486,6 +1465,17 @@ export class AdminService {
     ]);
 
     const allJobs = [...waiting, ...active, ...completed, ...failed, ...delayed];
+
+    if (allJobs.length === 0) {
+      const queueHealth = getQueueHealth();
+      return [{
+        id: 'inline-queue',
+        name: 'INLINE_QUEUE_PROCESSOR',
+        lastRun: queueHealth.lastRunAt ? new Date(queueHealth.lastRunAt) : new Date(),
+        status: queueHealth.status === 'online' ? 'success' : 'failed',
+        duration: queueHealth.processing ? 'running' : 'inline',
+      }];
+    }
 
     return allJobs.map(job => {
       const duration = job.finishedOn && job.processedOn

@@ -9,6 +9,9 @@ import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketDa
 import { registerHandlers } from './websocket.handlers';
 import { getIO, setIO } from './websocket.state';
 
+let activeConnections = 0;
+let websocketInitialized = false;
+
 export const initWebSocket = (server: http.Server) => {
   const io = new Server(server, {
     cors: {
@@ -17,6 +20,7 @@ export const initWebSocket = (server: http.Server) => {
     },
   });
   setIO(io);
+  websocketInitialized = true;
 
   // Redis Adapter Setup
   if (config.nodeEnv !== 'test' && config.enableRedis && config.enableWebSocketRedisAdapter) {
@@ -49,12 +53,35 @@ export const initWebSocket = (server: http.Server) => {
   });
 
   io.on('connection', (socket) => {
+    activeConnections += 1;
     console.log(`User connected: ${socket.data.user?.userId}`);
     socket.join(`user:${socket.data.user.userId}`);
     registerHandlers(io, socket);
+    socket.on('disconnect', () => {
+      activeConnections = Math.max(0, activeConnections - 1);
+    });
   });
 
   return io;
+};
+
+export const getWebSocketHealth = () => ({
+  enabled: websocketInitialized,
+  activeConnections,
+});
+
+export const shutdownWebSocket = async () => {
+  if (!websocketInitialized) {
+    return;
+  }
+
+  try {
+    const io = getIO();
+    await io.close();
+  } finally {
+    websocketInitialized = false;
+    activeConnections = 0;
+  }
 };
 
 export { getIO };

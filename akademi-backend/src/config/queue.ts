@@ -19,6 +19,47 @@ type JobPayload = {
   sessionId?: string;
 };
 
+type QueueStatus = 'online' | 'degraded';
+
+type QueueHealth = {
+  mode: 'inline';
+  status: QueueStatus;
+  processing: boolean;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  lastError: string | null;
+};
+
+const queueHealth: QueueHealth = {
+  mode: 'inline',
+  status: 'online',
+  processing: false,
+  lastRunAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastError: null,
+};
+
+const markQueueRun = () => {
+  queueHealth.processing = true;
+  queueHealth.lastRunAt = new Date().toISOString();
+};
+
+const markQueueSuccess = () => {
+  queueHealth.processing = false;
+  queueHealth.status = 'online';
+  queueHealth.lastSuccessAt = new Date().toISOString();
+  queueHealth.lastError = null;
+};
+
+const markQueueFailure = (error: unknown) => {
+  queueHealth.processing = false;
+  queueHealth.status = 'degraded';
+  queueHealth.lastFailureAt = new Date().toISOString();
+  queueHealth.lastError = error instanceof Error ? error.message : String(error);
+};
+
 async function runInlineJob(name: JobName, payload: JobPayload) {
   switch (name) {
     case JOB_NAMES.INGEST_MATERIAL: {
@@ -58,7 +99,14 @@ export const systemQueue: any = {
       // eslint-disable-next-line no-console
       console.log('[queue:inline] add', name, payload);
     }
-    await runInlineJob(name, payload);
+    markQueueRun();
+    try {
+      await runInlineJob(name, payload);
+      markQueueSuccess();
+    } catch (error) {
+      markQueueFailure(error);
+      throw error;
+    }
   },
   async getWaiting() {
     return [];
@@ -78,4 +126,10 @@ export const systemQueue: any = {
   async getJob(_jobId: string) {
     return null;
   },
+};
+
+export const getQueueHealth = () => ({ ...queueHealth });
+
+export const shutdownQueue = async () => {
+  queueHealth.processing = false;
 };

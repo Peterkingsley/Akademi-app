@@ -206,7 +206,7 @@ export const LibraryScreen: React.FC = () => {
         headers: { "Content-Type": mimeType },
       });
 
-      await materialService.confirmUpload(materialId);
+      const confirmedMaterial = await materialService.confirmUpload(materialId);
 
       bottomSheetRef.current?.close();
       setUploadTitle("");
@@ -214,7 +214,10 @@ export const LibraryScreen: React.FC = () => {
       setSelectedFile(null);
       fetchMaterials();
       setToast({
-        message: "Upload received. It is pending admin approval.",
+        message:
+          confirmedMaterial.processingNotice?.status === "degraded"
+            ? confirmedMaterial.processingNotice.message
+            : "Upload received. It is pending admin approval.",
         type: "success",
       });
       navigation.navigate("MyUploads", { uploadStatus: "success" });
