@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { config } from '../../config/env';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { NotFoundException } from '../../shared/exceptions';
+import { getRateLimitMonitoringSnapshot } from '../../shared/middleware/rate-limit-observability';
 import { SessionType } from '@prisma/client';
 import { MaterialsService } from '../materials/materials.service';
 import { notificationsService } from '../notifications/notifications.service';
@@ -1469,6 +1470,10 @@ export class AdminService {
       size: '156MB',
       invalidationsToday: 12
     };
+  }
+
+  async getRateLimitMonitoring() {
+    return getRateLimitMonitoringSnapshot();
   }
 
   async getJobsMonitoring() {

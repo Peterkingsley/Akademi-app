@@ -1,6 +1,7 @@
 import { Socket } from 'socket.io';
 import redisClient from '../../config/redis';
 import { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from './websocket.types';
+import { recordSocketRateLimitEvent } from '../../shared/middleware/rate-limit-observability';
 
 type SocketRateLimitOptions = {
   event: keyof ClientToServerEvents;
@@ -38,6 +39,12 @@ export const checkSocketRateLimit = async (
   const retryAfterSeconds = ttl > 0 ? ttl : windowSeconds;
 
   if (count > max) {
+    recordSocketRateLimitEvent({
+      event: String(event),
+      userId: socket.data.user?.userId ?? null,
+      ip: socket.handshake.address,
+      retryAfterSeconds,
+    });
     console.warn('Socket rate limit exceeded', {
       event,
       userId: socket.data.user?.userId ?? null,

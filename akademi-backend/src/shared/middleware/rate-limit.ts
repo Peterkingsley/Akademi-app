@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import redisClient from '../../config/redis';
 import { config } from '../../config/env';
+import { recordHttpRateLimitEvent } from './rate-limit-observability';
 
 type IdentityStrategy = 'ip' | 'user' | 'admin' | 'hybrid';
 
@@ -79,6 +80,14 @@ export const createRateLimiter = ({
 
       if (count > max) {
         res.setHeader('Retry-After', String(resetSeconds));
+        recordHttpRateLimitEvent({
+          namespace,
+          path: req.originalUrl,
+          method: req.method,
+          ip: req.ip,
+          userId: req.user?.userId ?? req.admin?.adminId ?? null,
+          retryAfterSeconds: resetSeconds,
+        });
         console.warn('HTTP rate limit exceeded', {
           namespace,
           path: req.originalUrl,

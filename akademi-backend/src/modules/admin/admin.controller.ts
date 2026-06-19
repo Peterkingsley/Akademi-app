@@ -572,6 +572,15 @@ export class AdminController {
     }
   }
 
+  async getRateLimitMonitoring(req: Request, res: Response) {
+    try {
+      const monitoring = await adminService.getRateLimitMonitoring();
+      res.json(monitoring);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async getJobsMonitoring(req: Request, res: Response) {
     try {
       const jobs = await adminService.getJobsMonitoring();
