@@ -50,17 +50,25 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         padding: 0;
         background: ${backgroundColor};
         color: ${textColor};
-        overflow: hidden;
+        overflow-y: hidden;
+        overflow-x: auto;
       }
       body {
         font-family: Inter, Arial, sans-serif;
         padding: 0;
+      }
+      #scroll-shell {
+        overflow-x: auto;
+        overflow-y: hidden;
+        width: 100%;
+        -webkit-overflow-scrolling: touch;
       }
       #formula {
         display: flex;
         justify-content: ${block ? "flex-start" : "center"};
         align-items: flex-start;
         min-height: ${block ? "32px" : "24px"};
+        min-width: max-content;
         font-size: ${fontSize}px;
         line-height: 1.4;
       }
@@ -73,7 +81,9 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
     </style>
   </head>
   <body>
-    <div id="formula"></div>
+    <div id="scroll-shell">
+      <div id="formula"></div>
+    </div>
     <script>
       let hasRendered = false;
 
@@ -130,9 +140,9 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
       <WebView
         originWhitelist={["*"]}
         source={{ html }}
-        scrollEnabled={false}
+        scrollEnabled={block}
         javaScriptEnabled
-        showsHorizontalScrollIndicator={false}
+        showsHorizontalScrollIndicator={block}
         showsVerticalScrollIndicator={false}
         style={[styles.webview, { height, backgroundColor }]}
         containerStyle={{ backgroundColor }}

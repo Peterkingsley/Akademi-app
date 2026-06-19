@@ -102,9 +102,9 @@ export const AIProcessingScreen: React.FC = () => {
 
   const title =
     type === "assignment" && reply_mode === "STUDY"
-      ? "Building your walkthrough..."
+      ? "Preparing your walkthrough..."
       : type === "assignment"
-        ? "Reading your question..."
+        ? "Reviewing your question..."
         : "Starting your tutor session";
 
   return (

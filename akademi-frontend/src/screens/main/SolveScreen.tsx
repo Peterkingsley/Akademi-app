@@ -100,7 +100,7 @@ export const SolveScreen: React.FC = () => {
     <Screen hideHeader style={styles.screen}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerEyebrow}>Assignment Solver</Text>
+          <Text style={styles.headerEyebrow}>Assignment Help</Text>
           <Text style={styles.headerTitle}>Solve it and learn it</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
@@ -160,7 +160,7 @@ export const SolveScreen: React.FC = () => {
           <TouchableOpacity activeOpacity={0.86} style={styles.primaryModeCard}>
             <MessageSquareText size={22} color={colors.primary} />
             <Text style={styles.modeTitle}>Type question</Text>
-            <Text style={styles.modeText}>Best for pasted questions, theory, calculations, and code.</Text>
+            <Text style={styles.modeText}>Best for pasted questions, theory, explanations, calculations, and code.</Text>
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.86}
@@ -180,7 +180,7 @@ export const SolveScreen: React.FC = () => {
           </View>
           <TextInput
             style={styles.textArea}
-            placeholder="Type or paste the full assignment question here..."
+            placeholder="Type or paste the full assignment question or prompt here..."
             placeholderTextColor={colors.textMuted}
             multiline
             value={question}
@@ -189,7 +189,7 @@ export const SolveScreen: React.FC = () => {
           />
           <View style={styles.hintRow}>
             <Lightbulb size={15} color={colors.textMuted} />
-            <Text style={styles.hintText}>Include all values, instructions, and lecturer constraints.</Text>
+            <Text style={styles.hintText}>Include all details, instructions, and lecturer constraints.</Text>
           </View>
         </View>
 
@@ -206,7 +206,7 @@ export const SolveScreen: React.FC = () => {
                 Quick solve
               </Text>
               <Text style={[styles.answerText, answerMode === "DIRECT" && styles.activeAnswerSubtext]}>
-                Short worked example with the answer, key steps, and a quick self-check.
+                Clear answer with the key reasoning, main steps, and a quick self-check.
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -219,7 +219,7 @@ export const SolveScreen: React.FC = () => {
                 Learn step by step
               </Text>
               <Text style={[styles.answerText, answerMode === "STUDY" && styles.activeAnswerSubtext]}>
-                Full worked example with why each step happens and when to use it again.
+                Full step-by-step explanation with why each move happens and when to use the idea again.
               </Text>
             </TouchableOpacity>
           </View>
