@@ -16,6 +16,7 @@ interface SelectableTextProps {
   content: string;
   onAskAkademi: (selectedText: string) => void;
   onHighlight?: (selectedText: string) => void;
+  fixedHeight?: number;
 }
 
 const escapeHtml = (value: string) =>
@@ -102,6 +103,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   content,
   onAskAkademi,
   onHighlight,
+  fixedHeight,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -285,12 +287,12 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         javaScriptEnabled
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        style={[styles.webview, { height }]}
+        style={[styles.webview, { height: fixedHeight ?? height }]}
         containerStyle={styles.webviewContainer}
         onMessage={(event) => {
           try {
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
-            if (payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
+            if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
               if (Math.abs(nextHeight - heightRef.current) > 2) {
                 heightRef.current = nextHeight;
