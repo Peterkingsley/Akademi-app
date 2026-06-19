@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -125,6 +125,20 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   const [selectedText, setSelectedText] = useState("");
   const [height, setHeight] = useState(64);
   const heightRef = useRef(64);
+  const isHeightLockedRef = useRef(Boolean(fixedHeight));
+
+  useEffect(() => {
+    if (fixedHeight) {
+      heightRef.current = fixedHeight;
+      isHeightLockedRef.current = true;
+      setHeight(fixedHeight);
+      return;
+    }
+
+    heightRef.current = 64;
+    isHeightLockedRef.current = false;
+    setHeight(64);
+  }, [content, fixedHeight]);
 
   const html = useMemo(
     () => `
@@ -189,7 +203,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         window.ReactNativeWebView.postMessage(JSON.stringify(payload));
       }
 
-      function updateHeight() {
+      function postFinalHeight() {
         const nextHeight = Math.max(
           document.body.scrollHeight,
           document.documentElement.scrollHeight,
@@ -224,8 +238,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           }
         } catch (error) {}
         hasRenderedMath = true;
-        updateHeight();
-        setTimeout(updateHeight, 180);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            setTimeout(postFinalHeight, 80);
+          });
+        });
       }
 
       function waitForMathRenderer(attempt) {
@@ -235,7 +252,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         }
 
         if (attempt >= 20) {
-          updateHeight();
+          postFinalHeight();
           return;
         }
 
@@ -306,11 +323,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           try {
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
+              if (isHeightLockedRef.current) return;
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
-              if (Math.abs(nextHeight - heightRef.current) > 2) {
-                heightRef.current = nextHeight;
-                setHeight(nextHeight);
-              }
+              heightRef.current = nextHeight;
+              isHeightLockedRef.current = true;
+              setHeight(nextHeight);
               return;
             }
 

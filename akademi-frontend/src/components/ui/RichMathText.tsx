@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 
@@ -108,6 +108,13 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
 }) => {
   const [height, setHeight] = useState(64);
   const heightRef = useRef(64);
+  const isHeightLockedRef = useRef(false);
+
+  useEffect(() => {
+    heightRef.current = 64;
+    isHeightLockedRef.current = false;
+    setHeight(64);
+  }, [content, backgroundColor, fontSize, lineHeight, textColor]);
 
   const html = useMemo(
     () => `
@@ -165,6 +172,15 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
     <script>
       let hasRenderedMath = false;
 
+      function postFinalHeight() {
+        const nextHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          32
+        );
+        window.ReactNativeWebView.postMessage(String(nextHeight));
+      }
+
       function render() {
         if (hasRenderedMath) return;
 
@@ -183,21 +199,11 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
           }
         } catch (error) {}
         hasRenderedMath = true;
-
-        const nextHeight = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight,
-          32
-        );
-        window.ReactNativeWebView.postMessage(String(nextHeight));
-        setTimeout(function () {
-          const settledHeight = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight,
-            32
-          );
-          window.ReactNativeWebView.postMessage(String(settledHeight));
-        }, 180);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            setTimeout(postFinalHeight, 80);
+          });
+        });
       }
 
       function waitForMathRenderer(attempt) {
@@ -236,13 +242,13 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         style={[styles.webview, { height, backgroundColor }]}
         containerStyle={{ backgroundColor }}
         onMessage={(event) => {
+          if (isHeightLockedRef.current) return;
           const nextHeight = Number(event.nativeEvent.data);
           if (Number.isFinite(nextHeight) && nextHeight > 0) {
             const boundedHeight = Math.min(Math.max(nextHeight + 4, 32), 4000);
-            if (Math.abs(boundedHeight - heightRef.current) > 2) {
-              heightRef.current = boundedHeight;
-              setHeight(boundedHeight);
-            }
+            heightRef.current = boundedHeight;
+            isHeightLockedRef.current = true;
+            setHeight(boundedHeight);
           }
         }}
       />
