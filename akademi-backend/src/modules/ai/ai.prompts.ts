@@ -92,7 +92,8 @@ Learning System Rules:
 5. Correct common misconceptions proactively, but do not shame the student.
 6. End with one useful follow-up question unless the reply mode forbids it.
 7. Prefer course/department language over generic internet explanations.
-8. When material context is present, interpret and explain terms within that material before using broader meanings.`;
+8. When material context is present, interpret and explain terms within that material before using broader meanings.
+9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].`;
 }
 
 export function assembleSystemPrompt(

@@ -28,6 +28,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { BrandWordmark } from "../../components/ui/BrandWordmark";
+import { RichMathText } from "../../components/ui/RichMathText";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -300,7 +301,12 @@ export const MockExamResultsScreen: React.FC = () => {
 
               {isExpanded && !q.isLocked && (
                 <View style={styles.expandedContent}>
-                  <Text style={[styles.fullQuestionText, typography.bodySmall]}>{q.text}</Text>
+                  <RichMathText
+                    content={q.text}
+                    textColor={colors.textSecondary}
+                    fontSize={14}
+                    lineHeight={1.45}
+                  />
 
                   <View style={styles.answerRow}>
                     <View style={[styles.answerStatus, q.isCorrect ? styles.correctBg : styles.incorrectBg]}>
@@ -312,14 +318,25 @@ export const MockExamResultsScreen: React.FC = () => {
                   </View>
 
                   {!q.isCorrect && (
-                    <Text style={[styles.correctAnswerLabel, typography.caption]}>
-                      Correct Answer: <Text style={{ color: colors.success }}>{q.correctAnswer}</Text>
-                    </Text>
+                    <View style={styles.correctAnswerWrap}>
+                      <Text style={[styles.correctAnswerLabel, typography.caption]}>Correct Answer:</Text>
+                      <RichMathText
+                        content={q.correctAnswer}
+                        textColor={colors.success}
+                        fontSize={13}
+                        lineHeight={1.35}
+                      />
+                    </View>
                   )}
 
                   <View style={styles.aiExplanationCard}>
                     <Text style={[styles.aiLabel, typography.mono]}>AI EXPLANATION</Text>
-                    <Text style={[styles.aiText, typography.bodySmall]}>{q.aiExplanation}</Text>
+                    <RichMathText
+                      content={q.aiExplanation}
+                      textColor={colors.textSecondary}
+                      fontSize={14}
+                      lineHeight={1.45}
+                    />
                   </View>
                 </View>
               )}
@@ -639,6 +656,9 @@ const styles = StyleSheet.create({
   },
   correctAnswerLabel: {
     color: colors.textMuted,
+    marginBottom: 6,
+  },
+  correctAnswerWrap: {
     marginLeft: 30,
     marginBottom: 16,
   },

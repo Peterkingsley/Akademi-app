@@ -24,6 +24,7 @@ import { SafeArea } from "../../components/layout/SafeArea";
 import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { RichMathText } from "../../components/ui/RichMathText";
 import examPrepService, { MockExam, MockQuestion } from "../../services/examPrep";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Skeleton } from "../../components/ui/Skeleton";
@@ -204,22 +205,18 @@ export const MockExamScreen: React.FC = () => {
           </Text>
         </View>
 
-        <Text style={[styles.questionTitle, typography.h3]}>
-           {currentQuestion.text}
-        </Text>
+        <View style={styles.questionTitleWrap}>
+          <RichMathText content={currentQuestion.text} fontSize={24} lineHeight={1.35} />
+        </View>
 
         <Card style={styles.questionCard}>
           <View style={styles.questionTag}>
             <Text style={[styles.questionTagText, typography.caption]}>Q{currentIndex + 1}</Text>
           </View>
-          <Text style={[styles.mainQuestionText, typography.body]}>
-             {currentQuestion.text}
-          </Text>
+          <RichMathText content={currentQuestion.text} />
           {currentQuestion.formula && (
             <View style={styles.formulaBox}>
-              <Text style={[styles.formulaText, typography.mono]}>
-                {currentQuestion.formula}
-              </Text>
+              <RichMathText content={currentQuestion.formula} textColor={colors.primary} />
             </View>
           )}
         </Card>
@@ -241,9 +238,14 @@ export const MockExamScreen: React.FC = () => {
                     {letter}
                   </Text>
                 </View>
-                <Text style={[styles.optionText, typography.body, isSelected && styles.optionTextSelected]}>
-                  {option}
-                </Text>
+                <View style={styles.optionTextWrap}>
+                  <RichMathText
+                    content={option}
+                    textColor={isSelected ? colors.textPrimary : colors.textSecondary}
+                    fontSize={16}
+                    lineHeight={1.35}
+                  />
+                </View>
                 {isSelected && <Check size={20} color={colors.primary} style={styles.checkIcon} />}
               </TouchableOpacity>
             );
@@ -452,6 +454,9 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 24,
   },
+  questionTitleWrap: {
+    marginBottom: 24,
+  },
   questionCard: {
     padding: 20,
     backgroundColor: colors.surface,
@@ -490,7 +495,7 @@ const styles = StyleSheet.create({
   },
   optionPill: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
     padding: 14,
@@ -524,6 +529,10 @@ const styles = StyleSheet.create({
   optionText: {
     color: colors.textSecondary,
     flex: 1,
+  },
+  optionTextWrap: {
+    flex: 1,
+    marginTop: 2,
   },
   optionTextSelected: {
     color: colors.textPrimary,

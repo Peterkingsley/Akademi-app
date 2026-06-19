@@ -20,6 +20,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
+import { RichMathText } from "../../components/ui/RichMathText";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
 
@@ -222,7 +223,12 @@ export const AssignmentResultScreen: React.FC = () => {
                 <Text style={[styles.threadRole, typography.caption]}>
                   {message.role === "STUDENT" ? "You" : "Akademi"}
                 </Text>
-                <Text style={[styles.threadText, typography.bodySmall]}>{cleanMarkdown(message.content)}</Text>
+                <RichMathText
+                  content={cleanMarkdown(message.content)}
+                  textColor={colors.textPrimary}
+                  fontSize={14}
+                  lineHeight={1.45}
+                />
               </View>
             ))}
           </Card>

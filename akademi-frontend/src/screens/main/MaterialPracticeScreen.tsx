@@ -15,6 +15,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ProgressBar } from "../../components/ui/ProgressBar";
+import { RichMathText } from "../../components/ui/RichMathText";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { materialService, PracticeQuestion } from "../../services/material";
@@ -424,9 +425,7 @@ export const MaterialPracticeScreen: React.FC = () => {
                       <Text style={[styles.questionCountLabel, typography.mono]}>
                         QUESTION {index + 1}
                       </Text>
-                      <Text style={[styles.questionText, typography.body]}>
-                        {question.question_text}
-                      </Text>
+                      <RichMathText content={question.question_text} />
                       <Text
                         style={[
                           styles.answerLine,
@@ -447,11 +446,18 @@ export const MaterialPracticeScreen: React.FC = () => {
                           Correct: {correct}
                         </Text>
                       )}
-                      <Text style={[styles.explanation, typography.bodySmall]}>
-                        {question.explanation ||
-                          question.approach_guide ||
-                          "Review the selected material section again."}
-                      </Text>
+                      <View style={styles.explanation}>
+                        <RichMathText
+                          content={
+                            question.explanation ||
+                            question.approach_guide ||
+                            "Review the selected material section again."
+                          }
+                          textColor={colors.textSecondary}
+                          fontSize={14}
+                          lineHeight={1.45}
+                        />
+                      </View>
                     </Card>
                   );
                 })}
@@ -462,9 +468,7 @@ export const MaterialPracticeScreen: React.FC = () => {
                   QUESTION {currentIndex + 1} OF {questions.length}
                 </Text>
                 <Card style={styles.questionCard}>
-                  <Text style={[styles.questionText, typography.body]}>
-                    {currentQuestion.question_text}
-                  </Text>
+                  <RichMathText content={currentQuestion.question_text} />
                 </Card>
 
                 <View style={styles.optionsList}>
@@ -493,15 +497,14 @@ export const MaterialPracticeScreen: React.FC = () => {
                             {String.fromCharCode(65 + index)}
                           </Text>
                         </View>
-                        <Text
-                          style={[
-                            styles.optionText,
-                            typography.bodySmall,
-                            selected && styles.optionTextSelected,
-                          ]}
-                        >
-                          {option}
-                        </Text>
+                        <View style={styles.optionTextWrap}>
+                          <RichMathText
+                            content={option}
+                            textColor={selected ? "#FFFFFF" : colors.textSecondary}
+                            fontSize={14}
+                            lineHeight={1.4}
+                          />
+                        </View>
                         {selected && <Check size={18} color={colors.primary} />}
                       </TouchableOpacity>
                     );
@@ -791,6 +794,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     flex: 1,
   },
+  optionTextWrap: {
+    flex: 1,
+  },
   optionTextSelected: {
     color: "#FFFFFF",
     fontWeight: "700",
@@ -854,8 +860,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   explanation: {
-    color: colors.textSecondary,
-    lineHeight: 20,
     marginTop: 12,
   },
   emptyState: {

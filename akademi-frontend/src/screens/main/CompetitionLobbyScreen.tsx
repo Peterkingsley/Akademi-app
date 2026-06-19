@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "rea
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
+import { RichMathText } from "../../components/ui/RichMathText";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import {
@@ -279,7 +280,12 @@ export const CompetitionLobbyScreen: React.FC = () => {
               </Text>
               {question ? (
                 <>
-                  <Text style={styles.liveText}>{question.text}</Text>
+                  <RichMathText
+                    content={question.text}
+                    textColor={colors.textSecondary}
+                    fontSize={14}
+                    lineHeight={1.45}
+                  />
                   <Text style={styles.timerBadge}>{secondsLeft}s left</Text>
                   <Text style={styles.timerMeta}>
                     Ends at {new Date(question.expires_at).toLocaleTimeString()}
@@ -295,14 +301,12 @@ export const CompetitionLobbyScreen: React.FC = () => {
                         onPress={() => submitAnswer(option)}
                         disabled={answerLocked}
                       >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            selectedAnswer === option && styles.optionTextSelected,
-                          ]}
-                        >
-                          {option}
-                        </Text>
+                        <RichMathText
+                          content={option}
+                          textColor={selectedAnswer === option ? colors.primary : colors.textPrimary}
+                          fontSize={14}
+                          lineHeight={1.4}
+                        />
                       </TouchableOpacity>
                     ))}
                   </View>

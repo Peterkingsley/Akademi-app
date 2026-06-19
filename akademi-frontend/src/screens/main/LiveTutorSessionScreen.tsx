@@ -7,6 +7,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { ArrowLeft, GraduationCap, Send, Bot } from "lucide-react-native";
 import { socketService } from "../../services/socket";
 import { sessionService } from "../../services/session";
+import { RichMathText } from "../../components/ui/RichMathText";
 
 interface Message {
   id: string;
@@ -281,18 +282,22 @@ export const LiveTutorSessionScreen: React.FC = () => {
 
     return (
       <View>
-        <Text style={[
-          styles.messageText,
-          { color: colors.textPrimary },
-          message.type === "ai" ? styles.aiMessageText : styles.studentMessageText
-        ]}>
-          {content}
-        </Text>
+        <RichMathText
+          content={content}
+          textColor={colors.textPrimary}
+          fontSize={13}
+          lineHeight={message.type === "ai" ? 1.65 : 1.5}
+        />
 
         {message.metadata?.academicInsight && (
           <View style={styles.academicInsight}>
             <Text style={[styles.insightLabel, typography.mono]}>ACADEMIC INSIGHT</Text>
-            <Text style={[styles.insightText, typography.bodySmall]}>{message.metadata.academicInsight}</Text>
+            <RichMathText
+              content={message.metadata.academicInsight}
+              textColor={colors.textPrimary}
+              fontSize={14}
+              lineHeight={1.45}
+            />
           </View>
         )}
 

@@ -19,6 +19,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
+import { RichMathText } from "./RichMathText";
 
 type AskAction = "ask" | "summarize" | "explain" | "teach" | "practice";
 
@@ -104,6 +105,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       "Do not jump into a long generic answer. Keep replies short, grounded, and conversational.",
       "Explain in the context of this material first. Any outside analogy must stay close to the material and should only support understanding.",
       "If the material's meaning and general-world meaning could differ, always privilege the meaning that fits this material.",
+      "Whenever you write mathematics, use proper LaTeX delimiters: inline math in \\(...\\) and standalone math in \\[...\\].",
       "End in a way that keeps the conversation open so the student can reply from where they are stuck.",
       materialTitle ? `Material title: ${materialTitle}` : "",
       courseCode ? `Course code: ${courseCode}` : "",
@@ -278,7 +280,12 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                       ) : (
                         <Text style={[styles.studentLabel, typography.caption]}>You</Text>
                       )}
-                      <Text style={[styles.responseText, typography.bodySmall]}>{message.content}</Text>
+                      <RichMathText
+                        content={message.content}
+                        textColor="#FFFFFF"
+                        fontSize={14}
+                        lineHeight={1.45}
+                      />
                     </View>
                   ))}
                 </View>

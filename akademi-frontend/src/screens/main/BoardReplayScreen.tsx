@@ -15,6 +15,7 @@ import { sessionService } from "../../services/session";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { MathFormula } from "../../components/ui/MathFormula";
+import { RichMathText } from "../../components/ui/RichMathText";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
 
@@ -145,7 +146,7 @@ export const BoardReplayScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.questionCard}>
           <Text style={styles.questionLabel}>Question</Text>
-          <Text style={styles.questionText}>{question}</Text>
+          <RichMathText content={question} textColor={colors.textPrimary} fontSize={16} lineHeight={1.45} />
         </View>
 
         <View style={styles.board}>
@@ -168,13 +169,22 @@ export const BoardReplayScreen: React.FC = () => {
                 ]}
               >
                 <Text style={styles.stepIndex}>Step {index + 1}</Text>
-                {!!step.text && <Text style={styles.stepText}>{step.text}</Text>}
+                {!!step.text && (
+                  <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
+                )}
                 {!!step.math && (
                   <View style={styles.mathBlock}>
                     <MathFormula latex={step.math} fontSize={17} />
                   </View>
                 )}
-                {!!step.note && <Text style={styles.stepNote}>{step.note}</Text>}
+                {!!step.note && (
+                  <RichMathText
+                    content={step.note}
+                    textColor="rgba(247,250,252,0.76)"
+                    fontSize={14}
+                    lineHeight={1.35}
+                  />
+                )}
               </View>
             ))
           )}
@@ -188,10 +198,10 @@ export const BoardReplayScreen: React.FC = () => {
                 <MathFormula latex={finalAnswerMath} fontSize={21} />
               </View>
             ) : (
-              <Text style={styles.answerText}>{finalAnswer}</Text>
+              <RichMathText content={finalAnswer} textColor={colors.textPrimary} fontSize={22} lineHeight={1.4} />
             )}
-            {!!finalAnswer && finalAnswerMath && <Text style={styles.answerTextFallback}>{finalAnswer}</Text>}
-            {!!summary && <Text style={styles.summaryText}>{summary}</Text>}
+            {!!finalAnswer && finalAnswerMath && <RichMathText content={finalAnswer} textColor={colors.textSecondary} fontSize={14} lineHeight={1.4} />}
+            {!!summary && <RichMathText content={summary} textColor={colors.textSecondary} fontSize={14} lineHeight={1.45} />}
           </View>
         )}
       </ScrollView>
