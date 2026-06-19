@@ -64,6 +64,9 @@ export const createRateLimiter = ({
 
     try {
       const count = await redisClient.incr(key);
+      if (count === 0) {
+        return next();
+      }
       if (count === 1) {
         await redisClient.expire(key, windowSeconds);
       }
@@ -76,6 +79,14 @@ export const createRateLimiter = ({
 
       if (count > max) {
         res.setHeader('Retry-After', String(resetSeconds));
+        console.warn('HTTP rate limit exceeded', {
+          namespace,
+          path: req.originalUrl,
+          method: req.method,
+          ip: req.ip,
+          userId: req.user?.userId ?? req.admin?.adminId ?? null,
+          retryAfterSeconds: resetSeconds,
+        });
         return res.status(429).json({ message });
       }
 

@@ -5,7 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
 import { config } from './config/env';
-import { connectRedis } from './config/redis';
+import { connectRedis, getRedisHealth } from './config/redis';
 import { generalPublicApiLimiter } from './shared/middleware/rate-limit';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
@@ -58,10 +58,12 @@ app.use('/waitlist', generalPublicApiLimiter, waitlistRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
+  const redis = getRedisHealth();
   res.status(200).json({
-    status: 'OK',
+    status: redis.enabled && redis.state === 'degraded' ? 'DEGRADED' : 'OK',
     timestamp: new Date().toISOString(),
-    service: config.serviceType
+    service: config.serviceType,
+    redis,
   });
 });
 

@@ -80,6 +80,7 @@ export interface ServerToClientEvents {
   'competition:match-ended': (payload: { roomId: string; winner_user_id?: string | null; scoreboard: CompetitionScoreboardPayload[] }) => void;
   'tournament:live': (payload: TournamentLivePayload) => void;
   'competition:left': (payload: { roomId: string }) => void;
+  'rate-limit': (payload: { event: keyof ClientToServerEvents; message: string; retryAfterSeconds: number }) => void;
   'error': (payload: { message: string }) => void;
 }
 

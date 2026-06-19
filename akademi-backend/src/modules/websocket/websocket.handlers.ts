@@ -6,6 +6,7 @@ import redisClient from '../../config/redis';
 import { config } from '../../config/env';
 import { CompetitionParticipantStatus, SessionType } from '@prisma/client';
 import { CompetitionsService } from '../competitions/competitions.service';
+import { checkSocketRateLimit } from './websocket.rate-limit';
 
 const sessionsService = new SessionsService();
 const competitionsService = new CompetitionsService();
@@ -39,6 +40,28 @@ export const registerHandlers = (
   socket: Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>
 ) => {
   const userId = socket.data.user.userId;
+  const withSocketRateLimit = (
+    event: keyof ClientToServerEvents,
+    max: number,
+    windowSeconds: number,
+    handler: (...args: any[]) => Promise<void> | void,
+  ) => {
+    socket.on(event as keyof ClientToServerEvents, async (...args: any[]) => {
+      const result = await checkSocketRateLimit(socket, { event, max, windowSeconds });
+      if (!result.allowed) {
+        socket.emit('rate-limit', {
+          event,
+          message: 'Too many live actions. Please slow down and try again shortly.',
+          retryAfterSeconds: result.retryAfterSeconds,
+        });
+        socket.emit('error', { message: 'Too many live actions. Please slow down and try again shortly.' });
+        return;
+      }
+
+      await Promise.resolve(handler(...args));
+    });
+  };
+
   const clearCompetitionTimer = (roomId: string) => {
     const existing = competitionTimers.get(roomId);
     if (existing) {
@@ -103,7 +126,7 @@ export const registerHandlers = (
     return room;
   };
 
-  socket.on('session:start', async ({ sessionId, courseCode, topic, sessionType, replyMode }) => {
+  withSocketRateLimit('session:start', 10, 60, async ({ sessionId, courseCode, topic, sessionType, replyMode }) => {
     try {
       if (sessionId) {
         const session = await sessionsService.getSession(sessionId);
@@ -143,7 +166,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('message:send', async ({ content, sessionId }) => {
+  withSocketRateLimit('message:send', 20, 60, async ({ content, sessionId }) => {
     try {
       socket.emit('message:typing');
 
@@ -162,7 +185,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('session:pause', async ({ sessionId, position }) => {
+  withSocketRateLimit('session:pause', 30, 60, async ({ sessionId, position }) => {
     try {
       const pausePosition = typeof position === 'number' && Number.isFinite(position) ? position : 0;
       await redisClient.set(`session:pause_position:${sessionId}`, pausePosition.toString());
@@ -173,7 +196,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('session:resume', async ({ sessionId }) => {
+  withSocketRateLimit('session:resume', 30, 60, async ({ sessionId }) => {
     try {
       const position = await redisClient.get(`session:pause_position:${sessionId}`);
       const resumeFrom = position ? parseInt(position) : 0;
@@ -183,7 +206,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('session:end', async ({ sessionId }) => {
+  withSocketRateLimit('session:end', 10, 60, async ({ sessionId }) => {
     try {
       await sessionsService.endSession(sessionId);
       const summary = await sessionsService.getSessionSummary(sessionId);
@@ -195,7 +218,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('competition:join-room', async ({ roomId }) => {
+  withSocketRateLimit('competition:join-room', 20, 60, async ({ roomId }) => {
     try {
       socket.join(competitionRoomName(roomId));
       const room = await competitionsService.getLobby(userId, roomId);
@@ -206,12 +229,12 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('competition:leave-room', async ({ roomId }) => {
+  withSocketRateLimit('competition:leave-room', 20, 60, async ({ roomId }) => {
     socket.leave(competitionRoomName(roomId));
     socket.emit('competition:left', { roomId });
   });
 
-  socket.on('competition:ready', async ({ roomId }) => {
+  withSocketRateLimit('competition:ready', 15, 60, async ({ roomId }) => {
     try {
       await competitionsService.updateParticipantStatus(userId, roomId, CompetitionParticipantStatus.READY);
       await broadcastCompetitionState(roomId);
@@ -220,7 +243,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('competition:unready', async ({ roomId }) => {
+  withSocketRateLimit('competition:unready', 15, 60, async ({ roomId }) => {
     try {
       await competitionsService.updateParticipantStatus(userId, roomId, CompetitionParticipantStatus.JOINED);
       await broadcastCompetitionState(roomId);
@@ -229,7 +252,7 @@ export const registerHandlers = (
     }
   });
 
-  socket.on('competition:submit-answer', async ({ roomId, answer }) => {
+  withSocketRateLimit('competition:submit-answer', 12, 60, async ({ roomId, answer }) => {
     try {
       const state = await competitionsService.submitAnswer(roomId, userId, answer);
       io.to(competitionRoomName(roomId)).emit('competition:score-update', {

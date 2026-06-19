@@ -1,5 +1,7 @@
-import { createClient } from 'redis';
+import { RedisClientType, createClient } from 'redis';
 import { config } from './env';
+
+type RedisState = 'disabled' | 'connecting' | 'connected' | 'degraded';
 
 type RedisLike = {
   isOpen?: boolean;
@@ -14,6 +16,12 @@ type RedisLike = {
   keys: (pattern: string) => Promise<string[]>;
   del: (keys: string[] | string) => Promise<number>;
   ping: () => Promise<string>;
+};
+
+type RedisHealth = {
+  enabled: boolean;
+  state: RedisState;
+  lastError: string | null;
 };
 
 function createInMemoryRedis(): RedisLike {
@@ -33,7 +41,6 @@ function createInMemoryRedis(): RedisLike {
   };
 
   const matchPattern = (key: string, pattern: string) => {
-    // Minimal glob: only supports trailing "*" which is all we currently use.
     if (pattern.endsWith('*')) return key.startsWith(pattern.slice(0, -1));
     return key === pattern;
   };
@@ -94,27 +101,164 @@ function createInMemoryRedis(): RedisLike {
   return client;
 }
 
-const redisClient: RedisLike = config.enableRedis
-  ? (createClient({ url: config.redisUrl }) as unknown as RedisLike)
-  : createInMemoryRedis();
+const inMemoryRedis = createInMemoryRedis();
+const RETRY_WINDOW_MS = 30_000;
+const RETRY_DELAY_MS = 2_000;
 
-if (config.enableRedis) {
-  (redisClient as any).on?.('error', (err: unknown) => {
+let redisState: RedisState = config.enableRedis ? 'connecting' : 'disabled';
+let lastRedisError: string | null = null;
+
+const rawRedisClient: RedisClientType | null = config.enableRedis
+  ? createClient({ url: config.redisUrl })
+  : null;
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const markRedisState = (state: RedisState, error?: unknown) => {
+  redisState = state;
+  if (error) {
+    lastRedisError = error instanceof Error ? error.message : String(error);
+  } else if (state === 'connected') {
+    lastRedisError = null;
+  }
+};
+
+if (rawRedisClient) {
+  rawRedisClient.on('error', (err: unknown) => {
+    markRedisState(rawRedisClient.isOpen ? 'connected' : 'degraded', err);
     if (config.nodeEnv !== 'test') {
-      // eslint-disable-next-line no-console
       console.error('Redis Client Error', err);
+    }
+  });
+
+  rawRedisClient.on('ready', () => {
+    markRedisState('connected');
+    if (config.nodeEnv !== 'test') {
+      console.log('Redis client ready');
+    }
+  });
+
+  rawRedisClient.on('reconnecting', () => {
+    markRedisState('connecting');
+    if (config.nodeEnv !== 'test') {
+      console.warn('Redis client reconnecting...');
+    }
+  });
+
+  rawRedisClient.on('end', () => {
+    markRedisState('degraded', 'Redis connection closed');
+    if (config.nodeEnv !== 'test') {
+      console.warn('Redis connection closed, continuing in degraded mode until reconnect succeeds');
     }
   });
 }
 
-export const connectRedis = async () => {
-  if (config.nodeEnv === 'test') return;
-  if (!config.enableRedis) return;
-  if (!redisClient.isOpen) {
-    await redisClient.connect();
-    // eslint-disable-next-line no-console
-    console.log('Connected to Redis');
+const getOperationalRedisClient = () => {
+  if (!config.enableRedis || !rawRedisClient || !rawRedisClient.isOpen) {
+    return null;
+  }
+  return rawRedisClient;
+};
+
+const withRedisFallback = async <T>(operation: string, fallback: T, fn: (client: RedisClientType) => Promise<T>) => {
+  const client = getOperationalRedisClient();
+  if (!client) {
+    return fallback;
+  }
+
+  try {
+    return await fn(client);
+  } catch (error) {
+    markRedisState('degraded', error);
+    if (config.nodeEnv !== 'test') {
+      console.warn(`Redis operation failed (${operation}); continuing in degraded mode`, error);
+    }
+    return fallback;
   }
 };
+
+const redisClient: RedisLike = {
+  get isOpen() {
+    return getOperationalRedisClient()?.isOpen ?? inMemoryRedis.isOpen;
+  },
+  async connect() {
+    if (!config.enableRedis) return;
+    await connectRedis();
+  },
+  duplicate() {
+    return (rawRedisClient?.duplicate() as unknown as RedisLike) || inMemoryRedis.duplicate();
+  },
+  async get(key) {
+    return withRedisFallback('get', null, client => client.get(key));
+  },
+  async setEx(key, ttlSeconds, value) {
+    await withRedisFallback('setEx', undefined, client => client.setEx(key, ttlSeconds, value));
+  },
+  async set(key, value, options) {
+    await withRedisFallback('set', undefined, client => client.set(key, value, options));
+  },
+  async incr(key) {
+    return withRedisFallback('incr', 0, client => client.incr(key));
+  },
+  async expire(key, ttlSeconds) {
+    await withRedisFallback('expire', undefined, client => client.expire(key, ttlSeconds));
+  },
+  async ttl(key) {
+    return withRedisFallback('ttl', -2, client => client.ttl(key));
+  },
+  async keys(pattern) {
+    return withRedisFallback('keys', [], client => client.keys(pattern));
+  },
+  async del(keys) {
+    return withRedisFallback('del', 0, client => client.del(keys as any));
+  },
+  async ping() {
+    return withRedisFallback('ping', 'DEGRADED', client => client.ping());
+  },
+};
+
+export const connectRedis = async () => {
+  if (config.nodeEnv === 'test' || !config.enableRedis || !rawRedisClient) {
+    return;
+  }
+
+  if (rawRedisClient.isOpen) {
+    markRedisState('connected');
+    return;
+  }
+
+  markRedisState('connecting');
+  const deadline = Date.now() + RETRY_WINDOW_MS;
+  let attempts = 0;
+
+  while (Date.now() < deadline) {
+    attempts += 1;
+    try {
+      await rawRedisClient.connect();
+      markRedisState('connected');
+      console.log(`Connected to Redis after ${attempts} attempt(s)`);
+      return;
+    } catch (error) {
+      markRedisState('connecting', error);
+      if (config.nodeEnv !== 'test') {
+        console.warn(`Redis connection attempt ${attempts} failed; retrying...`, error);
+      }
+      await sleep(RETRY_DELAY_MS);
+    }
+  }
+
+  markRedisState('degraded', lastRedisError || 'Redis connection timed out');
+  if (config.nodeEnv !== 'test') {
+    console.warn('Redis unavailable after 30 seconds; starting in degraded mode');
+  }
+};
+
+export const getRedisHealth = (): RedisHealth => ({
+  enabled: config.enableRedis,
+  state: redisState,
+  lastError: lastRedisError,
+});
+
+export const isRedisDegraded = () => redisState === 'degraded';
 
 export default redisClient;
