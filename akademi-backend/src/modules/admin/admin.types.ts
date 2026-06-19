@@ -55,6 +55,16 @@ export interface SystemHealth {
     storageBackups: string[];
     restorePlan: string[];
   };
+  scaling: {
+    horizontalReady: boolean;
+    serviceType: string;
+    websocketRedisAdapterEnabled: boolean;
+    websocketTransportMode: 'websocket-only';
+    schedulerMode: 'api-disabled' | 'jobs-only' | 'all-in-one';
+    blockers: string[];
+    warnings: string[];
+    recommendations: string[];
+  };
   timestamp: string;
 }
 

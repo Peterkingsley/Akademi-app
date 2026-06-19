@@ -41,6 +41,16 @@ export type SystemHealthSnapshot = {
     storageBackups: string[];
     restorePlan: string[];
   };
+  scaling: {
+    horizontalReady: boolean;
+    serviceType: string;
+    websocketRedisAdapterEnabled: boolean;
+    websocketTransportMode: 'websocket-only';
+    schedulerMode: 'api-disabled' | 'jobs-only' | 'all-in-one';
+    blockers: string[];
+    warnings: string[];
+    recommendations: string[];
+  };
   timestamp: string;
 };
 
@@ -133,6 +143,39 @@ export const getSystemHealthSnapshot = async (): Promise<SystemHealthSnapshot> =
     ? degradedDependencyPresent ? 'DEGRADED' : 'OK'
     : 'NOT_READY';
 
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+  const recommendations: string[] = [
+    'Run API, websocket, and jobs as separate services when traffic grows.',
+    'Keep websocket replicas behind Redis adapter when more than one websocket instance is active.',
+    'Keep Redis healthy before scaling write-heavy realtime traffic.',
+  ];
+
+  const schedulerMode: SystemHealthSnapshot['scaling']['schedulerMode'] =
+    config.serviceType === 'jobs' ? 'jobs-only' : config.serviceType === 'api' ? 'api-disabled' : 'all-in-one';
+
+  if (config.serviceType === 'websocket' && !config.enableWebSocketRedisAdapter) {
+    blockers.push('Websocket service is not horizontally safe yet because the Redis adapter is disabled.');
+  }
+
+  if (dependencies.redis.status !== 'online') {
+    warnings.push('Redis is not fully healthy; realtime fan-out and persistent coordination will be degraded when scaled.');
+  }
+
+  if (config.serviceType === 'api') {
+    warnings.push('API service can scale horizontally, but background scheduling should stay on the dedicated jobs service.');
+  }
+
+  if (config.serviceType === 'jobs') {
+    warnings.push('Jobs service should stay single-replica unless you add distributed job locking.');
+  }
+
+  if (config.serviceType === 'websocket' && config.enableWebSocketRedisAdapter) {
+    warnings.push('Websocket service is ready for multi-instance fan-out as long as Redis stays online.');
+  }
+
+  const horizontalReady = blockers.length === 0;
+
   return {
     status,
     live,
@@ -146,6 +189,16 @@ export const getSystemHealthSnapshot = async (): Promise<SystemHealthSnapshot> =
       shutdownReason: runtime.shutdownReason,
     },
     recovery: getRecoveryPosture(),
+    scaling: {
+      horizontalReady,
+      serviceType: config.serviceType,
+      websocketRedisAdapterEnabled: config.enableWebSocketRedisAdapter,
+      websocketTransportMode: 'websocket-only',
+      schedulerMode,
+      blockers,
+      warnings,
+      recommendations,
+    },
     timestamp: new Date().toISOString(),
   };
 };

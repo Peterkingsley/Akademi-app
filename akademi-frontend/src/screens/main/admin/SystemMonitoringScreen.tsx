@@ -264,6 +264,65 @@ export const SystemMonitoringScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>SCALING POSTURE</Text>
+          <Card style={styles.recoveryCard}>
+            <View style={styles.healthHeaderRow}>
+              <Badge
+                label={healthData?.scaling.horizontalReady ? "HORIZONTAL READY" : "NOT READY"}
+                variant={healthData?.scaling.horizontalReady ? "success" : "warning"}
+              />
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {healthData?.scaling.serviceType || "unknown"} service
+              </Text>
+            </View>
+
+            <View style={styles.recoveryBlock}>
+              <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Topology details</Text>
+              <Text style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                • Socket transport: {healthData?.scaling.websocketTransportMode || "unknown"}
+              </Text>
+              <Text style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                • Websocket Redis adapter: {healthData?.scaling.websocketRedisAdapterEnabled ? "enabled" : "disabled"}
+              </Text>
+              <Text style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                • Scheduler mode: {healthData?.scaling.schedulerMode || "unknown"}
+              </Text>
+            </View>
+
+            {!!healthData?.scaling.blockers?.length && (
+              <View style={styles.recoveryBlock}>
+                <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Scaling blockers</Text>
+                {healthData.scaling.blockers.map((item, index) => (
+                  <Text key={`blocker-${index}`} style={[typography.caption, styles.recoveryBullet, { color: "#F59E0B" }]}>
+                    • {item}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {!!healthData?.scaling.warnings?.length && (
+              <View style={styles.recoveryBlock}>
+                <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Warnings</Text>
+                {healthData.scaling.warnings.map((item, index) => (
+                  <Text key={`warning-${index}`} style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                    • {item}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.recoveryBlock}>
+              <Text style={[typography.body, styles.recoveryTitle, { color: colors.textPrimary }]}>Recommendations</Text>
+              {(healthData?.scaling.recommendations || []).map((item, index) => (
+                <Text key={`recommendation-${index}`} style={[typography.caption, styles.recoveryBullet, { color: colors.textSecondary }]}>
+                  {index + 1}. {item}
+                </Text>
+              ))}
+            </View>
+          </Card>
+        </View>
+
+        <View style={styles.section}>
           <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>RATE LIMIT PRESSURE</Text>
           <Card style={styles.rateLimitCard}>
             <View style={styles.rateLimitHeader}>

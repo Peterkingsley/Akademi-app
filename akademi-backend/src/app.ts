@@ -116,7 +116,6 @@ const startServer = async () => {
     if (config.serviceType === 'api') {
       // await typesenseService.initCollections();
       initWebSocket(server);
-      startCompetitionScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
