@@ -10,14 +10,12 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
-  ArrowRight,
   BookOpen,
   Camera,
   Check,
   ChevronDown,
   FileText,
   Mic,
-  Sparkles,
   X,
   Zap,
 } from "lucide-react-native";
@@ -31,13 +29,6 @@ import { useTheme } from "../../theme/ThemeContext";
 type AnswerMode = "DIRECT" | "STUDY";
 
 const MAX_QUESTION_LENGTH = 6000;
-
-const EXAMPLE_PROMPTS = [
-  "Solve x² + 5x + 6 = 0",
-  "Explain photosynthesis",
-  "Write a 500-word essay on inflation",
-  "Summarize this research paper",
-];
 
 export const SolveScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -143,60 +134,6 @@ export const SolveScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.promptCard}>
-          <View style={styles.promptGlow} />
-          <TextInput
-            style={styles.textArea}
-            placeholder="Paste your assignment question here..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={MAX_QUESTION_LENGTH}
-            value={question}
-            onChangeText={setQuestion}
-            textAlignVertical="top"
-          />
-
-          <View style={styles.promptFooter}>
-            <View style={styles.promptHintRow}>
-              <Sparkles size={15} color={colors.textMuted} />
-              <Text style={styles.promptHint}>Ask anything. We’re here to help!</Text>
-            </View>
-            <Text style={styles.counter}>{questionLength} / {MAX_QUESTION_LENGTH}</Text>
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handlePhotoPress}>
-            <View style={[styles.toolIconWrap, styles.greenToolIcon]}>
-              <Camera size={20} color={colors.primary} />
-            </View>
-            <View style={styles.toolCopy}>
-              <Text style={styles.toolTitle}>Photo</Text>
-              <Text style={styles.toolSubtitle}>Snap or upload</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleFilePress}>
-            <View style={[styles.toolIconWrap, styles.purpleToolIcon]}>
-              <FileText size={20} color="#8B5CF6" />
-            </View>
-            <View style={styles.toolCopy}>
-              <Text style={styles.toolTitle}>PDF / File</Text>
-              <Text style={styles.toolSubtitle}>Upload document</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleVoicePress}>
-            <View style={[styles.toolIconWrap, styles.blueToolIcon]}>
-              <Mic size={20} color="#6366F1" />
-            </View>
-            <View style={styles.toolCopy}>
-              <Text style={styles.toolTitle}>Voice</Text>
-              <Text style={styles.toolSubtitle}>Speak your question</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.courseStrip}>
           <View style={styles.courseInfo}>
             <Text style={styles.sectionLabel}>Course context</Text>
@@ -238,6 +175,47 @@ export const SolveScreen: React.FC = () => {
           </View>
         )}
 
+        <View style={styles.promptCard}>
+          <View style={styles.promptGlow} />
+          <TextInput
+            style={styles.textArea}
+            placeholder="Paste your assignment question here..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            maxLength={MAX_QUESTION_LENGTH}
+            value={question}
+            onChangeText={setQuestion}
+            textAlignVertical="top"
+          />
+
+          <View style={styles.promptFooter}>
+            <Text style={styles.counter}>{questionLength} / {MAX_QUESTION_LENGTH}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handlePhotoPress}>
+            <View style={[styles.toolIconWrap, styles.greenToolIcon]}>
+              <Camera size={18} color={colors.primary} />
+            </View>
+            <Text style={styles.toolTitle}>Photo</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleFilePress}>
+            <View style={[styles.toolIconWrap, styles.purpleToolIcon]}>
+              <FileText size={18} color="#8B5CF6" />
+            </View>
+            <Text style={styles.toolTitle}>PDF / File</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleVoicePress}>
+            <View style={[styles.toolIconWrap, styles.blueToolIcon]}>
+              <Mic size={18} color="#6366F1" />
+            </View>
+            <Text style={styles.toolTitle}>Voice</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.answerSection}>
           <Text style={styles.sectionHeading}>Answer style</Text>
           <View style={styles.segmentedControl}>
@@ -247,12 +225,11 @@ export const SolveScreen: React.FC = () => {
               onPress={() => setAnswerMode("DIRECT")}
             >
               <View style={styles.segmentHeader}>
-                <Zap size={20} color={answerMode === "DIRECT" ? colors.primary : "#7EA6FF"} />
+                <Zap size={18} color={answerMode === "DIRECT" ? colors.primary : "#7EA6FF"} />
                 <Text style={[styles.segmentTitle, answerMode === "DIRECT" && styles.segmentTitleActive]}>
                   Quick Solve
                 </Text>
               </View>
-              <Text style={styles.segmentText}>Fast answer with key steps</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -261,32 +238,12 @@ export const SolveScreen: React.FC = () => {
               onPress={() => setAnswerMode("STUDY")}
             >
               <View style={styles.segmentHeader}>
-                <BookOpen size={20} color={answerMode === "STUDY" ? colors.primary : "#7EA6FF"} />
+                <BookOpen size={18} color={answerMode === "STUDY" ? colors.primary : "#7EA6FF"} />
                 <Text style={[styles.segmentTitle, answerMode === "STUDY" && styles.segmentTitleActive]}>
                   Learn Step-by-Step
                 </Text>
               </View>
-              <Text style={styles.segmentText}>Detailed explanation & why</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.examplesSection}>
-          <View style={styles.examplesHeader}>
-            <Sparkles size={15} color={colors.primary} />
-            <Text style={styles.examplesTitle}>Try these examples</Text>
-          </View>
-          <View style={styles.examplesWrap}>
-            {EXAMPLE_PROMPTS.map((example) => (
-              <TouchableOpacity
-                key={example}
-                style={styles.exampleChip}
-                activeOpacity={0.82}
-                onPress={() => setQuestion(example)}
-              >
-                <Text style={styles.exampleText}>{example}</Text>
-              </TouchableOpacity>
-            ))}
           </View>
         </View>
 
@@ -296,16 +253,7 @@ export const SolveScreen: React.FC = () => {
           onPress={handleSolve}
           disabled={loading}
         >
-          <View style={styles.solveNowCopy}>
-            <View style={styles.solveNowTitleRow}>
-              <Sparkles size={18} color={colors.background} />
-              <Text style={styles.solveNowTitle}>{loading ? "Working..." : "Solve Now"}</Text>
-            </View>
-            <Text style={styles.solveNowSubtitle}>Get your answer instantly</Text>
-          </View>
-          <View style={styles.solveNowArrow}>
-            <ArrowRight size={20} color={colors.primary} />
-          </View>
+          <Text style={styles.solveNowTitle}>{loading ? "Working..." : "Solve Now"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </Screen>
@@ -327,7 +275,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 12,
+      marginBottom: 10,
       paddingTop: 2,
     },
     headerEyebrow: {
@@ -350,113 +298,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       height: 42,
       justifyContent: "center",
       width: 42,
-    },
-    promptCard: {
-      backgroundColor: colors.surface,
-      borderColor: "rgba(34,197,94,0.7)",
-      borderRadius: 20,
-      borderWidth: 1,
-      marginBottom: 14,
-      minHeight: 154,
-      overflow: "hidden",
-      paddingHorizontal: 14,
-      paddingTop: 14,
-      position: "relative",
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-    },
-    promptGlow: {
-      backgroundColor: "rgba(34,197,94,0.16)",
-      height: 24,
-      left: 14,
-      position: "absolute",
-      top: 14,
-      width: 3,
-    },
-    textArea: {
-      ...typography.body,
-      color: colors.textPrimary,
-      flex: 1,
-      fontSize: 16,
-      lineHeight: 24,
-      minHeight: 92,
-      paddingBottom: 10,
-      paddingLeft: 12,
-      paddingRight: 0,
-      paddingTop: 0,
-    },
-    promptFooter: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingBottom: 10,
-      paddingTop: 2,
-    },
-    promptHintRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      flex: 1,
-    },
-    promptHint: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      fontSize: 12,
-      marginLeft: 8,
-    },
-    counter: {
-      ...typography.bodySmall,
-      color: colors.textMuted,
-      fontSize: 12,
-      marginLeft: 12,
-    },
-    actionRow: {
-      flexDirection: "row",
-      gap: 10,
-      marginBottom: 14,
-    },
-    toolCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 16,
-      borderWidth: 1,
-      flex: 1,
-      minHeight: 76,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    toolIconWrap: {
-      alignItems: "center",
-      borderRadius: 16,
-      height: 30,
-      justifyContent: "center",
-      marginBottom: 8,
-      width: 30,
-    },
-    greenToolIcon: {
-      backgroundColor: "rgba(34,197,94,0.12)",
-    },
-    purpleToolIcon: {
-      backgroundColor: "rgba(139,92,246,0.12)",
-    },
-    blueToolIcon: {
-      backgroundColor: "rgba(99,102,241,0.12)",
-    },
-    toolCopy: {
-      flex: 1,
-    },
-    toolTitle: {
-      ...typography.h4,
-      color: colors.textPrimary,
-      fontSize: 13,
-      marginBottom: 2,
-    },
-    toolSubtitle: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      fontSize: 11,
-      lineHeight: 15,
     },
     courseStrip: {
       alignItems: "center",
@@ -499,7 +340,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       borderColor: colors.border,
       borderRadius: 14,
       borderWidth: 1,
-      marginBottom: 12,
+      marginBottom: 10,
       padding: 10,
     },
     inlineCourseGrid: {
@@ -531,30 +372,116 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       color: colors.background,
       marginLeft: 5,
     },
-    answerSection: {
+    promptCard: {
+      backgroundColor: colors.surface,
+      borderColor: "rgba(34,197,94,0.7)",
+      borderRadius: 20,
+      borderWidth: 1,
       marginBottom: 12,
+      minHeight: 150,
+      overflow: "hidden",
+      paddingHorizontal: 14,
+      paddingTop: 14,
+      position: "relative",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+    },
+    promptGlow: {
+      backgroundColor: "rgba(34,197,94,0.16)",
+      height: 24,
+      left: 14,
+      position: "absolute",
+      top: 14,
+      width: 3,
+    },
+    textArea: {
+      ...typography.body,
+      color: colors.textPrimary,
+      flex: 1,
+      fontSize: 16,
+      lineHeight: 24,
+      minHeight: 92,
+      paddingBottom: 10,
+      paddingLeft: 12,
+      paddingRight: 0,
+      paddingTop: 0,
+    },
+    promptFooter: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      paddingBottom: 8,
+      paddingTop: 0,
+    },
+    counter: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    actionRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 10,
+    },
+    toolCard: {
+      alignItems: "flex-start",
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 16,
+      borderWidth: 1,
+      flex: 1,
+      minHeight: 60,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    toolIconWrap: {
+      alignItems: "center",
+      borderRadius: 16,
+      height: 30,
+      justifyContent: "center",
+      marginBottom: 6,
+      width: 30,
+    },
+    greenToolIcon: {
+      backgroundColor: "rgba(34,197,94,0.12)",
+    },
+    purpleToolIcon: {
+      backgroundColor: "rgba(139,92,246,0.12)",
+    },
+    blueToolIcon: {
+      backgroundColor: "rgba(99,102,241,0.12)",
+    },
+    toolTitle: {
+      ...typography.h4,
+      color: colors.textPrimary,
+      fontSize: 12,
+    },
+    answerSection: {
+      marginBottom: 10,
     },
     sectionHeading: {
       ...typography.h4,
       color: colors.textPrimary,
       fontSize: 14,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     segmentedControl: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
-      borderRadius: 18,
+      borderRadius: 14,
       borderWidth: 1,
       flexDirection: "row",
       overflow: "hidden",
       padding: 3,
     },
     segment: {
-      borderRadius: 15,
+      borderRadius: 11,
       flex: 1,
-      minHeight: 72,
+      minHeight: 40,
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 8,
     },
     segmentActive: {
       backgroundColor: "rgba(34,197,94,0.1)",
@@ -565,7 +492,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       alignItems: "center",
       flexDirection: "row",
       gap: 8,
-      marginBottom: 6,
     },
     segmentTitle: {
       ...typography.h4,
@@ -575,88 +501,22 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     segmentTitleActive: {
       color: colors.primary,
     },
-    segmentText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      fontSize: 11,
-      lineHeight: 16,
-    },
-    examplesSection: {
-      marginBottom: 14,
-    },
-    examplesHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 8,
-      marginBottom: 8,
-    },
-    examplesTitle: {
-      ...typography.h4,
-      color: colors.textPrimary,
-      fontSize: 14,
-    },
-    examplesWrap: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    exampleChip: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 14,
-      borderWidth: 1,
-      maxWidth: "48%",
-      minHeight: 46,
-      justifyContent: "center",
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    exampleText: {
-      ...typography.bodySmall,
-      color: colors.textPrimary,
-      fontSize: 12,
-      lineHeight: 16,
-    },
     solveNowButton: {
       alignItems: "center",
       backgroundColor: colors.primary,
       borderRadius: 18,
-      flexDirection: "row",
-      justifyContent: "space-between",
+      justifyContent: "center",
       marginTop: 2,
-      minHeight: 68,
+      minHeight: 56,
       paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingVertical: 8,
     },
     solveNowButtonDisabled: {
       opacity: 0.65,
-    },
-    solveNowCopy: {
-      flex: 1,
-    },
-    solveNowTitleRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 8,
-      marginBottom: 2,
     },
     solveNowTitle: {
       ...typography.h2,
       color: colors.background,
       fontSize: 18,
-    },
-    solveNowSubtitle: {
-      ...typography.body,
-      color: "rgba(10,10,10,0.72)",
-      fontSize: 12,
-    },
-    solveNowArrow: {
-      alignItems: "center",
-      backgroundColor: "rgba(0,0,0,0.2)",
-      borderRadius: 20,
-      height: 40,
-      justifyContent: "center",
-      marginLeft: 12,
-      width: 40,
     },
   });
