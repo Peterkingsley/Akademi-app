@@ -246,7 +246,9 @@ export const SolveScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
+      </ScrollView>
 
+      <View style={styles.bottomCtaWrap}>
         <TouchableOpacity
           style={[styles.solveNowButton, loading && styles.solveNowButtonDisabled]}
           activeOpacity={0.88}
@@ -255,7 +257,7 @@ export const SolveScreen: React.FC = () => {
         >
           <Text style={styles.solveNowTitle}>{loading ? "Working..." : "Solve Now"}</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </Screen>
   );
 };
@@ -267,9 +269,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       flex: 1,
     },
     content: {
+      flexGrow: 1,
       paddingHorizontal: 16,
       paddingTop: 2,
-      paddingBottom: 18,
+      paddingBottom: 110,
     },
     header: {
       alignItems: "center",
@@ -506,7 +509,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       backgroundColor: colors.primary,
       borderRadius: 18,
       justifyContent: "center",
-      marginTop: 2,
       minHeight: 56,
       paddingHorizontal: 16,
       paddingVertical: 8,
@@ -518,5 +520,17 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       ...typography.h2,
       color: colors.background,
       fontSize: 18,
+    },
+    bottomCtaWrap: {
+      backgroundColor: colors.background,
+      borderTopColor: "rgba(255,255,255,0.06)",
+      borderTopWidth: 1,
+      bottom: 0,
+      left: 0,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 16,
+      position: "absolute",
+      right: 0,
     },
   });
