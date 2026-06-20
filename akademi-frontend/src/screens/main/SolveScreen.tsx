@@ -12,15 +12,13 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import {
   ArrowRight,
   BookOpen,
-  Bot,
   Camera,
   Check,
   ChevronDown,
-  Crown,
   FileText,
-  Menu,
   Mic,
   Sparkles,
+  X,
   Zap,
 } from "lucide-react-native";
 
@@ -120,14 +118,6 @@ export const SolveScreen: React.FC = () => {
     }
   };
 
-  const handleMenuPress = () => {
-    navigation.navigate("Home");
-  };
-
-  const handlePremiumPress = () => {
-    navigation.navigate("Profile");
-  };
-
   const handlePhotoPress = () => {
     navigation.navigate("Camera");
   };
@@ -143,33 +133,14 @@ export const SolveScreen: React.FC = () => {
   return (
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handleMenuPress}>
-            <Menu size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-
-          <View style={styles.brandRow}>
-            <View style={styles.botBadge}>
-              <Bot size={24} color={colors.primary} />
-            </View>
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandTitle}>Akademi Tutor</Text>
-              <Text style={styles.brandSubtitle}>Your AI study companion</Text>
-            </View>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerEyebrow}>Assignment Help</Text>
+            <Text style={styles.headerTitle}>Solve it and learn it</Text>
           </View>
-
-          <TouchableOpacity style={styles.iconButton} activeOpacity={0.85} onPress={handlePremiumPress}>
-            <Crown size={20} color={colors.primary} />
+          <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
+            <X size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.hero}>
-          <Text style={styles.heroTitle}>
-            Solve. Learn. <Text style={styles.heroAccent}>Excel.</Text>
-          </Text>
-          <Text style={styles.heroText}>
-            Get clear answers, step-by-step explanations, and learn the why behind everything.
-          </Text>
         </View>
 
         <View style={styles.promptCard}>
@@ -352,73 +323,33 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       paddingTop: 2,
       paddingBottom: 18,
     },
-    topBar: {
+    header: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
       marginBottom: 12,
+      paddingTop: 2,
     },
-    iconButton: {
+    headerEyebrow: {
+      ...typography.label,
+      color: colors.primary,
+      letterSpacing: 0,
+      marginBottom: 3,
+    },
+    headerTitle: {
+      ...typography.h2,
+      color: colors.textPrimary,
+      fontSize: 20,
+    },
+    closeButton: {
       alignItems: "center",
-      backgroundColor: "rgba(255,255,255,0.04)",
-      borderColor: "rgba(255,255,255,0.08)",
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
       borderRadius: 12,
       borderWidth: 1,
       height: 42,
       justifyContent: "center",
       width: 42,
-    },
-    brandRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 10,
-      paddingHorizontal: 6,
-    },
-    botBadge: {
-      alignItems: "center",
-      backgroundColor: "rgba(34,197,94,0.12)",
-      borderColor: "rgba(34,197,94,0.28)",
-      borderRadius: 14,
-      borderWidth: 1,
-      height: 40,
-      justifyContent: "center",
-      width: 40,
-    },
-    brandCopy: {
-      flexShrink: 1,
-    },
-    brandTitle: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      fontSize: 16,
-    },
-    brandSubtitle: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    hero: {
-      alignItems: "center",
-      marginBottom: 14,
-      paddingHorizontal: 6,
-    },
-    heroTitle: {
-      ...typography.h1,
-      color: colors.textPrimary,
-      fontSize: 28,
-      lineHeight: 33,
-      textAlign: "center",
-    },
-    heroAccent: {
-      color: colors.primary,
-    },
-    heroText: {
-      ...typography.body,
-      color: colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 22,
-      marginTop: 8,
-      textAlign: "center",
     },
     promptCard: {
       backgroundColor: colors.surface,
