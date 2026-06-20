@@ -44,6 +44,7 @@
     "expo-splash-screen": "~0.29.24",
     "expo-status-bar": "~2.0.1",
     "expo-store-review": "~8.0.1",
+    "expo-system-ui": "~4.0.7",
     "expo-web-browser": "~14.0.2",
     "lucide-react-native": "^0.577.0",
     "react": "18.3.1",
@@ -51,7 +52,6 @@
     "react-hook-form": "^7.72.0",
     "react-native": "0.76.9",
     "react-native-chart-kit": "^6.12.0",
-    "react-native-dotenv": "^3.4.11",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-pager-view": "6.5.1",
     "react-native-reanimated": "~3.16.1",
@@ -60,7 +60,7 @@
     "react-native-svg": "15.8.0",
     "react-native-tab-view": "^4.3.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "^13.16.1",
+    "react-native-webview": "13.12.5",
     "socket.io-client": "^4.8.3",
     "zustand": "^5.0.12"
   },
@@ -68,6 +68,17 @@
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
     "typescript": "^5.9.3"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "expo-av",
+          "react-native-chart-kit"
+        ],
+        "listUnknownPackages": false
+      }
+    }
   },
   "private": true
 }
