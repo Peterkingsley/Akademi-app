@@ -166,6 +166,7 @@ api.interceptors.response.use(
 
             await AsyncStorage.setItem("accessToken", data.accessToken);
             await AsyncStorage.setItem("refreshToken", data.refreshToken);
+            useAuthStore.getState().updateTokens(data.accessToken, data.refreshToken);
 
             // Update auth-storage too for consistency
             const authStorage = await AsyncStorage.getItem("auth-storage");

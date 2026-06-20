@@ -24,10 +24,13 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
+  hasHydrated: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  updateTokens: (accessToken: string, refreshToken: string) => void;
   updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
   setOnboardingComplete: (complete: boolean) => void;
+  setHasHydrated: (hydrated: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -38,10 +41,16 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       hasSeenOnboarding: false,
+      hasHydrated: false,
       setAuth: (user, accessToken, refreshToken) => {
         AsyncStorage.setItem("accessToken", accessToken);
         AsyncStorage.setItem("refreshToken", refreshToken);
         set({ user, accessToken, refreshToken, isAuthenticated: true });
+      },
+      updateTokens: (accessToken, refreshToken) => {
+        AsyncStorage.setItem("accessToken", accessToken);
+        AsyncStorage.setItem("refreshToken", refreshToken);
+        set({ accessToken, refreshToken, isAuthenticated: true });
       },
       updateUser: (updatedUser) => {
         set((state) => ({
@@ -49,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
       clearAuth: () => {
-        AsyncStorage.multiRemove(["accessToken", "refreshToken"]);
+        AsyncStorage.multiRemove(["accessToken", "refreshToken", "auth-storage"]);
         set({
           user: null,
           accessToken: null,
@@ -59,10 +68,14 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       setOnboardingComplete: (complete) => set({ hasSeenOnboarding: complete }),
+      setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
       name: "auth-storage",
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );

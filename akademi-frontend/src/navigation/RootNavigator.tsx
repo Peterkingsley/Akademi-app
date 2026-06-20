@@ -8,6 +8,7 @@ import { AdminStack } from "./AdminStack";
 import { SplashScreen } from "../screens/main/SplashScreen";
 import { useAuthStore } from "../store/useAuthStore";
 import { userService } from "../services/user";
+import { socketService } from "../services/socket";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
@@ -23,7 +24,7 @@ if (typeof window !== 'undefined') {
 
 export const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, updateUser, clearAuth } = useAuthStore();
+  const { isAuthenticated, hasHydrated, updateUser, clearAuth } = useAuthStore();
 
   const registerForPushNotificationsAsync = async () => {
     try {
@@ -54,6 +55,10 @@ export const RootNavigator = () => {
   };
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
     const initializeAuth = async () => {
       const startTime = Date.now();
 
@@ -73,6 +78,7 @@ export const RootNavigator = () => {
           // Register for push notifications
           registerForPushNotificationsAsync().catch(console.error);
         } catch (error) {
+          socketService.disconnect();
           clearAuth();
           console.error("Auth verification failed on startup:", error);
         }
@@ -88,9 +94,9 @@ export const RootNavigator = () => {
     };
 
     initializeAuth();
-  }, [clearAuth, isAuthenticated, updateUser]);
+  }, [clearAuth, hasHydrated, isAuthenticated, updateUser]);
 
-  if (isLoading) {
+  if (isLoading || !hasHydrated) {
     return <SplashScreen />;
   }
 
