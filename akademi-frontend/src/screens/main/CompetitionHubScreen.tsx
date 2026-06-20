@@ -76,31 +76,39 @@ export const CompetitionHubScreen: React.FC = () => {
   const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
 
+    setLoadNotice(null);
+
+    const tournamentResult = await competitionService
+      .getTournaments()
+      .then((value) => ({ ok: true as const, value }))
+      .catch((error: any) => ({ ok: false as const, error }));
+
+    if (tournamentResult.ok) {
+      setTournaments(tournamentResult.value);
       setLoadNotice(null);
+    } else {
+      setTournaments([]);
+      const status = tournamentResult.error?.response?.status;
+      const message = tournamentResult.error?.response?.data?.message;
 
-      const results = await Promise.allSettled([competitionService.getTournaments()]);
-      const [tournamentResult] = results;
-      const hasMissingRoute = results.some(
-        (result) => result.status === "rejected" && result.reason?.response?.status === 404,
-      );
-
-      setTournaments(tournamentResult.status === "fulfilled" ? tournamentResult.value : []);
-
-      if (hasMissingRoute) {
-        setLoadNotice(
-          "Competition routes are not live on this backend yet. Once Render deploys the latest branch, campaigns and match rooms will appear here.",
-        );
-      }
-    } catch (error: any) {
       setLoadNotice(
-        error?.response?.status === 404
-          ? "Competition routes are not live on this backend yet. Once Render deploys the latest branch, campaigns and match rooms will appear here."
-          : "We could not refresh competition data right now. Pull to try again.",
+        status === 404
+          ? "Competition campaigns are not live on this backend yet. You can still create a new match or join with a code below."
+          : message === "Failed to fetch tournaments"
+            ? "Live campaigns could not load right now, but match creation and code join are still available below."
+            : "Live campaigns could not refresh right now. You can still create a new match or join with a code below.",
       );
+    }
+
+    try {
+      const socket = await socketService.connect();
+      socket.off("tournament:live");
+      socket.on("tournament:live", () => loadData(true));
+    } catch (error) {
+      console.error("Tournament socket setup failed", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -112,19 +120,8 @@ export const CompetitionHubScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const handleTournamentLive = () => {
-      loadData(true);
-    };
-
-    const setup = async () => {
-      const socket = await socketService.connect();
-      socket.on("tournament:live", handleTournamentLive);
-    };
-
-    setup().catch((error) => console.error("Tournament socket setup failed", error));
-
     return () => {
-      socketService.off("tournament:live", handleTournamentLive);
+      socketService.off("tournament:live");
     };
   }, []);
 

@@ -247,7 +247,14 @@ export class CompetitionsService {
   }
 
   private async ensureTournamentRooms() {
-    await this.activateDueTournaments();
+    try {
+      await this.activateDueTournaments();
+    } catch (error) {
+      console.warn(
+        'Tournament room activation skipped during read path:',
+        (error as Error)?.message || error,
+      );
+    }
   }
 
   private async getRoomQuestions(room: {
@@ -334,130 +341,137 @@ export class CompetitionsService {
     });
 
     for (const tournament of readyTournaments) {
-      if (tournament.check_in_closes_at && tournament.check_in_closes_at.getTime() <= Date.now()) {
-        const noShowEntryIds = tournament.entries
-          .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
-          .map((entry) => entry.id);
+      try {
+        if (tournament.check_in_closes_at && tournament.check_in_closes_at.getTime() <= Date.now()) {
+          const noShowEntryIds = tournament.entries
+            .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
+            .map((entry) => entry.id);
 
-        if (noShowEntryIds.length > 0) {
-          await prisma.tournamentEntry.updateMany({
-            where: { id: { in: noShowEntryIds } },
-            data: { status: 'STANDBY' as any },
-          });
+          if (noShowEntryIds.length > 0) {
+            await prisma.tournamentEntry.updateMany({
+              where: { id: { in: noShowEntryIds } },
+              data: { status: 'STANDBY' as any },
+            });
 
-          await Promise.all(
-            tournament.entries
-              .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
-              .map((entry) =>
-                notificationsService.createNotification({
-                  user_id: entry.user_id,
-                  title: `${tournament.title} moved you to standby`,
-                  message: 'Check-in closed before you confirmed attendance, so you were not added to the live room.',
-                  type: 'tournament_standby',
-                }),
-              ),
-          );
+            await Promise.all(
+              tournament.entries
+                .filter((entry) => entry.status === TournamentEntryStatus.REGISTERED)
+                .map((entry) =>
+                  notificationsService.createNotification({
+                    user_id: entry.user_id,
+                    title: `${tournament.title} moved you to standby`,
+                    message: 'Check-in closed before you confirmed attendance, so you were not added to the live room.',
+                    type: 'tournament_standby',
+                  }),
+                ),
+            );
+          }
         }
-      }
 
-      const refreshedTournament = await prisma.tournament.findUnique({
-        where: { id: tournament.id },
-        include: {
-          entries: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
+        const refreshedTournament = await prisma.tournament.findUnique({
+          where: { id: tournament.id },
+          include: {
+            entries: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
                 },
               },
             },
+            room: {
+              include: {
+                participants: true,
+              },
+            },
           },
-          room: {
+        });
+
+        if (!refreshedTournament) {
+          continue;
+        }
+
+        const checkInClosesAt = refreshedTournament.check_in_closes_at || refreshedTournament.scheduled_at;
+        const eligibleEntries = refreshedTournament.entries.filter((entry) =>
+          entry.status === TournamentEntryStatus.CHECKED_IN || checkInClosesAt.getTime() <= Date.now(),
+        );
+
+        if (eligibleEntries.length < 2) {
+          continue;
+        }
+
+        let room = refreshedTournament.room;
+
+        if (!room) {
+          const hostEntry = eligibleEntries[0];
+          room = await prisma.competitionRoom.create({
+            data: {
+              code: await this.generateUniqueCode(),
+              host_user_id: hostEntry.user_id,
+              tournament_id: refreshedTournament.id,
+              title: refreshedTournament.title,
+              visibility: CompetitionVisibility.TOURNAMENT,
+              format: refreshedTournament.format,
+              status: CompetitionStatus.LIVE,
+              shared_course_code: refreshedTournament.shared_course_code,
+              question_count: refreshedTournament.question_count,
+              question_timer_sec: refreshedTournament.question_timer_sec,
+              max_participants: refreshedTournament.max_participants || Math.max(2, refreshedTournament.entries.length),
+              starts_at: new Date(),
+              participants: {
+                create: eligibleEntries.map((entry) => ({
+                  user_id: entry.user_id,
+                  course_code: refreshedTournament.shared_course_code,
+                  status: CompetitionParticipantStatus.JOINED,
+                })),
+              },
+            },
             include: {
               participants: true,
             },
-          },
-        },
-      });
+          });
+        }
 
-      if (!refreshedTournament) {
-        continue;
-      }
-
-      const checkInClosesAt = refreshedTournament.check_in_closes_at || refreshedTournament.scheduled_at;
-      const eligibleEntries = refreshedTournament.entries.filter((entry) =>
-        entry.status === TournamentEntryStatus.CHECKED_IN || checkInClosesAt.getTime() <= Date.now(),
-      );
-
-      if (eligibleEntries.length < 2) {
-        continue;
-      }
-
-      let room = refreshedTournament.room;
-
-      if (!room) {
-        const hostEntry = eligibleEntries[0];
-        room = await prisma.competitionRoom.create({
+        await prisma.tournament.update({
+          where: { id: refreshedTournament.id },
           data: {
-            code: await this.generateUniqueCode(),
-            host_user_id: hostEntry.user_id,
-            tournament_id: refreshedTournament.id,
-            title: refreshedTournament.title,
-            visibility: CompetitionVisibility.TOURNAMENT,
-            format: refreshedTournament.format,
-            status: CompetitionStatus.LIVE,
-            shared_course_code: refreshedTournament.shared_course_code,
-            question_count: refreshedTournament.question_count,
-            question_timer_sec: refreshedTournament.question_timer_sec,
-            max_participants: refreshedTournament.max_participants || Math.max(2, refreshedTournament.entries.length),
-            starts_at: new Date(),
-            participants: {
-              create: eligibleEntries.map((entry) => ({
-                user_id: entry.user_id,
-                course_code: refreshedTournament.shared_course_code,
-                status: CompetitionParticipantStatus.JOINED,
-              })),
-            },
-          },
-          include: {
-            participants: true,
+            status: TournamentStatus.LIVE,
           },
         });
-      }
 
-      await prisma.tournament.update({
-        where: { id: refreshedTournament.id },
-        data: {
-          status: TournamentStatus.LIVE,
-        },
-      });
+        try {
+          await this.startMatch(room.id);
+        } catch (error) {
+          console.warn(`Unable to seed tournament match ${refreshedTournament.id}:`, (error as Error)?.message || error);
+        }
 
-      try {
-        await this.startMatch(room.id);
+        const startsAt = room.starts_at || new Date();
+        await Promise.all(
+          eligibleEntries.map(async (entry) => {
+            await notificationsService.createNotification({
+              user_id: entry.user_id,
+              title: `${refreshedTournament.title} is live`,
+              message: `Your tournament room is ready. Join now and compete live.`,
+              type: 'tournament_live',
+            });
+
+            emitToUser(entry.user_id, 'tournament:live', {
+              tournamentId: refreshedTournament.id,
+              roomId: room!.id,
+              title: refreshedTournament.title,
+              scheduledAt: refreshedTournament.scheduled_at.toISOString(),
+              startsAt: startsAt.toISOString(),
+            });
+          }),
+        );
       } catch (error) {
-        console.warn(`Unable to seed tournament match ${refreshedTournament.id}:`, (error as Error)?.message || error);
+        console.warn(
+          `Tournament activation failed for ${tournament.id}:`,
+          (error as Error)?.message || error,
+        );
       }
-
-      const startsAt = room.starts_at || new Date();
-      await Promise.all(
-        eligibleEntries.map(async (entry) => {
-          await notificationsService.createNotification({
-            user_id: entry.user_id,
-            title: `${refreshedTournament.title} is live`,
-            message: `Your tournament room is ready. Join now and compete live.`,
-            type: 'tournament_live',
-          });
-
-          emitToUser(entry.user_id, 'tournament:live', {
-            tournamentId: refreshedTournament.id,
-            roomId: room!.id,
-            title: refreshedTournament.title,
-            scheduledAt: refreshedTournament.scheduled_at.toISOString(),
-            startsAt: startsAt.toISOString(),
-          });
-        }),
-      );
     }
   }
 
