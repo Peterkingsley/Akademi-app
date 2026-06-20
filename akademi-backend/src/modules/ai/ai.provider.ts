@@ -151,6 +151,53 @@ export class AIProvider {
     console.error('AI providers failed', { geminiError, claudeError });
     throw new Error('AI tutor is temporarily busy. Please try again in a moment.');
   }
+
+  async transcribeAudio(buffer: Buffer, mimeType: string): Promise<string> {
+    const geminiClient = this.getGemini();
+    if (!geminiClient) {
+      throw new Error('Voice solve is unavailable right now. Please use text or photo for now.');
+    }
+
+    let lastError: string | null = null;
+
+    for (const geminiModelName of uniqueModels(config.geminiModel)) {
+      try {
+        const geminiModel = geminiClient.getGenerativeModel({ model: geminiModelName });
+        const result = await geminiModel.generateContent([
+          {
+            text:
+              'Transcribe this student audio into clean plain text. Keep the academic question exactly as spoken, lightly clean filler words only when they do not change meaning, and return only the transcript with no commentary.',
+          },
+          {
+            inlineData: {
+              mimeType,
+              data: buffer.toString('base64'),
+            },
+          },
+        ]);
+
+        const response = await result.response;
+        const text = response.text().trim();
+
+        if (!text) {
+          throw new Error('Gemini returned empty transcript');
+        }
+
+        return text;
+      } catch (error: any) {
+        const errorMessage = error.message || 'Unknown Gemini transcription error';
+        lastError = errorMessage;
+        console.error(`Gemini transcription error on ${geminiModelName}:`, error);
+        if (!isRetryableGeminiError(errorMessage)) {
+          break;
+        }
+        await sleep(350);
+      }
+    }
+
+    console.error('Audio transcription failed', { lastError });
+    throw new Error('Could not transcribe that recording. Please try again or type the question instead.');
+  }
 }
 
 export const aiProvider = new AIProvider();

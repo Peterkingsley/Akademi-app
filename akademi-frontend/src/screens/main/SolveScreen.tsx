@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import * as DocumentPicker from "expo-document-picker";
+import { Audio } from "expo-av";
 import {
   BookOpen,
   Camera,
@@ -44,6 +46,9 @@ export const SolveScreen: React.FC = () => {
   const [course, setCourse] = useState("Select Course");
   const [loading, setLoading] = useState(false);
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
+  const [documentLoading, setDocumentLoading] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
@@ -66,6 +71,24 @@ export const SolveScreen: React.FC = () => {
       setQuestion((prev) => prev || "Photo selected. Add the question details or any extra instruction here.");
     }
   }, [photoUri]);
+
+  useEffect(() => {
+    return () => {
+      if (recording) {
+        recording.stopAndUnloadAsync().catch(() => undefined);
+      }
+    };
+  }, [recording]);
+
+  const mergeIntoQuestion = (incomingText: string) => {
+    const trimmed = incomingText.trim();
+    if (!trimmed) return;
+
+    setQuestion((prev) => {
+      const existing = prev.trim();
+      return existing ? `${existing}\n\n${trimmed}` : trimmed;
+    });
+  };
 
   const handleSolve = async () => {
     if (!hasQuestion) {
@@ -113,12 +136,134 @@ export const SolveScreen: React.FC = () => {
     navigation.navigate("Camera");
   };
 
-  const handleFilePress = () => {
-    Alert.alert("PDF / File", "Document solve upload is the next step on this screen.");
+  const handleFilePress = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
+          "text/markdown",
+          "application/json",
+          "text/csv",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const file = result.assets[0];
+      setDocumentLoading(true);
+
+      const formData = new FormData();
+      formData.append("document", {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || "application/octet-stream",
+      } as any);
+
+      const { data } = await api.post("/sessions/ingest/document", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 90000,
+      });
+
+      mergeIntoQuestion(data?.extractedText || "");
+    } catch (error: any) {
+      Alert.alert(
+        "Could not read file",
+        error?.response?.data?.message || "Please try another PDF, DOCX, TXT, MD, JSON, or CSV file."
+      );
+    } finally {
+      setDocumentLoading(false);
+    }
   };
 
-  const handleVoicePress = () => {
-    Alert.alert("Voice solve", "Voice question input is coming next on this solve flow.");
+  const handleVoicePress = async () => {
+    if (audioLoading) return;
+
+    if (recording) {
+      setAudioLoading(true);
+      try {
+        await recording.stopAndUnloadAsync();
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+        });
+
+        const uri = recording.getURI();
+        setRecording(null);
+
+        if (!uri) {
+          throw new Error("Recording could not be saved.");
+        }
+
+        const formData = new FormData();
+        formData.append("audio", {
+          uri,
+          name: "solve-voice.m4a",
+          type: "audio/mp4",
+        } as any);
+
+        const { data } = await api.post("/sessions/ingest/audio", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 90000,
+        });
+
+        mergeIntoQuestion(data?.transcript || "");
+      } catch (error: any) {
+        Alert.alert(
+          "Voice solve failed",
+          error?.response?.data?.message || error?.message || "Please try again or type the question instead."
+        );
+      } finally {
+        setAudioLoading(false);
+      }
+      return;
+    }
+
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Microphone needed", "Allow microphone access so Akademi can capture your spoken question.");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const nextRecording = new Audio.Recording();
+      await nextRecording.prepareToRecordAsync({
+        android: {
+          extension: ".m4a",
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: ".m4a",
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {},
+      });
+      await nextRecording.startAsync();
+      setRecording(nextRecording);
+    } catch (error: any) {
+      Alert.alert(
+        "Could not start recording",
+        error?.message || "Please check microphone access and try again."
+      );
+    }
   };
 
   return (
@@ -205,14 +350,16 @@ export const SolveScreen: React.FC = () => {
             <View style={[styles.toolIconWrap, styles.purpleToolIcon]}>
               <FileText size={18} color="#8B5CF6" />
             </View>
-            <Text style={styles.toolTitle}>PDF / File</Text>
+            <Text style={styles.toolTitle}>{documentLoading ? "Reading..." : "PDF / File"}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleVoicePress}>
             <View style={[styles.toolIconWrap, styles.blueToolIcon]}>
               <Mic size={18} color="#6366F1" />
             </View>
-            <Text style={styles.toolTitle}>Voice</Text>
+            <Text style={styles.toolTitle}>
+              {audioLoading ? "Transcribing..." : recording ? "Stop" : "Voice"}
+            </Text>
           </TouchableOpacity>
         </View>
 

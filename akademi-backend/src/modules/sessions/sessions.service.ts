@@ -6,6 +6,8 @@ import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { config } from '../../config/env';
 import * as vision from '@google-cloud/vision';
+import { extractDisciplineDocumentText } from '../admin/document-extraction';
+import { aiProvider } from '../ai/ai.provider';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -222,6 +224,44 @@ export class SessionsService {
     return {
       extractedText,
       message,
+    };
+  }
+
+  async extractDocumentText(file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('No document uploaded');
+    }
+
+    const extractedText = normalizeExtractedText(await extractDisciplineDocumentText(file));
+
+    if (!extractedText) {
+      throw new Error('No readable text could be extracted from this document.');
+    }
+
+    return {
+      extractedText,
+      fileName: file.originalname,
+    };
+  }
+
+  async transcribeAudio(file: Express.Multer.File) {
+    if (!file) {
+      throw new Error('No audio uploaded');
+    }
+
+    if (!file.mimetype.startsWith('audio/')) {
+      throw new Error('Uploaded file must be audio');
+    }
+
+    const transcript = normalizeExtractedText(await aiProvider.transcribeAudio(file.buffer, file.mimetype));
+
+    if (!transcript) {
+      throw new Error('Could not transcribe that recording. Please try again.');
+    }
+
+    return {
+      transcript,
+      fileName: file.originalname,
     };
   }
 

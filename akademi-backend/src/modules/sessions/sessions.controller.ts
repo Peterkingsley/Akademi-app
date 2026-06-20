@@ -78,6 +78,24 @@ export class SessionsController {
     }
   }
 
+  async extractDocument(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.extractDocumentText(req.file!);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
+
+  async transcribeAudio(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.transcribeAudio(req.file!);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
+
   async getSummary(req: Request, res: Response) {
     try {
       const summary = await sessionsService.getSessionSummary(req.params.id);
