@@ -11,6 +11,9 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { Settings, BookOpen, CheckCircle, AlertTriangle, Quote, Star } from "lucide-react-native";
 import { sessionService, Session, SessionSummary } from "../../services/session";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const formatDuration = (duration?: number) => duration ? `${duration} min` : "Open-ended";
 
@@ -34,6 +37,12 @@ export const TutorSessionSummaryScreen: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
+    onTranscript: (transcript) => setFeedback((prev) => appendTranscript(prev, transcript, true)),
+    recordingName: "tutor-summary-feedback.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your feedback.",
+    stopErrorTitle: "Voice input failed",
+  });
   const sessionTopic = session?.topic?.trim() || "Live tutor session";
   const sessionCourse = session?.course_code || "General";
   const sessionDuration = formatDuration(session?.duration);
@@ -206,14 +215,22 @@ export const TutorSessionSummaryScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </View>
-          <TextInput
-            style={[styles.feedbackInput, typography.bodySmall]}
-            placeholder="Any specific thoughts on today's lesson?"
-            placeholderTextColor={colors.textMuted}
-            value={feedback}
-            onChangeText={setFeedback}
-            multiline
-          />
+          <View style={styles.feedbackInputWrap}>
+            <TextInput
+              style={[styles.feedbackInput, typography.bodySmall]}
+              placeholder="Any specific thoughts on today's lesson?"
+              placeholderTextColor={colors.textMuted}
+              value={feedback}
+              onChangeText={setFeedback}
+              multiline
+            />
+            <VoiceInputButton
+              onPress={toggleRecording}
+              isRecording={isRecording}
+              isTranscribing={isTranscribing}
+              style={styles.feedbackVoiceButton}
+            />
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -419,8 +436,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 20,
   },
-  feedbackInput: {
+  feedbackInputWrap: {
     width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  feedbackInput: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 10,
     padding: 12,
@@ -429,6 +452,9 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  feedbackVoiceButton: {
+    marginBottom: 6,
   },
   footer: {
     alignItems: "center",

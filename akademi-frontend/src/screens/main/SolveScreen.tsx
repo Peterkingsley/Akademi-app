@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
-import { Audio } from "expo-av";
 import {
   BookOpen,
   Camera,
@@ -27,6 +26,8 @@ import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
 
 type AnswerMode = "DIRECT" | "STUDY";
 
@@ -47,8 +48,6 @@ export const SolveScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
@@ -72,13 +71,18 @@ export const SolveScreen: React.FC = () => {
     }
   }, [photoUri]);
 
-  useEffect(() => {
-    return () => {
-      if (recording) {
-        recording.stopAndUnloadAsync().catch(() => undefined);
-      }
-    };
-  }, [recording]);
+  const {
+    isRecording,
+    isTranscribing: audioLoading,
+    toggleRecording: handleVoicePress,
+  } = useVoiceComposer({
+    onTranscript: (transcript) =>
+      setQuestion((prev) => appendTranscript(prev, transcript, true)),
+    recordingName: "solve-voice.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your spoken question.",
+    startErrorTitle: "Could not start recording",
+    stopErrorTitle: "Voice solve failed",
+  });
 
   const mergeIntoQuestion = (incomingText: string) => {
     const trimmed = incomingText.trim();
@@ -178,94 +182,6 @@ export const SolveScreen: React.FC = () => {
     }
   };
 
-  const handleVoicePress = async () => {
-    if (audioLoading) return;
-
-    if (recording) {
-      setAudioLoading(true);
-      try {
-        await recording.stopAndUnloadAsync();
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-        });
-
-        const uri = recording.getURI();
-        setRecording(null);
-
-        if (!uri) {
-          throw new Error("Recording could not be saved.");
-        }
-
-        const formData = new FormData();
-        formData.append("audio", {
-          uri,
-          name: "solve-voice.m4a",
-          type: "audio/mp4",
-        } as any);
-
-        const { data } = await api.post("/sessions/ingest/audio", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-          timeout: 90000,
-        });
-
-        mergeIntoQuestion(data?.transcript || "");
-      } catch (error: any) {
-        Alert.alert(
-          "Voice solve failed",
-          error?.response?.data?.message || error?.message || "Please try again or type the question instead."
-        );
-      } finally {
-        setAudioLoading(false);
-      }
-      return;
-    }
-
-    try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Microphone needed", "Allow microphone access so Akademi can capture your spoken question.");
-        return;
-      }
-
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const nextRecording = new Audio.Recording();
-      await nextRecording.prepareToRecordAsync({
-        android: {
-          extension: ".m4a",
-          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-          audioEncoder: Audio.AndroidAudioEncoder.AAC,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: ".m4a",
-          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-          audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {},
-      });
-      await nextRecording.startAsync();
-      setRecording(nextRecording);
-    } catch (error: any) {
-      Alert.alert(
-        "Could not start recording",
-        error?.message || "Please check microphone access and try again."
-      );
-    }
-  };
-
   return (
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -358,7 +274,7 @@ export const SolveScreen: React.FC = () => {
               <Mic size={18} color="#6366F1" />
             </View>
             <Text style={styles.toolTitle}>
-              {audioLoading ? "Transcribing..." : recording ? "Stop" : "Voice"}
+              {audioLoading ? "Transcribing..." : isRecording ? "Stop" : "Voice"}
             </Text>
           </TouchableOpacity>
         </View>

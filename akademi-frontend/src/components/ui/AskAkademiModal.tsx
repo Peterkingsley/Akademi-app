@@ -20,6 +20,11 @@ import { typography } from "../../theme/typography";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { RichMathText } from "./RichMathText";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { useAiVoicePlayback } from "../../hooks/useAiVoicePlayback";
+import { VoiceInputButton } from "./VoiceInputButton";
+import { AiVoiceToggleButton } from "./AiVoiceToggleButton";
 
 type AskAction = "ask" | "summarize" | "explain" | "teach" | "practice";
 
@@ -60,6 +65,18 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   const [activeAction, setActiveAction] = useState<AskAction>("ask");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollRef = useRef<ScrollView | null>(null);
+  const spokenMessageIdsRef = useRef<Set<string>>(new Set());
+  const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
+  const {
+    isRecording,
+    isTranscribing,
+    toggleRecording,
+  } = useVoiceComposer({
+    onTranscript: (transcript) => setQuestion((prev) => appendTranscript(prev, transcript, true)),
+    recordingName: "ask-akademi-voice.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your question.",
+    stopErrorTitle: "Voice input failed",
+  });
 
   useEffect(() => {
     if (visible) {
@@ -67,6 +84,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       setMessages([]);
       setSessionId(null);
       setActiveAction("ask");
+      spokenMessageIdsRef.current.clear();
     }
   }, [visible]);
 
@@ -75,6 +93,14 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     }
   }, [messages]);
+
+  useEffect(() => {
+    const latestAiMessage = [...messages].reverse().find((message) => message.role === "ai");
+    if (!latestAiMessage) return;
+    if (spokenMessageIdsRef.current.has(latestAiMessage.id)) return;
+    spokenMessageIdsRef.current.add(latestAiMessage.id);
+    speakIfEnabled(latestAiMessage.content).catch(() => undefined);
+  }, [messages, speakIfEnabled]);
 
   const previewContext = useMemo(() => {
     return [
@@ -226,9 +252,12 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 <Sparkles size={20} color={colors.primary} />
                 <Text style={[styles.title, typography.h3]}>Ask Akademi</Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                <X size={24} color="#FFFFFF" />
-              </TouchableOpacity>
+              <View style={styles.headerActions}>
+                <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
+                <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                  <X size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <ScrollView
@@ -299,19 +328,27 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 <Text style={[styles.inputLabel, typography.bodySmall]}>
                   {messages.length > 0 ? "Reply to keep going" : "What would you like to know about this?"}
                 </Text>
-                <TextInput
-                  style={[styles.input, typography.bodySmall]}
-                  placeholder={
-                    messages.length > 0
-                      ? "Reply here..."
-                      : "Tell Akademi exactly where you got confused..."
-                  }
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  value={question}
-                  onChangeText={setQuestion}
-                  autoFocus
-                />
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    style={[styles.input, typography.bodySmall]}
+                    placeholder={
+                      messages.length > 0
+                        ? "Reply here..."
+                        : "Tell Akademi exactly where you got confused..."
+                    }
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    value={question}
+                    onChangeText={setQuestion}
+                    autoFocus
+                  />
+                  <VoiceInputButton
+                    onPress={toggleRecording}
+                    isRecording={isRecording}
+                    isTranscribing={isTranscribing}
+                    style={styles.voiceButton}
+                  />
+                </View>
               </View>
             </ScrollView>
 
@@ -371,6 +408,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   title: {
     color: "#FFFFFF",
@@ -435,12 +477,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   input: {
+    flex: 1,
     backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
     padding: 16,
     color: "#FFFFFF",
     minHeight: 96,
     textAlignVertical: "top",
+  },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
+  voiceButton: {
+    marginBottom: 4,
   },
   messagesContainer: {
     gap: 12,

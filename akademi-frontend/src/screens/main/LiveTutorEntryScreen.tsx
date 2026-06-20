@@ -25,6 +25,9 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Session, LearningProfile } from "../../services/session";
 import { useTheme } from "../../theme/ThemeContext";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 
 const DURATIONS = ["15 min", "30 min", "45 min", "Open-ended"];
 
@@ -47,6 +50,12 @@ export const LiveTutorEntryScreen: React.FC = () => {
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [recentSessions, setRecentSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
+  const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
+    onTranscript: (transcript) => setTopic((prev: string) => appendTranscript(prev, transcript, true)),
+    recordingName: "live-tutor-topic.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your tutor topic.",
+    stopErrorTitle: "Voice input failed",
+  });
   const courseOptions = useMemo(() => {
     const userCourses = Array.from(
       new Set<string>(
@@ -255,14 +264,22 @@ export const LiveTutorEntryScreen: React.FC = () => {
               </View>
             )}
 
-            <TextInput
-              style={[styles.topicInput, typography.body]}
-              placeholder="e.g. Thevenin's theorem, Integration by parts..."
-              placeholderTextColor={colors.textMuted}
-              value={topic}
-              onChangeText={setTopic}
-              multiline
-            />
+            <View style={styles.topicInputWrap}>
+              <TextInput
+                style={[styles.topicInput, typography.body]}
+                placeholder="e.g. Thevenin's theorem, Integration by parts..."
+                placeholderTextColor={colors.textMuted}
+                value={topic}
+                onChangeText={setTopic}
+                multiline
+              />
+              <VoiceInputButton
+                onPress={toggleRecording}
+                isRecording={isRecording}
+                isTranscribing={isTranscribing}
+                style={styles.topicVoiceButton}
+              />
+            </View>
 
             <Text style={[styles.durationLabel, typography.mono]}>DURATION</Text>
             <View style={styles.durationRow}>
@@ -428,11 +445,20 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     color: colors.background,
     marginLeft: 5,
   },
+  topicInputWrap: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
   topicInput: {
     color: colors.textPrimary,
     paddingVertical: 12,
     marginBottom: 24,
     minHeight: 60,
+    flex: 1,
+  },
+  topicVoiceButton: {
+    marginBottom: 24,
   },
   durationLabel: {
     color: colors.textMuted,

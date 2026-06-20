@@ -12,6 +12,9 @@ import {
 import { Eye, EyeOff } from "lucide-react-native";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { VoiceInputButton } from "./VoiceInputButton";
 
 interface InputProps {
   label: string;
@@ -25,6 +28,7 @@ interface InputProps {
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
   labelStyle?: TextStyle;
+  enableVoiceInput?: boolean;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -39,11 +43,18 @@ export const Input: React.FC<InputProps> = ({
   leftIcon,
   style,
   labelStyle,
+  enableVoiceInput,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
+  const voiceEnabled = enableVoiceInput ?? !secureTextEntry;
+  const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
+    onTranscript: (transcript) => onChangeText(appendTranscript(value, transcript)),
+    recordingName: "input-voice.m4a",
+    permissionMessage: "Allow microphone access so Akademi can write what you say here.",
+  });
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
@@ -74,6 +85,14 @@ export const Input: React.FC<InputProps> = ({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
         />
+        {voiceEnabled && (
+          <VoiceInputButton
+            onPress={toggleRecording}
+            isRecording={isRecording}
+            isTranscribing={isTranscribing}
+            style={styles.voiceButton}
+          />
+        )}
         {secureTextEntry && (
           <TouchableOpacity
             onPress={togglePasswordVisibility}
@@ -132,6 +151,9 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   iconRight: {
     marginLeft: 12,
+  },
+  voiceButton: {
+    marginLeft: 8,
   },
   errorText: {
     color: colors.error,

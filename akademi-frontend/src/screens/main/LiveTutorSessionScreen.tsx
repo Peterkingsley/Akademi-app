@@ -8,6 +8,11 @@ import { ArrowLeft, GraduationCap, Send, Bot } from "lucide-react-native";
 import { socketService } from "../../services/socket";
 import { sessionService } from "../../services/session";
 import { RichMathText } from "../../components/ui/RichMathText";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { useAiVoicePlayback } from "../../hooks/useAiVoicePlayback";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { AiVoiceToggleButton } from "../../components/ui/AiVoiceToggleButton";
 
 interface Message {
   id: string;
@@ -53,9 +58,21 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const endFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasNavigatedToSummaryRef = useRef(false);
+  const spokenMessageIdsRef = useRef<Set<string>>(new Set());
   const sessionCourse = sessionData?.course_code || "General";
   const sessionTopic = sessionData?.topic?.trim() || "Live tutor session";
   const sessionDuration = sessionData?.duration ? `${sessionData.duration} min` : "Open-ended";
+  const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
+  const {
+    isRecording,
+    isTranscribing,
+    toggleRecording,
+  } = useVoiceComposer({
+    onTranscript: (transcript) => setInputText((prev) => appendTranscript(prev, transcript)),
+    recordingName: "live-tutor-voice.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your tutor reply.",
+    stopErrorTitle: "Voice input failed",
+  });
 
   useEffect(() => {
     loadSession();
@@ -71,6 +88,14 @@ export const LiveTutorSessionScreen: React.FC = () => {
       socketService.disconnect();
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    const latestAiMessage = [...messages].reverse().find((message) => message.type === "ai");
+    if (!latestAiMessage) return;
+    if (spokenMessageIdsRef.current.has(latestAiMessage.id)) return;
+    spokenMessageIdsRef.current.add(latestAiMessage.id);
+    speakIfEnabled(latestAiMessage.content).catch(() => undefined);
+  }, [messages, speakIfEnabled]);
 
   const loadSession = async () => {
     try {
@@ -271,9 +296,12 @@ export const LiveTutorSessionScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-      <TouchableOpacity onPress={handleEndSession} disabled={isEnding}>
-        <Text style={[styles.endBtn, typography.bodySmall]}>{isEnding ? "Ending..." : "End Session"}</Text>
-      </TouchableOpacity>
+      <View style={styles.headerRight}>
+        <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
+        <TouchableOpacity onPress={handleEndSession} disabled={isEnding}>
+          <Text style={[styles.endBtn, typography.bodySmall]}>{isEnding ? "Ending..." : "End Session"}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -403,6 +431,12 @@ export const LiveTutorSessionScreen: React.FC = () => {
             >
               <Send size={18} color={colors.textPrimary} />
             </TouchableOpacity>
+            <VoiceInputButton
+              onPress={toggleRecording}
+              isRecording={isRecording}
+              isTranscribing={isTranscribing}
+              style={styles.voiceButton}
+            />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -425,6 +459,11 @@ const styles = StyleSheet.create({
   },
   headerCenter: {
     alignItems: "center",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   headerTitle: {
     color: colors.textPrimary,
@@ -597,5 +636,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+  },
+  voiceButton: {
+    marginLeft: 8,
   },
 });

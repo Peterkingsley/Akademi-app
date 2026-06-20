@@ -23,6 +23,11 @@ import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { RichMathText } from "../../components/ui/RichMathText";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
+import { useVoiceComposer } from "../../hooks/useVoiceComposer";
+import { appendTranscript } from "../../services/voice";
+import { useAiVoicePlayback } from "../../hooks/useAiVoicePlayback";
+import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
+import { AiVoiceToggleButton } from "../../components/ui/AiVoiceToggleButton";
 
 export const AssignmentResultScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -39,6 +44,14 @@ export const AssignmentResultScreen: React.FC = () => {
   const [sendingFollowUp, setSendingFollowUp] = useState(false);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [spokenKey, setSpokenKey] = useState<string | null>(null);
+  const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
+  const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
+    onTranscript: (transcript) => setFollowUp((prev) => appendTranscript(prev, transcript, true)),
+    recordingName: "assignment-followup-voice.m4a",
+    permissionMessage: "Allow microphone access so Akademi can capture your follow-up.",
+    stopErrorTitle: "Voice input failed",
+  });
 
   const modeLabels: Record<string, string> = {
     DIRECT: "Direct Answer",
@@ -93,6 +106,15 @@ export const AssignmentResultScreen: React.FC = () => {
   useEffect(() => {
     loadSession();
   }, [sessionId]);
+
+  useEffect(() => {
+    const latestAiMessage = [...messages].reverse().find((message) => message.role === "AI");
+    if (!latestAiMessage) return;
+    const key = `${latestAiMessage.id}:${latestAiMessage.created_at}`;
+    if (spokenKey === key) return;
+    setSpokenKey(key);
+    speakIfEnabled(latestAiMessage.content).catch(() => undefined);
+  }, [messages, speakIfEnabled, spokenKey]);
 
   const handleFollowUp = async () => {
     const content = followUp.trim();
@@ -172,7 +194,10 @@ export const AssignmentResultScreen: React.FC = () => {
           </TouchableOpacity>
           <Text style={[styles.headerTitle, typography.h3]}>Assignment Result</Text>
         </View>
-        <Badge label={answerStatusLabel} variant="blue" />
+        <View style={styles.headerActions}>
+          <Badge label={answerStatusLabel} variant="blue" />
+          <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -242,18 +267,26 @@ export const AssignmentResultScreen: React.FC = () => {
             Ask for another example, ask for a slower explanation, or answer the question Akademi asked.
           </Text>
           <View style={styles.followUpRow}>
-            <TextInput
-              value={followUp}
-              onChangeText={setFollowUp}
-              placeholder="Ask a follow-up..."
-              placeholderTextColor={colors.textMuted}
-              style={styles.followUpInput}
-              multiline
-            />
+            <View style={styles.followUpInputWrap}>
+              <TextInput
+                value={followUp}
+                onChangeText={setFollowUp}
+                placeholder="Ask a follow-up..."
+                placeholderTextColor={colors.textMuted}
+                style={styles.followUpInput}
+                multiline
+              />
+              <VoiceInputButton
+                onPress={toggleRecording}
+                isRecording={isRecording}
+                isTranscribing={isTranscribing}
+                style={styles.followUpVoiceButton}
+              />
+            </View>
             <TouchableOpacity
-              style={[styles.sendButton, (!followUp.trim() || sendingFollowUp) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, (!followUp.trim() || sendingFollowUp || isTranscribing) && styles.sendButtonDisabled]}
               onPress={handleFollowUp}
-              disabled={!followUp.trim() || sendingFollowUp}
+              disabled={!followUp.trim() || sendingFollowUp || isTranscribing}
             >
               {sendingFollowUp ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -326,6 +359,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   backBtn: {
     marginRight: 12,
   },
@@ -357,6 +395,7 @@ const styles = StyleSheet.create({
   aiHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   aiProfile: {
@@ -423,6 +462,12 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 12,
   },
+  followUpInputWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+  },
   followUpInput: {
     ...typography.bodySmall,
     backgroundColor: colors.surfaceElevated,
@@ -435,6 +480,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: 12,
     paddingVertical: 12,
+  },
+  followUpVoiceButton: {
+    marginBottom: 6,
   },
   sendButton: {
     alignItems: "center",
