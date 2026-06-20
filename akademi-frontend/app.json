@@ -26,7 +26,8 @@
       "bundleIdentifier": "com.akademi.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "Used to capture assignment questions"
+        "NSCameraUsageDescription": "Used to capture assignment questions",
+        "NSMicrophoneUsageDescription": "Allow Akademi to capture your spoken assignment questions."
       }
     },
     "android": {
@@ -55,6 +56,12 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Akademi to access your photos."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Akademi to capture your spoken assignment questions."
         }
       ],
       "expo-font",
