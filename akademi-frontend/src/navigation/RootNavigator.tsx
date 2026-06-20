@@ -24,7 +24,18 @@ if (typeof window !== 'undefined') {
 
 export const RootNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { isAuthenticated, hasHydrated, updateUser, clearAuth } = useAuthStore();
+  const {
+    isAuthenticated,
+    hasHydrated,
+    user,
+    accessToken,
+    refreshToken,
+    updateUser,
+    clearAuth,
+  } = useAuthStore();
+  const hasValidLocalSession = Boolean(
+    isAuthenticated && user && accessToken && refreshToken
+  );
 
   const registerForPushNotificationsAsync = async () => {
     try {
@@ -62,12 +73,12 @@ export const RootNavigator = () => {
     const initializeAuth = async () => {
       const startTime = Date.now();
 
-      if (isAuthenticated) {
+      if (hasValidLocalSession) {
         try {
-          const accessToken = await AsyncStorage.getItem("accessToken");
-          const refreshToken = await AsyncStorage.getItem("refreshToken");
+          const storedAccessToken = await AsyncStorage.getItem("accessToken");
+          const storedRefreshToken = await AsyncStorage.getItem("refreshToken");
 
-          if (!accessToken || !refreshToken) {
+          if (!storedAccessToken || !storedRefreshToken) {
             clearAuth();
             throw new Error("No stored login session");
           }
@@ -94,15 +105,15 @@ export const RootNavigator = () => {
     };
 
     initializeAuth();
-  }, [clearAuth, hasHydrated, isAuthenticated, updateUser]);
+  }, [clearAuth, hasHydrated, hasValidLocalSession, updateUser]);
 
   if (isLoading || !hasHydrated) {
     return <SplashScreen />;
   }
 
   return (
-    <Stack.Navigator key={isAuthenticated ? "authenticated" : "guest"} screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
+    <Stack.Navigator key={hasValidLocalSession ? "authenticated" : "guest"} screenOptions={{ headerShown: false }}>
+      {hasValidLocalSession ? (
         <>
           <Stack.Screen name="Main" component={MainStack} />
           <Stack.Screen name="Admin" component={AdminStack} />
