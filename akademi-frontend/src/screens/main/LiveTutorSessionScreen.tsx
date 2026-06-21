@@ -25,10 +25,10 @@ interface Message {
 }
 
 const QUICK_REPLIES = [
-  "Can you simplify that?",
-  "Give me an example",
-  "Show me step by step",
-  "Test me on this",
+  "Start from the beginning again",
+  "Go slower here",
+  "Give me another example",
+  "Test my understanding",
 ];
 
 const normalizeMarkdownText = (value: string) =>
@@ -60,7 +60,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
   const hasNavigatedToSummaryRef = useRef(false);
   const spokenMessageIdsRef = useRef<Set<string>>(new Set());
   const sessionCourse = sessionData?.course_code || "General";
-  const sessionTopic = sessionData?.topic?.trim() || "Live tutor session";
+  const sessionTopic = sessionData?.material?.title?.trim() || sessionData?.topic?.trim() || "AI tutor session";
   const sessionDuration = sessionData?.duration ? `${sessionData.duration} min` : "Open-ended";
   const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
   const {
@@ -288,7 +288,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
         <ArrowLeft size={24} color={colors.textPrimary} />
       </TouchableOpacity>
       <View style={styles.headerCenter}>
-        <Text style={[styles.headerTitle, typography.h3]}>Live Tutor</Text>
+        <Text style={[styles.headerTitle, typography.h3]}>AI Tutor</Text>
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, !isSocketConnected && styles.statusDotOffline]} />
           <Text style={[styles.timerText, typography.mono]}>

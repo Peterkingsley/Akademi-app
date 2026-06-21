@@ -73,6 +73,89 @@ async function extractTextFromImage(buffer: Buffer) {
 }
 
 export class SessionsService {
+  private buildTutorKickoffMessage(material: {
+    title: string;
+    course_code?: string | null;
+    reader_structure?: Prisma.JsonValue | null;
+  }) {
+    const structure = material.reader_structure as
+      | {
+          pages?: Array<{
+            chapterTitle?: string;
+            pageTitle?: string;
+          }>;
+        }
+      | null
+      | undefined;
+    const firstPage = structure?.pages?.find((page) => page.chapterTitle || page.pageTitle);
+    const firstAnchor = firstPage?.chapterTitle || firstPage?.pageTitle || 'the foundation of this material';
+    const courseText = material.course_code ? ` for ${material.course_code}` : '';
+
+    return [
+      `We will study ${material.title}${courseText} as a proper lesson, not just as quick question-and-answer.`,
+      `I will teach it in small chunks from beginning to end, pause for your feedback, and keep checking whether each idea is landing before we move on.`,
+      `We will begin with ${firstAnchor}. If you ever want to restart from the beginning, revise a section, or slow down, just say so.`,
+      `Ready? Let us start with the first key idea in the material.`,
+    ].join(' ');
+  }
+
+  private async resolveTutorMaterialAccess(userId: string, materialId: string) {
+    const material = await prisma.material.findUnique({
+      where: { id: materialId },
+      select: {
+        id: true,
+        title: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        verification_status: true,
+        uploaded_by: true,
+        content: true,
+        reader_structure: true,
+      },
+    });
+
+    if (!material) {
+      throw new Error('Selected material was not found');
+    }
+
+    const canAccess =
+      material.verification_status === 'VERIFIED' || material.uploaded_by === userId;
+
+    if (!canAccess) {
+      throw new Error('You do not have access to tutor with this material');
+    }
+
+    return material;
+  }
+
+  private async seedTutorKickoffMessage(sessionId: string, userId: string, material: {
+    title: string;
+    course_code?: string | null;
+    reader_structure?: Prisma.JsonValue | null;
+  }) {
+    const existingAiMessage = await prisma.message.findFirst({
+      where: {
+        session_id: sessionId,
+        role: MessageRole.AI,
+      },
+      select: { id: true },
+    });
+
+    if (existingAiMessage) return;
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: userId,
+        role: MessageRole.AI,
+        content: this.buildTutorKickoffMessage(material),
+        reply_mode: 'STUDY',
+      },
+    });
+  }
+
   private mapSessionTypeToFeature(type: SessionType): Feature {
     switch (type) {
       case SessionType.ASSIGNMENT:
@@ -105,6 +188,52 @@ export class SessionsService {
 
     if (!user) throw new Error('User not found');
 
+    if (data.session_type === SessionType.TUTOR) {
+      if (!data.material_id) {
+        throw new Error('AI Tutor now requires a selected material');
+      }
+
+      const material = await this.resolveTutorMaterialAccess(userId, data.material_id);
+
+      const existingSession = await prisma.session.findFirst({
+        where: {
+          user_id: userId,
+          session_type: SessionType.TUTOR,
+          material_id: material.id,
+        },
+        orderBy: [{ started_at: 'desc' }, { created_at: 'desc' }],
+      });
+
+      if (existingSession) {
+        const reopenedSession = existingSession.ended_at
+          ? await prisma.session.update({
+              where: { id: existingSession.id },
+              data: { ended_at: null },
+            })
+          : existingSession;
+
+        await this.seedTutorKickoffMessage(reopenedSession.id, userId, material);
+        return reopenedSession;
+      }
+
+      const createdSession = await prisma.session.create({
+        data: {
+          user_id: userId,
+          session_type: data.session_type,
+          reply_mode: 'STUDY',
+          course_code: material.course_code?.trim() || null,
+          topic: material.title,
+          duration: data.duration || null,
+          material_id: material.id,
+          university: user.university,
+          department: user.department,
+        },
+      });
+
+      await this.seedTutorKickoffMessage(createdSession.id, userId, material);
+      return createdSession;
+    }
+
     return prisma.session.create({
       data: {
         user_id: userId,
@@ -113,6 +242,7 @@ export class SessionsService {
         course_code: data.course_code?.trim() || null,
         topic: data.topic || null,
         duration: data.duration || null,
+        material_id: data.material_id?.trim() || null,
         university: user.university,
         department: user.department,
       },
@@ -130,6 +260,14 @@ export class SessionsService {
     const session = await prisma.session.findUnique({
       where: { id },
       include: {
+        material: {
+          select: {
+            id: true,
+            title: true,
+            course_code: true,
+            verification_status: true,
+          },
+        },
         messages: {
           orderBy: { created_at: 'asc' },
         },
@@ -167,7 +305,10 @@ export class SessionsService {
         throw new Error('Cannot send message to an ended session');
     }
 
-    const replyMode = data.reply_mode || session.reply_mode;
+    const replyMode =
+      data.reply_mode ||
+      session.reply_mode ||
+      (session.session_type === SessionType.TUTOR ? 'STUDY' : 'DIRECT');
 
     // Save student message
     await prisma.message.create({
@@ -266,12 +407,28 @@ export class SessionsService {
   }
 
   async getSessionSummary(sessionId: string) {
-      // In a real scenario, this would probably pull from the generated session summary job's results
-      // For now, we return a mock summary that follows the requirements
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: {
+          material: {
+            select: {
+              title: true,
+              course_code: true,
+            },
+          },
+        },
+      });
+
       return {
-          summary: "This session covered key topics in the specified course code. The AI tutor helped the student understand fundamental concepts and addressed specific questions.",
-          key_points: ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
-          next_steps: ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
+          summary: session?.session_type === SessionType.TUTOR
+            ? `This tutor session stayed anchored to ${session.material?.title || session?.topic || 'the selected material'} and focused on teaching it progressively, one chunk at a time.`
+            : "This session covered key topics in the specified course code. The AI tutor helped the student understand fundamental concepts and addressed specific questions.",
+          key_points: session?.session_type === SessionType.TUTOR
+            ? ["Material-first teaching flow", "Chunked explanation with room for feedback", "Resumable lesson tied to one material"]
+            : ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
+          next_steps: session?.session_type === SessionType.TUTOR
+            ? ["Resume the same material session when you are ready", "Ask the tutor to restart from the beginning or continue from the last point", "Practice the new ideas against examples from the material"]
+            : ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
   }
 }

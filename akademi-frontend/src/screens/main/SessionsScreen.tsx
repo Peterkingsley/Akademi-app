@@ -51,7 +51,7 @@ const formatSessionDuration = (duration?: number) => {
 
 const getSessionTitle = (session: any, type: SessionUI["type"]) => {
   if (session.topic?.trim()) return session.topic.trim();
-  if (type === "TUTOR") return "Live tutor session";
+  if (type === "TUTOR") return "AI tutor material session";
   if (type === "SOLVE ASSIGNMENT") return "Assignment help";
   return "Study session";
 };

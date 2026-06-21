@@ -6,6 +6,7 @@ export interface StartSessionRequest {
   course_code?: string | null;
   topic?: string | null;
   duration?: number | null;
+  material_id?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -25,6 +26,7 @@ export interface SessionResponse {
   course_code?: string | null;
   topic?: string | null;
   duration?: number | null;
+  material_id?: string | null;
   university: string;
   department: string;
   started_at: Date;

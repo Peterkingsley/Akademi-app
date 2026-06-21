@@ -43,7 +43,7 @@ export const TutorSessionSummaryScreen: React.FC = () => {
     permissionMessage: "Allow microphone access so Akademi can capture your feedback.",
     stopErrorTitle: "Voice input failed",
   });
-  const sessionTopic = session?.topic?.trim() || "Live tutor session";
+  const sessionTopic = session?.material?.title?.trim() || session?.topic?.trim() || "AI tutor session";
   const sessionCourse = session?.course_code || "General";
   const sessionDuration = formatDuration(session?.duration);
   const normalizedSummary = {

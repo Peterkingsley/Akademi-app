@@ -101,8 +101,8 @@ const HOME_TOUR_STEPS = [
   },
   {
     id: "tutor",
-    title: "Meet the live tutor",
-    body: "Start a guided tutor session when you want a deeper explanation or one-on-one help on a topic.",
+    title: "Study with AI Tutor",
+    body: "Open a material and let the tutor teach it in guided chunks instead of giving one-off answers.",
   },
   {
     id: "exam",
@@ -480,10 +480,7 @@ export const HomeScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate("LiveTutorEntry", {
-      courseCode: item.metadata.course_code,
-      topic: item.title.replace(/^Strengthen\s+/i, ""),
-    });
+    navigation.navigate("LiveTutorEntry");
   };
 
   const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (

@@ -256,6 +256,7 @@ model Material {
   questions   Question[]
   embeddings  MaterialEmbedding[]
   upload_chunks      UploadChunk[] // Named upload_chunks to match codebase
+  sessions    Session[]
 
   @@index([course_code])
   @@index([university])
@@ -294,6 +295,7 @@ model UploadChunk {
 model Session {
   id           String      @id @default(uuid())
   user_id      String
+  material_id  String?
   session_type SessionType
   reply_mode   ReplyMode?
   course_code  String?
@@ -306,9 +308,12 @@ model Session {
   created_at   DateTime    @default(now())
 
   user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material  Material? @relation(fields: [material_id], references: [id], onDelete: SetNull)
   messages  Message[]
 
   @@index([user_id])
+  @@index([material_id])
+  @@index([user_id, material_id, session_type])
   @@index([course_code])
   @@index([started_at])
   @@map("sessions")

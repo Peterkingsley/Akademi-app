@@ -6,6 +6,7 @@ export interface Session {
   session_type: "ASSIGNMENT" | "STUDY" | "TUTOR" | "EXAM_PREP";
   reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
   course_code: string;
+  material_id?: string | null;
   university: string;
   department: string;
   started_at: string;
@@ -13,6 +14,12 @@ export interface Session {
   created_at: string;
   topic?: string;
   duration?: number;
+  material?: {
+    id: string;
+    title: string;
+    course_code?: string | null;
+    verification_status?: string;
+  } | null;
 }
 
 export interface Message {
@@ -68,6 +75,7 @@ export const sessionService = {
     reply_mode?: string;
     topic?: string;
     duration?: number;
+    material_id?: string;
     metadata?: any;
   }) => {
     const response = await api.post<Session>("/sessions", data);

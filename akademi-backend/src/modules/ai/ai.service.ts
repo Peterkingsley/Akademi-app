@@ -386,6 +386,15 @@ Create a board replay plan for this solution.`,
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
       include: {
+        material: {
+          select: {
+            id: true,
+            title: true,
+            course_code: true,
+            content: true,
+            reader_structure: true,
+          },
+        },
         messages: {
           orderBy: { created_at: 'asc' },
           select: {
@@ -472,7 +481,16 @@ Important:
       disciplineDocument,
       learningProfile,
       relevantCommunityPatterns,
-      effectiveReplyMode
+      effectiveReplyMode,
+      session.material
+        ? {
+            title: session.material.title,
+            course_code: session.material.course_code,
+            content: session.material.content,
+            reader_structure: session.material.reader_structure,
+          }
+        : null,
+      session.session_type,
     );
 
     // 5. Call AI Provider (Claude with Gemini fallback)
