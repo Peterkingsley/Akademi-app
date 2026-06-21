@@ -241,19 +241,26 @@ export const AssignmentResultScreen: React.FC = () => {
               <View
                 key={message.id}
                 style={[
-                  styles.threadBubble,
-                  message.role === "STUDENT" ? styles.studentBubble : styles.aiBubble,
+                  styles.threadRow,
+                  message.role === "STUDENT" ? styles.studentRow : styles.aiRow,
                 ]}
               >
-                <Text style={[styles.threadRole, typography.caption]}>
-                  {message.role === "STUDENT" ? "You" : "Akademi"}
-                </Text>
-                <RichMathText
-                  content={cleanMarkdown(message.content)}
-                  textColor={colors.textPrimary}
-                  fontSize={14}
-                  lineHeight={1.45}
-                />
+                <View
+                  style={[
+                    styles.threadBubble,
+                    message.role === "STUDENT" ? styles.studentBubble : styles.aiBubble,
+                  ]}
+                >
+                  <Text style={[styles.threadRole, typography.caption]}>
+                    {message.role === "STUDENT" ? "You" : "Akademi"}
+                  </Text>
+                  <RichMathText
+                    content={cleanMarkdown(message.content)}
+                    textColor={colors.textPrimary}
+                    fontSize={14}
+                    lineHeight={1.45}
+                  />
+                </View>
               </View>
             ))}
           </Card>
@@ -419,20 +426,28 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     padding: 16,
   },
+  threadRow: {
+    width: "100%",
+    marginTop: 12,
+  },
+  studentRow: {
+    alignItems: "flex-end",
+  },
+  aiRow: {
+    alignItems: "flex-start",
+  },
   threadBubble: {
     borderRadius: 12,
-    marginTop: 12,
     padding: 12,
+    width: "86%",
   },
   studentBubble: {
-    alignSelf: "flex-end",
     backgroundColor: "rgba(34,197,94,0.18)",
-    maxWidth: "88%",
+    minWidth: "56%",
   },
   aiBubble: {
-    alignSelf: "flex-start",
     backgroundColor: colors.surfaceElevated,
-    maxWidth: "92%",
+    minWidth: "62%",
   },
   threadRole: {
     color: colors.textMuted,
