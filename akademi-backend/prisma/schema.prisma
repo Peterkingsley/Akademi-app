@@ -144,6 +144,32 @@ enum TournamentAudienceScope {
   DEPARTMENT
 }
 
+enum TournamentCampaignType {
+  SIMPLE
+  MULTI_STAGE
+}
+
+enum TournamentStageStatus {
+  SCHEDULED
+  CHECK_IN
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentInterestType {
+  PARTICIPANT
+  SPECTATOR
+}
+
+enum TournamentPredictionStatus {
+  OPEN
+  LOCKED
+  CORRECT
+  INCORRECT
+  WINNER
+}
+
 enum MatchSessionStatus {
   LIVE
   FINISHED
@@ -188,6 +214,12 @@ model User {
   hosted_competitions  CompetitionRoom[]        @relation("CompetitionHost")
   competition_entries  CompetitionParticipant[]
   tournament_entries   TournamentEntry[]
+  tournament_stage_participants TournamentStageParticipant[]
+  tournament_interests TournamentSpectatorInterest[]
+  tournament_predictions TournamentPrediction[] @relation("TournamentPredictionUser")
+  tournament_predicted_by TournamentPrediction[] @relation("TournamentPredictedParticipant")
+  tournament_cheers_sent TournamentCheer[] @relation("TournamentCheerSpectator")
+  tournament_cheers_received TournamentCheer[] @relation("TournamentCheerParticipant")
 
   @@index([email])
   @@index([university])
@@ -516,7 +548,7 @@ model CompetitionRoom {
   id                 String                @id @default(uuid())
   code               String                @unique
   host_user_id       String
-  tournament_id      String?               @unique
+  tournament_id      String?
   title              String
   visibility         CompetitionVisibility @default(PRIVATE)
   format             CompetitionFormat     @default(SHARED_COURSE)
@@ -533,10 +565,12 @@ model CompetitionRoom {
 
   host         User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
   tournament   Tournament?              @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
+  tournament_stage TournamentStage?
   participants CompetitionParticipant[]
   match_session CompetitionMatchSession?
 
   @@index([host_user_id])
+  @@index([tournament_id])
   @@index([status])
   @@index([visibility])
   @@map("competition_rooms")
@@ -570,6 +604,7 @@ model Tournament {
   title               String
   description         String?
   status              TournamentStatus  @default(DRAFT)
+  campaign_type       TournamentCampaignType @default(SIMPLE)
   format              CompetitionFormat @default(SHARED_COURSE)
   shared_course_code  String?
   source_material_ids String[]          @default([])
@@ -582,6 +617,11 @@ model Tournament {
   campaign_cta_label  String?
   campaign_cta_url    String?
   campaign_preheader  String?
+  prediction_enabled  Boolean           @default(false)
+  prediction_prize_summary String?
+  prediction_winner_count Int?
+  prediction_closes_at DateTime?
+  share_template      String?
   audience_scope      TournamentAudienceScope @default(EVERYONE)
   audience_university String?
   audience_faculty    String?
@@ -597,7 +637,12 @@ model Tournament {
   updated_at          DateTime          @updatedAt
 
   entries TournamentEntry[]
-  room    CompetitionRoom?
+  stages  TournamentStage[]
+  stage_participants TournamentStageParticipant[]
+  interests TournamentSpectatorInterest[]
+  predictions TournamentPrediction[]
+  cheers TournamentCheer[]
+  rooms   CompetitionRoom[]
 
   @@index([status])
   @@index([scheduled_at])
@@ -609,6 +654,7 @@ model TournamentEntry {
   tournament_id String
   user_id       String
   status        TournamentEntryStatus @default(REGISTERED)
+  share_token   String?             @unique
   joined_at     DateTime            @default(now())
   checked_in_at DateTime?
 
@@ -619,6 +665,125 @@ model TournamentEntry {
   @@index([user_id])
   @@index([tournament_id])
   @@map("tournament_entries")
+}
+
+model TournamentStage {
+  id                      String                @id @default(uuid())
+  tournament_id           String
+  room_id                 String?               @unique
+  name                    String
+  stage_order             Int
+  status                  TournamentStageStatus @default(SCHEDULED)
+  starts_at               DateTime
+  duration_minutes        Int
+  question_timer_style    String                @default("PER_QUESTION")
+  question_count          Int
+  question_timer_sec      Int?
+  question_source         String?
+  difficulty_level        String?
+  qualification_count     Int?
+  minimum_participants    Int?
+  fallback_rule           String?
+  result_visibility       String                @default("QUALIFIERS")
+  qualification_locked_at DateTime?
+  created_at              DateTime              @default(now())
+  updated_at              DateTime              @updatedAt
+
+  tournament   Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  room         CompetitionRoom? @relation(fields: [room_id], references: [id], onDelete: SetNull)
+  participants TournamentStageParticipant[]
+  predictions TournamentPrediction[]
+
+  @@unique([tournament_id, stage_order])
+  @@index([tournament_id])
+  @@index([status])
+  @@index([starts_at])
+  @@map("tournament_stages")
+}
+
+model TournamentStageParticipant {
+  id                  String    @id @default(uuid())
+  stage_id            String
+  tournament_id       String
+  user_id             String
+  score               Int       @default(0)
+  correct_answers     Int       @default(0)
+  wrong_answers       Int       @default(0)
+  average_response_ms Int?
+  rank                Int?
+  qualified           Boolean   @default(false)
+  eliminated          Boolean   @default(false)
+  joined_at           DateTime?
+  completed_at        DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  stage      TournamentStage @relation(fields: [stage_id], references: [id], onDelete: Cascade)
+  tournament Tournament      @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([stage_id, user_id])
+  @@index([tournament_id])
+  @@index([user_id])
+  @@index([qualified])
+  @@map("tournament_stage_participants")
+}
+
+model TournamentSpectatorInterest {
+  id            String                 @id @default(uuid())
+  tournament_id String
+  user_id       String
+  interest_type TournamentInterestType
+  supporting_user_id String?
+  created_at    DateTime               @default(now())
+
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tournament_id, user_id, interest_type])
+  @@index([tournament_id])
+  @@index([user_id])
+  @@map("tournament_spectator_interests")
+}
+
+model TournamentPrediction {
+  id            String                     @id @default(uuid())
+  tournament_id String
+  stage_id      String?
+  user_id       String
+  predicted_user_id String
+  status        TournamentPredictionStatus @default(OPEN)
+  created_at    DateTime                   @default(now())
+  locked_at     DateTime?
+
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  stage      TournamentStage? @relation(fields: [stage_id], references: [id], onDelete: Cascade)
+  user       User       @relation("TournamentPredictionUser", fields: [user_id], references: [id], onDelete: Cascade)
+  predicted_user User   @relation("TournamentPredictedParticipant", fields: [predicted_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([tournament_id, stage_id, user_id])
+  @@index([tournament_id])
+  @@index([predicted_user_id])
+  @@map("tournament_predictions")
+}
+
+model TournamentCheer {
+  id            String   @id @default(uuid())
+  tournament_id String
+  stage_id      String?
+  spectator_user_id String
+  participant_user_id String
+  amount        Int      @default(1)
+  created_at    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  spectator  User       @relation("TournamentCheerSpectator", fields: [spectator_user_id], references: [id], onDelete: Cascade)
+  participant User      @relation("TournamentCheerParticipant", fields: [participant_user_id], references: [id], onDelete: Cascade)
+
+  @@index([tournament_id])
+  @@index([stage_id])
+  @@index([spectator_user_id, participant_user_id, created_at])
+  @@map("tournament_cheers")
 }
 
 model CompetitionMatchSession {

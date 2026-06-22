@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { CalendarDays, Swords, Trophy, Users } from "lucide-react-native";
+import { CalendarDays, Eye, Heart, Share2, Swords, Trophy, Users } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import { competitionService, Tournament } from "../../services/competition";
+import { competitionService, Tournament, TournamentArena } from "../../services/competition";
 import { socketService } from "../../services/socket";
 
 const formatDateTime = (value: string) =>
@@ -23,13 +23,21 @@ export const TournamentDetailScreen: React.FC = () => {
   const route = useRoute<any>();
   const { tournamentId } = route.params;
   const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [arena, setArena] = useState<TournamentArena | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadTournament = async () => {
     try {
       setLoading(true);
-      const data = await competitionService.getTournament(tournamentId);
+      const [data, arenaData] = await Promise.all([
+        competitionService.getTournament(tournamentId),
+        competitionService.getTournamentArena(tournamentId).catch(() => null),
+      ]);
       setTournament(data);
+      if (arenaData) {
+        setArena(arenaData);
+        setTournament(arenaData.tournament);
+      }
     } catch (error: any) {
       Alert.alert("Unable to load tournament", error?.response?.data?.message || "Please try again.");
     } finally {
@@ -82,6 +90,45 @@ export const TournamentDetailScreen: React.FC = () => {
       setTournament(updated);
     } catch (error: any) {
       Alert.alert("Unable to check in", error?.response?.data?.message || "Please try again.");
+    }
+  };
+
+  const registerInterest = async (interestType: "PARTICIPANT" | "SPECTATOR") => {
+    try {
+      const updated = await competitionService.registerTournamentInterest(tournamentId, interestType);
+      setTournament(updated);
+      const arenaData = await competitionService.getTournamentArena(tournamentId);
+      setArena(arenaData);
+    } catch (error: any) {
+      Alert.alert("Unable to follow campaign", error?.response?.data?.message || "Please try again.");
+    }
+  };
+
+  const cheerParticipant = async (participantUserId: string) => {
+    try {
+      const updated = await competitionService.sendTournamentCheer(
+        tournamentId,
+        participantUserId,
+        arena?.current_stage?.id,
+      );
+      setArena(updated);
+      setTournament(updated.tournament);
+    } catch (error: any) {
+      Alert.alert("Unable to cheer", error?.response?.data?.message || "Please try again.");
+    }
+  };
+
+  const predictParticipant = async (participantUserId: string) => {
+    try {
+      const updated = await competitionService.submitTournamentPrediction(
+        tournamentId,
+        participantUserId,
+        arena?.current_stage?.id,
+      );
+      setArena(updated);
+      setTournament(updated.tournament);
+    } catch (error: any) {
+      Alert.alert("Unable to predict", error?.response?.data?.message || "Please try again.");
     }
   };
 
@@ -206,6 +253,103 @@ export const TournamentDetailScreen: React.FC = () => {
           </Text>
         </Card>
 
+        {tournament.campaign_type === "MULTI_STAGE" || (tournament.stages?.length || 0) > 0 ? (
+          <Card style={styles.arenaCard}>
+            <View style={styles.arenaHeader}>
+              <View>
+                <Text style={styles.campaignEyebrow}>Campaign arena</Text>
+                <Text style={styles.campaignTitle}>
+                  {arena?.current_stage ? arena.current_stage.name : "Stage tracker"}
+                </Text>
+              </View>
+              <Text style={styles.statusPill}>{tournament.campaign_type === "MULTI_STAGE" ? "Multi-stage" : tournament.status}</Text>
+            </View>
+
+            <View style={styles.statsGrid}>
+              <View style={styles.statBox}>
+                <Users size={15} color={colors.primary} />
+                <Text style={styles.statValue}>{arena?.stats.participants ?? tournament.entry_count}</Text>
+                <Text style={styles.statLabel}>Players</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Eye size={15} color={colors.primary} />
+                <Text style={styles.statValue}>{arena?.stats.spectators ?? 0}</Text>
+                <Text style={styles.statLabel}>Spectators</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Heart size={15} color={colors.primary} />
+                <Text style={styles.statValue}>{arena?.stats.total_loves ?? tournament.cheer_count ?? 0}</Text>
+                <Text style={styles.statLabel}>Cheers</Text>
+              </View>
+            </View>
+
+            <View style={styles.stageList}>
+              {(arena?.stage_tracker || tournament.stages || []).map((stage) => (
+                <View key={stage.id} style={styles.stageRow}>
+                  <View style={[styles.stageDot, stage.status === "LIVE" && styles.stageDotLive]} />
+                  <View style={styles.stageContent}>
+                    <Text style={styles.stageTitle}>{stage.name}</Text>
+                    <Text style={styles.stageMeta}>
+                      {`${formatDateTime(stage.starts_at)} • ${stage.duration_minutes}m • Top ${stage.qualification_count || 1} qualify`}
+                    </Text>
+                  </View>
+                  <Text style={styles.stageStatus}>{stage.status}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        ) : null}
+
+        <View style={styles.interestRow}>
+          <TouchableOpacity
+            style={styles.interestButton}
+            onPress={() => registerInterest("PARTICIPANT")}
+          >
+            <Users size={16} color={colors.primary} />
+            <Text style={styles.interestText}>Compete</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.interestButton}
+            onPress={() => registerInterest("SPECTATOR")}
+          >
+            <Eye size={16} color={colors.primary} />
+            <Text style={styles.interestText}>Watch</Text>
+          </TouchableOpacity>
+          {tournament.share_token ? (
+            <View style={styles.interestButton}>
+              <Share2 size={16} color={colors.primary} />
+              <Text style={styles.interestText} numberOfLines={1}>Share ready</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {arena?.leaderboard?.length ? (
+          <Card style={styles.leaderboardCard}>
+            <Text style={styles.campaignEyebrow}>Live spectator board</Text>
+            {arena.leaderboard.slice(0, 8).map((entry, index) => (
+              <View key={entry.user_id} style={styles.leaderRow}>
+                <Text style={styles.leaderRank}>{entry.rank || index + 1}</Text>
+                <View style={styles.leaderInfo}>
+                  <Text style={styles.leaderName}>{entry.display_name}</Text>
+                  <Text style={styles.leaderMeta}>
+                    {`${entry.score} pts • ${entry.correct_answers} correct • ${entry.love_count} cheers`}
+                  </Text>
+                </View>
+                <View style={styles.leaderActions}>
+                  {tournament.prediction_enabled ? (
+                    <TouchableOpacity style={styles.iconButton} onPress={() => predictParticipant(entry.user_id)}>
+                      <Trophy size={14} color={colors.primary} />
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity style={styles.iconButton} onPress={() => cheerParticipant(entry.user_id)}>
+                    <Heart size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </Card>
+        ) : null}
+
         {tournament.room_id && tournament.status === "LIVE" ? (
           <TouchableOpacity
             style={styles.primaryButton}
@@ -328,6 +472,143 @@ const styles = StyleSheet.create({
     color: "#04110A",
     fontWeight: "700",
     fontSize: 12,
+  },
+  arenaCard: {
+    gap: 14,
+  },
+  arenaHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  statusPill: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  statsGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    minHeight: 72,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  statValue: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "800",
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  stageList: {
+    gap: 10,
+  },
+  stageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  stageDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.border,
+  },
+  stageDotLive: {
+    backgroundColor: colors.primary,
+  },
+  stageContent: {
+    flex: 1,
+    gap: 2,
+  },
+  stageTitle: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  stageMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  stageStatus: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
+  interestRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  interestButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  interestText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  leaderboardCard: {
+    gap: 12,
+  },
+  leaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 6,
+  },
+  leaderRank: {
+    width: 24,
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "800",
+  },
+  leaderInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  leaderName: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  leaderMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  leaderActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryButton: {
     backgroundColor: colors.primary,

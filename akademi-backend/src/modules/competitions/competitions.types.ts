@@ -1,4 +1,15 @@
-import { CompetitionFormat, CompetitionParticipantStatus, CompetitionStatus, CompetitionVisibility, TournamentEntryStatus, TournamentStatus } from '@prisma/client';
+import {
+  CompetitionFormat,
+  CompetitionParticipantStatus,
+  CompetitionStatus,
+  CompetitionVisibility,
+  TournamentCampaignType,
+  TournamentEntryStatus,
+  TournamentInterestType,
+  TournamentPredictionStatus,
+  TournamentStageStatus,
+  TournamentStatus,
+} from '@prisma/client';
 
 export type TournamentAudienceScopeValue = 'EVERYONE' | 'UNIVERSITY' | 'FACULTY' | 'DEPARTMENT';
 
@@ -102,6 +113,7 @@ export interface CompetitionLeaderboardEntry {
 export interface CreateTournamentRequest {
   title: string;
   description?: string;
+  campaign_type?: TournamentCampaignType;
   format?: CompetitionFormat;
   shared_course_code?: string;
   source_material_ids?: string[];
@@ -119,10 +131,53 @@ export interface CreateTournamentRequest {
   campaign_cta_label?: string;
   campaign_cta_url?: string;
   campaign_preheader?: string;
+  prediction_enabled?: boolean;
+  prediction_prize_summary?: string;
+  prediction_winner_count?: number;
+  prediction_closes_at?: string;
+  share_template?: string;
   audience_scope?: TournamentAudienceScopeValue;
   audience_university?: string;
   audience_faculty?: string;
   audience_department?: string;
+  stages?: CreateTournamentStageRequest[];
+}
+
+export interface CreateTournamentStageRequest {
+  name: string;
+  stage_order?: number;
+  starts_at: string;
+  duration_minutes: number;
+  question_timer_style?: 'TOTAL_STAGE' | 'PER_QUESTION' | 'HYBRID';
+  question_count: number;
+  question_timer_sec?: number;
+  question_source?: string;
+  difficulty_level?: string;
+  qualification_count?: number;
+  minimum_participants?: number;
+  fallback_rule?: string;
+  result_visibility?: 'FULL_RANKING' | 'TOP_RANKING' | 'QUALIFIERS_ONLY' | 'QUALIFIERS';
+}
+
+export interface TournamentStageView {
+  id: string;
+  name: string;
+  stage_order: number;
+  status: TournamentStageStatus;
+  starts_at: Date;
+  duration_minutes: number;
+  question_timer_style: string;
+  question_count: number;
+  question_timer_sec: number | null;
+  question_source: string | null;
+  difficulty_level: string | null;
+  qualification_count: number | null;
+  minimum_participants: number | null;
+  fallback_rule: string | null;
+  result_visibility: string;
+  room_id?: string | null;
+  participant_count?: number;
+  qualified_count?: number;
 }
 
 export interface TournamentView {
@@ -130,6 +185,7 @@ export interface TournamentView {
   title: string;
   description: string | null;
   status: TournamentStatus;
+  campaign_type: TournamentCampaignType;
   format: CompetitionFormat;
   shared_course_code: string | null;
   source_material_ids: string[];
@@ -148,6 +204,11 @@ export interface TournamentView {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  prediction_enabled: boolean;
+  prediction_prize_summary: string | null;
+  prediction_winner_count: number | null;
+  prediction_closes_at: Date | null;
+  share_template: string | null;
   audience_scope: TournamentAudienceScopeValue;
   audience_university: string | null;
   audience_faculty: string | null;
@@ -159,6 +220,35 @@ export interface TournamentView {
   room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
+  share_token?: string | null;
+  stages?: TournamentStageView[];
+  interest_type?: TournamentInterestType | null;
+  prediction_status?: TournamentPredictionStatus | null;
+  predicted_user_id?: string | null;
+  cheer_count?: number;
+}
+
+export interface TournamentArenaView {
+  tournament: TournamentView;
+  current_stage: TournamentStageView | null;
+  stage_tracker: TournamentStageView[];
+  leaderboard: Array<{
+    user_id: string;
+    display_name: string;
+    score: number;
+    correct_answers: number;
+    average_response_ms: number | null;
+    rank: number | null;
+    qualified: boolean;
+    love_count: number;
+    prediction_count: number;
+  }>;
+  stats: {
+    participants: number;
+    spectators: number;
+    total_loves: number;
+    predictions: number;
+  };
 }
 
 export interface TournamentMaterialOption {
