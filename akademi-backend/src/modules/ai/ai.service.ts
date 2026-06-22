@@ -81,18 +81,21 @@ export class AIService {
   private readonly boardImperativeNotePattern =
     /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
 
-  private shouldGenerateWhiteboardImage(cue: {
+  private getWhiteboardImageSkipReason(cue: {
     visual_type?: string | null;
     render_mode?: string | null;
     image_url?: string | null;
     generation_status?: string | null;
   }) {
-    if (!config.enableTutorImageGeneration) return false;
-    if (cue.image_url) return false;
-    if (cue.generation_status === 'READY' || cue.generation_status === 'PROCESSING') return false;
+    if (!config.enableTutorImageGeneration) return 'ENABLE_TUTOR_IMAGE_GENERATION is not true';
+    if (cue.image_url) return 'image_url already exists';
+    if (cue.generation_status === 'READY') return 'generation_status is READY';
+    if (cue.generation_status === 'PROCESSING') return 'generation_status is PROCESSING';
 
     const visualKind = `${cue.visual_type || ''} ${cue.render_mode || ''}`.toLowerCase();
-    return !visualKind.includes('title_board');
+    if (visualKind.includes('title_board')) return 'visual cue is title_board';
+
+    return null;
   }
 
   private queueWhiteboardVisualImage(cue: {
@@ -102,8 +105,17 @@ export class AIService {
     image_url?: string | null;
     generation_status?: string | null;
   }) {
-    if (!this.shouldGenerateWhiteboardImage(cue)) return;
+    const skipReason = this.getWhiteboardImageSkipReason(cue);
+    if (skipReason) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `WHITEBOARD IMAGE SKIPPED - visualCueId: ${cue.id}, reason: ${skipReason}, type: ${cue.visual_type || ''}, mode: ${cue.render_mode || ''}, status: ${cue.generation_status || 'null'}`,
+      );
+      return;
+    }
 
+    // eslint-disable-next-line no-console
+    console.log(`WHITEBOARD IMAGE ENQUEUE - visualCueId: ${cue.id}`);
     void systemQueue
       .add(JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE, { visualCueId: cue.id })
       .catch((error: unknown) => {
@@ -121,6 +133,12 @@ export class AIService {
       generation_status?: string | null;
     }>;
   }>) {
+    const totalCues = segments.reduce((count, segment) => count + (segment.visual_cues || []).length, 0);
+    // eslint-disable-next-line no-console
+    console.log(
+      `WHITEBOARD IMAGE QUEUE CHECK - segments: ${segments.length}, visualCues: ${totalCues}, enableTutorImageGeneration: ${config.enableTutorImageGeneration}`,
+    );
+
     segments.forEach((segment) => {
       (segment.visual_cues || []).forEach((cue) => this.queueWhiteboardVisualImage(cue));
     });
