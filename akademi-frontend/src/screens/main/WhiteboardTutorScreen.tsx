@@ -95,7 +95,7 @@ export const WhiteboardTutorScreen: React.FC = () => {
     setIsSending(true);
     try {
       const newLesson = await sessionService.generateTeaching(sessionId, inputText);
-      setSegments(newLesson.segments);
+      setSegments(newLesson);
       setCurrentSegmentIndex(0);
       setElapsedTime(0);
       setInputText("");

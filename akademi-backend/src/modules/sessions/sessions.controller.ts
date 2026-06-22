@@ -111,7 +111,7 @@ export class SessionsController {
       const lesson = await sessionsService.getPlayableLesson(req.params.id);
       res.status(200).json(lesson);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(statusForError(error, 500)).json({ message: error.message });
     }
   }
 
@@ -125,7 +125,7 @@ export class SessionsController {
       );
       res.status(200).json(lesson);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(statusForError(error, 500)).json({ message: error.message });
     }
   }
 }
