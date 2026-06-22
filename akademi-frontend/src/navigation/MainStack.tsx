@@ -77,6 +77,10 @@ export const MainStack = () => {
       <Stack.Screen name="CropConfirm" component={CropConfirmScreen} />
       <Stack.Screen name="AIProcessing" component={AIProcessingScreen} />
       <Stack.Screen name="BoardReplay" component={BoardReplayScreen} />
+      <Stack.Screen
+        name="WhiteboardTutor"
+        component={WhiteboardTutorScreen}
+      />
       <Stack.Screen name="LiveTutorEntry" component={LiveTutorEntryScreen} />
       <Stack.Screen
         name="LiveTutorSession"
