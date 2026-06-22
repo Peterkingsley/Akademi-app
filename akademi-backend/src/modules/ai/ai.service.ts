@@ -370,6 +370,14 @@ export class AIService {
           return {
             concept_title: String(segment?.concept_title || `Lesson part ${index + 1}`).trim(),
             script,
+            caption_chunks: chunks
+              .map((chunk: any, chunkIndex: number) => ({
+                id: typeof chunk?.id === 'string' ? chunk.id : `chunk-${index + 1}-${chunkIndex + 1}`,
+                text: String(chunk?.text || '').trim(),
+                duration_ms: Math.max(Number(chunk?.duration_ms) || 0, 0),
+              }))
+              .filter((chunk: { text: string }) => chunk.text.length > 0)
+              .slice(0, 24),
             order: index + 1,
             estimated_duration_ms: estimatedDurationMs || Math.max(script.split(/\s+/).length * 350, 15000),
             visual_cues: visualCues
@@ -392,6 +400,11 @@ export class AIService {
         .slice(0, 10) as Array<{
           concept_title: string;
           script: string;
+          caption_chunks: Array<{
+            id: string;
+            text: string;
+            duration_ms: number;
+          }>;
           order: number;
           estimated_duration_ms: number;
           visual_cues: Array<{
@@ -474,6 +487,11 @@ ${materialExcerpt}`,
       segments = [{
         concept_title: session.material?.title || session.topic || 'Tutor lesson',
         script: fallbackScript,
+        caption_chunks: [{
+          id: 'chunk-1-1',
+          text: fallbackScript,
+          duration_ms: Math.max(fallbackScript.split(/\s+/).length * 350, 15000),
+        }],
         order: 1,
         estimated_duration_ms: Math.max(fallbackScript.split(/\s+/).length * 350, 15000),
         visual_cues: [{
@@ -511,6 +529,7 @@ ${materialExcerpt}`,
           message_id: latestAiMessage?.id || null,
           concept_title: segment.concept_title,
           script: segment.script,
+          caption_chunks: segment.caption_chunks as any,
           order: segment.order,
           estimated_duration_ms: segment.estimated_duration_ms,
           visual_cues: {

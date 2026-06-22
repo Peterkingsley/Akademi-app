@@ -767,6 +767,7 @@ model LessonSegment {
   message_id          String?
   concept_title       String
   script              String
+  caption_chunks      Json        @default("[]")
   order               Int
   estimated_duration_ms Int
   created_at          DateTime    @default(now())
