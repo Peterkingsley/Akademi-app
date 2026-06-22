@@ -100,6 +100,7 @@ export type MainStackParamList = {
     materialContext?: string;
   } | undefined;
   LiveTutorSession: { sessionId: string };
+  WhiteboardTutor: { sessionId: string };
   TutorSessionSummary: { sessionId: string };
   ExamPrep: undefined;
   AddExam: undefined;

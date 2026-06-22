@@ -12,6 +12,7 @@ import { MaterialPracticeScreen } from "../screens/main/MaterialPracticeScreen";
 import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
 import { CameraScreen } from "../screens/main/CameraScreen";
 import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
+import { WhiteboardTutorScreen } from "../screens/main/WhiteboardTutorScreen";
 import { AIProcessingScreen } from "../screens/main/AIProcessingScreen";
 import { BoardReplayScreen } from "../screens/main/BoardReplayScreen";
 import { LiveTutorEntryScreen } from "../screens/main/LiveTutorEntryScreen";

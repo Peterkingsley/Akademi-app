@@ -4,7 +4,10 @@ import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { Monitor } from "lucide-react-native";
+import { Monitor } from "lucide-react-native";
 import { ArrowLeft, GraduationCap, Send, Bot } from "lucide-react-native";
+import { Monitor } from "lucide-react-native";
 import { socketService } from "../../services/socket";
 import { sessionService } from "../../services/session";
 import { RichMathText } from "../../components/ui/RichMathText";
@@ -297,6 +300,9 @@ export const LiveTutorSessionScreen: React.FC = () => {
         </View>
       </View>
       <View style={styles.headerRight}>
+        <TouchableOpacity onPress={() => navigation.navigate("WhiteboardTutor", { sessionId })} style={{ marginRight: 12 }}>
+          <Monitor size={22} color={colors.primary} />
+        </TouchableOpacity>
         <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
         <TouchableOpacity onPress={handleEndSession} disabled={isEnding}>
           <Text style={[styles.endBtn, typography.bodySmall]}>{isEnding ? "Ending..." : "End Session"}</Text>
