@@ -72,5 +72,11 @@ router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionInteractionRateLimiter, sessionsController.sendMessage);
 router.post('/:id/messages/photo', sessionInteractionRateLimiter, photoUpload.single('photo'), sessionsController.sendPhotoMessage);
 router.get('/:id/summary', sessionsController.getSummary);
+router.get('/:id/teaching', sessionsController.getPlayableLesson);
+router.post(
+  '/:id/teaching',
+  sessionInteractionRateLimiter,
+  sessionsController.generateTeaching
+);
 
 export default router;
