@@ -133,7 +133,9 @@ export const sessionService = {
     return response.data;
   },
   getPlayableLesson: async (sessionId: string) => {
-    const response = await api.get(`/sessions/${sessionId}/teaching`);
+    const response = await api.get(`/sessions/${sessionId}/teaching`, {
+      timeout: 90000,
+    });
     return response.data;
   },
 
@@ -141,6 +143,8 @@ export const sessionService = {
     const response = await api.post(`/sessions/${sessionId}/teaching`, {
       studentMessage,
       materialContext,
+    }, {
+      timeout: 90000,
     });
     return response.data;
   },

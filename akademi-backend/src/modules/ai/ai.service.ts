@@ -400,18 +400,19 @@ Important:
 
     const parsedLesson = JSON.parse(this.extractJsonObject(response));
 
-    for (const segmentData of parsedLesson.segments) {
+    const segmentsList = parsedLesson.segments || [];
+    for (const segmentData of segmentsList) {
       const segment = await prisma.lessonSegment.create({
         data: {
           session_id: sessionId,
           concept_title: segmentData.concept_title,
           script: segmentData.script,
-          order: parsedLesson.segments.indexOf(segmentData),
-          estimated_duration_ms: segmentData.caption_chunks.reduce((acc: number, c: any) => acc + (c.duration_ms || 0), 0),
+          order: segmentsList.indexOf(segmentData),
+          estimated_duration_ms: (segmentData.caption_chunks || []).reduce((acc: number, c: any) => acc + (c.duration_ms || 0), 0),
         },
       });
 
-      for (const cueData of segmentData.visual_cues) {
+      for (const cueData of segmentData.visual_cues || []) {
         await prisma.visualCue.create({
           data: {
             segment_id: segment.id,
