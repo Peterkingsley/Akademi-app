@@ -42,6 +42,9 @@ function buildPrompt(cue: {
 }
 
 export async function generateWhiteboardVisualImageJob(visualCueId: string) {
+  // eslint-disable-next-line no-console
+  console.log(`JOB STARTED - visualCueId: ${visualCueId}`);
+
   const cue = await prisma.visualCue.findUnique({
     where: { id: visualCueId },
     include: {

@@ -214,6 +214,9 @@ export class AIProvider {
     }
 
     const model = config.geminiImageModel;
+    // eslint-disable-next-line no-console
+    console.log(`CALLING GEMINI IMAGE API - prompt: ${prompt}`);
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
       {
@@ -234,6 +237,9 @@ export class AIProvider {
     );
 
     const payload = await response.json() as any;
+    // eslint-disable-next-line no-console
+    console.log(`GEMINI RAW RESPONSE: ${JSON.stringify(payload)}`);
+
     if (!response.ok) {
       throw new Error(payload?.error?.message || 'Gemini image generation failed');
     }
