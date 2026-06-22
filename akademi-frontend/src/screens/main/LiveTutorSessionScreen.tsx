@@ -657,16 +657,16 @@ const styles = StyleSheet.create({
   messageWrapper: {
     flexDirection: "row",
     marginBottom: 14,
+    width: "100%",
   },
   aiWrapper: {
     alignSelf: "flex-start",
     alignItems: "flex-start",
-    maxWidth: "94%",
+    paddingRight: 12,
   },
   studentWrapper: {
     alignSelf: "flex-end",
     justifyContent: "flex-end",
-    maxWidth: "78%",
   },
   aiAvatar: {
     width: 32,
@@ -682,16 +682,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     flexShrink: 1,
+    minWidth: 0,
   },
   aiBubble: {
     backgroundColor: "#1E2D5E",
     borderBottomLeftRadius: 4,
-    maxWidth: "100%",
+    flex: 1,
   },
   studentBubble: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
-    maxWidth: "100%",
+    maxWidth: "78%",
   },
   adaptiveCard: {
     marginTop: 12,
