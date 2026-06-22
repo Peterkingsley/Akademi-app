@@ -1,28 +1,37 @@
-import { ReplyMode, Difficulty, VocabularyLevel } from '@prisma/client';
+// New types for Whiteboard Tutor
 
-export interface AIContext {
-  learningProfile: any;
-  communityPatterns: any[];
-  disciplineDocument: any | null;
-  replyMode: ReplyMode;
+export interface ScriptBlock {
+  id: string;
+  text: string;
+  durationMs: number;
+  visualCueId?: string;
 }
 
-export interface GeneratedQuestion {
-  question_text: string;
-  approach_guide: string;
-  difficulty: Difficulty;
+export interface VisualCue {
+  id: string;
+  timeStartMs: number;
+  timeEndMs: number;
+  visualType: 'title_board' | 'bullet_board' | 'flowchart' | 'timeline' | 'table' | 'hierarchy' | 'labeled_diagram' | 'graph';
+  renderMode: 'native_svg' | 'mermaid' | 'image';
+  payload: any;
 }
 
-export interface SessionSummary {
-  summary: string;
-  key_points: string[];
-  next_steps: string[];
+export interface LessonSegment {
+  segmentId: string;
+  conceptTitle: string;
+  scriptBlocks: ScriptBlock[];
+  visualCues: VisualCue[];
+  estimatedDurationMs: number;
 }
 
-export interface LearningProfileUpdate {
-  subject_strengths?: any;
-  subject_weaknesses?: any;
-  vocabulary_level?: VocabularyLevel;
-  preferred_reply_mode?: ReplyMode;
-  question_patterns?: any;
+export interface PlayableLesson {
+  sessionId: string;
+  lessonTitle: string;
+  segments: LessonSegment[];
+}
+
+export interface VisualPlanRequest {
+  script: string;
+  conceptMetadata?: any;
+  materialContext?: string;
 }
