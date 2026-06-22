@@ -4,6 +4,7 @@ import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
 import { combinedTeachingPrompt } from './teaching.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
+import { tutorOrchestrator } from './tutor-orchestrator';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
@@ -650,6 +651,7 @@ Create a board replay plan for this solution.`,
       conversationHistory
     );
     const isFollowUp = session.messages.length > 1;
+    const adaptiveTurn = await tutorOrchestrator.prepareTurn(userId, session, studentMessage);
     const prompt = isFollowUp
       ? `Continue this existing learning conversation.
 
@@ -659,13 +661,19 @@ ${conversationHistory}
 Latest student reply:
 ${studentMessage}
 
+${adaptiveTurn?.promptContext || ''}
+
 Important:
 - Treat the latest student reply as a response to Akademi's previous question.
 - Do not restart the explanation unless the student asks to restart.
 - If the previous Akademi message asked a question, evaluate the student's answer first.
 - If the student says they do not know or seem confused, explain the missing idea directly before asking anything else.
 - Do not trap the student in repeated questions. Move the explanation forward.`
-      : studentMessage;
+      : adaptiveTurn?.promptContext
+        ? `${studentMessage}
+
+${adaptiveTurn.promptContext}`
+        : studentMessage;
 
     // 3. Cache check. Multi-turn sessions must include conversation context, so do not reuse a standalone answer.
     const cacheKey = getAICacheKey(
@@ -675,11 +683,12 @@ Important:
       disciplineDocument?.version || 1
     );
 
-    const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
+    const cachedResponse = isFollowUp || session.session_type === 'TUTOR' ? null : await getCachedAIResponse(cacheKey);
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
-    const systemPrompt = assembleSystemPrompt(
+    const systemPrompt = [
+      assembleSystemPrompt(
       disciplineDocument,
       learningProfile,
       relevantCommunityPatterns,
@@ -693,7 +702,9 @@ Important:
           }
         : null,
       session.session_type,
-    );
+      ),
+      adaptiveTurn?.promptContext || '',
+    ].filter(Boolean).join('\n\n---\n\n');
 
     // 5. Call AI Provider (Claude with Gemini fallback)
     const aiResponseText = await aiProvider.generateResponse(prompt, {
@@ -706,21 +717,24 @@ Important:
       : null;
 
     // 6. Cache response
-    if (!isFollowUp) {
+    if (!isFollowUp && session.session_type !== 'TUTOR') {
       await setCachedAIResponse(cacheKey, aiResponseText);
     }
 
     return {
       content: aiResponseText,
-      metadata: whiteboardPayload
-        ? {
-            whiteboard: {
-              available: true,
-              subject_family: 'quantitative',
-              payload: whiteboardPayload,
-            },
-          }
-        : undefined,
+      metadata: {
+        ...(adaptiveTurn?.metadata || {}),
+        ...(whiteboardPayload
+          ? {
+              whiteboard: {
+                available: true,
+                subject_family: 'quantitative',
+                payload: whiteboardPayload,
+              },
+            }
+          : {}),
+      },
     };
   }
 }

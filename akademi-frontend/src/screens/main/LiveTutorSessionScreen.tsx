@@ -4,7 +4,7 @@ import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Monitor, ArrowLeft, GraduationCap, Send, Bot } from "lucide-react-native";
+import { Monitor, ArrowLeft, GraduationCap, Send, Bot, Brain, Eye } from "lucide-react-native";
 import { socketService } from "../../services/socket";
 import { sessionService } from "../../services/session";
 import { RichMathText } from "../../components/ui/RichMathText";
@@ -18,9 +18,29 @@ interface Message {
   id: string;
   type: "ai" | "student";
   content: string;
-  metadata?: {
+  metadata?: Record<string, any> & {
     academicInsight?: string;
     codeBlock?: string;
+    tutorAdaptive?: {
+      confidenceScore: number;
+      confidenceBucket: "MASTERY" | "PARTIAL" | "CONFUSED";
+      decision: string;
+      reason?: string;
+      currentSection?: {
+        id: string;
+        title: string;
+        objective: string;
+      } | null;
+      checkpointQuestion?: string | null;
+      visual?: {
+        id: string;
+        topic: string;
+        concept: string;
+        visualType: string;
+        renderMode: string;
+        payload?: any;
+      } | null;
+    };
   };
 }
 
@@ -106,6 +126,7 @@ export const LiveTutorSessionScreen: React.FC = () => {
         id: message.id,
         type: message.role === "AI" ? "ai" : "student",
         content: message.content,
+        metadata: message.metadata || {},
       })));
     } catch (error) {
       console.error("Failed to load tutor session:", error);
@@ -319,6 +340,48 @@ export const LiveTutorSessionScreen: React.FC = () => {
           fontSize={13}
           lineHeight={message.type === "ai" ? 1.65 : 1.5}
         />
+
+        {message.type === "ai" && message.metadata?.tutorAdaptive && (
+          <View style={styles.adaptiveCard}>
+            <View style={styles.adaptiveHeader}>
+              <Brain size={15} color={colors.primary} />
+              <Text style={[styles.adaptiveLabel, typography.mono]}>TUTOR STATE</Text>
+              <Text style={styles.confidencePill}>
+                {message.metadata.tutorAdaptive.confidenceBucket} - {message.metadata.tutorAdaptive.confidenceScore}%
+              </Text>
+            </View>
+
+            {message.metadata.tutorAdaptive.currentSection ? (
+              <View style={styles.adaptiveBlock}>
+                <Text style={styles.adaptiveTitle}>
+                  {message.metadata.tutorAdaptive.currentSection.title}
+                </Text>
+                <Text style={styles.adaptiveText}>
+                  {message.metadata.tutorAdaptive.currentSection.objective}
+                </Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.adaptiveText}>
+              Decision: {message.metadata.tutorAdaptive.decision.replace(/_/g, " ").toLowerCase()}
+            </Text>
+
+            {message.metadata.tutorAdaptive.visual ? (
+              <View style={styles.visualHint}>
+                <Eye size={14} color={colors.primary} />
+                <Text style={styles.visualHintText}>
+                  Visual ready: {message.metadata.tutorAdaptive.visual.visualType} for {message.metadata.tutorAdaptive.visual.concept}
+                </Text>
+              </View>
+            ) : null}
+
+            {message.metadata.tutorAdaptive.checkpointQuestion ? (
+              <Text style={styles.checkpointText}>
+                Checkpoint: {message.metadata.tutorAdaptive.checkpointQuestion}
+              </Text>
+            ) : null}
+          </View>
+        )}
 
         {message.metadata?.academicInsight && (
           <View style={styles.academicInsight}>
@@ -558,6 +621,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
     maxWidth: "100%",
+  },
+  adaptiveCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 10,
+    padding: 10,
+    gap: 8,
+  },
+  adaptiveHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  adaptiveLabel: {
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: "800",
+    flex: 1,
+  },
+  confidencePill: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: "800",
+  },
+  adaptiveBlock: {
+    gap: 3,
+  },
+  adaptiveTitle: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "800",
+  },
+  adaptiveText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 17,
+  },
+  visualHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  visualHintText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  checkpointText: {
+    ...typography.caption,
+    color: colors.primary,
+    lineHeight: 17,
+    fontWeight: "700",
   },
   messageText: {
     flexShrink: 1,

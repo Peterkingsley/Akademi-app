@@ -174,7 +174,11 @@ export const registerHandlers = (
 
       socket.emit('message:receive', {
         content: aiMessage.content,
-        messageId: aiMessage.id
+        messageId: aiMessage.id,
+        metadata:
+          aiMessage.metadata && typeof aiMessage.metadata === 'object' && !Array.isArray(aiMessage.metadata)
+            ? aiMessage.metadata as Record<string, unknown>
+            : {},
       });
 
       if (config.enableLiveTutorAudio) {
