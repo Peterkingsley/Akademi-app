@@ -4,8 +4,8 @@ import { SessionsService } from './sessions.service';
 
 const sessionsService = new SessionsService();
 
-function statusForError(error: any, fallbackStatus = 400) {
-  const message = error?.message || '';
+function statusForError(error: unknown, fallbackStatus = 400) {
+  const message = (error as Error)?.message || '';
   if (message.includes('AI tutor is temporarily busy')) return 503;
   return fallbackStatus;
 }
@@ -15,8 +15,8 @@ export class SessionsController {
     try {
       const session = await sessionsService.startSession(req.user!.userId, req.body);
       res.status(201).json(session);
-    } catch (error: any) {
-      res.status(403).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(403).json({ message: (error as Error).message });
     }
   }
 
@@ -24,8 +24,8 @@ export class SessionsController {
     try {
       const sessions = await sessionsService.listSessions(req.user!.userId);
       res.status(200).json(sessions);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ message: (error as Error).message });
     }
   }
 
@@ -33,8 +33,8 @@ export class SessionsController {
     try {
       const session = await sessionsService.getSession(req.params.id);
       res.status(200).json(session);
-    } catch (error: any) {
-      res.status(404).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(404).json({ message: (error as Error).message });
     }
   }
 
@@ -42,8 +42,8 @@ export class SessionsController {
     try {
       const session = await sessionsService.endSession(req.params.id);
       res.status(200).json(session);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(400).json({ message: (error as Error).message });
     }
   }
 
@@ -51,8 +51,8 @@ export class SessionsController {
     try {
       const messages = await sessionsService.listMessages(req.params.id);
       res.status(200).json(messages);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ message: (error as Error).message });
     }
   }
 
@@ -60,8 +60,8 @@ export class SessionsController {
     try {
       const message = await sessionsService.sendMessage(req.user!.userId, req.params.id, req.body);
       res.status(201).json(message);
-    } catch (error: any) {
-      res.status(statusForError(error)).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(statusForError(error)).json({ message: (error as Error).message });
     }
   }
 
@@ -74,8 +74,8 @@ export class SessionsController {
         req.body,
       );
       res.status(201).json(result);
-    } catch (error: any) {
-      res.status(statusForError(error)).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(statusForError(error)).json({ message: (error as Error).message });
     }
   }
 
@@ -83,8 +83,8 @@ export class SessionsController {
     try {
       const result = await sessionsService.extractDocumentText(req.file!);
       res.status(200).json(result);
-    } catch (error: any) {
-      res.status(statusForError(error)).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(statusForError(error)).json({ message: (error as Error).message });
     }
   }
 
@@ -92,8 +92,8 @@ export class SessionsController {
     try {
       const result = await sessionsService.transcribeAudio(req.file!);
       res.status(200).json(result);
-    } catch (error: any) {
-      res.status(statusForError(error)).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(statusForError(error)).json({ message: (error as Error).message });
     }
   }
 
@@ -101,8 +101,8 @@ export class SessionsController {
     try {
       const summary = await sessionsService.getSessionSummary(req.params.id);
       res.status(200).json(summary);
-    } catch (error: any) {
-      res.status(404).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(404).json({ message: (error as Error).message });
     }
 
 }
@@ -110,8 +110,8 @@ export class SessionsController {
     try {
       const lesson = await sessionsService.getPlayableLesson(req.params.id);
       res.status(200).json(lesson);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ message: (error as Error).message });
     }
   }
 
@@ -124,8 +124,8 @@ export class SessionsController {
         req.body.materialContext
       );
       res.status(200).json(lesson);
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
+    } catch (error: unknown) {
+      res.status(500).json({ message: (error as Error).message });
     }
   }
 }
