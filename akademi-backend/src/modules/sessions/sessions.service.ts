@@ -299,6 +299,41 @@ export class SessionsService {
     });
   }
 
+  async getTutorVisualAsset(_userId: string, visualAssetId: string) {
+    const asset = await prisma.tutorVisualAsset.findUnique({
+      where: { id: visualAssetId },
+      select: {
+        id: true,
+        topic: true,
+        concept: true,
+        visual_type: true,
+        render_mode: true,
+        payload: true,
+        image_url: true,
+        generation_status: true,
+        generation_error: true,
+        generated_at: true,
+      },
+    });
+
+    if (!asset) {
+      throw new Error('Tutor visual asset not found');
+    }
+
+    return {
+      id: asset.id,
+      topic: asset.topic,
+      concept: asset.concept,
+      visualType: asset.visual_type,
+      renderMode: asset.render_mode,
+      payload: asset.payload,
+      imageUrl: asset.image_url,
+      imageStatus: asset.generation_status,
+      imageError: asset.generation_error,
+      generatedAt: asset.generated_at,
+    };
+  }
+
   async sendMessage(userId: string, sessionId: string, data: SendMessageRequest) {
     const session = await this.getSession(sessionId);
 

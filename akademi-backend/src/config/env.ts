@@ -13,6 +13,8 @@ export const config = {
   claudeApiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || '',
   geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  geminiImageModel: process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation',
+  enableTutorImageGeneration: process.env.ENABLE_TUTOR_IMAGE_GENERATION === 'true',
   googleTtsApiKey: process.env.GOOGLE_TTS_API_KEY || '',
   googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
   googleOauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || 'dummy_client_id',

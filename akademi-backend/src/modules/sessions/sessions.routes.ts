@@ -66,6 +66,7 @@ router.post('/', sessionInteractionRateLimiter, sessionsController.start);
 router.post('/ingest/document', sessionInteractionRateLimiter, documentUpload.single('document'), sessionsController.extractDocument);
 router.post('/ingest/audio', sessionInteractionRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
 router.get('/', sessionsController.list);
+router.get('/visual-assets/:id/status', sessionsController.getTutorVisualAsset);
 router.get('/:id', sessionsController.getOne);
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/teaching', sessionsController.getPlayableLesson);

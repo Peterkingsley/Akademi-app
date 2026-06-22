@@ -411,6 +411,12 @@ model TutorVisualAsset {
   visual_type         String
   render_mode         String   @default("native")
   payload             Json     @default("{}")
+  image_url           String?
+  image_key           String?
+  generation_status   String   @default("PENDING")
+  generation_error    String?
+  generation_prompt   String?
+  generated_at        DateTime?
   prerequisites       Json     @default("[]")
   created_by          String   @default("AI_ORCHESTRATOR")
   effectiveness_score Float    @default(0.5)

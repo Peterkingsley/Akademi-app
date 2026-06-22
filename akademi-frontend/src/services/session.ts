@@ -68,6 +68,19 @@ export interface LearningProfile {
   recentPerformance: any;
 }
 
+export interface TutorVisualAssetStatus {
+  id: string;
+  topic: string;
+  concept: string;
+  visualType: string;
+  renderMode: string;
+  payload?: any;
+  imageUrl?: string | null;
+  imageStatus?: string | null;
+  imageError?: string | null;
+  generatedAt?: string | null;
+}
+
 export const sessionService = {
   createSession: async (data: {
     session_type: string;
@@ -117,6 +130,11 @@ export const sessionService = {
 
   listMessages: async (sessionId: string) => {
     const response = await api.get<Message[]>(`/sessions/${sessionId}/messages`);
+    return response.data;
+  },
+
+  getTutorVisualAssetStatus: async (visualAssetId: string) => {
+    const response = await api.get<TutorVisualAssetStatus>(`/sessions/visual-assets/${visualAssetId}/status`);
     return response.data;
   },
 

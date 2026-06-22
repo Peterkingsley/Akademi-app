@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Alert, Image } from "react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -38,6 +38,8 @@ interface Message {
         concept: string;
         visualType: string;
         renderMode: string;
+        imageUrl?: string | null;
+        imageStatus?: string | null;
         payload?: any;
       } | null;
     };
@@ -116,6 +118,64 @@ export const LiveTutorSessionScreen: React.FC = () => {
     spokenMessageIdsRef.current.add(latestAiMessage.id);
     speakIfEnabled(latestAiMessage.content).catch(() => undefined);
   }, [messages, speakIfEnabled]);
+
+  useEffect(() => {
+    const pendingVisualIds = Array.from(new Set(
+      messages
+        .map((message) => message.metadata?.tutorAdaptive?.visual)
+        .filter((visual) => visual?.id && !visual.imageUrl && !["READY", "FAILED"].includes(String(visual.imageStatus || "")))
+        .map((visual) => visual!.id),
+    ));
+
+    if (pendingVisualIds.length === 0) return undefined;
+
+    let cancelled = false;
+    const poll = async () => {
+      const updates = await Promise.all(
+        pendingVisualIds.map((visualId) =>
+          sessionService.getTutorVisualAssetStatus(visualId).catch(() => null),
+        ),
+      );
+
+      if (cancelled) return;
+
+      const updateMap = new Map(updates.filter(Boolean).map((asset: any) => [asset.id, asset]));
+      if (updateMap.size === 0) return;
+
+      setMessages((current) =>
+        current.map((message) => {
+          const adaptive = message.metadata?.tutorAdaptive;
+          const visual = adaptive?.visual;
+          if (!adaptive || !visual?.id || !updateMap.has(visual.id)) return message;
+          const update = updateMap.get(visual.id);
+          return {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              tutorAdaptive: {
+                ...adaptive,
+                visual: {
+                  ...visual,
+                  imageUrl: update.imageUrl || visual.imageUrl || null,
+                  imageStatus: update.imageStatus || visual.imageStatus || null,
+                },
+              },
+            },
+          };
+        }),
+      );
+    };
+
+    void poll();
+    const interval = setInterval(() => {
+      void poll();
+    }, 3500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [messages]);
 
   const loadSession = async () => {
     try {
@@ -367,12 +427,23 @@ export const LiveTutorSessionScreen: React.FC = () => {
             </Text>
 
             {message.metadata.tutorAdaptive.visual ? (
-              <View style={styles.visualHint}>
-                <Eye size={14} color={colors.primary} />
-                <Text style={styles.visualHintText}>
-                  Visual ready: {message.metadata.tutorAdaptive.visual.visualType} for {message.metadata.tutorAdaptive.visual.concept}
-                </Text>
-              </View>
+              <>
+                {message.metadata.tutorAdaptive.visual.imageUrl ? (
+                  <Image
+                    source={{ uri: message.metadata.tutorAdaptive.visual.imageUrl }}
+                    style={styles.generatedVisual}
+                    resizeMode="cover"
+                  />
+                ) : null}
+                <View style={styles.visualHint}>
+                  <Eye size={14} color={colors.primary} />
+                  <Text style={styles.visualHintText}>
+                    {message.metadata.tutorAdaptive.visual.imageUrl
+                      ? `Generated visual: ${message.metadata.tutorAdaptive.visual.visualType}`
+                      : `Visual queued: ${message.metadata.tutorAdaptive.visual.visualType} (${message.metadata.tutorAdaptive.visual.imageStatus || "PENDING"})`}
+                  </Text>
+                </View>
+              </>
             ) : null}
 
             {message.metadata.tutorAdaptive.checkpointQuestion ? (
@@ -664,6 +735,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
+  },
+  generatedVisual: {
+    width: "100%",
+    height: 160,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
   },
   visualHintText: {
     ...typography.caption,

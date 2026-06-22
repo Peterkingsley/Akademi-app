@@ -8,6 +8,11 @@ export interface AIRequestOptions {
   systemPrompt?: string;
 }
 
+export interface GeneratedImageResult {
+  buffer: Buffer;
+  mimeType: string;
+}
+
 const PLACEHOLDER_KEYWORDS = [
   'your_',
   'replace_me',
@@ -197,6 +202,56 @@ export class AIProvider {
 
     console.error('Audio transcription failed', { lastError });
     throw new Error('Could not transcribe that recording. Please try again or type the question instead.');
+  }
+
+  async generateEducationalImage(prompt: string): Promise<GeneratedImageResult> {
+    const key = config.geminiApiKey;
+    if (!config.enableTutorImageGeneration) {
+      throw new Error('Tutor image generation is disabled');
+    }
+    if (isPlaceholder(key)) {
+      throw new Error('Gemini API key is missing or invalid');
+    }
+
+    const model = config.geminiImageModel;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+          },
+        }),
+      },
+    );
+
+    const payload = await response.json() as any;
+    if (!response.ok) {
+      throw new Error(payload?.error?.message || 'Gemini image generation failed');
+    }
+
+    const parts = payload?.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
+    const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+    const data = inlineData?.data;
+    const mimeType = inlineData?.mimeType || inlineData?.mime_type || 'image/png';
+
+    if (!data) {
+      throw new Error('Gemini did not return an image');
+    }
+
+    return {
+      buffer: Buffer.from(data, 'base64'),
+      mimeType,
+    };
   }
 }
 

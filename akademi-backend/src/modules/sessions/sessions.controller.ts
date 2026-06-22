@@ -56,6 +56,15 @@ export class SessionsController {
     }
   }
 
+  async getTutorVisualAsset(req: Request, res: Response) {
+    try {
+      const asset = await sessionsService.getTutorVisualAsset(req.user!.userId, req.params.id);
+      res.status(200).json(asset);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message });
+    }
+  }
+
   async sendMessage(req: Request, res: Response) {
     try {
       const message = await sessionsService.sendMessage(req.user!.userId, req.params.id, req.body);

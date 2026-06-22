@@ -1,5 +1,7 @@
 import { Prisma, SessionType, TutorConfidenceBucket } from '@prisma/client';
 import prisma from '../../config/db';
+import { config } from '../../config/env';
+import { JOB_NAMES, systemQueue } from '../../config/queue';
 
 type TutorMaterialContext = {
   id: string;
@@ -181,6 +183,17 @@ function buildVisualPayload(concept: string, topic: string) {
 }
 
 export class TutorOrchestrator {
+  private queueVisualImageGeneration(visualAssetId: string, status?: string | null) {
+    if (!config.enableTutorImageGeneration) return;
+    if (status === 'READY' || status === 'PROCESSING') return;
+
+    void systemQueue
+      .add(JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE, { visualAssetId })
+      .catch((error: unknown) => {
+        console.error('Tutor visual image generation enqueue failed:', error);
+      });
+  }
+
   async prepareTurn(userId: string, session: TutorSessionContext, studentInput: string) {
     if (session.session_type !== SessionType.TUTOR || !session.material) {
       return null;
@@ -221,6 +234,7 @@ export class TutorOrchestrator {
           where: { id: visualAsset.id },
           data: { reuse_count: { increment: 1 } },
         });
+        this.queueVisualImageGeneration(visualAsset.id, visualAsset.generation_status);
       } else {
         visualAsset = await prisma.tutorVisualAsset.create({
           data: {
@@ -236,6 +250,7 @@ export class TutorOrchestrator {
             created_for_user_id: userId,
           },
         });
+        this.queueVisualImageGeneration(visualAsset.id, visualAsset.generation_status);
       }
     }
 
@@ -319,6 +334,8 @@ export class TutorOrchestrator {
                 concept: visualAsset.concept,
                 visualType: visualAsset.visual_type,
                 renderMode: visualAsset.render_mode,
+                imageUrl: visualAsset.image_url || null,
+                imageStatus: visualAsset.generation_status || 'PENDING',
                 payload: visualAsset.payload,
               }
             : null,

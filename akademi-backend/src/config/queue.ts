@@ -10,6 +10,7 @@ export const JOB_NAMES = {
   GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
+  GENERATE_TUTOR_VISUAL_IMAGE: 'GENERATE_TUTOR_VISUAL_IMAGE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -17,6 +18,7 @@ type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 type JobPayload = {
   materialId?: string;
   sessionId?: string;
+  visualAssetId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -83,6 +85,12 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {
       const { activateTournamentsJob } = await import('../jobs/activateTournaments.job');
       await activateTournamentsJob();
+      return;
+    }
+    case JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE: {
+      if (!payload.visualAssetId) throw new Error('GENERATE_TUTOR_VISUAL_IMAGE requires visualAssetId');
+      const { generateTutorVisualImageJob } = await import('../jobs/generateTutorVisualImage.job');
+      await generateTutorVisualImageJob(payload.visualAssetId);
       return;
     }
     default:
