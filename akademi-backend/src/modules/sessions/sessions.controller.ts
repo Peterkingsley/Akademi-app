@@ -1,3 +1,4 @@
+import { aiService } from "../ai/ai.service";
 import { Request, Response } from 'express';
 import { SessionsService } from './sessions.service';
 
@@ -102,6 +103,29 @@ export class SessionsController {
       res.status(200).json(summary);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
+    }
+
+}
+  async getPlayableLesson(req: Request, res: Response) {
+    try {
+      const lesson = await sessionsService.getPlayableLesson(req.params.id);
+      res.status(200).json(lesson);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async generateTeaching(req: Request, res: Response) {
+    try {
+      const lesson = await aiService.generateTeachingLesson(
+        req.user!.userId,
+        req.params.id,
+        req.body.studentMessage,
+        req.body.materialContext
+      );
+      res.status(200).json(lesson);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   }
 }

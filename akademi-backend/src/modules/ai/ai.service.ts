@@ -1,3 +1,5 @@
+import { PlayableLesson } from "./ai.types";
+import { combinedTeachingPrompt } from "./teaching.prompts";
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
 import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
@@ -46,161 +48,42 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
   if (!patterns || patterns.length === 0) return [];
 
   const queryTokens = new Set(tokenizeForRelevance(`${studentMessage} ${conversationHistory.slice(-1200)}`));
-  if (queryTokens.size === 0) return patterns.filter((pattern) => (pattern.question_pattern || {}).type !== 'school_story').slice(0, 3);
-
-  const scored = patterns.map((pattern) => {
-    const payload = pattern.question_pattern || {};
-    const textTokens = new Set(tokenizeForRelevance(getPatternText(pattern)));
-    let score = 0;
-
-    queryTokens.forEach((token) => {
-      if (textTokens.has(token)) score += 1;
-    });
-
-    if (payload.type !== 'school_story') score += 1;
-    if (payload.type === 'school_story' && score > 0) score += 1;
-
-    return { pattern, score };
-  });
-
-  return scored
-    .filter(({ pattern, score }) => {
-      const payload = pattern.question_pattern || {};
-      return payload.type === 'school_story' ? score >= 2 : score > 0;
+  return patterns
+    .map((pattern) => {
+      const patternText = getPatternText(pattern);
+      const patternTokens = tokenizeForRelevance(patternText);
+      const score = patternTokens.filter((token) => queryTokens.has(token)).length;
+      return { pattern, score };
     })
+    .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map(({ pattern }) => pattern);
+    .map((entry) => entry.pattern);
 }
 
 export class AIService {
-  private readonly boardImperativeNotePattern =
-    /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
+  private boardImperativeNotePattern = /^(set up|calculate|solve|find|differentiate|integrate|simplify|use|plug|rearrange|evaluate|apply)/i;
 
-  private splitEquationChain(math: string) {
-    const compact = math.replace(/\s+/g, ' ').trim();
-    if (!compact) return [];
-
-    const multilineParts = compact
-      .split(/\s*\\\\\s*/)
-      .map((part) => part.trim())
-      .filter(Boolean);
-
-    const splitPartOnEquals = (value: string) => {
-      const segments = value.split(/\s=\s/g).map((segment) => segment.trim()).filter(Boolean);
-      if (segments.length <= 2) return [value.trim()];
-
-      const chained: string[] = [];
-      for (let index = 0; index < segments.length - 1; index += 1) {
-        chained.push(`${segments[index]} = ${segments[index + 1]}`);
-      }
-      return chained;
-    };
-
-    return multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+  private cleanBoardCopy(text: string) {
+    return text.replace(/[*#]/g, '').trim();
   }
 
-  private expandWideBoardSteps(steps: Array<{ id: string; type: string; text: string; math: string; note: string }>) {
-    const expanded: Array<{ id: string; type: string; text: string; math: string; note: string }> = [];
-
-    steps.forEach((step) => {
-      const mathSegments = this.splitEquationChain(step.math);
-      const shouldSplit = mathSegments.length > 1 || step.math.length > 110;
-
-      if (!step.math || !shouldSplit) {
-        expanded.push(step);
-        return;
-      }
-
-      const segments = mathSegments.length > 0 ? mathSegments : [step.math];
-      segments.forEach((segment, index) => {
-        expanded.push({
-          ...step,
-          id: `${step.id}-${index + 1}`,
-          text: index === 0 ? step.text : index === segments.length - 1 ? 'Continue the simplification.' : 'Next transformation.',
-          math: segment,
-          note: index === segments.length - 1 ? step.note : '',
-        });
-      });
-    });
-
-    return expanded.slice(0, 16);
+  private normalizeLatexExpression(latex: string) {
+    return latex.replace(/\\\[/g, '').replace(/\\\]/g, '').trim();
   }
 
-  private normalizeLatexExpression(value: string) {
-    if (!value) return '';
-
-    let normalized = value.trim();
-
-    normalized = normalized
-      .replace(/\$\$?/g, '')
-      .replace(/\\\((.*?)\\\)/g, '$1')
-      .replace(/\\\[(.*?)\\\]/g, '$1')
-      .replace(/\bdy\/dx\b/gi, '\\frac{dy}{dx}')
-      .replace(/\bd\/dx\b/gi, '\\frac{d}{dx}')
-      .replace(/\bsqrt\s*\(([^)]+)\)/gi, '\\sqrt{$1}')
-      .replace(/\*/g, ' \\cdot ')
-      .replace(/÷/g, '\\div')
-      .replace(/×/g, '\\cdot')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    normalized = normalized
-      .replace(/\bwhere\b[\s\S]*$/i, '')
-      .replace(/\bhere\b[\s\S]*$/i, '')
-      .replace(/\bbecause\b[\s\S]*$/i, '')
-      .replace(/,\s*[A-Za-z][A-Za-z\s,'-]*$/g, '')
-      .trim();
-
-    normalized = normalized.replace(/([A-Za-z0-9\)\}])\^([A-Za-z0-9])/g, '$1^{$2}');
-
-    return normalized;
-  }
-
-  private looksLikeStandaloneMath(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return false;
-
-    const letterWords = trimmed.match(/[A-Za-z]{3,}/g) || [];
-    const symbolMatches = trimmed.match(/[=^\\+\-*/()[\]{}]|dy\/dx|d\/dx|sqrt/gi) || [];
-
-    return symbolMatches.length >= 2 && letterWords.length <= 2;
-  }
-
-  private extractStandaloneMath(value: string) {
-    if (!value) return { cleanedText: '', extractedMath: '' };
-
-    const trimmed = value.trim();
-    const explicitDisplayMatch = trimmed.match(/^\\\[(.*)\\\]$/s);
-    const explicitInlineMatch = trimmed.match(/^\\\((.*)\\\)$/s);
-    const explicitMatch = explicitDisplayMatch || explicitInlineMatch;
-
-    if (explicitMatch?.[1]) {
-      const normalized = this.normalizeLatexExpression(explicitMatch[1]);
-      return { cleanedText: '', extractedMath: normalized };
-    }
-
-    if (this.looksLikeStandaloneMath(trimmed)) {
+  private extractStandaloneMath(text: string) {
+    const mathMatch = text.match(/\\\[([\s\S]*?)\\\]/);
+    if (mathMatch) {
       return {
-        cleanedText: '',
-        extractedMath: this.normalizeLatexExpression(trimmed),
+        cleanedText: text.replace(mathMatch[0], '').trim(),
+        extractedMath: mathMatch[1].trim(),
       };
     }
-
-    return {
-      cleanedText: trimmed.replace(/\s+/g, ' ').trim(),
-      extractedMath: '',
-    };
+    return { cleanedText: text, extractedMath: '' };
   }
 
-  private cleanBoardCopy(value: string) {
-    return value
-      .replace(/\s+,/g, ',')
-      .replace(/\s+\./g, '.')
-      .replace(/\s+:/g, ':')
-      .replace(/\(\s+\)/g, '()')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
+  private expandWideBoardSteps(steps: any[]) {
+    return steps;
   }
 
   private shouldSuppressBoardNote(note: string, text: string) {
@@ -243,7 +126,7 @@ export class AIService {
     return {
       ...step,
       text: shortenedText,
-      math: uniqueMath.join(' \\\\ '),
+      math: uniqueMath.join(' \\ '),
       note: shortenedNote,
     };
   }
@@ -253,43 +136,13 @@ export class AIService {
 
     const text = studentMessage.toLowerCase();
     const mathSignals = [
-      'solve',
-      'calculate',
-      'ratio',
-      'simplify',
-      'differentiate',
-      'derivative',
-      'dy/dx',
-      'dydx',
-      'differentiate',
-      'integrate',
-      'integration',
-      'limit',
-      'find x',
-      'solve for x',
-      'quadratic',
-      'factorize',
-      'logarithm',
-      'trigonometry',
-      'sin',
-      'cos',
-      'tan',
-      'equation',
-      'simultaneous',
-      'matrix',
-      'probability',
-      'mean',
-      'median',
-      'fraction',
-      'percentage',
-      'velocity',
-      'acceleration',
-      'force',
-      'kinetic energy',
-      'mole',
-      'molar',
-      'stoichiometry',
-      'balance this reaction',
+      'solve', 'calculate', 'ratio', 'simplify', 'differentiate', 'derivative',
+      'dy/dx', 'dydx', 'differentiate', 'integrate', 'integration', 'limit',
+      'find x', 'solve for x', 'quadratic', 'factorize', 'logarithm',
+      'trigonometry', 'sin', 'cos', 'tan', 'equation', 'simultaneous',
+      'matrix', 'probability', 'mean', 'median', 'fraction', 'percentage',
+      'velocity', 'acceleration', 'force', 'kinetic energy', 'mole', 'molar',
+      'stoichiometry', 'balance this reaction',
     ];
 
     const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]|\bdy\/dx\b|\bdx\b|\bx\^|\bx²|\bx³/.test(studentMessage);
@@ -379,10 +232,8 @@ Create a board replay plan for this solution.`,
     replyMode: ReplyMode,
     hasActivePaidFeature: boolean
   ): Promise<OrchestratedAIResponse> {
-    // 1. Check daily limit
     await checkDailyLimit(userId, hasActivePaidFeature);
 
-    // 2. Fetch session and context
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -465,7 +316,6 @@ Important:
 - Do not trap the student in repeated questions. Move the explanation forward.`
       : studentMessage;
 
-    // 3. Cache check. Multi-turn sessions must include conversation context, so do not reuse a standalone answer.
     const cacheKey = getAICacheKey(
       session.course_code || 'GENERAL',
       studentMessage,
@@ -476,7 +326,6 @@ Important:
     const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
     if (cachedResponse) return { content: cachedResponse };
 
-    // 4. Assemble system prompt
     const systemPrompt = assembleSystemPrompt(
       disciplineDocument,
       learningProfile,
@@ -493,7 +342,6 @@ Important:
       session.session_type,
     );
 
-    // 5. Call AI Provider (Claude with Gemini fallback)
     const aiResponseText = await aiProvider.generateResponse(prompt, {
       systemPrompt,
       maxTokens: 1000,
@@ -503,7 +351,6 @@ Important:
       ? await this.buildWhiteboardPayload(studentMessage, aiResponseText)
       : null;
 
-    // 6. Cache response
     if (!isFollowUp) {
       await setCachedAIResponse(cacheKey, aiResponseText);
     }
@@ -520,6 +367,65 @@ Important:
           }
         : undefined,
     };
+  }
+
+  async generateTeachingLesson(
+    userId: string,
+    sessionId: string,
+    studentMessage: string,
+    materialContext?: string
+  ): Promise<any> {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        material: true,
+        messages: {
+          orderBy: { created_at: 'asc' },
+        },
+      },
+    });
+
+    if (!session) throw new Error('Session not found');
+
+    const prompt = `
+      Context: ${materialContext || session.material?.content || 'No specific material content provided.'}
+      Student Message: ${studentMessage}
+      Conversation History: ${session.messages.map(m => m.role + ': ' + m.content).join('\n')}
+    `;
+
+    const response = await aiProvider.generateResponse(prompt, {
+      systemPrompt: combinedTeachingPrompt,
+      maxTokens: 2000,
+    });
+
+    const parsedLesson = JSON.parse(this.extractJsonObject(response));
+
+    for (const segmentData of parsedLesson.segments) {
+      const segment = await prisma.lessonSegment.create({
+        data: {
+          session_id: sessionId,
+          concept_title: segmentData.concept_title,
+          script: segmentData.script,
+          order: parsedLesson.segments.indexOf(segmentData),
+          estimated_duration_ms: segmentData.caption_chunks.reduce((acc: number, c: any) => acc + (c.duration_ms || 0), 0),
+        },
+      });
+
+      for (const cueData of segmentData.visual_cues) {
+        await prisma.visualCue.create({
+          data: {
+            segment_id: segment.id,
+            visual_type: cueData.visual_type,
+            render_mode: cueData.render_mode,
+            start_ms: cueData.start_ms,
+            end_ms: cueData.end_ms,
+            payload: cueData.payload,
+          },
+        });
+      }
+    }
+
+    return parsedLesson;
   }
 }
 

@@ -132,4 +132,16 @@ export const sessionService = {
     });
     return response.data;
   },
+  getPlayableLesson: async (sessionId: string) => {
+    const response = await api.get(`/sessions/${sessionId}/teaching`);
+    return response.data;
+  },
+
+  generateTeaching: async (sessionId: string, studentMessage: string, materialContext?: string) => {
+    const response = await api.post(`/sessions/${sessionId}/teaching`, {
+      studentMessage,
+      materialContext,
+    });
+    return response.data;
+  },
 };

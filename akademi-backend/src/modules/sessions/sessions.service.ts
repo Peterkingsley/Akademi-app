@@ -8,6 +8,7 @@ import { config } from '../../config/env';
 import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
 import { aiProvider } from '../ai/ai.provider';
+import { aiService } from "../ai/ai.service";
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -430,5 +431,32 @@ export class SessionsService {
             ? ["Resume the same material session when you are ready", "Ask the tutor to restart from the beginning or continue from the last point", "Practice the new ideas against examples from the material"]
             : ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
+  }
+
+  async getPlayableLesson(sessionId: string) {
+    const segments = await prisma.lessonSegment.findMany({
+      where: { session_id: sessionId },
+      orderBy: { order: 'asc' },
+      include: {
+        visual_cues: true,
+      },
+    });
+
+    if (segments.length === 0) {
+      // Logic to upgrade session if no segments exist
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+        include: { messages: { orderBy: { created_at: 'asc' } } },
+      });
+
+      if (session && session.messages.length > 0) {
+        const lastAiMessage = [...session.messages].reverse().find(m => m.role === MessageRole.AI);
+        if (lastAiMessage) {
+          return await aiService.generateTeachingLesson(session.user_id, sessionId, lastAiMessage.content);
+        }
+      }
+    }
+
+    return segments;
   }
 }
