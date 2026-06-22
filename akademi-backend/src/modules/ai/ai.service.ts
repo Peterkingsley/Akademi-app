@@ -1,6 +1,6 @@
 import { PlayableLesson } from "./ai.types";
 import { combinedTeachingPrompt } from "./teaching.prompts";
-import { ReplyMode } from '@prisma/client';
+import { ReplyMode, Prisma } from '@prisma/client';
 import prisma from '../../config/db';
 import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
@@ -399,33 +399,50 @@ Important:
     });
 
     const parsedLesson = JSON.parse(this.extractJsonObject(response));
+    const segments = Array.isArray(parsedLesson?.segments) ? parsedLesson.segments : [];
 
-    for (const segmentData of parsedLesson.segments) {
+    if (segments.length === 0) {
+      throw new Error('AI failed to generate a structured lesson. Please try again.');
+    }
+
+    const createdSegments = [];
+
+    for (const [index, segmentData] of segments.entries()) {
+      const captionChunks = Array.isArray(segmentData?.caption_chunks) ? segmentData.caption_chunks : [];
+      const visualCues = Array.isArray(segmentData?.visual_cues) ? segmentData.visual_cues : [];
+
       const segment = await prisma.lessonSegment.create({
         data: {
           session_id: sessionId,
-          concept_title: segmentData.concept_title,
-          script: segmentData.script,
-          order: parsedLesson.segments.indexOf(segmentData),
-          estimated_duration_ms: segmentData.caption_chunks.reduce((acc: number, c: any) => acc + (c.duration_ms || 0), 0),
+          concept_title: String(segmentData?.concept_title || 'Untitled Concept'),
+          script: String(segmentData?.script || ''),
+          order: index,
+          estimated_duration_ms: captionChunks.reduce((acc: number, c: any) => acc + (Number(c?.duration_ms) || 0), 0),
         },
       });
 
-      for (const cueData of segmentData.visual_cues) {
-        await prisma.visualCue.create({
+      const createdCues = [];
+      for (const cueData of visualCues) {
+        const cue = await prisma.visualCue.create({
           data: {
             segment_id: segment.id,
-            visual_type: cueData.visual_type,
-            render_mode: cueData.render_mode,
-            start_ms: cueData.start_ms,
-            end_ms: cueData.end_ms,
-            payload: cueData.payload,
+            visual_type: String(cueData?.visual_type || 'title_board'),
+            render_mode: String(cueData?.render_mode || 'bullet_card'),
+            start_ms: Number(cueData?.start_ms) || 0,
+            end_ms: Number(cueData?.end_ms) || 10000,
+            payload: (cueData?.payload || {}) as Prisma.InputJsonValue,
           },
         });
+        createdCues.push(cue);
       }
+
+      createdSegments.push({
+        ...segment,
+        visual_cues: createdCues,
+      });
     }
 
-    return parsedLesson;
+    return createdSegments;
   }
 }
 

@@ -83,17 +83,17 @@ export const sessionService = {
   },
 
   getSessionSummary: async (sessionId: string) => {
-    const response = await api.get<SessionSummary>(`/sessions/${sessionId}/summary`);
+    const response = await api.get<SessionSummary>( `/sessions/${sessionId}/summary` );
     return response.data;
   },
 
   getSession: async (sessionId: string) => {
-    const response = await api.get<Session & { messages?: Message[] }>(`/sessions/${sessionId}`);
+    const response = await api.get<Session & { messages?: Message[] }>( `/sessions/${sessionId}` );
     return response.data;
   },
 
   endSession: async (sessionId: string) => {
-    const response = await api.patch(`/sessions/${sessionId}/end`);
+    const response = await api.patch( `/sessions/${sessionId}/end` );
     return response.data;
   },
 
@@ -103,12 +103,12 @@ export const sessionService = {
   },
 
   getRecentSessions: async (limit: number = 5) => {
-    const response = await api.get<Session[]>(`/users/me/sessions?limit=${limit}`);
+    const response = await api.get<Session[]>( `/users/me/sessions?limit=${limit}` );
     return response.data;
   },
 
   rateSession: async (sessionId: string, rating: number, feedback?: string) => {
-    const response = await api.patch(`/sessions/${sessionId}/rate`, {
+    const response = await api.patch( `/sessions/${sessionId}/rate`, {
       rating,
       feedback,
     });
@@ -116,7 +116,7 @@ export const sessionService = {
   },
 
   listMessages: async (sessionId: string) => {
-    const response = await api.get<Message[]>(`/sessions/${sessionId}/messages`);
+    const response = await api.get<Message[]>( `/sessions/${sessionId}/messages` );
     return response.data;
   },
 
@@ -127,20 +127,25 @@ export const sessionService = {
       reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
     }
   ) => {
-    const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data, {
+    const response = await api.post<Message>( `/sessions/${sessionId}/messages`, data, {
       timeout: 90000,
     });
     return response.data;
   },
+
   getPlayableLesson: async (sessionId: string) => {
-    const response = await api.get(`/sessions/${sessionId}/teaching`);
+    const response = await api.get( `/sessions/${sessionId}/teaching`, {
+      timeout: 90000,
+    });
     return response.data;
   },
 
   generateTeaching: async (sessionId: string, studentMessage: string, materialContext?: string) => {
-    const response = await api.post(`/sessions/${sessionId}/teaching`, {
+    const response = await api.post( `/sessions/${sessionId}/teaching`, {
       studentMessage,
       materialContext,
+    }, {
+      timeout: 90000,
     });
     return response.data;
   },
