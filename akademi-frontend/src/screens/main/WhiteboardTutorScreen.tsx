@@ -15,6 +15,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Lightbulb,
   Pause,
   Play,
   RotateCcw,
@@ -167,6 +168,17 @@ const parseMermaidLabels = (source: string) => {
     .slice(0, 6);
 };
 
+const compactVisualPhrase = (value: string, fallback = "Key idea") => {
+  const cleaned = value
+    .replace(/\s+/g, " ")
+    .replace(/^now\s+teaching\s*/i, "")
+    .trim();
+  if (!cleaned) return fallback;
+
+  const words = cleaned.split(" ").filter(Boolean);
+  return words.slice(0, 6).join(" ");
+};
+
 export const WhiteboardTutorScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -187,9 +199,6 @@ export const WhiteboardTutorScreen: React.FC = () => {
   const baseElapsedRef = useRef(0);
 
   const activeSegment = segments[activeSegmentIndex] || null;
-  const activeCaption = activeSegment?.captions.find(
-    (caption) => elapsedMs >= caption.startMs && elapsedMs < caption.endMs,
-  ) || activeSegment?.captions[0] || null;
   const activeVisual = activeSegment?.visualCues.find(
     (cue) => elapsedMs >= cue.start_ms && elapsedMs < cue.end_ms,
   ) || activeSegment?.visualCues[0] || null;
@@ -348,7 +357,11 @@ export const WhiteboardTutorScreen: React.FC = () => {
   const renderBulletCard = (payload: any) => {
     const bullets = Array.isArray(payload?.bullets)
       ? payload.bullets.map((item: unknown) => safeText(item)).filter(Boolean)
-      : [activeCaption?.text || activeSegment?.conceptTitle || "Follow the explanation."];
+      : [
+          "Main concept",
+          "How it connects",
+          "What to remember",
+        ];
 
     return (
       <View style={styles.bulletBoard}>
@@ -397,7 +410,13 @@ export const WhiteboardTutorScreen: React.FC = () => {
     const labels = Array.isArray(payload?.steps)
       ? payload.steps.map((item: unknown) => safeText(item)).filter(Boolean)
       : parseMermaidLabels(source);
-    const items = labels.length > 0 ? labels : [activeSegment?.conceptTitle || "Concept", activeCaption?.text || "Explanation"];
+    const items = labels.length > 0
+      ? labels
+      : [
+          "Foundation",
+          compactVisualPhrase(activeSegment?.conceptTitle || "", "Concept"),
+          "Checkpoint",
+        ];
 
     return (
       <View style={styles.flowBoard}>
@@ -439,6 +458,78 @@ export const WhiteboardTutorScreen: React.FC = () => {
     );
   };
 
+  const renderLabeledDiagram = (payload: any) => {
+    const labels = Array.isArray(payload?.labels)
+      ? payload.labels.map((item: unknown) => safeText(item)).filter(Boolean)
+      : Array.isArray(payload?.parts)
+        ? payload.parts.map((item: unknown) => safeText(item)).filter(Boolean)
+        : [
+            compactVisualPhrase(activeSegment?.conceptTitle || "", "Concept"),
+            "Detail",
+            "Example",
+          ];
+
+    const safeLabels = labels.slice(0, 4);
+
+    return (
+      <View style={styles.diagramBoard}>
+        <Svg width="100%" height={220} viewBox="0 0 320 220">
+          <Circle cx="160" cy="108" r="46" fill={`${colors.primary}22`} stroke={colors.primary} strokeWidth="3" />
+          <Rect x="126" y="86" width="68" height="44" rx="10" fill={colors.surfaceElevated} stroke={colors.border} strokeWidth="2" />
+          <SvgText x="160" y="112" fill={colors.textPrimary} fontSize="11" fontWeight="700" textAnchor="middle">
+            {compactVisualPhrase(safeText(payload?.center || activeSegment?.conceptTitle), "Core").slice(0, 16)}
+          </SvgText>
+          {safeLabels.map((label: string, index: number) => {
+            const positions = [
+              { x1: 122, y1: 78, x2: 56, y2: 44, tx: 54, ty: 34, anchor: "start" },
+              { x1: 198, y1: 78, x2: 264, y2: 44, tx: 266, ty: 34, anchor: "end" },
+              { x1: 122, y1: 140, x2: 56, y2: 178, tx: 54, ty: 198, anchor: "start" },
+              { x1: 198, y1: 140, x2: 264, y2: 178, tx: 266, ty: 198, anchor: "end" },
+            ][index];
+            return (
+              <React.Fragment key={`${label}-${index}`}>
+                <Line x1={positions.x1} y1={positions.y1} x2={positions.x2} y2={positions.y2} stroke={colors.primary} strokeWidth="2" />
+                <Circle cx={positions.x2} cy={positions.y2} r="4" fill={colors.primary} />
+                <SvgText x={positions.tx} y={positions.ty} fill={colors.textPrimary} fontSize="10" textAnchor={positions.anchor as any}>
+                  {compactVisualPhrase(label).slice(0, 20)}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+      </View>
+    );
+  };
+
+  const renderConceptMap = (payload: any) => {
+    const nodes = Array.isArray(payload?.nodes)
+      ? payload.nodes.map((item: unknown) => safeText(item)).filter(Boolean)
+      : [
+          "Prerequisite",
+          compactVisualPhrase(activeSegment?.conceptTitle || "", "Topic"),
+          "Application",
+          "Check",
+        ];
+
+    return (
+      <View style={styles.conceptMapBoard}>
+        <View style={styles.conceptCenter}>
+          <Lightbulb size={22} color={colors.background} />
+          <Text style={styles.conceptCenterText} numberOfLines={2}>
+            {compactVisualPhrase(activeSegment?.conceptTitle || "", "Core idea")}
+          </Text>
+        </View>
+        <View style={styles.conceptGrid}>
+          {nodes.slice(0, 4).map((node: string, index: number) => (
+            <View key={`${node}-${index}`} style={styles.conceptNode}>
+              <Text style={styles.conceptNodeText} numberOfLines={2}>{compactVisualPhrase(node)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
   const renderGraph = (payload: any) => (
     <View style={styles.graphBoard}>
       <Svg width="100%" height={170} viewBox="0 0 320 170">
@@ -467,6 +558,8 @@ export const WhiteboardTutorScreen: React.FC = () => {
     if (visualType.includes("table") || cue?.render_mode === "table") return renderTable(payload);
     if (visualType.includes("timeline")) return renderTimeline(payload);
     if (visualType.includes("graph")) return renderGraph(payload);
+    if (visualType.includes("label") || visualType.includes("diagram") || visualType.includes("system")) return renderLabeledDiagram(payload);
+    if (visualType.includes("concept") || visualType.includes("analogy") || visualType.includes("sketch")) return renderConceptMap(payload);
     if (visualType.includes("flow") || visualType.includes("chain") || visualType.includes("hierarchy") || cue?.render_mode === "mermaid") return renderFlow(payload);
     return renderBulletCard(payload);
   };
@@ -530,11 +623,6 @@ export const WhiteboardTutorScreen: React.FC = () => {
         <View style={styles.boardCanvas}>
           {renderVisual()}
         </View>
-      </View>
-
-      <View style={styles.captionPanel}>
-        <Text style={styles.captionLabel}>LIVE CAPTION</Text>
-        <Text style={styles.captionText}>{activeCaption?.text || activeSegment?.script}</Text>
       </View>
 
       <View style={styles.progressTrack}>
@@ -627,7 +715,7 @@ const createStyles = (colors: any) =>
       borderColor: colors.border,
       backgroundColor: colors.surface,
       overflow: "hidden",
-      minHeight: 320,
+      minHeight: 430,
     },
     boardHeader: {
       flexDirection: "row",
@@ -653,7 +741,7 @@ const createStyles = (colors: any) =>
       fontWeight: "700",
     },
     boardCanvas: {
-      minHeight: 270,
+      minHeight: 382,
       padding: 18,
       justifyContent: "center",
     },
@@ -661,7 +749,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 12,
-      minHeight: 220,
+      minHeight: 326,
     },
     boardEyebrow: {
       ...typography.mono,
@@ -733,7 +821,7 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 8,
-      minHeight: 220,
+      minHeight: 326,
     },
     flowNode: {
       width: "88%",
@@ -760,10 +848,10 @@ const createStyles = (colors: any) =>
     },
     timelineBoard: {
       justifyContent: "center",
-      minHeight: 220,
+      minHeight: 326,
     },
     graphBoard: {
-      minHeight: 220,
+      minHeight: 326,
       justifyContent: "center",
       gap: 12,
     },
@@ -772,31 +860,12 @@ const createStyles = (colors: any) =>
       color: colors.textSecondary,
       textAlign: "center",
     },
-    captionPanel: {
-      marginTop: 14,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      padding: 14,
-      minHeight: 96,
-    },
-    captionLabel: {
-      ...typography.mono,
-      color: colors.primary,
-      marginBottom: 8,
-    },
-    captionText: {
-      ...typography.body,
-      color: colors.textPrimary,
-      lineHeight: 25,
-    },
     progressTrack: {
       height: 6,
       borderRadius: 3,
       backgroundColor: colors.surfaceElevated,
       overflow: "hidden",
-      marginTop: 12,
+      marginTop: 14,
     },
     progressFill: {
       height: "100%",
@@ -839,7 +908,57 @@ const createStyles = (colors: any) =>
     },
     segmentList: {
       marginTop: 14,
-      maxHeight: 132,
+      maxHeight: 116,
+    },
+    diagramBoard: {
+      minHeight: 326,
+      justifyContent: "center",
+    },
+    conceptMapBoard: {
+      minHeight: 326,
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 20,
+    },
+    conceptCenter: {
+      width: 138,
+      minHeight: 76,
+      borderRadius: 8,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      padding: 10,
+    },
+    conceptCenterText: {
+      ...typography.caption,
+      color: colors.background,
+      textAlign: "center",
+      fontWeight: "900",
+    },
+    conceptGrid: {
+      width: "100%",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: 10,
+    },
+    conceptNode: {
+      width: "45%",
+      minHeight: 48,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceElevated,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+    conceptNodeText: {
+      ...typography.caption,
+      color: colors.textPrimary,
+      textAlign: "center",
+      fontWeight: "700",
     },
     segmentListContent: {
       gap: 8,
