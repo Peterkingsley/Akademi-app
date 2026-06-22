@@ -74,6 +74,43 @@ async function extractTextFromImage(buffer: Buffer) {
 }
 
 export class SessionsService {
+  private shouldGenerateWhiteboardImage(cue: {
+    visual_type?: string | null;
+    render_mode?: string | null;
+    image_url?: string | null;
+    generation_status?: string | null;
+  }) {
+    if (!config.enableTutorImageGeneration) return false;
+    if (cue.image_url) return false;
+    if (cue.generation_status === 'READY' || cue.generation_status === 'PROCESSING') return false;
+
+    const visualKind = `${cue.visual_type || ''} ${cue.render_mode || ''}`.toLowerCase();
+    return !visualKind.includes('title_board');
+  }
+
+  private queueWhiteboardVisualImages(segments: Array<{
+    visual_cues?: Array<{
+      id: string;
+      visual_type?: string | null;
+      render_mode?: string | null;
+      image_url?: string | null;
+      generation_status?: string | null;
+    }>;
+  }>) {
+    segments.forEach((segment) => {
+      (segment.visual_cues || []).forEach((cue) => {
+        if (!this.shouldGenerateWhiteboardImage(cue)) return;
+
+        void systemQueue
+          .add(JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE, { visualCueId: cue.id })
+          .catch((error: unknown) => {
+            // eslint-disable-next-line no-console
+            console.error('Whiteboard visual image queue failed:', error);
+          });
+      });
+    });
+  }
+
   private buildTutorKickoffMessage(material: {
     title: string;
     course_code?: string | null;
@@ -491,6 +528,8 @@ export class SessionsService {
         }
       }
     }
+
+    this.queueWhiteboardVisualImages(segments);
 
     return segments;
   }

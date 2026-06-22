@@ -6,6 +6,8 @@ import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimi
 import { aiProvider } from './ai.provider';
 import { tutorOrchestrator } from './tutor-orchestrator';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
+import { config } from '../../config/env';
+import { JOB_NAMES, systemQueue } from '../../config/queue';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
   return messages
@@ -78,6 +80,51 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 export class AIService {
   private readonly boardImperativeNotePattern =
     /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
+
+  private shouldGenerateWhiteboardImage(cue: {
+    visual_type?: string | null;
+    render_mode?: string | null;
+    image_url?: string | null;
+    generation_status?: string | null;
+  }) {
+    if (!config.enableTutorImageGeneration) return false;
+    if (cue.image_url) return false;
+    if (cue.generation_status === 'READY' || cue.generation_status === 'PROCESSING') return false;
+
+    const visualKind = `${cue.visual_type || ''} ${cue.render_mode || ''}`.toLowerCase();
+    return !visualKind.includes('title_board');
+  }
+
+  private queueWhiteboardVisualImage(cue: {
+    id: string;
+    visual_type?: string | null;
+    render_mode?: string | null;
+    image_url?: string | null;
+    generation_status?: string | null;
+  }) {
+    if (!this.shouldGenerateWhiteboardImage(cue)) return;
+
+    void systemQueue
+      .add(JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE, { visualCueId: cue.id })
+      .catch((error: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error('Whiteboard visual image queue failed:', error);
+      });
+  }
+
+  private queueWhiteboardVisualImages(segments: Array<{
+    visual_cues?: Array<{
+      id: string;
+      visual_type?: string | null;
+      render_mode?: string | null;
+      image_url?: string | null;
+      generation_status?: string | null;
+    }>;
+  }>) {
+    segments.forEach((segment) => {
+      (segment.visual_cues || []).forEach((cue) => this.queueWhiteboardVisualImage(cue));
+    });
+  }
 
   private splitEquationChain(math: string) {
     const compact = math.replace(/\s+/g, ' ').trim();
@@ -546,11 +593,15 @@ ${materialExcerpt}`,
       });
     }
 
-    return prisma.lessonSegment.findMany({
+    const playableSegments = await prisma.lessonSegment.findMany({
       where: { session_id: sessionId },
       orderBy: { order: 'asc' },
       include: { visual_cues: true },
     });
+
+    this.queueWhiteboardVisualImages(playableSegments);
+
+    return playableSegments;
   }
 
   private async buildWhiteboardPayload(studentMessage: string, answer: string) {

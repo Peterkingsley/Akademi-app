@@ -1039,10 +1039,17 @@ model VisualCue {
   start_ms    Int
   end_ms      Int
   payload     Json
+  image_url   String?
+  image_key   String?
+  generation_status String @default("PENDING")
+  generation_error  String?
+  generation_prompt String?
+  generated_at DateTime?
   created_at  DateTime      @default(now())
 
   segment     LessonSegment @relation(fields: [segment_id], references: [id], onDelete: Cascade)
 
   @@index([segment_id])
+  @@index([generation_status])
   @@map("visual_cues")
 }

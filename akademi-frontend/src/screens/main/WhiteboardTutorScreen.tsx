@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,6 +38,9 @@ type RawVisualCue = {
   start_ms: number;
   end_ms: number;
   payload?: any;
+  image_url?: string | null;
+  generation_status?: string | null;
+  generation_error?: string | null;
 };
 
 type RawLessonSegment = {
@@ -72,8 +76,28 @@ type LessonSegment = {
 const MIN_SEGMENT_DURATION = 12000;
 
 const safeText = (value: unknown, fallback = "") => {
-  const text = String(value || "").trim();
-  return text || fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const text = String(value).trim();
+    return text || fallback;
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const candidate =
+      record.label ??
+      record.title ??
+      record.name ??
+      record.text ??
+      record.value ??
+      record.concept ??
+      record.description;
+
+    if (candidate !== undefined) {
+      return safeText(candidate, fallback);
+    }
+  }
+
+  return fallback;
 };
 
 const splitScriptIntoCaptions = (script: string, estimatedDurationMs: number): CaptionChunk[] => {
@@ -145,6 +169,9 @@ const normalizeSegment = (segment: RawLessonSegment): LessonSegment => {
             start_ms: Math.max(Number(cue.start_ms) || 0, 0),
             end_ms: Math.max(Number(cue.end_ms) || 0, Number(cue.start_ms) || 0, 5000),
             payload: cue.payload || {},
+            image_url: cue.image_url || null,
+            generation_status: cue.generation_status || null,
+            generation_error: cue.generation_error || null,
           }))
           .sort((a, b) => a.start_ms - b.start_ms)
       : [],
@@ -205,6 +232,17 @@ export const WhiteboardTutorScreen: React.FC = () => {
   const progress = activeSegment
     ? Math.min(elapsedMs / Math.max(activeSegment.estimatedDurationMs, 1), 1)
     : 0;
+  const pendingWhiteboardImageCount = useMemo(
+    () =>
+      segments.reduce((count, segment) => (
+        count + segment.visualCues.filter((cue) => {
+          if (cue.image_url) return false;
+          const status = cue.generation_status || "PENDING";
+          return status === "PENDING" || status === "PROCESSING";
+        }).length
+      ), 0),
+    [segments],
+  );
 
   const stopTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -281,24 +319,12 @@ export const WhiteboardTutorScreen: React.FC = () => {
     }
   }, [activeSegment, stopTimer, voiceEnabled]);
 
-  useEffect(() => {
-    void loadLesson();
-    return () => {
-      stopTimer();
-      void Speech.stop();
-    };
-  }, [sessionId, stopTimer]);
-
-  useEffect(() => {
-    if (isPlaying && !intervalRef.current) {
-      void startPlayback();
-    }
-  }, [isPlaying, startPlayback]);
-
-  const loadLesson = async () => {
+  const loadLesson = async (options?: { silent?: boolean }) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!options?.silent) {
+        setLoading(true);
+        setError(null);
+      }
       const rawLesson = await sessionService.getPlayableLesson(sessionId);
       const rawSegments = Array.isArray(rawLesson)
         ? rawLesson
@@ -319,16 +345,46 @@ export const WhiteboardTutorScreen: React.FC = () => {
       }
 
       setSegments(normalized);
-      setActiveSegmentIndex(0);
-      setElapsedMs(0);
-      baseElapsedRef.current = 0;
+      if (!options?.silent) {
+        setActiveSegmentIndex(0);
+        setElapsedMs(0);
+        baseElapsedRef.current = 0;
+      }
     } catch (err: any) {
       console.error("Failed to load whiteboard lesson:", err);
-      setError(err?.response?.data?.message || err?.message || "Could not load this whiteboard lesson.");
+      if (!options?.silent) {
+        setError(err?.response?.data?.message || err?.message || "Could not load this whiteboard lesson.");
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    void loadLesson();
+    return () => {
+      stopTimer();
+      void Speech.stop();
+    };
+  }, [sessionId, stopTimer]);
+
+  useEffect(() => {
+    if (isPlaying && !intervalRef.current) {
+      void startPlayback();
+    }
+  }, [isPlaying, startPlayback]);
+
+  useEffect(() => {
+    if (!pendingWhiteboardImageCount) return undefined;
+
+    const poller = setInterval(() => {
+      void loadLesson({ silent: true });
+    }, 4000);
+
+    return () => clearInterval(poller);
+  }, [pendingWhiteboardImageCount, sessionId]);
 
   const handleTogglePlay = async () => {
     if (isPlaying) {
@@ -553,6 +609,14 @@ export const WhiteboardTutorScreen: React.FC = () => {
     const cue = activeVisual;
     const visualType = cue?.visual_type || "bullet_card";
     const payload = cue?.payload || {};
+
+    if (cue?.image_url) {
+      return (
+        <View style={styles.generatedImageBoard}>
+          <Image source={{ uri: cue.image_url }} style={styles.generatedImage} resizeMode="contain" />
+        </View>
+      );
+    }
 
     if (visualType === "title_board" || cue?.render_mode === "title_board") return renderTitleBoard(payload);
     if (visualType.includes("table") || cue?.render_mode === "table") return renderTable(payload);
@@ -859,6 +923,17 @@ const createStyles = (colors: any) =>
       ...typography.bodySmall,
       color: colors.textSecondary,
       textAlign: "center",
+    },
+    generatedImageBoard: {
+      minHeight: 326,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    generatedImage: {
+      width: "100%",
+      height: 326,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceElevated,
     },
     progressTrack: {
       height: 6,

@@ -11,6 +11,7 @@ export const JOB_NAMES = {
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
   GENERATE_TUTOR_VISUAL_IMAGE: 'GENERATE_TUTOR_VISUAL_IMAGE',
+  GENERATE_WHITEBOARD_VISUAL_IMAGE: 'GENERATE_WHITEBOARD_VISUAL_IMAGE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -19,6 +20,7 @@ type JobPayload = {
   materialId?: string;
   sessionId?: string;
   visualAssetId?: string;
+  visualCueId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -91,6 +93,12 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       if (!payload.visualAssetId) throw new Error('GENERATE_TUTOR_VISUAL_IMAGE requires visualAssetId');
       const { generateTutorVisualImageJob } = await import('../jobs/generateTutorVisualImage.job');
       await generateTutorVisualImageJob(payload.visualAssetId);
+      return;
+    }
+    case JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE: {
+      if (!payload.visualCueId) throw new Error('GENERATE_WHITEBOARD_VISUAL_IMAGE requires visualCueId');
+      const { generateWhiteboardVisualImageJob } = await import('../jobs/generateWhiteboardVisualImage.job');
+      await generateWhiteboardVisualImageJob(payload.visualCueId);
       return;
     }
     default:
