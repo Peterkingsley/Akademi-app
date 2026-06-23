@@ -88,7 +88,9 @@ export const EditAcademicDetailsScreen: React.FC = () => {
   const fetchUniversities = async () => {
     try {
       setSchoolLoading(true);
-      const response = await api.get<UniversityOption[]>("/universities");
+      const response = await api.get<UniversityOption[]>("/universities", {
+        params: { limit: 1000 },
+      });
       const list = response.data || [];
       setUniversities(list);
       if (form.university) matchUniversity(form.university, list);
@@ -460,7 +462,7 @@ const InlinePicker = ({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {items.slice(0, 40).map((item: any, index) => {
+        {items.map((item: any, index) => {
           const title = typeof item === "string" ? item : item.name;
           const subtitle =
             typeof item === "string"
@@ -476,7 +478,7 @@ const InlinePicker = ({
           return (
             <TouchableOpacity
               key={typeof item === "string" ? item : item.id}
-              style={[styles.inlinePickerItem, index === items.slice(0, 40).length - 1 && styles.inlinePickerItemLast]}
+              style={[styles.inlinePickerItem, index === items.length - 1 && styles.inlinePickerItemLast]}
               onPress={() => onSelect(item)}
             >
               <View style={{ flex: 1 }}>

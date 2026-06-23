@@ -3,7 +3,11 @@ import prisma from '../../config/db';
 export class UniversitiesService {
   async getAllUniversities(search?: string, limit?: number) {
     const query = typeof search === 'string' ? search.trim() : '';
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+    const normalizedLimit = Number(limit);
+    const take =
+      Number.isFinite(normalizedLimit) && normalizedLimit > 0
+        ? Math.min(Math.max(normalizedLimit, 1), 1000)
+        : undefined;
 
     return prisma.university.findMany({
       where: query
