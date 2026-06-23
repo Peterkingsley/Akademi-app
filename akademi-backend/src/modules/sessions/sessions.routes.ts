@@ -3,8 +3,9 @@ import { SessionsController } from './sessions.controller';
 import { authenticate } from '../auth/auth.middleware';
 import multer from 'multer';
 import {
-  generalAuthenticatedApiLimiter,
+  createRateLimiter,
   sessionInteractionRateLimiter,
+  whiteboardTeachingRateLimiter,
 } from '../../shared/middleware/rate-limit';
 
 const router = Router();
@@ -59,8 +60,19 @@ const audioUpload = multer({
   },
 });
 
+const isTeachingStatusRequest = (req: { method: string; path: string }) =>
+  req.method === 'GET' && /^\/[^/]+\/teaching$/.test(req.path);
+
+const sessionsGeneralRateLimiter = createRateLimiter({
+  namespace: 'general-authenticated-sessions',
+  windowMs: 15 * 60 * 1000,
+  max: 150,
+  strategy: 'hybrid',
+  skip: isTeachingStatusRequest,
+});
+
 router.use(authenticate);
-router.use(generalAuthenticatedApiLimiter);
+router.use(sessionsGeneralRateLimiter);
 
 router.post('/', sessionInteractionRateLimiter, sessionsController.start);
 router.post('/ingest/document', sessionInteractionRateLimiter, documentUpload.single('document'), sessionsController.extractDocument);
@@ -69,7 +81,7 @@ router.get('/', sessionsController.list);
 router.get('/visual-assets/:id/status', sessionsController.getTutorVisualAsset);
 router.get('/:id', sessionsController.getOne);
 router.patch('/:id/end', sessionsController.end);
-router.get('/:id/teaching', sessionsController.getPlayableLesson);
+router.get('/:id/teaching', whiteboardTeachingRateLimiter, sessionsController.getPlayableLesson);
 router.post('/:id/teaching', sessionInteractionRateLimiter, sessionsController.generateTeaching);
 router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionInteractionRateLimiter, sessionsController.sendMessage);

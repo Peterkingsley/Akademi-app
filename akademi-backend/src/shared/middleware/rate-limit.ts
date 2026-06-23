@@ -11,6 +11,7 @@ type RateLimiterOptions = {
   max: number;
   message?: string;
   strategy: IdentityStrategy;
+  skip?: (req: Request) => boolean;
 };
 
 const ENFORCED_ENVS = new Set(['production', 'staging']);
@@ -52,10 +53,15 @@ export const createRateLimiter = ({
   max,
   message = 'Too many requests. Please try again later.',
   strategy,
+  skip,
 }: RateLimiterOptions) => {
   const windowSeconds = Math.ceil(windowMs / 1000);
 
   return async (req: Request, res: Response, next: NextFunction) => {
+    if (skip?.(req)) {
+      return next();
+    }
+
     if (!shouldEnforceRateLimit()) {
       return next();
     }
@@ -166,6 +172,14 @@ export const sessionInteractionRateLimiter = createRateLimiter({
   max: 25,
   strategy: 'hybrid',
   message: 'Too many session requests. Please slow down and try again shortly.',
+});
+
+export const whiteboardTeachingRateLimiter = createRateLimiter({
+  namespace: 'whiteboard-teaching',
+  windowMs: 60 * 1000,
+  max: 20,
+  strategy: 'hybrid',
+  message: 'Whiteboard is still preparing visuals. Please wait a few seconds before refreshing.',
 });
 
 export const materialUploadRateLimiter = createRateLimiter({

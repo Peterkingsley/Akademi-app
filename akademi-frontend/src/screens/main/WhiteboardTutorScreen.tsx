@@ -74,6 +74,10 @@ type LessonSegment = {
 };
 
 const MIN_SEGMENT_DURATION = 12000;
+const WHITEBOARD_POLL_MIN_DELAY_MS = 5000;
+const WHITEBOARD_POLL_429_DELAY_MS = 10000;
+const WHITEBOARD_POLL_MAX_DELAY_MS = 60000;
+const WHITEBOARD_POLL_MAX_FAILURES = 10;
 
 const safeText = (value: unknown, fallback = "") => {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
@@ -222,6 +226,9 @@ export const WhiteboardTutorScreen: React.FC = () => {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollDelayRef = useRef(WHITEBOARD_POLL_MIN_DELAY_MS);
+  const pollFailureCountRef = useRef(0);
   const startedAtRef = useRef<number | null>(null);
   const baseElapsedRef = useRef(0);
 
@@ -319,7 +326,7 @@ export const WhiteboardTutorScreen: React.FC = () => {
     }
   }, [activeSegment, stopTimer, voiceEnabled]);
 
-  const loadLesson = async (options?: { silent?: boolean }) => {
+  const loadLesson = async (options?: { silent?: boolean }): Promise<{ ok: boolean; status?: number }> => {
     try {
       if (!options?.silent) {
         setLoading(true);
@@ -350,11 +357,13 @@ export const WhiteboardTutorScreen: React.FC = () => {
         setElapsedMs(0);
         baseElapsedRef.current = 0;
       }
+      return { ok: true };
     } catch (err: any) {
       console.error("Failed to load whiteboard lesson:", err);
       if (!options?.silent) {
         setError(err?.response?.data?.message || err?.message || "Could not load this whiteboard lesson.");
       }
+      return { ok: false, status: err?.response?.status };
     } finally {
       if (!options?.silent) {
         setLoading(false);
@@ -365,6 +374,10 @@ export const WhiteboardTutorScreen: React.FC = () => {
   useEffect(() => {
     void loadLesson();
     return () => {
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
       stopTimer();
       void Speech.stop();
     };
@@ -379,11 +392,49 @@ export const WhiteboardTutorScreen: React.FC = () => {
   useEffect(() => {
     if (!pendingWhiteboardImageCount) return undefined;
 
-    const poller = setInterval(() => {
-      void loadLesson({ silent: true });
-    }, 4000);
+    let cancelled = false;
 
-    return () => clearInterval(poller);
+    const scheduleNextPoll = (delayMs: number) => {
+      pollTimeoutRef.current = setTimeout(async () => {
+        if (cancelled) return;
+
+        const result = await loadLesson({ silent: true });
+        if (cancelled) return;
+
+        if (result.ok) {
+          pollFailureCountRef.current = 0;
+          pollDelayRef.current = WHITEBOARD_POLL_MIN_DELAY_MS;
+          scheduleNextPoll(WHITEBOARD_POLL_MIN_DELAY_MS);
+          return;
+        }
+
+        pollFailureCountRef.current += 1;
+        if (pollFailureCountRef.current >= WHITEBOARD_POLL_MAX_FAILURES) {
+          setError("Whiteboard visuals are taking longer than expected. Please wait a bit, then reopen this lesson.");
+          return;
+        }
+
+        const nextDelay = Math.min(
+          Math.max(
+            pollDelayRef.current * 2,
+            result.status === 429 ? WHITEBOARD_POLL_429_DELAY_MS : WHITEBOARD_POLL_MIN_DELAY_MS,
+          ),
+          WHITEBOARD_POLL_MAX_DELAY_MS,
+        );
+        pollDelayRef.current = nextDelay;
+        scheduleNextPoll(nextDelay);
+      }, delayMs);
+    };
+
+    scheduleNextPoll(pollDelayRef.current);
+
+    return () => {
+      cancelled = true;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+        pollTimeoutRef.current = null;
+      }
+    };
   }, [pendingWhiteboardImageCount, sessionId]);
 
   const handleTogglePlay = async () => {
