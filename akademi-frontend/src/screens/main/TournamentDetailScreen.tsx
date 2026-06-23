@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { CalendarDays, Eye, Heart, Lock, Share2, Swords, Trophy, Users } from "lucide-react-native";
+import Svg, { Circle, G, Text as SvgText } from "react-native-svg";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
@@ -19,6 +20,12 @@ const formatDateTime = (value: string) =>
     minute: "2-digit",
   });
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const BUBBLE_CHART_WIDTH = 320;
+const BUBBLE_CHART_HEIGHT = 360;
+
+type LeaderboardEntry = NonNullable<TournamentArena["leaderboard"]>[number];
+
 export const TournamentDetailScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -27,8 +34,56 @@ export const TournamentDetailScreen: React.FC = () => {
   const [arena, setArena] = useState<TournamentArena | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveCheerCount, setLiveCheerCount] = useState(0);
+  const [spectatorViewMode, setSpectatorViewMode] = useState<"BUBBLE" | "LIST">("BUBBLE");
   const cheerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bubbleRadiusRefs = useRef<Record<string, Animated.Value>>({});
+  const bubblePulseRefs = useRef<Record<string, Animated.Value>>({});
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const rankedLeaderboard = useMemo(
+    () =>
+      [...(arena?.leaderboard || [])].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if ((b.correct_answers || 0) !== (a.correct_answers || 0)) {
+          return (b.correct_answers || 0) - (a.correct_answers || 0);
+        }
+        return (b.love_count || 0) - (a.love_count || 0);
+      }),
+    [arena?.leaderboard],
+  );
+  const scoreStats = useMemo(() => {
+    const scores = rankedLeaderboard.map((entry) => entry.score);
+    const highest = Math.max(...scores, 1);
+    const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
+    return { highest, average };
+  }, [rankedLeaderboard]);
+  const bubbleEntries = useMemo(() => {
+    const minRadius = 34;
+    const maxRadius = 72;
+    let cursorX = maxRadius + 8;
+    let cursorY = maxRadius + 12;
+    let rowHeight = 0;
+
+    return rankedLeaderboard.slice(0, 18).map((entry) => {
+      const scoreRatio = scoreStats.highest ? Math.max(entry.score / scoreStats.highest, 0.18) : 0.18;
+      const radius = minRadius + (maxRadius - minRadius) * scoreRatio;
+      if (cursorX + radius > BUBBLE_CHART_WIDTH - 8) {
+        cursorX = radius + 8;
+        cursorY += rowHeight + 16;
+        rowHeight = 0;
+      }
+      const bubble = {
+        ...entry,
+        radius,
+        cx: cursorX,
+        cy: Math.min(cursorY, BUBBLE_CHART_HEIGHT - radius - 12),
+        color: entry.score >= scoreStats.average ? "#22C55E" : "#EF4444",
+        firstName: entry.display_name.split(" ")[0] || "Player",
+      };
+      cursorX += radius * 2 + 14;
+      rowHeight = Math.max(rowHeight, radius * 2);
+      return bubble;
+    });
+  }, [rankedLeaderboard, scoreStats.average, scoreStats.highest]);
 
   const loadTournament = async () => {
     try {
@@ -53,6 +108,35 @@ export const TournamentDetailScreen: React.FC = () => {
     loadTournament();
   }, [tournamentId]);
 
+  const pulseBubble = (userId?: string | null) => {
+    if (!userId) return;
+    if (!bubblePulseRefs.current[userId]) {
+      bubblePulseRefs.current[userId] = new Animated.Value(1);
+    }
+    const pulse = bubblePulseRefs.current[userId];
+    pulse.setValue(1);
+    Animated.sequence([
+      Animated.timing(pulse, { toValue: 1.18, duration: 160, useNativeDriver: false }),
+      Animated.spring(pulse, { toValue: 1, friction: 3, tension: 70, useNativeDriver: false }),
+    ]).start();
+  };
+
+  useEffect(() => {
+    bubbleEntries.forEach((entry) => {
+      if (!bubbleRadiusRefs.current[entry.user_id]) {
+        bubbleRadiusRefs.current[entry.user_id] = new Animated.Value(entry.radius);
+      }
+      if (!bubblePulseRefs.current[entry.user_id]) {
+        bubblePulseRefs.current[entry.user_id] = new Animated.Value(1);
+      }
+      Animated.timing(bubbleRadiusRefs.current[entry.user_id], {
+        toValue: entry.radius,
+        duration: 360,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [bubbleEntries]);
+
   useEffect(() => {
     const handleTournamentLive = (payload: { tournamentId: string; roomId: string }) => {
       if (payload.tournamentId !== tournamentId) return;
@@ -65,6 +149,7 @@ export const TournamentDetailScreen: React.FC = () => {
     const handleTournamentCheer = (payload: { tournamentId: string; stageId?: string | null; spectatorUserId?: string }) => {
       if (payload.tournamentId !== tournamentId) return;
       setLiveCheerCount((count) => count + 1);
+      pulseBubble(currentUserId);
       if (cheerTimeoutRef.current) clearTimeout(cheerTimeoutRef.current);
       cheerTimeoutRef.current = setTimeout(() => setLiveCheerCount(0), 4500);
       setTournament((current) =>
@@ -167,6 +252,7 @@ export const TournamentDetailScreen: React.FC = () => {
       );
       setArena(updated);
       setTournament(updated.tournament);
+      pulseBubble(participantUserId);
     } catch (error: any) {
       Alert.alert("Unable to cheer", error?.response?.data?.message || "Please try again.");
     }
@@ -249,16 +335,23 @@ export const TournamentDetailScreen: React.FC = () => {
         : tournament.audience_scope === "DEPARTMENT"
           ? `${tournament.audience_department || "Department"} across schools`
           : "Open to every student on Akademi";
-  const rankedLeaderboard = [...(arena?.leaderboard || [])].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    if ((b.correct_answers || 0) !== (a.correct_answers || 0)) {
-      return (b.correct_answers || 0) - (a.correct_answers || 0);
-    }
-    return (b.love_count || 0) - (a.love_count || 0);
-  });
+  const isParticipant = !!tournament.joined && tournament.entry_status !== "ELIMINATED";
+  const isSpectator = !isParticipant;
   const predictedEntry = tournament.predicted_user_id
     ? rankedLeaderboard.find((entry) => entry.user_id === tournament.predicted_user_id)
     : null;
+  const openParticipantActions = (entry: LeaderboardEntry) => {
+    const actions: Array<{ text: string; onPress?: () => void; style?: "default" | "cancel" | "destructive" }> = [];
+    if (tournament.prediction_enabled && !tournament.predicted_user_id) {
+      actions.push({ text: `Predict ${entry.display_name}`, onPress: () => predictParticipant(entry.user_id) });
+    }
+    if (tournament.prediction_enabled && tournament.predicted_user_id === entry.user_id) {
+      actions.push({ text: "Prediction locked", style: "cancel" });
+    }
+    actions.push({ text: `Cheer ${entry.display_name}`, onPress: () => cheerParticipant(entry.user_id) });
+    actions.push({ text: "Cancel", style: "cancel" });
+    Alert.alert(entry.display_name, `${entry.score} pts - ${entry.love_count} cheers`, actions);
+  };
 
   return (
     <Screen style={styles.screen}>
@@ -404,7 +497,11 @@ export const TournamentDetailScreen: React.FC = () => {
         {rankedLeaderboard.length ? (
           <Card style={styles.leaderboardCard}>
             <Text style={styles.campaignEyebrow}>Live spectator leaderboard</Text>
-            <Text style={styles.campaignText}>Ranked by score, with live support shown beside each contestant.</Text>
+            <Text style={styles.campaignText}>
+              {isSpectator
+                ? "Bubble size follows score. Green bubbles are above average, red bubbles are below average."
+                : "Ranked by score, with live support shown beside each contestant."}
+            </Text>
             {tournament.prediction_enabled && tournament.predicted_user_id ? (
               <View style={styles.predictionLockedBanner}>
                 <Lock size={14} color={colors.primary} />
@@ -413,7 +510,75 @@ export const TournamentDetailScreen: React.FC = () => {
                 </Text>
               </View>
             ) : null}
-            {rankedLeaderboard.slice(0, 12).map((entry, index) => (
+            {isSpectator ? (
+              <View style={styles.viewToggleRow}>
+                <TouchableOpacity
+                  style={[styles.viewToggleButton, spectatorViewMode === "BUBBLE" && styles.viewToggleButtonActive]}
+                  onPress={() => setSpectatorViewMode("BUBBLE")}
+                >
+                  <Text style={[styles.viewToggleText, spectatorViewMode === "BUBBLE" && styles.viewToggleTextActive]}>
+                    Bubble View
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.viewToggleButton, spectatorViewMode === "LIST" && styles.viewToggleButtonActive]}
+                  onPress={() => setSpectatorViewMode("LIST")}
+                >
+                  <Text style={[styles.viewToggleText, spectatorViewMode === "LIST" && styles.viewToggleTextActive]}>
+                    List View
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            {isSpectator && spectatorViewMode === "BUBBLE" ? (
+              <View style={styles.bubbleChartWrap}>
+                <Svg width="100%" height={BUBBLE_CHART_HEIGHT} viewBox={`0 0 ${BUBBLE_CHART_WIDTH} ${BUBBLE_CHART_HEIGHT}`}>
+                  {bubbleEntries.map((entry) => {
+                    const animatedRadius = bubbleRadiusRefs.current[entry.user_id] || new Animated.Value(entry.radius);
+                    const pulse = bubblePulseRefs.current[entry.user_id] || new Animated.Value(1);
+                    const displayRadius = Animated.multiply(animatedRadius, pulse);
+                    return (
+                      <G key={entry.user_id} onPress={() => openParticipantActions(entry)}>
+                        <AnimatedCircle
+                          cx={entry.cx}
+                          cy={entry.cy}
+                          r={displayRadius as any}
+                          fill={entry.color}
+                          fillOpacity={0.2}
+                          stroke={entry.color}
+                          strokeWidth={2}
+                        />
+                        <SvgText
+                          x={entry.cx}
+                          y={entry.cy - 6}
+                          fill="#FFFFFF"
+                          fontSize={entry.radius > 56 ? 13 : 11}
+                          fontWeight="700"
+                          textAnchor="middle"
+                        >
+                          {entry.firstName}
+                        </SvgText>
+                        <SvgText
+                          x={entry.cx}
+                          y={entry.cy + 12}
+                          fill="#FFFFFF"
+                          fontSize={entry.radius > 56 ? 15 : 12}
+                          fontWeight="800"
+                          textAnchor="middle"
+                        >
+                          {entry.score}
+                        </SvgText>
+                        <Circle cx={entry.cx + entry.radius * 0.62} cy={entry.cy - entry.radius * 0.56} r={15} fill={colors.surface} stroke={entry.color} strokeWidth={1.5} />
+                        <SvgText x={entry.cx + entry.radius * 0.62} y={entry.cy - entry.radius * 0.56 + 4} fill={colors.primary} fontSize={10} fontWeight="800" textAnchor="middle">
+                          {`♥ ${entry.love_count}`}
+                        </SvgText>
+                      </G>
+                    );
+                  })}
+                </Svg>
+              </View>
+            ) : null}
+            {(!isSpectator || spectatorViewMode === "LIST") && rankedLeaderboard.slice(0, 12).map((entry, index) => (
               <View key={entry.user_id} style={styles.leaderRow}>
                 <Text style={styles.leaderRank}>{entry.rank || index + 1}</Text>
                 <View style={styles.leaderInfo}>
@@ -691,6 +856,40 @@ const styles = StyleSheet.create({
   },
   leaderboardCard: {
     gap: 12,
+  },
+  viewToggleRow: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 4,
+    backgroundColor: colors.surfaceElevated,
+  },
+  viewToggleButton: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewToggleButtonActive: {
+    backgroundColor: "rgba(34, 197, 94, 0.18)",
+  },
+  viewToggleText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: "800",
+  },
+  viewToggleTextActive: {
+    color: colors.primary,
+  },
+  bubbleChartWrap: {
+    height: BUBBLE_CHART_HEIGHT,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceElevated,
   },
   leaderRow: {
     flexDirection: "row",
