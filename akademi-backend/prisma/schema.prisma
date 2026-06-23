@@ -583,6 +583,9 @@ model ExamPrepPlan {
   course_code  String?
   assessment_type String   @default("EXAM")
   exam_date    DateTime
+  duration_minutes Int     @default(120)
+  objective_question_count Int @default(40)
+  theory_question_count Int @default(5)
   created_at   DateTime   @default(now())
   updated_at   DateTime   @updatedAt
   tasks        PrepTask[]

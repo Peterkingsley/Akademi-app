@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { BookOpen, LockKeyhole, Mail } from "lucide-react-native";
 
@@ -12,8 +11,6 @@ import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-
-const WELCOME_BACK_PENDING_KEY = "welcome_back_pending";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -44,12 +41,6 @@ export const LoginScreen: React.FC = () => {
       });
 
       const { user, accessToken, refreshToken } = response.data;
-      await AsyncStorage.setItem("accessToken", accessToken);
-      await AsyncStorage.setItem("refreshToken", refreshToken);
-      await AsyncStorage.setItem(
-        WELCOME_BACK_PENDING_KEY,
-        user?.name?.split(" ")[0] || "Student"
-      );
       setAuth(user, accessToken, refreshToken);
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid email or password.");

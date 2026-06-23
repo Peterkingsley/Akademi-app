@@ -37,6 +37,10 @@ export interface ExamPrepPlan {
   user_id: string;
   course_code: string;
   exam_date: string;
+  assessment_type?: "TEST" | "EXAM";
+  duration_minutes?: number;
+  objective_question_count?: number;
+  theory_question_count?: number;
   tasks?: PrepTask[];
 }
 

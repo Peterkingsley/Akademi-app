@@ -1,5 +1,6 @@
 import prisma from '../../config/db';
 import { Difficulty, VerificationStatus } from '@prisma/client';
+import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 
 const TASK_TYPE_BY_INDEX = ['revision', 'practice', 'quiz'] as const;
 
@@ -15,6 +16,15 @@ function toAnswerMap(answers: { questionId: string; answer: string }[] | Record<
     }, {});
   }
   return answers || {};
+}
+
+function shuffle<T>(items: T[]) {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
 }
 
 export class ExamPrepService {
@@ -74,6 +84,9 @@ export class ExamPrepService {
       course_name: plan.course_code,
       subject: plan.course_code,
       days_left: this.getDaysLeft(plan.exam_date),
+      duration_minutes: plan.duration_minutes,
+      objective_question_count: plan.objective_question_count,
+      theory_question_count: plan.theory_question_count,
       progress,
       readiness_score: readinessScore,
       readinessScore,
@@ -88,15 +101,16 @@ export class ExamPrepService {
   private formatMockExam(exam: any) {
     return {
       ...exam,
-      durationMinutes: Math.max(10, (exam.questions?.length || 1) * 2),
+      durationMinutes: exam.plan?.duration_minutes || Math.max(10, (exam.questions?.length || 1) * 2),
       questions: (exam.questions || []).map((question: any) => ({
         id: question.id,
         text: question.question_text,
         title: question.question_text,
         formula: undefined,
+        responseType: Array.isArray(question.options) && question.options.length > 0 ? 'OBJECTIVE' : 'THEORY',
         options: Array.isArray(question.options) && question.options.length > 0
           ? question.options
-          : ['I know this', 'I am unsure', 'Need a hint', 'Review later'],
+          : [],
         difficulty: question.difficulty,
       })),
     };
@@ -119,10 +133,21 @@ export class ExamPrepService {
     };
   }
 
-  async createPlan(userId: string, courseCode: string, examDate: string, assessmentType = 'EXAM') {
+  async createPlan(
+    userId: string,
+    courseCode: string,
+    examDate: string,
+    assessmentType = 'EXAM',
+    durationMinutes?: number,
+    objectiveQuestionCount?: number,
+    theoryQuestionCount?: number,
+  ) {
     const normalizedCourseCode = courseCode?.trim().toUpperCase();
     const normalizedAssessmentType = this.normalizeAssessmentType(assessmentType);
     const assessmentLabel = this.getAssessmentLabel(normalizedAssessmentType);
+    const normalizedDurationMinutes = Math.min(Math.max(Number(durationMinutes) || 120, 15), 360);
+    const normalizedObjectiveQuestionCount = Math.min(Math.max(Number(objectiveQuestionCount) || 40, 5), 100);
+    const normalizedTheoryQuestionCount = Math.min(Math.max(Number(theoryQuestionCount) || 5, 0), 20);
 
     if (!normalizedCourseCode) {
       throw new Error('Select a course before creating a prep plan');
@@ -161,6 +186,9 @@ export class ExamPrepService {
         course_code: normalizedCourseCode,
         assessment_type: normalizedAssessmentType,
         exam_date: new Date(examDate),
+        duration_minutes: normalizedDurationMinutes,
+        objective_question_count: normalizedObjectiveQuestionCount,
+        theory_question_count: normalizedTheoryQuestionCount,
       },
     });
 
@@ -292,27 +320,42 @@ export class ExamPrepService {
       throw new Error('Complete 60% of your prep plan to unlock mock exam');
     }
 
-    const questions = await prisma.question.findMany({
+    const questionPool = await prisma.question.findMany({
       where: {
         course_code: plan.course_code,
-        correct_answer: { not: null },
       },
-      take: 10,
+      select: {
+        id: true,
+        question_text: true,
+        options: true,
+        correct_answer: true,
+        explanation: true,
+        approach_guide: true,
+        difficulty: true,
+      },
     });
 
-    if (questions.length === 0) {
-      throw new Error('No scored questions are available for this course yet');
+    const objectiveQuestions = shuffle(
+      questionPool.filter((question) => Array.isArray(question.options) && question.options.length > 0 && !!question.correct_answer),
+    ).slice(0, plan.objective_question_count || 40);
+    const theoryQuestions = shuffle(
+      questionPool.filter((question) => !Array.isArray(question.options) || question.options.length === 0 || !question.correct_answer),
+    ).slice(0, plan.theory_question_count || 5);
+    const selectedQuestions = [...objectiveQuestions, ...theoryQuestions];
+
+    if (selectedQuestions.length === 0) {
+      throw new Error('No course questions are available for this exam prep yet');
     }
 
     const mockExam = await prisma.mockExam.create({
       data: {
         plan_id: planId,
         title: `Mock Exam for ${plan.course_code}`,
-        questions: { connect: questions.map(q => ({ id: q.id })) },
+        questions: { connect: selectedQuestions.map(q => ({ id: q.id })) },
       },
     });
 
-    return this.formatMockExam({ ...mockExam, questions });
+    return this.formatMockExam({ ...mockExam, plan, questions: selectedQuestions });
   }
 
   async getMockExam(userId: string, examId: string) {
@@ -332,7 +375,8 @@ export class ExamPrepService {
     if (!exam || exam.plan.user_id !== userId) throw new Error('Mock exam not found');
 
     const answerMap = toAnswerMap(answers);
-    const questionCount = Math.max(1, exam.questions.length);
+    const scoredQuestions = exam.questions.filter((question) => !!question.correct_answer);
+    const questionCount = Math.max(1, scoredQuestions.length);
     let correctCount = 0;
 
     for (const question of exam.questions) {
@@ -341,20 +385,33 @@ export class ExamPrepService {
       if (isCorrect) correctCount += 1;
 
       if (userAnswer) {
+        let feedback = isCorrect ? 'Correct.' : question.explanation || question.approach_guide;
+        if (!question.correct_answer) {
+          const aiFeedback = await orchestrateAIResponse(
+            userId,
+            '',
+            `Evaluate the student's theory response for this course exam question.\n\nQuestion: ${question.question_text}\nStudent answer: ${userAnswer}\n\nGive concise feedback, mention what is correct or missing, and provide a model direction for a stronger answer.`,
+            null,
+          );
+          feedback = aiFeedback.content;
+        }
         await prisma.questionAttempt.create({
           data: {
             question_id: question.id,
             user_id: userId,
             answer: userAnswer,
             is_correct: isCorrect,
-            feedback: isCorrect ? 'Correct.' : question.explanation || question.approach_guide,
+            feedback,
           },
         });
       }
     }
 
     const score = Math.round((correctCount / questionCount) * 100);
-    const feedback = `${correctCount} of ${questionCount} questions correct.`;
+    const theoryCount = exam.questions.length - scoredQuestions.length;
+    const feedback = theoryCount > 0
+      ? `${correctCount} of ${questionCount} objective questions correct. ${theoryCount} theory response${theoryCount === 1 ? '' : 's'} reviewed separately.`
+      : `${correctCount} of ${questionCount} questions correct.`;
 
     return prisma.mockAttempt.create({
       data: {
@@ -407,14 +464,16 @@ export class ExamPrepService {
       ],
       questions: attempt.mock_exam.questions.map((question, index) => {
         const questionAttempt = attemptsByQuestion.get(question.id);
+        const isTheoryQuestion = !Array.isArray(question.options) || question.options.length === 0 || !question.correct_answer;
         return {
           id: question.id,
           title: `Question ${index + 1}`,
           text: question.question_text,
           userAnswer: questionAttempt?.answer || 'Not answered',
-          correctAnswer: question.correct_answer || 'Not available',
-          isCorrect: questionAttempt?.is_correct || false,
+          correctAnswer: question.correct_answer || question.explanation || question.approach_guide || 'Theory response reviewed by Akademi',
+          isCorrect: isTheoryQuestion ? !!questionAttempt?.answer : questionAttempt?.is_correct || false,
           aiExplanation: questionAttempt?.feedback || question.explanation || question.approach_guide,
+          responseType: isTheoryQuestion ? 'THEORY' : 'OBJECTIVE',
           isLocked: false,
         };
       }),

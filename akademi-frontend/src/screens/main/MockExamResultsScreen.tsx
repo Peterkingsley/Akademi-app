@@ -88,7 +88,9 @@ export const MockExamResultsScreen: React.FC = () => {
   }));
 
   const weakTopics = results?.breakdown.filter(item => item.questions > 0 && item.correct / item.questions < 0.7) || [];
-  const missedQuestions = results?.questions.filter(q => !q.isCorrect && !q.isLocked) || [];
+  const missedQuestions = results?.questions.filter(
+    q => q.responseType !== "THEORY" && !q.isCorrect && !q.isLocked,
+  ) || [];
   const topicsToReview = results
     ? (weakTopics.length > 0
       ? weakTopics
@@ -309,15 +311,42 @@ export const MockExamResultsScreen: React.FC = () => {
                   />
 
                   <View style={styles.answerRow}>
-                    <View style={[styles.answerStatus, q.isCorrect ? styles.correctBg : styles.incorrectBg]}>
-                      {q.isCorrect ? <Check size={12} color="white" /> : <X size={12} color="white" />}
+                    <View
+                      style={[
+                        styles.answerStatus,
+                        q.responseType === "THEORY"
+                          ? styles.theoryBg
+                          : q.isCorrect
+                            ? styles.correctBg
+                            : styles.incorrectBg,
+                      ]}
+                    >
+                      {q.responseType === "THEORY" ? (
+                        <Text style={[styles.theoryBadgeText, typography.caption]}>T</Text>
+                      ) : q.isCorrect ? (
+                        <Check size={12} color="white" />
+                      ) : (
+                        <X size={12} color="white" />
+                      )}
                     </View>
-                    <Text style={[styles.userAnswer, typography.bodySmall, { color: q.isCorrect ? colors.success : colors.error }]}>
-                      Your Answer: {q.userAnswer}
+                    <Text
+                      style={[
+                        styles.userAnswer,
+                        typography.bodySmall,
+                        {
+                          color: q.responseType === "THEORY"
+                            ? colors.warning
+                            : q.isCorrect
+                              ? colors.success
+                              : colors.error,
+                        },
+                      ]}
+                    >
+                      {q.responseType === "THEORY" ? "Your Theory Answer:" : "Your Answer:"} {q.userAnswer}
                     </Text>
                   </View>
 
-                  {!q.isCorrect && (
+                  {q.responseType !== "THEORY" && !q.isCorrect && (
                     <View style={styles.correctAnswerWrap}>
                       <Text style={[styles.correctAnswerLabel, typography.caption]}>Correct Answer:</Text>
                       <RichMathText
@@ -330,7 +359,9 @@ export const MockExamResultsScreen: React.FC = () => {
                   )}
 
                   <View style={styles.aiExplanationCard}>
-                    <Text style={[styles.aiLabel, typography.mono]}>AI EXPLANATION</Text>
+                    <Text style={[styles.aiLabel, typography.mono]}>
+                      {q.responseType === "THEORY" ? "AI FEEDBACK" : "AI EXPLANATION"}
+                    </Text>
                     <RichMathText
                       content={q.aiExplanation}
                       textColor={colors.textSecondary}
@@ -650,6 +681,13 @@ const styles = StyleSheet.create({
   },
   incorrectBg: {
     backgroundColor: colors.error,
+  },
+  theoryBg: {
+    backgroundColor: colors.warning,
+  },
+  theoryBadgeText: {
+    color: colors.background,
+    fontWeight: "700",
   },
   userAnswer: {
     fontWeight: "600",
