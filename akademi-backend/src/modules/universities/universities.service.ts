@@ -1,36 +1,17 @@
 import prisma from '../../config/db';
-import { typesenseService } from '../../shared/search/typesense.service';
 
 export class UniversitiesService {
   async getAllUniversities(search?: string, limit?: number) {
     const query = typeof search === 'string' ? search.trim() : '';
     const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
 
-    if (query) {
-      return prisma.university.findMany({
-        where: { name: { contains: query, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
-        take,
-      });
-    }
-
-    // We can use Typesense for faster discovery or Prisma for source of truth.
-    // The ticket asks for /universities to return all supported universities.
-    // Using Typesense:
-    try {
-      const results = await typesenseService.search('universities', {
-        q: '*',
-        query_by: 'name',
-        sort_by: 'name:asc',
-      });
-      return results.hits?.map((hit: any) => hit.document) || [];
-    } catch (error) {
-      // Fallback to Prisma if Typesense fails or is not initialized
-      return prisma.university.findMany({
-        orderBy: { name: 'asc' },
-        take,
-      });
-    }
+    return prisma.university.findMany({
+      where: query
+        ? { name: { contains: query, mode: 'insensitive' } }
+        : undefined,
+      orderBy: { name: 'asc' },
+      take,
+    });
   }
 
   async getFacultiesByUniversity(universityId: string) {
