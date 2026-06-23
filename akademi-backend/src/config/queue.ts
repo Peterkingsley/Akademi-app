@@ -29,6 +29,8 @@ type QueueHealth = {
   mode: 'inline';
   status: QueueStatus;
   processing: boolean;
+  activeBackgroundJobs: number;
+  queuedBackgroundJobs: number;
   lastRunAt: string | null;
   lastSuccessAt: string | null;
   lastFailureAt: string | null;
@@ -39,6 +41,8 @@ const queueHealth: QueueHealth = {
   mode: 'inline',
   status: 'online',
   processing: false,
+  activeBackgroundJobs: 0,
+  queuedBackgroundJobs: 0,
   lastRunAt: null,
   lastSuccessAt: null,
   lastFailureAt: null,
@@ -68,6 +72,48 @@ const BACKGROUND_JOB_NAMES = new Set<JobName>([
   JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE,
   JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE,
 ]);
+
+const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
+const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string }> = [];
+const backgroundJobKeys = new Set<string>();
+let activeBackgroundJobs = 0;
+
+const getBackgroundJobKey = (name: JobName, payload: JobPayload) => {
+  if (payload.visualCueId) return `${name}:visualCue:${payload.visualCueId}`;
+  if (payload.visualAssetId) return `${name}:visualAsset:${payload.visualAssetId}`;
+  return `${name}:${JSON.stringify(payload)}`;
+};
+
+const refreshBackgroundQueueHealth = () => {
+  queueHealth.activeBackgroundJobs = activeBackgroundJobs;
+  queueHealth.queuedBackgroundJobs = backgroundJobQueue.length;
+  queueHealth.processing = activeBackgroundJobs > 0 || backgroundJobQueue.length > 0;
+};
+
+const drainBackgroundJobs = () => {
+  refreshBackgroundQueueHealth();
+
+  while (activeBackgroundJobs < MAX_BACKGROUND_JOBS && backgroundJobQueue.length > 0) {
+    const job = backgroundJobQueue.shift()!;
+    activeBackgroundJobs += 1;
+    refreshBackgroundQueueHealth();
+    markQueueRun();
+
+    void runInlineJob(job.name, job.payload)
+      .then(markQueueSuccess)
+      .catch((error) => {
+        markQueueFailure(error);
+        // eslint-disable-next-line no-console
+        console.error('[queue:inline] background job failed', { name: job.name, payload: job.payload, error });
+      })
+      .finally(() => {
+        activeBackgroundJobs = Math.max(activeBackgroundJobs - 1, 0);
+        backgroundJobKeys.delete(job.key);
+        refreshBackgroundQueueHealth();
+        setImmediate(drainBackgroundJobs);
+      });
+  }
+};
 
 async function runInlineJob(name: JobName, payload: JobPayload) {
   switch (name) {
@@ -122,15 +168,20 @@ export const systemQueue: any = {
     }
 
     if (BACKGROUND_JOB_NAMES.has(name)) {
+      const key = getBackgroundJobKey(name, payload);
+      if (backgroundJobKeys.has(key)) {
+        if (process.env.NODE_ENV !== 'test') {
+          // eslint-disable-next-line no-console
+          console.log('[queue:inline] deduped background job', { name, payload });
+        }
+        return;
+      }
+
+      backgroundJobKeys.add(key);
+      backgroundJobQueue.push({ name, payload, key });
+      refreshBackgroundQueueHealth();
       setImmediate(() => {
-        markQueueRun();
-        void runInlineJob(name, payload)
-          .then(markQueueSuccess)
-          .catch((error) => {
-            markQueueFailure(error);
-            // eslint-disable-next-line no-console
-            console.error('[queue:inline] background job failed', { name, payload, error });
-          });
+        drainBackgroundJobs();
       });
       return;
     }
@@ -167,5 +218,9 @@ export const systemQueue: any = {
 export const getQueueHealth = () => ({ ...queueHealth });
 
 export const shutdownQueue = async () => {
+  backgroundJobQueue.length = 0;
+  backgroundJobKeys.clear();
+  activeBackgroundJobs = 0;
+  refreshBackgroundQueueHealth();
   queueHealth.processing = false;
 };
