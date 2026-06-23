@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { BookOpen, CalendarDays, CheckCircle2, ChevronRight, GraduationCap, Landmark, Layers, Plus, Search, Trash2, X } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
@@ -46,9 +46,12 @@ export const EditAcademicDetailsScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedUniversityId) {
-      fetchDepartments(selectedUniversityId);
+    if (!selectedUniversityId) {
+      setDepartments([]);
+      return;
     }
+
+    fetchDepartments(selectedUniversityId);
   }, [selectedUniversityId]);
 
   useEffect(() => {
@@ -67,7 +70,6 @@ export const EditAcademicDetailsScreen: React.FC = () => {
         department: data.department || "",
         level: data.level?.toString() || "",
       });
-      matchUniversity(data.university || "");
       setCourses(
         (data.student_courses || []).map((course) => ({
           ...course,
@@ -98,8 +100,9 @@ export const EditAcademicDetailsScreen: React.FC = () => {
   };
 
   const matchUniversity = (name: string, source = universities) => {
-    const found = source.find((item) => item.name.toLowerCase() === name.toLowerCase());
-    if (found) setSelectedUniversityId(found.id);
+    const normalized = name.trim().toLowerCase();
+    const found = source.find((item) => item.name.trim().toLowerCase() === normalized);
+    setSelectedUniversityId(found?.id || null);
   };
 
   const fetchDepartments = async (universityId: string) => {
@@ -160,14 +163,17 @@ export const EditAcademicDetailsScreen: React.FC = () => {
 
   const handleSelectPickerItem = (item: any) => {
     if (pickerMode === "university") {
-      setSelectedUniversityId(item.id);
+      const nextUniversityId = item.id as string;
+      const nextUniversityName = item.name as string;
+
+      setSelectedUniversityId(nextUniversityId);
+      setDepartments([]);
       setForm((current) => ({
         ...current,
-        university: item.name,
+        university: nextUniversityName,
         faculty: "",
         department: "",
       }));
-      setDepartments([]);
     }
 
     if (pickerMode === "faculty") {
@@ -277,8 +283,47 @@ export const EditAcademicDetailsScreen: React.FC = () => {
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>School details</Text>
           <PickerField label="University" value={form.university} placeholder="Pick your university" icon={<Landmark size={20} color={colors.textMuted} />} onPress={() => openPicker("university")} />
+          {pickerMode === "university" ? (
+            <InlinePicker
+              items={filteredPickerItems}
+              pickerMode={pickerMode}
+              departments={departments}
+              form={form}
+              pickerSearch={pickerSearch}
+              onSearchChange={setPickerSearch}
+              onClose={closePicker}
+              onSelect={handleSelectPickerItem}
+              loading={schoolLoading}
+            />
+          ) : null}
           <PickerField label="Faculty" value={form.faculty} placeholder={form.university ? "Pick faculty" : "Pick university first"} icon={<BookOpen size={20} color={colors.textMuted} />} onPress={() => openPicker("faculty")} disabled={!form.university} />
+          {pickerMode === "faculty" ? (
+            <InlinePicker
+              items={filteredPickerItems}
+              pickerMode={pickerMode}
+              departments={departments}
+              form={form}
+              pickerSearch={pickerSearch}
+              onSearchChange={setPickerSearch}
+              onClose={closePicker}
+              onSelect={handleSelectPickerItem}
+              loading={schoolLoading}
+            />
+          ) : null}
           <PickerField label="Department" value={form.department} placeholder={form.faculty ? "Pick department" : "Pick faculty first"} icon={<BookOpen size={20} color={colors.textMuted} />} onPress={() => openPicker("department")} disabled={!form.faculty} />
+          {pickerMode === "department" ? (
+            <InlinePicker
+              items={filteredPickerItems}
+              pickerMode={pickerMode}
+              departments={departments}
+              form={form}
+              pickerSearch={pickerSearch}
+              onSearchChange={setPickerSearch}
+              onClose={closePicker}
+              onSelect={handleSelectPickerItem}
+              loading={schoolLoading}
+            />
+          ) : null}
           <Input label="Current Level" placeholder="e.g. 300" value={form.level} onChangeText={(text) => setForm({ ...form, level: text })} keyboardType="numeric" leftIcon={<Layers size={20} color={colors.textMuted} />} />
         </View>
 
@@ -324,76 +369,6 @@ export const EditAcademicDetailsScreen: React.FC = () => {
 
         <Button label="Save Academic Structure" onPress={handleSave} loading={loading} style={styles.button} />
       </ScrollView>
-
-      <Modal visible={!!pickerMode} transparent animationType="slide" onRequestClose={closePicker}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerSheet}>
-            <View style={styles.pickerHeader}>
-              <View>
-                <Text style={styles.pickerTitle}>
-                  {pickerMode === "university" ? "Pick university" : pickerMode === "faculty" ? "Pick faculty" : "Pick department"}
-                </Text>
-                <Text style={styles.pickerSubtitle}>
-                  {pickerMode === "university" ? "Choose from live Akademi school data." : form.university}
-                </Text>
-              </View>
-              <TouchableOpacity onPress={closePicker} style={styles.closeButton}>
-                <X size={20} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.searchBox}>
-              <Search size={18} color={colors.textMuted} />
-              <TextInput
-                value={pickerSearch}
-                onChangeText={setPickerSearch}
-                placeholder="Search..."
-                placeholderTextColor={colors.textMuted}
-                style={styles.searchInput}
-              />
-            </View>
-
-            {schoolLoading ? (
-              <View style={styles.pickerLoading}>
-                <ActivityIndicator color={colors.primary} />
-              </View>
-            ) : (
-              <FlatList
-                data={filteredPickerItems}
-                keyExtractor={(item: any) => typeof item === "string" ? item : item.id}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }: any) => {
-                  const title = typeof item === "string" ? item : item.name;
-                  const subtitle = typeof item === "string"
-                    ? `${departments.filter((department) => department.faculty === item).length} departments`
-                    : pickerMode === "university"
-                      ? [item.type, item.location].filter(Boolean).join(" / ")
-                      : item.faculty;
-                  const active =
-                    (pickerMode === "university" && title === form.university) ||
-                    (pickerMode === "faculty" && title === form.faculty) ||
-                    (pickerMode === "department" && title === form.department);
-
-                  return (
-                    <TouchableOpacity style={styles.pickerItem} onPress={() => handleSelectPickerItem(item)}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.pickerItemTitle}>{title}</Text>
-                        {!!subtitle && <Text style={styles.pickerItemSubtitle}>{subtitle}</Text>}
-                      </View>
-                      {active ? <CheckCircle2 size={18} color={colors.primary} /> : <ChevronRight size={16} color={colors.textMuted} />}
-                    </TouchableOpacity>
-                  );
-                }}
-                ListEmptyComponent={
-                  <View style={styles.emptyPicker}>
-                    <Text style={styles.emptyPickerText}>No matching option found.</Text>
-                  </View>
-                }
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
     </Screen>
   );
 };
@@ -420,6 +395,100 @@ const PickerField = ({
       <Text style={[styles.pickerValue, !value && styles.pickerPlaceholder]} numberOfLines={1}>{value || placeholder}</Text>
       <ChevronRight size={17} color={colors.textMuted} />
     </TouchableOpacity>
+  </View>
+);
+
+const InlinePicker = ({
+  items,
+  pickerMode,
+  departments,
+  form,
+  pickerSearch,
+  onSearchChange,
+  onClose,
+  onSelect,
+  loading,
+}: {
+  items: any[];
+  pickerMode: PickerMode | null;
+  departments: DepartmentOption[];
+  form: { university: string; faculty: string; department: string; level: string };
+  pickerSearch: string;
+  onSearchChange: (value: string) => void;
+  onClose: () => void;
+  onSelect: (item: any) => void;
+  loading: boolean;
+}) => (
+  <View style={styles.inlinePicker}>
+    <View style={styles.inlinePickerHeader}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pickerTitle}>
+          {pickerMode === "university" ? "Pick university" : pickerMode === "faculty" ? "Pick faculty" : "Pick department"}
+        </Text>
+        <Text style={styles.pickerSubtitle}>
+          {pickerMode === "university" ? "Choose from live Akademi school data." : form.university}
+        </Text>
+      </View>
+      <TouchableOpacity onPress={onClose} style={styles.inlineCloseButton}>
+        <X size={18} color={colors.textPrimary} />
+      </TouchableOpacity>
+    </View>
+
+    <View style={styles.searchBox}>
+      <Search size={18} color={colors.textMuted} />
+      <TextInput
+        value={pickerSearch}
+        onChangeText={onSearchChange}
+        placeholder="Search..."
+        placeholderTextColor={colors.textMuted}
+        style={styles.searchInput}
+      />
+    </View>
+
+    {loading ? (
+      <View style={styles.pickerLoading}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    ) : items.length === 0 ? (
+      <View style={styles.emptyPicker}>
+        <Text style={styles.emptyPickerText}>No matching option found.</Text>
+      </View>
+    ) : (
+      <ScrollView
+        style={styles.inlinePickerList}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {items.slice(0, 40).map((item: any, index) => {
+          const title = typeof item === "string" ? item : item.name;
+          const subtitle =
+            typeof item === "string"
+              ? `${departments.filter((department) => department.faculty === item).length} departments`
+              : pickerMode === "university"
+                ? [item.type, item.location].filter(Boolean).join(" / ")
+                : item.faculty;
+          const active =
+            (pickerMode === "university" && title === form.university) ||
+            (pickerMode === "faculty" && title === form.faculty) ||
+            (pickerMode === "department" && title === form.department);
+
+          return (
+            <TouchableOpacity
+              key={typeof item === "string" ? item : item.id}
+              style={[styles.inlinePickerItem, index === items.slice(0, 40).length - 1 && styles.inlinePickerItemLast]}
+              onPress={() => onSelect(item)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerItemTitle}>{title}</Text>
+                {!!subtitle && <Text style={styles.pickerItemSubtitle}>{subtitle}</Text>}
+              </View>
+              {active ? <CheckCircle2 size={18} color={colors.primary} /> : <ChevronRight size={16} color={colors.textMuted} />}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    )}
   </View>
 );
 
@@ -452,16 +521,17 @@ const styles = StyleSheet.create({
   pickerFieldDisabled: { opacity: 0.55 },
   pickerValue: { ...typography.body, color: colors.textPrimary, flex: 1, marginLeft: 12 },
   pickerPlaceholder: { color: colors.textMuted },
-  modalOverlay: { backgroundColor: "rgba(0,0,0,0.62)", flex: 1, justifyContent: "flex-end" },
-  pickerSheet: { backgroundColor: colors.background, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: "82%", minHeight: "55%", padding: 18 },
-  pickerHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: 14 },
+  inlinePicker: { backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderRadius: 10, borderWidth: 1, marginTop: -8, marginBottom: 14, maxHeight: 320, overflow: "hidden" },
+  inlinePickerHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   pickerTitle: { ...typography.h3, color: colors.textPrimary },
   pickerSubtitle: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, marginTop: 3 },
-  closeButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
+  inlineCloseButton: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, height: 34, justifyContent: "center", width: 34 },
   searchBox: { alignItems: "center", backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: "row", height: 48, marginBottom: 12, paddingHorizontal: 12 },
   searchInput: { color: colors.textPrimary, flex: 1, fontFamily: "Inter-Regular", fontSize: 14, marginLeft: 8 },
   pickerLoading: { alignItems: "center", justifyContent: "center", minHeight: 180 },
-  pickerItem: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", minHeight: 62, paddingVertical: 10 },
+  inlinePickerList: { maxHeight: 230 },
+  inlinePickerItem: { alignItems: "center", borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", minHeight: 54, paddingHorizontal: 14, paddingVertical: 10 },
+  inlinePickerItemLast: { borderBottomWidth: 0 },
   pickerItemTitle: { ...typography.body, color: colors.textPrimary, fontWeight: "700" },
   pickerItemSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 3 },
   emptyPicker: { alignItems: "center", justifyContent: "center", padding: 32 },

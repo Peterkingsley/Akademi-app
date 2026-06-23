@@ -22,6 +22,13 @@ import { useAuthStore } from "../../store/useAuthStore";
 const { width } = Dimensions.get("window");
 type AssessmentType = "TEST" | "EXAM";
 
+const getDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export const AddExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
@@ -37,7 +44,10 @@ export const AddExamScreen: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(tomorrow);
   const [durationMinutes, setDurationMinutes] = useState("120");
   const [loading, setLoading] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [errorMessage, setErrorMessage] = useState("");
   const [materialCount, setMaterialCount] = useState<number | null>(null);
 
@@ -63,8 +73,13 @@ export const AddExamScreen: React.FC = () => {
       return;
     }
 
-    if (selectedDate < tomorrow) {
-      setErrorMessage("Choose a future exam date.");
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const selectedDateStart = new Date(selectedDate);
+    selectedDateStart.setHours(0, 0, 0, 0);
+
+    if (selectedDateStart.getTime() < todayStart.getTime()) {
+      setErrorMessage("Choose today or a future exam date.");
       return;
     }
     const numericDuration = Number(durationMinutes);
@@ -103,6 +118,8 @@ export const AddExamScreen: React.FC = () => {
   const renderCalendar = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayKey = getDateKey(today);
+    const selectedDateKey = getDateKey(selectedDate);
     const currentMonth = calendarMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
     const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
     const firstDayOffset = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
@@ -126,9 +143,12 @@ export const AddExamScreen: React.FC = () => {
              if (!cell.day) return <View key={cell.key} style={styles.dayCell} />;
 
              const cellDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), cell.day, 12);
-             const isSelected = selectedDate.toDateString() === cellDate.toDateString();
-             const isToday = today.toDateString() === cellDate.toDateString();
-             const isPast = cellDate < tomorrow;
+             const cellDateKey = getDateKey(cellDate);
+             const isSelected = selectedDateKey === cellDateKey;
+             const isToday = todayKey === cellDateKey;
+             const cellDateStart = new Date(cellDate);
+             cellDateStart.setHours(0, 0, 0, 0);
+             const isPast = cellDateStart.getTime() < today.getTime();
 
              return (
                <TouchableOpacity
@@ -138,9 +158,11 @@ export const AddExamScreen: React.FC = () => {
                    isSelected && styles.selectedDay,
                    isPast && styles.disabledDay,
                  ]}
-                 disabled={isPast}
+                 activeOpacity={0.72}
+                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                  onPress={() => {
-                   setSelectedDate(cellDate);
+                   if (isPast) return;
+                   setSelectedDate(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), cell.day || 1, 12));
                    setErrorMessage("");
                  }}
                >
@@ -153,7 +175,7 @@ export const AddExamScreen: React.FC = () => {
                  ]}>
                    {cell.day}
                  </Text>
-                 {isToday && !isSelected && <View style={styles.todayIndicator} />}
+                 {isToday && !isSelected && <View pointerEvents="none" style={styles.todayIndicator} />}
                </TouchableOpacity>
              );
            })}
