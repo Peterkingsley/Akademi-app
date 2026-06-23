@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { CalendarDays, Eye, Heart, Share2, Swords, Trophy, Users } from "lucide-react-native";
@@ -8,6 +8,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { competitionService, Tournament, TournamentArena } from "../../services/competition";
 import { socketService } from "../../services/socket";
+import { useAuthStore } from "../../store/useAuthStore";
 
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString([], {
@@ -25,6 +26,9 @@ export const TournamentDetailScreen: React.FC = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [arena, setArena] = useState<TournamentArena | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveCheerCount, setLiveCheerCount] = useState(0);
+  const cheerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentUserId = useAuthStore((state) => state.user?.id);
 
   const loadTournament = async () => {
     try {
@@ -58,18 +62,68 @@ export const TournamentDetailScreen: React.FC = () => {
         { text: "Open", onPress: () => navigation.navigate("CompetitionLobby", { roomId: payload.roomId }) },
       ]);
     };
+    const handleTournamentCheer = (payload: { tournamentId: string; stageId?: string | null; spectatorUserId?: string }) => {
+      if (payload.tournamentId !== tournamentId) return;
+      setLiveCheerCount((count) => count + 1);
+      if (cheerTimeoutRef.current) clearTimeout(cheerTimeoutRef.current);
+      cheerTimeoutRef.current = setTimeout(() => setLiveCheerCount(0), 4500);
+      setTournament((current) =>
+        current
+          ? {
+              ...current,
+              cheer_count: (current.cheer_count || 0) + 1,
+            }
+          : current,
+      );
+      setArena((current) =>
+        current
+          ? {
+              ...current,
+              stats: {
+                ...current.stats,
+                total_loves: (current.stats.total_loves || 0) + 1,
+              },
+              leaderboard: current.leaderboard
+                .map((entry) =>
+                  entry.user_id === currentUserId
+                    ? { ...entry, love_count: entry.love_count + 1 }
+                    : entry,
+                )
+                .sort((a, b) => {
+                  if (b.score !== a.score) return b.score - a.score;
+                  if ((b.correct_answers || 0) !== (a.correct_answers || 0)) {
+                    return (b.correct_answers || 0) - (a.correct_answers || 0);
+                  }
+                  return (b.love_count || 0) - (a.love_count || 0);
+                }),
+            }
+          : current,
+      );
+    };
+    const handleArenaRefresh = (payload: { tournamentId?: string; roomId?: string }) => {
+      if (payload.tournamentId && payload.tournamentId !== tournamentId) return;
+      if (!payload.tournamentId && payload.roomId && payload.roomId !== tournament?.room_id) return;
+      loadTournament();
+    };
 
     const setup = async () => {
       const socket = await socketService.connect();
       socket.on("tournament:live", handleTournamentLive);
+      socket.on("tournament:cheer", handleTournamentCheer);
+      socket.on("tournament:arena-update", handleArenaRefresh);
+      socket.on("competition:score-update", handleArenaRefresh);
     };
 
     setup().catch((error) => console.error("Tournament live listener failed", error));
 
     return () => {
       socketService.off("tournament:live", handleTournamentLive);
+      socketService.off("tournament:cheer", handleTournamentCheer);
+      socketService.off("tournament:arena-update", handleArenaRefresh);
+      socketService.off("competition:score-update", handleArenaRefresh);
+      if (cheerTimeoutRef.current) clearTimeout(cheerTimeoutRef.current);
     };
-  }, [navigation, tournamentId]);
+  }, [currentUserId, navigation, tournament?.room_id, tournamentId]);
 
   const joinTournament = async () => {
     try {
@@ -195,6 +249,13 @@ export const TournamentDetailScreen: React.FC = () => {
         : tournament.audience_scope === "DEPARTMENT"
           ? `${tournament.audience_department || "Department"} across schools`
           : "Open to every student on Akademi";
+  const rankedLeaderboard = [...(arena?.leaderboard || [])].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if ((b.correct_answers || 0) !== (a.correct_answers || 0)) {
+      return (b.correct_answers || 0) - (a.correct_answers || 0);
+    }
+    return (b.love_count || 0) - (a.love_count || 0);
+  });
 
   return (
     <Screen style={styles.screen}>
@@ -252,6 +313,20 @@ export const TournamentDetailScreen: React.FC = () => {
               "Register before the deadline, check in when the event opens, then join the live room once the challenge starts."}
           </Text>
         </Card>
+
+        {liveCheerCount > 0 ? (
+          <Card style={styles.liveCheerCard}>
+            <View style={styles.liveCheerIcon}>
+              <Heart size={18} color={colors.primary} fill={colors.primary} />
+            </View>
+            <View style={styles.liveCheerCopy}>
+              <Text style={styles.liveCheerTitle}>
+                {liveCheerCount === 1 ? "Someone is cheering you" : `${liveCheerCount} fresh cheers just came in`}
+              </Text>
+              <Text style={styles.liveCheerText}>Your supporters are watching this campaign live.</Text>
+            </View>
+          </Card>
+        ) : null}
 
         {tournament.campaign_type === "MULTI_STAGE" || (tournament.stages?.length || 0) > 0 ? (
           <Card style={styles.arenaCard}>
@@ -323,10 +398,11 @@ export const TournamentDetailScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {arena?.leaderboard?.length ? (
+        {rankedLeaderboard.length ? (
           <Card style={styles.leaderboardCard}>
-            <Text style={styles.campaignEyebrow}>Live spectator board</Text>
-            {arena.leaderboard.slice(0, 8).map((entry, index) => (
+            <Text style={styles.campaignEyebrow}>Live spectator leaderboard</Text>
+            <Text style={styles.campaignText}>Ranked by score, with live support shown beside each contestant.</Text>
+            {rankedLeaderboard.slice(0, 12).map((entry, index) => (
               <View key={entry.user_id} style={styles.leaderRow}>
                 <Text style={styles.leaderRank}>{entry.rank || index + 1}</Text>
                 <View style={styles.leaderInfo}>
@@ -461,6 +537,34 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  liveCheerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderColor: colors.primary,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+  },
+  liveCheerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(34, 197, 94, 0.16)",
+  },
+  liveCheerCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  liveCheerTitle: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "800",
+  },
+  liveCheerText: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   campaignButton: {
     alignSelf: "flex-start",
