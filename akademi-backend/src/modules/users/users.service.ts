@@ -397,7 +397,7 @@ export class UsersService {
   }
 
   async getProgress(userId: string) {
-    const [user, sessions, uploads, questionAttempts, mockAttempts, examPlans, studentCourses] = await Promise.all([
+    const [user, sessions, uploads, questionAttempts, mockAttempts, examPlans, studentCourses] = await prisma.$transaction([
       prisma.user.findUnique({
         where: { id: userId, is_deleted: false },
         select: {

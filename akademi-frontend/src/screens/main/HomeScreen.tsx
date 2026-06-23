@@ -140,6 +140,15 @@ const getDaysLeft = (dateString?: string) => {
   );
 };
 
+const settle = async <T,>(promise: Promise<T>) => {
+  try {
+    const value = await promise;
+    return { status: "fulfilled" as const, value };
+  } catch (reason) {
+    return { status: "rejected" as const, reason };
+  }
+};
+
 const QuickActionTile = ({
   action,
   onPress,
@@ -236,13 +245,13 @@ export const HomeScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.allSettled([
-        api.get("/users/me/sessions?limit=4"),
-        api.get("/users/me/learning-profile"),
-        userService.getProgress(),
-        api.get("/exam-prep"),
-        notificationService.list(),
-        competitionService.getTournaments().catch(() => []),
+      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.all([
+        settle(api.get("/users/me/sessions?limit=4")),
+        settle(api.get("/users/me/learning-profile")),
+        settle(userService.getProgress()),
+        settle(api.get("/exam-prep")),
+        settle(notificationService.list()),
+        settle(competitionService.getTournaments().catch(() => [])),
       ]);
 
       if (sessionsRes.status === "fulfilled") {
