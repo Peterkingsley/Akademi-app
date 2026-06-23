@@ -444,8 +444,12 @@ export const adminService = {
   },
 
   approveMaterials: async (ids: string[]) => {
-    const { data } = await api.patch(`/admin/materials/bulk-approve`, { ids });
-    return data;
+    const uniqueIds = Array.from(new Set(ids.map((id) => id?.trim()).filter(Boolean)));
+    const materials = await Promise.all(uniqueIds.map((id) => adminService.approveMaterial(id)));
+    return {
+      count: materials.length,
+      materials,
+    };
   },
 
   takedownMaterial: async (id: string) => {
