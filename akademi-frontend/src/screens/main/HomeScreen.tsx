@@ -15,14 +15,12 @@ import {
 import {
   Bell,
   BookOpen,
-  Bot,
   Circle,
   ChevronRight,
   Clock,
   CalendarDays,
   FileText,
   Library,
-  PlayCircle,
   Sparkles,
   Swords,
   Target,
@@ -62,14 +60,6 @@ const QUICK_ACTIONS = [
     screen: "Library",
   },
   {
-    id: "tutor",
-    label: "Tutor",
-    description: "Live support",
-    icon: Bot,
-    tint: "#A78BFA",
-    screen: "LiveTutorEntry",
-  },
-  {
     id: "exam",
     label: "Exam Prep",
     description: "Mock tests",
@@ -97,11 +87,6 @@ const HOME_TOUR_STEPS = [
     id: "library",
     title: "Study from your library",
     body: "Open verified materials, ask Akademi questions, summarize passages, and practice CBT from real course content.",
-  },
-  {
-    id: "tutor",
-    title: "Study with AI Tutor",
-    body: "Open a material and let the tutor teach it in guided chunks instead of giving one-off answers.",
   },
   {
     id: "exam",
@@ -329,9 +314,9 @@ export const HomeScreen: React.FC = () => {
       recs.push({
         id: "rec-weakness",
         title: `Strengthen ${weakness.topic || weakness.subject}`,
-        description: `Use a focused tutor session to close this gap before your next test.`,
+        description: `Use exam prep or study mode to close this gap before your next test.`,
         type: "weakness",
-        color: "#A78BFA",
+        color: colors.primary,
         metadata: {
           duration: "25m",
           sections: 1,
@@ -354,25 +339,6 @@ export const HomeScreen: React.FC = () => {
           duration: nextExamDays === null ? "Plan" : `${nextExamDays}d`,
           sections: nextExam.tasks?.length || 0,
           course_code: nextExam.course_code,
-        },
-      });
-    }
-
-    const latestTutorSession = sessions.find(
-      (session) => session.session_type === "TUTOR" || session.type === "TUTOR"
-    );
-
-    if (latestTutorSession) {
-      recs.push({
-        id: `rec-session-${latestTutorSession.id}`,
-        title: `Resume ${latestTutorSession.topic || latestTutorSession.course_code || "your tutor session"}`,
-        description: "Continue from your latest live tutor session or review what was covered.",
-        type: "material",
-        color: colors.primary,
-        metadata: {
-          duration: latestTutorSession.duration ? `${latestTutorSession.duration}m` : "Recent",
-          sections: 1,
-          course_code: latestTutorSession.course_code,
         },
       });
     }
@@ -403,8 +369,6 @@ export const HomeScreen: React.FC = () => {
     switch (type) {
       case "STUDY":
         return "Open";
-      case "TUTOR":
-        return "Continue";
       case "ASSIGNMENT":
         return "Review";
       case "EXAM_PREP":
@@ -419,11 +383,6 @@ export const HomeScreen: React.FC = () => {
 
     try {
       setOpeningSessionId(item.id);
-
-      if (sessionType === "TUTOR") {
-        navigation.navigate("LiveTutorSession", { sessionId: item.id });
-        return;
-      }
 
       if (sessionType === "STUDY") {
         navigation.navigate("StudyMode", { sessionId: item.id });
@@ -470,7 +429,7 @@ export const HomeScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate("LiveTutorEntry");
+    navigation.navigate("ExamPrep");
   };
 
   const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (
@@ -550,7 +509,6 @@ export const HomeScreen: React.FC = () => {
 
   const getContinueAccent = (session: Session, index: number) => {
     const type = session.session_type || session.type || "";
-    if (type.includes("TUTOR")) return { color: "#A855F7", icon: PlayCircle };
     if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.primary, icon: FileText };
     return { color: ["#22C55E", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
   };

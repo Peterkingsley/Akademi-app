@@ -79,7 +79,7 @@ export interface UserListFilter {
   joinedWithinDays?: string | number;
   level?: string | number;
   courseCode?: string;
-  featureUsed?: 'assignment' | 'tutor' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
+  featureUsed?: 'assignment' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
   page?: number;
   limit?: number;
   sortBy?: string;

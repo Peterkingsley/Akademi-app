@@ -84,8 +84,6 @@ export const AIProcessingScreen: React.FC = () => {
             navigation.navigate("AssignmentResult", { sessionId });
           }
         }
-      } else {
-        navigation.navigate("LiveTutorSession", { sessionId });
       }
     }, 5000);
 
@@ -103,9 +101,7 @@ export const AIProcessingScreen: React.FC = () => {
   const title =
     type === "assignment" && reply_mode === "STUDY"
       ? "Preparing your walkthrough..."
-      : type === "assignment"
-        ? "Reviewing your question..."
-        : "Starting your tutor session";
+      : "Reviewing your question...";
 
   return (
     <Screen style={styles.screen}>

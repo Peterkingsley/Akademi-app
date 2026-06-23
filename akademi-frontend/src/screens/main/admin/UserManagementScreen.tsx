@@ -381,7 +381,6 @@ export const UserManagementScreen: React.FC = () => {
                 {[
                   { label: "Any", value: "all" },
                   { label: "Assignment", value: "assignment" },
-                  { label: "Tutor", value: "tutor" },
                   { label: "Study", value: "study" },
                   { label: "Exam Prep", value: "exam_prep" },
                   { label: "Uploads", value: "uploads" },

@@ -150,7 +150,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       case "explain":
         return `${sharedGuide}\n\nTask: Explain this exact part step by step in simple language. Start from what the highlighted line is referring to in this material.`;
       case "teach":
-        return `${sharedGuide}\n\nTask: Teach this part like a patient tutor. Start with the exact confusion point, connect it to the material, then build understanding carefully.`;
+        return `${sharedGuide}\n\nTask: Explain this part patiently. Start with the exact confusion point, connect it to the material, then build understanding carefully.`;
       case "practice":
         return `${sharedGuide}\n\nTask: Create a short CBT-style practice from this exact part of the material only. Give 5 multiple-choice questions with options, answers, and short explanations.`;
       case "ask":

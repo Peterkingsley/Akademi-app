@@ -208,7 +208,7 @@ export class ExamPrepService {
       },
       {
         title: `${assessmentLabel} Weak Area Focus`,
-        description: `Use mock results and tutor sessions to focus on weak ${normalizedCourseCode} topics.`,
+        description: `Use mock results and study sessions to focus on weak ${normalizedCourseCode} topics.`,
         due_date: new Date(),
       },
     ];

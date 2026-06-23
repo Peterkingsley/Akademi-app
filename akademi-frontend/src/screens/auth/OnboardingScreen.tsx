@@ -77,7 +77,7 @@ export const OnboardingScreen: React.FC = () => {
                 <Image source={onboardingFemale} style={styles.illustrationImage} resizeMode="cover" />
                 <View style={styles.badgeChip}>
                   <Text style={styles.badgeLabel}>MVP BETA</Text>
-                  <Text style={styles.badgeValue}>Materials, CBT practice, and live tutor in one flow.</Text>
+                  <Text style={styles.badgeValue}>Materials, CBT practice, and exam prep in one flow.</Text>
                 </View>
               </View>
             </View>
@@ -138,7 +138,7 @@ export const OnboardingScreen: React.FC = () => {
               <Text style={styles.greenText}>Built for Android beta.</Text>
             </Text>
             <Text style={styles.slide2Body}>
-              Create your academic profile once. Akademi uses it to match materials, assignment help, live tutor sessions, and exam prep.
+              Create your academic profile once. Akademi uses it to match materials, assignment help, study mode, and exam prep.
             </Text>
 
             <View style={styles.slide2Buttons}>

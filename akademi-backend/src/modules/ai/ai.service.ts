@@ -1,13 +1,9 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
 import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
-import { combinedTeachingPrompt } from './teaching.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
-import { tutorOrchestrator } from './tutor-orchestrator';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
-import { config } from '../../config/env';
-import { JOB_NAMES, systemQueue } from '../../config/queue';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
   return messages
@@ -80,72 +76,6 @@ function filterRelevantCommunityPatterns(patterns: any[], studentMessage: string
 export class AIService {
   private readonly boardImperativeNotePattern =
     /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
-
-  private getWhiteboardImageSkipReason(cue: {
-    visual_type?: string | null;
-    render_mode?: string | null;
-    image_url?: string | null;
-    generation_status?: string | null;
-  }) {
-    if (!config.enableTutorImageGeneration) return 'ENABLE_TUTOR_IMAGE_GENERATION is not true';
-    if (cue.image_url) return 'image_url already exists';
-    if (cue.generation_status === 'READY') return 'generation_status is READY';
-    if (cue.generation_status === 'PROCESSING') return 'generation_status is PROCESSING';
-    if (cue.generation_status && cue.generation_status !== 'PENDING') {
-      return `generation_status is ${cue.generation_status}`;
-    }
-
-    const visualKind = `${cue.visual_type || ''} ${cue.render_mode || ''}`.toLowerCase();
-    if (visualKind.includes('title_board')) return 'visual cue is title_board';
-
-    return null;
-  }
-
-  private queueWhiteboardVisualImage(cue: {
-    id: string;
-    visual_type?: string | null;
-    render_mode?: string | null;
-    image_url?: string | null;
-    generation_status?: string | null;
-  }) {
-    const skipReason = this.getWhiteboardImageSkipReason(cue);
-    if (skipReason) {
-      // eslint-disable-next-line no-console
-      console.log(
-        `WHITEBOARD IMAGE SKIPPED - visualCueId: ${cue.id}, reason: ${skipReason}, type: ${cue.visual_type || ''}, mode: ${cue.render_mode || ''}, status: ${cue.generation_status || 'null'}`,
-      );
-      return;
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`WHITEBOARD IMAGE ENQUEUE - visualCueId: ${cue.id}`);
-    void systemQueue
-      .add(JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE, { visualCueId: cue.id })
-      .catch((error: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error('Whiteboard visual image queue failed:', error);
-      });
-  }
-
-  private queueWhiteboardVisualImages(segments: Array<{
-    visual_cues?: Array<{
-      id: string;
-      visual_type?: string | null;
-      render_mode?: string | null;
-      image_url?: string | null;
-      generation_status?: string | null;
-    }>;
-  }>) {
-    const totalCues = segments.reduce((count, segment) => count + (segment.visual_cues || []).length, 0);
-    // eslint-disable-next-line no-console
-    console.log(
-      `WHITEBOARD IMAGE QUEUE CHECK - segments: ${segments.length}, visualCues: ${totalCues}, enableTutorImageGeneration: ${config.enableTutorImageGeneration}`,
-    );
-
-    segments.forEach((segment) => {
-      (segment.visual_cues || []).forEach((cue) => this.queueWhiteboardVisualImage(cue));
-    });
-  }
 
   private splitEquationChain(math: string) {
     const compact = math.replace(/\s+/g, ' ').trim();
@@ -420,211 +350,6 @@ export class AIService {
     }
   }
 
-  private parseTeachingPayload(raw: string) {
-    try {
-      const parsed = JSON.parse(this.extractJsonObject(raw));
-      const segments = Array.isArray(parsed?.segments) ? parsed.segments : [];
-      return segments
-        .map((segment: any, index: number) => {
-          const chunks = Array.isArray(segment?.caption_chunks) ? segment.caption_chunks : [];
-          const visualCues = Array.isArray(segment?.visual_cues) ? segment.visual_cues : [];
-          const script = String(segment?.script || chunks.map((chunk: any) => chunk?.text).filter(Boolean).join(' ')).trim();
-          const estimatedDurationMs = chunks.reduce(
-            (total: number, chunk: any) => total + Math.max(Number(chunk?.duration_ms) || 0, 0),
-            0,
-          );
-
-          if (!script) return null;
-
-          return {
-            concept_title: String(segment?.concept_title || `Lesson part ${index + 1}`).trim(),
-            script,
-            caption_chunks: chunks
-              .map((chunk: any, chunkIndex: number) => ({
-                id: typeof chunk?.id === 'string' ? chunk.id : `chunk-${index + 1}-${chunkIndex + 1}`,
-                text: String(chunk?.text || '').trim(),
-                duration_ms: Math.max(Number(chunk?.duration_ms) || 0, 0),
-              }))
-              .filter((chunk: { text: string }) => chunk.text.length > 0)
-              .slice(0, 24),
-            order: index + 1,
-            estimated_duration_ms: estimatedDurationMs || Math.max(script.split(/\s+/).length * 350, 15000),
-            visual_cues: visualCues
-              .map((cue: any) => ({
-                visual_type: String(cue?.visual_type || 'bullet_card'),
-                render_mode: String(cue?.render_mode || 'bullet_card'),
-                start_ms: Math.max(Number(cue?.start_ms) || 0, 0),
-                end_ms: Math.max(Number(cue?.end_ms) || 0, Number(cue?.start_ms) || 0, 5000),
-                payload: cue?.payload && typeof cue.payload === 'object'
-                  ? cue.payload
-                  : {
-                      title: String(segment?.concept_title || `Lesson part ${index + 1}`),
-                      bullets: [script.slice(0, 180)],
-                    },
-              }))
-              .slice(0, 6),
-          };
-        })
-        .filter(Boolean)
-        .slice(0, 10) as Array<{
-          concept_title: string;
-          script: string;
-          caption_chunks: Array<{
-            id: string;
-            text: string;
-            duration_ms: number;
-          }>;
-          order: number;
-          estimated_duration_ms: number;
-          visual_cues: Array<{
-            visual_type: string;
-            render_mode: string;
-            start_ms: number;
-            end_ms: number;
-            payload: Record<string, unknown>;
-          }>;
-        }>;
-    } catch {
-      return [];
-    }
-  }
-
-  async generateTeachingLesson(
-    userId: string,
-    sessionId: string,
-    studentMessage: string,
-    materialContext?: string,
-  ) {
-    const session = await prisma.session.findUnique({
-      where: { id: sessionId },
-      include: {
-        material: {
-          select: {
-            title: true,
-            course_code: true,
-            content: true,
-            reader_structure: true,
-          },
-        },
-        messages: {
-          orderBy: { created_at: 'asc' },
-          select: {
-            id: true,
-            role: true,
-            content: true,
-            created_at: true,
-          },
-        },
-      },
-    });
-
-    if (!session) throw new Error('Session not found');
-    if (session.user_id !== userId) throw new Error('You do not have access to this session');
-
-    const latestAiMessage = [...session.messages].reverse().find((message) => message.role === 'AI');
-    const materialExcerpt = [
-      materialContext,
-      session.material?.content,
-      studentMessage,
-    ]
-      .filter(Boolean)
-      .join('\n\n')
-      .replace(/\s+/g, ' ')
-      .slice(0, 9000);
-
-    const raw = await aiProvider.generateResponse(
-      `Create a playable teaching lesson for this AI Tutor session.
-
-Session topic: ${session.topic || session.material?.title || 'AI Tutor lesson'}
-Course code: ${session.course_code || session.material?.course_code || 'General'}
-
-Recent AI teaching message:
-${latestAiMessage?.content || studentMessage}
-
-Material context:
-${materialExcerpt}`,
-      {
-        systemPrompt: combinedTeachingPrompt,
-        maxTokens: 2500,
-      },
-    );
-
-    let segments = this.parseTeachingPayload(raw);
-
-    if (segments.length === 0) {
-      const fallbackScript = studentMessage.trim() || latestAiMessage?.content || 'Let us start by breaking this material into its first teachable idea.';
-      segments = [{
-        concept_title: session.material?.title || session.topic || 'Tutor lesson',
-        script: fallbackScript,
-        caption_chunks: [{
-          id: 'chunk-1-1',
-          text: fallbackScript,
-          duration_ms: Math.max(fallbackScript.split(/\s+/).length * 350, 15000),
-        }],
-        order: 1,
-        estimated_duration_ms: Math.max(fallbackScript.split(/\s+/).length * 350, 15000),
-        visual_cues: [{
-          visual_type: 'bullet_card',
-          render_mode: 'bullet_card',
-          start_ms: 0,
-          end_ms: 12000,
-          payload: {
-            title: session.material?.title || session.topic || 'Tutor lesson',
-            bullets: [fallbackScript.slice(0, 180)],
-          },
-        }],
-      }];
-    }
-
-    const existingSegments = await prisma.lessonSegment.findMany({
-      where: { session_id: sessionId },
-      select: { id: true },
-    });
-    const existingSegmentIds = existingSegments.map((segment) => segment.id);
-
-    if (existingSegmentIds.length > 0) {
-      await prisma.visualCue.deleteMany({
-        where: { segment_id: { in: existingSegmentIds } },
-      });
-      await prisma.lessonSegment.deleteMany({
-        where: { id: { in: existingSegmentIds } },
-      });
-    }
-
-    for (const segment of segments) {
-      await prisma.lessonSegment.create({
-        data: {
-          session_id: sessionId,
-          message_id: latestAiMessage?.id || null,
-          concept_title: segment.concept_title,
-          script: segment.script,
-          caption_chunks: segment.caption_chunks as any,
-          order: segment.order,
-          estimated_duration_ms: segment.estimated_duration_ms,
-          visual_cues: {
-            create: segment.visual_cues.map((cue) => ({
-              visual_type: cue.visual_type,
-              render_mode: cue.render_mode,
-              start_ms: cue.start_ms,
-              end_ms: cue.end_ms,
-              payload: cue.payload as any,
-            })),
-          },
-        },
-      });
-    }
-
-    const playableSegments = await prisma.lessonSegment.findMany({
-      where: { session_id: sessionId },
-      orderBy: { order: 'asc' },
-      include: { visual_cues: true },
-    });
-
-    this.queueWhiteboardVisualImages(playableSegments);
-
-    return playableSegments;
-  }
-
   private async buildWhiteboardPayload(studentMessage: string, answer: string) {
     try {
       const raw = await aiProvider.generateResponse(
@@ -723,7 +448,6 @@ Create a board replay plan for this solution.`,
       conversationHistory
     );
     const isFollowUp = session.messages.length > 1;
-    const adaptiveTurn = await tutorOrchestrator.prepareTurn(userId, session, studentMessage);
     const prompt = isFollowUp
       ? `Continue this existing learning conversation.
 
@@ -733,19 +457,13 @@ ${conversationHistory}
 Latest student reply:
 ${studentMessage}
 
-${adaptiveTurn?.promptContext || ''}
-
 Important:
 - Treat the latest student reply as a response to Akademi's previous question.
 - Do not restart the explanation unless the student asks to restart.
 - If the previous Akademi message asked a question, evaluate the student's answer first.
 - If the student says they do not know or seem confused, explain the missing idea directly before asking anything else.
 - Do not trap the student in repeated questions. Move the explanation forward.`
-      : adaptiveTurn?.promptContext
-        ? `${studentMessage}
-
-${adaptiveTurn.promptContext}`
-        : studentMessage;
+      : studentMessage;
 
     // 3. Cache check. Multi-turn sessions must include conversation context, so do not reuse a standalone answer.
     const cacheKey = getAICacheKey(
@@ -755,7 +473,7 @@ ${adaptiveTurn.promptContext}`
       disciplineDocument?.version || 1
     );
 
-    const cachedResponse = isFollowUp || session.session_type === 'TUTOR' ? null : await getCachedAIResponse(cacheKey);
+    const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
@@ -765,17 +483,7 @@ ${adaptiveTurn.promptContext}`
       learningProfile,
       relevantCommunityPatterns,
       effectiveReplyMode,
-      session.material
-        ? {
-            title: session.material.title,
-            course_code: session.material.course_code,
-            content: session.material.content,
-            reader_structure: session.material.reader_structure,
-          }
-        : null,
-      session.session_type,
       ),
-      adaptiveTurn?.promptContext || '',
     ].filter(Boolean).join('\n\n---\n\n');
 
     // 5. Call AI Provider (Claude with Gemini fallback)
@@ -789,14 +497,13 @@ ${adaptiveTurn.promptContext}`
       : null;
 
     // 6. Cache response
-    if (!isFollowUp && session.session_type !== 'TUTOR') {
+    if (!isFollowUp) {
       await setCachedAIResponse(cacheKey, aiResponseText);
     }
 
     return {
       content: aiResponseText,
       metadata: {
-        ...(adaptiveTurn?.metadata || {}),
         ...(whiteboardPayload
           ? {
               whiteboard: {

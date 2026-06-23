@@ -10,8 +10,6 @@ export const JOB_NAMES = {
   GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
-  GENERATE_TUTOR_VISUAL_IMAGE: 'GENERATE_TUTOR_VISUAL_IMAGE',
-  GENERATE_WHITEBOARD_VISUAL_IMAGE: 'GENERATE_WHITEBOARD_VISUAL_IMAGE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -19,8 +17,6 @@ type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 type JobPayload = {
   materialId?: string;
   sessionId?: string;
-  visualAssetId?: string;
-  visualCueId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -68,10 +64,7 @@ const markQueueFailure = (error: unknown) => {
   queueHealth.lastError = error instanceof Error ? error.message : String(error);
 };
 
-const BACKGROUND_JOB_NAMES = new Set<JobName>([
-  JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE,
-  JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE,
-]);
+const BACKGROUND_JOB_NAMES = new Set<JobName>([]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
 const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string }> = [];
@@ -79,8 +72,6 @@ const backgroundJobKeys = new Set<string>();
 let activeBackgroundJobs = 0;
 
 const getBackgroundJobKey = (name: JobName, payload: JobPayload) => {
-  if (payload.visualCueId) return `${name}:visualCue:${payload.visualCueId}`;
-  if (payload.visualAssetId) return `${name}:visualAsset:${payload.visualAssetId}`;
   return `${name}:${JSON.stringify(payload)}`;
 };
 
@@ -138,18 +129,6 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {
       const { activateTournamentsJob } = await import('../jobs/activateTournaments.job');
       await activateTournamentsJob();
-      return;
-    }
-    case JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE: {
-      if (!payload.visualAssetId) throw new Error('GENERATE_TUTOR_VISUAL_IMAGE requires visualAssetId');
-      const { generateTutorVisualImageJob } = await import('../jobs/generateTutorVisualImage.job');
-      await generateTutorVisualImageJob(payload.visualAssetId);
-      return;
-    }
-    case JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE: {
-      if (!payload.visualCueId) throw new Error('GENERATE_WHITEBOARD_VISUAL_IMAGE requires visualCueId');
-      const { generateWhiteboardVisualImageJob } = await import('../jobs/generateWhiteboardVisualImage.job');
-      await generateWhiteboardVisualImageJob(payload.visualCueId);
       return;
     }
     default:

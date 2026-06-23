@@ -501,7 +501,7 @@ export const StudyModeScreen: React.FC = () => {
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
               <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 12 }]}>
-                Akademi AI Tutor
+                Akademi Study Mode
               </Text>
             </View>
           )}

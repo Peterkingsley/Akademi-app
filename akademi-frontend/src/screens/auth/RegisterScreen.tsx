@@ -115,7 +115,7 @@ export const RegisterScreen: React.FC = () => {
             <User size={23} color={colors.primary} />
           </View>
           <Text style={styles.headline}>Create your account</Text>
-          <Text style={styles.subtext}>Save your materials, tutor sessions, mock attempts, and progress history.</Text>
+          <Text style={styles.subtext}>Save your materials, mock attempts, and progress history.</Text>
         </View>
 
         <View style={styles.academicCard}>

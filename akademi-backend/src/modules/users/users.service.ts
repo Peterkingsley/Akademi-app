@@ -474,7 +474,6 @@ export class UsersService {
         completedMocks,
         activeDays,
         streak: this.calculateStreak(dayKeys),
-        totalTutorMinutes: sessions.reduce((sum, session) => sum + (session.duration || 0), 0),
       },
       weeklyActivity,
       courses: Array.from(courseMap.values()).sort((a, b) => {
@@ -596,13 +595,13 @@ export class UsersService {
     }
 
     if (input.sessions > 0) {
-      return 'Your tutor sessions are being tracked. Add a mock or CBT attempt next so Akademi can spot stronger weak areas.';
+      return 'Your study sessions are being tracked. Add a mock or CBT attempt next so Akademi can spot stronger weak areas.';
     }
 
     if (input.uploads > 0) {
       return 'Your uploads are saved. Open one material, study it, then practice CBT to start building measurable progress.';
     }
 
-    return 'Start with one material, one tutor question, or one assignment solve. Your progress screen will fill up as you work.';
+    return 'Start with one material, one assignment solve, or one mock exam. Your progress screen will fill up as you work.';
   }
 }

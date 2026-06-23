@@ -97,23 +97,6 @@ export const MockExamResultsScreen: React.FC = () => {
       : results.breakdown.filter(item => item.questions > 0).slice(0, 2))
     : [];
 
-  const buildTutorContext = () => {
-    if (!results) return "";
-
-    const topicLines = topicsToReview.length > 0
-      ? topicsToReview.map(topic => {
-        const score = Math.round((topic.correct / topic.questions) * 100);
-        return `- ${topic.topic}: ${score}% (${topic.correct}/${topic.questions})`;
-      }).join("\n")
-      : "- No weak topic rows were returned. Use the missed questions as the study guide.";
-
-    const missedLines = missedQuestions.slice(0, 4).map((question, index) =>
-      `${index + 1}. ${question.text}\nStudent answered: ${question.userAnswer}\nCorrect answer: ${question.correctAnswer}\nExplanation: ${question.aiExplanation}`
-    ).join("\n\n");
-
-    return `Mock exam score: ${results.score}%.\nCourse: ${plan?.course_code || "Exam prep"} ${plan?.course_name ? `- ${plan.course_name}` : ""}.\n\nWeak topics:\n${topicLines}\n\nMissed questions to reteach:\n${missedLines || "No missed unlocked questions were returned."}\n\nTutor instruction: reteach these weak areas simply, ask one diagnostic question at a time, and help the student build exam-ready confidence.`;
-  };
-
   const handleStudyWeakAreas = () => {
     if (!results) return;
 
@@ -252,13 +235,8 @@ export const MockExamResultsScreen: React.FC = () => {
 
         <View style={styles.weakActionRow}>
           <Button
-            label="Live Tutor"
-            onPress={() => navigation.navigate("LiveTutorEntry", {
-              courseCode: plan?.course_code,
-              topic: topicsToReview[0]?.topic || plan?.course_name || "Mock exam weak areas",
-              materialTitle: `${plan?.course_code || "Mock Exam"} Weak Areas`,
-              materialContext: buildTutorContext(),
-            })}
+            label="Back to Prep"
+            onPress={() => navigation.navigate("PrepPlan", { examId })}
             style={styles.weakActionBtn}
           />
           <Button

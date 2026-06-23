@@ -74,7 +74,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.sectionTitle}>1. Who We Are</Text>
       <Text style={styles.paragraph}>
-        Akademi is an AI-powered academic companion application designed for Nigerian university students. We help students solve assignments, access verified course materials, and prepare for examinations through personalized AI tutoring.
+        Akademi is an AI-powered academic companion application designed for Nigerian university students. We help students solve assignments, access verified course materials, and prepare for examinations.
       </Text>
 
       <Text style={styles.sectionTitle}>2. Information We Collect</Text>
@@ -112,7 +112,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.sectionTitle}>3. How We Use Your Information</Text>
       <Text style={styles.paragraph}>We use the information we collect to:</Text>
       <BulletItem text="Create and manage your Akademi account" colors={colors} />
-      <BulletItem text="Personalize your AI tutoring experience based on your learning profile" colors={colors} />
+      <BulletItem text="Personalize your study experience based on your learning profile" colors={colors} />
       <BulletItem text="Generate AI responses to your academic questions using Claude (Anthropic)" colors={colors} />
       <BulletItem text="Provide verified course materials relevant to your department and university" colors={colors} />
       <BulletItem text="Process your payments for premium features" colors={colors} />
@@ -269,7 +269,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.sectionTitle}>1. About Akademi</Text>
       <Text style={styles.paragraph}>
-        Akademi is an AI-powered academic companion application that helps Nigerian university students solve assignments, access verified course materials, practice for examinations, and learn through personalized AI tutoring. Akademi is operated from Lagos, Nigeria.
+        Akademi is an AI-powered academic companion application that helps Nigerian university students solve assignments, access verified course materials, and practice for examinations. Akademi is operated from Lagos, Nigeria.
       </Text>
 
       <Text style={styles.sectionTitle}>2. Eligibility</Text>
@@ -309,7 +309,6 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
       <BulletItem text="Submit academic questions and receive AI-generated explanations and answers" colors={colors} />
       <BulletItem text="Upload and access verified course materials" colors={colors} />
       <BulletItem text="Practice for examinations using AI-generated question banks" colors={colors} />
-      <BulletItem text="Participate in live AI tutoring sessions" colors={colors} />
       <BulletItem text="Build a personalized learning profile over time" colors={colors} />
 
       <Text style={styles.subSectionTitle}>4.2 Prohibited Uses</Text>
@@ -360,7 +359,6 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
         Akademi operates on a feature-based payment model. You can unlock specific features for a set time window or number of uses. The following features are available as paid unlocks:
       </Text>
       <BulletItem text="Assignment Solving (time window: 7 days or 30 days)" colors={colors} />
-      <BulletItem text="Live AI Tutoring (time window: 7 days or 30 days)" colors={colors} />
       <BulletItem text="Exam Prep Questions (use-based: 5 or 10 attempts)" colors={colors} />
       <BulletItem text="Question Reply Mode (use-based)" colors={colors} />
       <BulletItem text="Wrongly Reply Mode (use-based)" colors={colors} />
@@ -403,7 +401,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={[styles.paragraph, { marginTop: 8 }]}>AI responses are:</Text>
       <BulletItem text="Educational guidance, not professional or expert advice" colors={colors} />
       <BulletItem text="Based on course context and publicly available academic knowledge" colors={colors} />
-      <BulletItem text="Not a substitute for your lecturer, tutor, or official course materials" colors={colors} />
+      <BulletItem text="Not a substitute for your lecturer or official course materials" colors={colors} />
 
       <Text style={styles.subSectionTitle}>7.2 AI Limitations</Text>
       <Text style={styles.paragraph}>You acknowledge that:</Text>

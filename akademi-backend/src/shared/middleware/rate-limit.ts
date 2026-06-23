@@ -174,14 +174,6 @@ export const sessionInteractionRateLimiter = createRateLimiter({
   message: 'Too many session requests. Please slow down and try again shortly.',
 });
 
-export const whiteboardTeachingRateLimiter = createRateLimiter({
-  namespace: 'whiteboard-teaching',
-  windowMs: 60 * 1000,
-  max: 20,
-  strategy: 'hybrid',
-  message: 'Whiteboard is still preparing visuals. Please wait a few seconds before refreshing.',
-});
-
 export const materialUploadRateLimiter = createRateLimiter({
   namespace: 'material-upload',
   windowMs: 60 * 60 * 1000,

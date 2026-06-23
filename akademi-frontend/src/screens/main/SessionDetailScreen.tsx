@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import {
-  BookOpen, Monitor,
+  BookOpen,
   Calendar,
   ChevronLeft,
   Clock,
@@ -191,19 +191,6 @@ export const SessionDetailScreen: React.FC = () => {
               </View>
             </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.primary + "10", borderColor: colors.primary }]}
-            onPress={() => navigation.navigate("WhiteboardTutor", { sessionId: id })}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Monitor size={24} color={colors.primary} />
-              <View>
-                <Text style={[typography.h3, { color: colors.primary }]}>Replay in Teaching Mode</Text>
-                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>Watch this session as a whiteboard lesson</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
 
           <View style={styles.insightCard}>
             <Text style={styles.insightTitle}>Latest activity</Text>

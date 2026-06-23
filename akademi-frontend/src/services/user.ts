@@ -91,7 +91,6 @@ export interface ProgressSummary {
     completedMocks: number;
     activeDays: number;
     streak: number;
-    totalTutorMinutes: number;
   };
   weeklyActivity: Array<{
     day: string;

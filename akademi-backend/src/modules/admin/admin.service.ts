@@ -329,7 +329,6 @@ export class AdminService {
     if (filter.featureUsed) {
       const feature = String(filter.featureUsed).toLowerCase();
       if (feature === 'assignment') where.sessions = { some: { session_type: SessionType.ASSIGNMENT } };
-      if (feature === 'tutor') where.sessions = { some: { session_type: SessionType.TUTOR } };
       if (feature === 'study') where.sessions = { some: { session_type: SessionType.STUDY } };
       if (feature === 'exam_prep') where.exam_prep_plans = { some: {} };
       if (feature === 'uploads') where.materials = { some: {} };
@@ -646,7 +645,6 @@ export class AdminService {
 
     const featureUsage = {
       assignmentSolving: sessions.filter((session) => session.session_type === SessionType.ASSIGNMENT).length,
-      liveTutor: sessions.filter((session) => session.session_type === SessionType.TUTOR).length,
       studyMode: sessions.filter((session) => session.session_type === SessionType.STUDY).length,
       examPrep: examPlans.length + mockAttempts.length,
       materialUploads: uploads.length,

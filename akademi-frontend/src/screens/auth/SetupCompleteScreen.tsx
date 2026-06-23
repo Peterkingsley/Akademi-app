@@ -92,7 +92,7 @@ export const SetupCompleteScreen: React.FC = () => {
           <Animated.View style={[styles.textContainer, contentStyle]}>
             <Text style={styles.headline}>Welcome, {firstName}</Text>
             <Text style={styles.body}>
-              Akademi is ready for your courses. Next, we will show you where to solve assignments, study materials, meet the live tutor, and prepare for exams.
+              Akademi is ready for your courses. Next, we will show you where to solve assignments, study materials, and prepare for exams.
             </Text>
           </Animated.View>
 

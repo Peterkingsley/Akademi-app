@@ -3,7 +3,7 @@ import api from "./api";
 export interface Session {
   id: string;
   user_id: string;
-  session_type: "ASSIGNMENT" | "STUDY" | "TUTOR" | "EXAM_PREP";
+  session_type: "ASSIGNMENT" | "STUDY" | "EXAM_PREP";
   reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
   course_code: string;
   material_id?: string | null;
@@ -68,19 +68,6 @@ export interface LearningProfile {
   recentPerformance: any;
 }
 
-export interface TutorVisualAssetStatus {
-  id: string;
-  topic: string;
-  concept: string;
-  visualType: string;
-  renderMode: string;
-  payload?: any;
-  imageUrl?: string | null;
-  imageStatus?: string | null;
-  imageError?: string | null;
-  generatedAt?: string | null;
-}
-
 export const sessionService = {
   createSession: async (data: {
     session_type: string;
@@ -133,11 +120,6 @@ export const sessionService = {
     return response.data;
   },
 
-  getTutorVisualAssetStatus: async (visualAssetId: string) => {
-    const response = await api.get<TutorVisualAssetStatus>(`/sessions/visual-assets/${visualAssetId}/status`);
-    return response.data;
-  },
-
   sendMessage: async (
     sessionId: string,
     data: {
@@ -146,22 +128,6 @@ export const sessionService = {
     }
   ) => {
     const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data, {
-      timeout: 90000,
-    });
-    return response.data;
-  },
-  getPlayableLesson: async (sessionId: string) => {
-    const response = await api.get(`/sessions/${sessionId}/teaching`, {
-      timeout: 90000,
-    });
-    return response.data;
-  },
-
-  generateTeaching: async (sessionId: string, studentMessage: string, materialContext?: string) => {
-    const response = await api.post(`/sessions/${sessionId}/teaching`, {
-      studentMessage,
-      materialContext,
-    }, {
       timeout: 90000,
     });
     return response.data;
