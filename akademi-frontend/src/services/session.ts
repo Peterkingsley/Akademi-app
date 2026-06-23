@@ -1,4 +1,5 @@
 import api from "./api";
+import { currentApiBaseUrl } from "./api";
 
 export interface Session {
   id: string;
@@ -151,6 +152,7 @@ export const sessionService = {
     return response.data;
   },
   getPlayableLesson: async (sessionId: string) => {
+    console.log(`WHITEBOARD FRONTEND REQUEST - baseUrl: ${currentApiBaseUrl}, sessionId: ${sessionId}`);
     const response = await api.get(`/sessions/${sessionId}/teaching`, {
       timeout: 90000,
     });

@@ -36,6 +36,15 @@ app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { poli
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use((req, _res, next) => {
+  if (req.path.includes('/teaching')) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `HTTP TEACHING REQUEST - method: ${req.method}, path: ${req.originalUrl}, hasAuth: ${Boolean(req.headers.authorization)}`,
+    );
+  }
+  next();
+});
+app.use((req, _res, next) => {
   if (req.admin?.adminId) {
     setSentryRequestUser({
       id: req.admin.adminId,
