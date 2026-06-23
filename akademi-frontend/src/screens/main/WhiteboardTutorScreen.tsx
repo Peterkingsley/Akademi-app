@@ -78,7 +78,7 @@ const WHITEBOARD_POLL_MIN_DELAY_MS = 5000;
 const WHITEBOARD_POLL_429_DELAY_MS = 10000;
 const WHITEBOARD_POLL_MAX_DELAY_MS = 60000;
 const WHITEBOARD_POLL_MAX_FAILURES = 10;
-const WHITEBOARD_POLL_MAX_ATTEMPTS = 24;
+const WHITEBOARD_POLL_MAX_ATTEMPTS = 60;
 
 const safeText = (value: unknown, fallback = "") => {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
@@ -247,7 +247,7 @@ export const WhiteboardTutorScreen: React.FC = () => {
         count + segment.visualCues.filter((cue) => {
           if (cue.image_url) return false;
           const status = cue.generation_status || "PENDING";
-          return status === "PENDING" || status === "PROCESSING";
+          return status === "PENDING" || status === "PROCESSING" || status === "FAILED";
         }).length
       ), 0),
     [segments],
@@ -755,6 +755,12 @@ export const WhiteboardTutorScreen: React.FC = () => {
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
 
+      {pendingWhiteboardImageCount > 0 ? (
+        <Text style={styles.visualGenerationNotice}>
+          Generating whiteboard visuals. This may take up to 5 minutes - the lesson will update automatically as images are ready.
+        </Text>
+      ) : null}
+
       <View style={styles.controls}>
         <TouchableOpacity
           style={[styles.controlButton, activeSegmentIndex === 0 && styles.controlButtonDisabled]}
@@ -1007,6 +1013,13 @@ const createStyles = (colors: any) =>
     progressFill: {
       height: "100%",
       backgroundColor: colors.primary,
+    },
+    visualGenerationNotice: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      lineHeight: 17,
+      marginTop: 8,
+      textAlign: "center",
     },
     controls: {
       flexDirection: "row",

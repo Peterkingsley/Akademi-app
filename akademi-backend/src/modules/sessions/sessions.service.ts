@@ -84,7 +84,6 @@ export class SessionsService {
     if (cue.image_url) return 'image_url already exists';
     if (cue.generation_status === 'READY') return 'generation_status is READY';
     if (cue.generation_status === 'PROCESSING') return 'generation_status is PROCESSING';
-    if (cue.generation_status === 'FAILED') return 'generation_status is FAILED';
     if (cue.generation_status && cue.generation_status !== 'PENDING') {
       return `generation_status is ${cue.generation_status}`;
     }

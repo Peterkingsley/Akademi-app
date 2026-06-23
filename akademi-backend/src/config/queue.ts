@@ -64,6 +64,11 @@ const markQueueFailure = (error: unknown) => {
   queueHealth.lastError = error instanceof Error ? error.message : String(error);
 };
 
+const BACKGROUND_JOB_NAMES = new Set<JobName>([
+  JOB_NAMES.GENERATE_TUTOR_VISUAL_IMAGE,
+  JOB_NAMES.GENERATE_WHITEBOARD_VISUAL_IMAGE,
+]);
+
 async function runInlineJob(name: JobName, payload: JobPayload) {
   switch (name) {
     case JOB_NAMES.INGEST_MATERIAL: {
@@ -115,6 +120,21 @@ export const systemQueue: any = {
       // eslint-disable-next-line no-console
       console.log('[queue:inline] add', name, payload);
     }
+
+    if (BACKGROUND_JOB_NAMES.has(name)) {
+      setImmediate(() => {
+        markQueueRun();
+        void runInlineJob(name, payload)
+          .then(markQueueSuccess)
+          .catch((error) => {
+            markQueueFailure(error);
+            // eslint-disable-next-line no-console
+            console.error('[queue:inline] background job failed', { name, payload, error });
+          });
+      });
+      return;
+    }
+
     markQueueRun();
     try {
       await runInlineJob(name, payload);
