@@ -104,7 +104,7 @@ export const MyUploadsScreen: React.FC = () => {
           <FileText size={19} color={colors.primary} />
         </View>
         <View style={styles.uploadInfo}>
-          <Text style={styles.fileName} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.fileName} numberOfLines={1}>{item.title.toUpperCase()}</Text>
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>{item.course_code || "General"}</Text>
             <View style={styles.dot} />

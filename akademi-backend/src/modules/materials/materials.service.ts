@@ -156,6 +156,136 @@ export class MaterialsService {
     return Boolean(requestingUserId && material.uploaded_by === requestingUserId);
   }
 
+  private async ensureCourseCodeExistsForUpload(
+    userId: string,
+    payload: {
+      courseCode: string | null;
+      university: string;
+      faculty: string;
+      department: string;
+      level: number;
+      semester?: number | null;
+      semester_start?: string | null;
+      semester_end?: string | null;
+    },
+  ) {
+    if (!payload.courseCode) {
+      return null;
+    }
+
+    const departmentUniversity = await prisma.university.upsert({
+      where: { name: payload.university },
+      update: {},
+      create: { name: payload.university, location: 'Nigeria' },
+      select: { id: true },
+    });
+
+    const department = await prisma.department.upsert({
+      where: {
+        name_university_id: {
+          name: payload.department,
+          university_id: departmentUniversity.id,
+        },
+      },
+      update: { faculty: payload.faculty },
+      create: {
+        name: payload.department,
+        faculty: payload.faculty,
+        university_id: departmentUniversity.id,
+      },
+      select: { id: true },
+    });
+
+    const fallbackStudentCourse = await prisma.studentCourse.findFirst({
+      where: {
+        user_id: userId,
+        level: payload.level,
+      },
+      orderBy: [{ updated_at: 'desc' }],
+      select: {
+        semester: true,
+        semester_start: true,
+        semester_end: true,
+      },
+    });
+
+    const semester = payload.semester || fallbackStudentCourse?.semester || 1;
+    const semesterStart = payload.semester_start
+      ? new Date(payload.semester_start)
+      : fallbackStudentCourse?.semester_start || null;
+    const semesterEnd = payload.semester_end
+      ? new Date(payload.semester_end)
+      : fallbackStudentCourse?.semester_end || null;
+
+    await prisma.course.upsert({
+      where: {
+        code_department_id: {
+          code: payload.courseCode,
+          department_id: department.id,
+        },
+      },
+      update: {
+        level: payload.level,
+        semester,
+      },
+      create: {
+        code: payload.courseCode,
+        name: payload.courseCode,
+        level: payload.level,
+        semester,
+        source: 'student_upload',
+        department_id: department.id,
+      },
+    });
+
+    if (semesterStart && semesterEnd) {
+      await prisma.studentCourse.upsert({
+        where: {
+          user_id_code_level_semester: {
+            user_id: userId,
+            code: payload.courseCode,
+            level: payload.level,
+            semester,
+          },
+        },
+        update: {
+          department_id: department.id,
+          name: payload.courseCode,
+          semester_start: semesterStart,
+          semester_end: semesterEnd,
+          source: 'student_upload',
+        },
+        create: {
+          user_id: userId,
+          department_id: department.id,
+          code: payload.courseCode,
+          name: payload.courseCode,
+          level: payload.level,
+          semester,
+          semester_start: semesterStart,
+          semester_end: semesterEnd,
+          source: 'student_upload',
+        },
+      });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { courses: true },
+    });
+
+    const nextCourses = Array.from(new Set([...(currentUser?.courses || []), payload.courseCode]));
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        courses: nextCourses,
+      },
+    });
+
+    return { departmentId: department.id, semester, semesterStart, semesterEnd };
+  }
+
   async getMaterial(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
     let docImageDiagnostic: { code: string; message: string; detail?: string } | null = null;
     let material = await prisma.material.findUnique({
@@ -242,6 +372,16 @@ export class MaterialsService {
   async createUpload(userId: string, data: UploadMaterialRequest) {
     const validated = this.assertUploadPayload(data);
     const courseCode = validated.courseCode;
+    const ensuredCourse = await this.ensureCourseCodeExistsForUpload(userId, {
+      courseCode,
+      university: validated.university,
+      faculty: validated.faculty,
+      department: validated.department,
+      level: data.level,
+      semester: data.semester,
+      semester_start: data.semester_start,
+      semester_end: data.semester_end,
+    });
     const matchingStudentCourse = courseCode
       ? await prisma.studentCourse.findFirst({
           where: {
@@ -254,13 +394,13 @@ export class MaterialsService {
         })
       : null;
 
-    const semester = data.semester ? Number(data.semester) : matchingStudentCourse?.semester || null;
+    const semester = data.semester ? Number(data.semester) : matchingStudentCourse?.semester || ensuredCourse?.semester || null;
     const semesterStart = data.semester_start
       ? new Date(data.semester_start)
-      : matchingStudentCourse?.semester_start || null;
+      : matchingStudentCourse?.semester_start || ensuredCourse?.semesterStart || null;
     const semesterEnd = data.semester_end
       ? new Date(data.semester_end)
-      : matchingStudentCourse?.semester_end || null;
+      : matchingStudentCourse?.semester_end || ensuredCourse?.semesterEnd || null;
 
     const material = await prisma.material.create({
       data: {

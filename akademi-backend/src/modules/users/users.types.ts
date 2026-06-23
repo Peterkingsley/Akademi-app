@@ -25,6 +25,16 @@ export interface UpdateAcademicProfileRequest {
   courses?: AcademicCourseInput[];
 }
 
+export interface CourseOptionResponse {
+  id: string;
+  code: string;
+  name?: string | null;
+  level: number;
+  semester: number;
+  source?: string;
+  usageCount?: number;
+}
+
 export interface UserProfileResponse {
   id: string;
   name: string;

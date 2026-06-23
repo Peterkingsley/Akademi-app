@@ -14,6 +14,53 @@ const s3Client = new S3Client({
 });
 
 export class UsersService {
+  private async resolveUserDepartment(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId, is_deleted: false },
+      select: {
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+      },
+    });
+
+    if (!user?.university || !user.department || !user.level) {
+      throw new Error('Complete your academic profile first');
+    }
+
+    const university = await prisma.university.findFirst({
+      where: { name: user.university },
+      select: { id: true, name: true },
+    });
+
+    if (!university) {
+      throw new Error('University record not found');
+    }
+
+    const department = await prisma.department.findFirst({
+      where: {
+        university_id: university.id,
+        name: user.department,
+      },
+      select: {
+        id: true,
+        name: true,
+        faculty: true,
+      },
+    });
+
+    if (!department) {
+      throw new Error('Department record not found');
+    }
+
+    return {
+      user,
+      university,
+      department,
+    };
+  }
+
   async getProfile(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId, is_deleted: false },
@@ -158,6 +205,64 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async getCourseOptions(userId: string) {
+    const { department, user } = await this.resolveUserDepartment(userId);
+
+    const [seededCourses, studentCourses] = await Promise.all([
+      prisma.course.findMany({
+        where: {
+          department_id: department.id,
+          level: user.level,
+        },
+        orderBy: [{ code: 'asc' }],
+      }),
+      prisma.studentCourse.groupBy({
+        by: ['code', 'name', 'level', 'semester'],
+        where: {
+          department_id: department.id,
+          level: user.level,
+        },
+        _count: { code: true },
+        orderBy: [{ _count: { code: 'desc' } }, { code: 'asc' }],
+        take: 100,
+      }),
+    ]);
+
+    const merged = new Map<string, any>();
+
+    for (const course of seededCourses) {
+      merged.set(`${course.code}-${course.level}-${course.semester}`, {
+        id: course.id,
+        code: course.code,
+        name: course.name,
+        level: course.level,
+        semester: course.semester,
+        source: course.source || 'seeded',
+        usageCount: 0,
+      });
+    }
+
+    for (const course of studentCourses) {
+      const key = `${course.code}-${course.level}-${course.semester}`;
+      const existing = merged.get(key);
+      merged.set(key, {
+        id: existing?.id || key,
+        code: course.code,
+        name: existing?.name || course.name || null,
+        level: course.level,
+        semester: course.semester,
+        source: existing ? 'seeded_and_crowdsourced' : 'crowdsourced',
+        usageCount: course._count.code,
+      });
+    }
+
+    return Array.from(merged.values()).sort((a, b) => {
+      if (a.code !== b.code) return a.code.localeCompare(b.code);
+      if (a.semester !== b.semester) return a.semester - b.semester;
+      return a.level - b.level;
+    });
   }
 
   async updateAcademicProfile(userId: string, data: UpdateAcademicProfileRequest) {

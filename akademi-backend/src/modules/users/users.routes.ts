@@ -30,6 +30,7 @@ router.get('/me/learning-profile', usersController.getLearningProfile);
 router.get('/me/sessions', usersController.getSessions);
 router.get('/me/progress', usersController.getProgress);
 router.get('/me/academic-profile', usersController.getAcademicProfile);
+router.get('/me/course-options', usersController.getCourseOptions);
 router.patch('/me/academic-profile', usersController.updateAcademicProfile);
 router.get('/me/devices', usersController.getDevices);
 router.delete('/me/devices/:deviceId', usersController.logoutDevice);
