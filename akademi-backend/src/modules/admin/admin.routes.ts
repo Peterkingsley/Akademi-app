@@ -89,6 +89,7 @@ router.get('/materials/pending', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole
 router.get('/materials/verified', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getVerifiedMaterials(req, res));
 router.get('/materials/archived', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getArchivedMaterials(req, res));
 router.get('/materials/:id/download', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getMaterialDownloadUrl(req, res));
+router.patch('/materials/bulk-approve', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.approveMaterials(req, res));
 router.patch('/materials/:id/approve', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.approveMaterial(req, res));
 router.patch('/materials/:id/takedown', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.takedownMaterial(req, res));
 router.patch('/materials/:id/restore', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.restoreMaterial(req, res));

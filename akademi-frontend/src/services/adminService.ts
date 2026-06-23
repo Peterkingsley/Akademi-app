@@ -443,6 +443,11 @@ export const adminService = {
     return data;
   },
 
+  approveMaterials: async (ids: string[]) => {
+    const { data } = await api.patch(`/admin/materials/bulk-approve`, { ids });
+    return data;
+  },
+
   takedownMaterial: async (id: string) => {
     const { data } = await api.patch(`/admin/materials/${id}/takedown`);
     return data;

@@ -850,6 +850,23 @@ export class AdminService {
     return material;
   }
 
+  async approveMaterials(ids: string[], adminId: string) {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id?.trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      throw new Error('Select at least one material');
+    }
+
+    const results = [];
+    for (const id of uniqueIds) {
+      results.push(await this.approveMaterial(id, adminId));
+    }
+
+    return {
+      count: results.length,
+      materials: results,
+    };
+  }
+
   async takedownMaterial(id: string, adminId: string) {
     const material = await prisma.material.update({
       where: { id },

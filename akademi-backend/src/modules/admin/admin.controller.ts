@@ -281,6 +281,16 @@ export class AdminController {
     }
   }
 
+  async approveMaterials(req: Request, res: Response) {
+    try {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+      const result = await adminService.approveMaterials(ids, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async takedownMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.takedownMaterial(req.params.id, req.admin!.adminId);

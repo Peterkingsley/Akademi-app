@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Screen } from "../../../components/layout/Screen";
@@ -17,9 +17,19 @@ const ModerationQueue = ({ status }: { status: string }) => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [previewItem, setPreviewItem] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [actionType, setActionType] = useState<"approve" | "takedown" | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkApproving, setBulkApproving] = useState(false);
+  const isPendingQueue = status === "pending";
+  const isSelectionMode = isPendingQueue && selectedIds.length > 0;
+
+  const selectedCountLabel = useMemo(() => {
+    const count = selectedIds.length;
+    return `${count} material${count === 1 ? "" : "s"} selected`;
+  }, [selectedIds.length]);
 
   useEffect(() => {
     fetchItems();
@@ -39,6 +49,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
       else if (apiStatus === 'verified') data = await adminService.getVerifiedMaterials();
       else data = await adminService.getArchivedMaterials();
       setItems(data);
+      setSelectedIds((current) => current.filter((id) => data.some((item: any) => item.id === id)));
     } catch (error) {
       console.error("Failed to fetch queue", error);
     } finally {
@@ -47,7 +58,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
   };
 
     const handleModerationAction = async (type: "approve" | "takedown" | "view", item?: any) => {
-    const targetItem = item || selectedItem;
+    const targetItem = item || selectedItem || previewItem;
     if (!targetItem) return;
 
     if (type === "view") {
@@ -77,9 +88,58 @@ const ModerationQueue = ({ status }: { status: string }) => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setConfirmVisible(false);
       setSelectedItem(null);
+      setPreviewItem(null);
       fetchItems();
     } catch (error) {
       console.error("Action failed", error);
+    }
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedIds((current) =>
+      current.includes(itemId)
+        ? current.filter((id) => id !== itemId)
+        : [...current, itemId]
+    );
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleRowPress = (item: any) => {
+    if (isSelectionMode) {
+      toggleItemSelection(item.id);
+      return;
+    }
+
+    setPreviewItem(item);
+    setModalVisible(true);
+  };
+
+  const handleRowLongPress = (item: any) => {
+    if (!isPendingQueue) {
+      setPreviewItem(item);
+      setModalVisible(true);
+      return;
+    }
+
+    toggleItemSelection(item.id);
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedIds.length || bulkApproving) return;
+
+    try {
+      setBulkApproving(true);
+      await adminService.approveMaterials(selectedIds);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSelectedIds([]);
+      fetchItems();
+    } catch (error) {
+      console.error("Bulk approval failed", error);
+    } finally {
+      setBulkApproving(false);
     }
   };
 
@@ -106,16 +166,49 @@ const ModerationQueue = ({ status }: { status: string }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {isPendingQueue && (
+        <View style={[styles.bulkBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+          {isSelectionMode ? (
+            <>
+              <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: "700", flex: 1 }]}>
+                {selectedCountLabel}
+              </Text>
+              <TouchableOpacity
+                style={[styles.bulkSecondaryButton, { borderColor: colors.border }]}
+                onPress={clearSelection}
+              >
+                <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: "700" }]}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.bulkPrimaryButton, { backgroundColor: colors.primary, opacity: bulkApproving ? 0.7 : 1 }]}
+                onPress={handleBulkApprove}
+                disabled={bulkApproving}
+              >
+                <Text style={[typography.caption, { color: "#FFFFFF", fontWeight: "700" }]}>
+                  {bulkApproving ? "Approving..." : "Approve Selected"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Press and hold a file to start selecting multiple materials.
+            </Text>
+          )}
+        </View>
+      )}
       <FlatList
         data={items}
         keyExtractor={item => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.itemRow, { borderBottomColor: colors.border }]}
-            onPress={() => {
-              setSelectedItem(item);
-              setModalVisible(true);
-            }}
+            style={[
+              styles.itemRow,
+              { borderBottomColor: colors.border },
+              selectedIds.includes(item.id) && { backgroundColor: colors.surface },
+            ]}
+            onPress={() => handleRowPress(item)}
+            onLongPress={() => handleRowLongPress(item)}
+            delayLongPress={200}
           >
             <View style={{ flex: 1, marginRight: 16 }}>
               <Text style={[typography.body, { fontWeight: '600', color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
@@ -137,21 +230,29 @@ const ModerationQueue = ({ status }: { status: string }) => {
             </View>
 
             <View style={styles.actionGroup}>
+              {selectedIds.includes(item.id) && (
+                <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
+                  <CheckCircle2 size={14} color="#FFFFFF" />
+                </View>
+              )}
               <TouchableOpacity
                 style={[styles.iconButton, { backgroundColor: colors.surfaceElevated }]}
                 onPress={() => handleModerationAction("view", item)}
+                disabled={isSelectionMode}
               >
                 <Eye size={18} color={colors.textPrimary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconButton, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}
                 onPress={() => handleModerationAction("approve", item)}
+                disabled={isSelectionMode}
               >
                 <CheckCircle2 size={18} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.iconButton, { backgroundColor: 'rgba(239, 68, 68, 0.1)' }]}
                 onPress={() => handleModerationAction("takedown", item)}
+                disabled={isSelectionMode}
               >
                 <XCircle size={18} color={colors.error} />
               </TouchableOpacity>
@@ -160,13 +261,13 @@ const ModerationQueue = ({ status }: { status: string }) => {
         )}
       />
 
-      {selectedItem && (
+      {previewItem && (
         <ComparisonModal
           visible={modalVisible}
-          item={selectedItem}
+          item={previewItem}
           onClose={() => {
             setModalVisible(false);
-            setSelectedItem(null);
+            setPreviewItem(null);
           }}
           onAction={(type: any) => {
             setModalVisible(false);
@@ -301,12 +402,42 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
+  bulkBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  bulkPrimaryButton: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bulkSecondaryButton: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   iconButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  selectedBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyState: {
     flex: 1,
