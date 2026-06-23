@@ -78,6 +78,7 @@ const WHITEBOARD_POLL_MIN_DELAY_MS = 5000;
 const WHITEBOARD_POLL_429_DELAY_MS = 10000;
 const WHITEBOARD_POLL_MAX_DELAY_MS = 60000;
 const WHITEBOARD_POLL_MAX_FAILURES = 10;
+const WHITEBOARD_POLL_MAX_ATTEMPTS = 24;
 
 const safeText = (value: unknown, fallback = "") => {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
@@ -229,6 +230,7 @@ export const WhiteboardTutorScreen: React.FC = () => {
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollDelayRef = useRef(WHITEBOARD_POLL_MIN_DELAY_MS);
   const pollFailureCountRef = useRef(0);
+  const pollAttemptCountRef = useRef(0);
   const startedAtRef = useRef<number | null>(null);
   const baseElapsedRef = useRef(0);
 
@@ -398,6 +400,12 @@ export const WhiteboardTutorScreen: React.FC = () => {
       pollTimeoutRef.current = setTimeout(async () => {
         if (cancelled) return;
 
+        pollAttemptCountRef.current += 1;
+        if (pollAttemptCountRef.current > WHITEBOARD_POLL_MAX_ATTEMPTS) {
+          setError("Whiteboard visuals are taking longer than expected. Please wait a bit, then reopen this lesson.");
+          return;
+        }
+
         const result = await loadLesson({ silent: true });
         if (cancelled) return;
 
@@ -430,6 +438,9 @@ export const WhiteboardTutorScreen: React.FC = () => {
 
     return () => {
       cancelled = true;
+      pollAttemptCountRef.current = 0;
+      pollFailureCountRef.current = 0;
+      pollDelayRef.current = WHITEBOARD_POLL_MIN_DELAY_MS;
       if (pollTimeoutRef.current) {
         clearTimeout(pollTimeoutRef.current);
         pollTimeoutRef.current = null;
