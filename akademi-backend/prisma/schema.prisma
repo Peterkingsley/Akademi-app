@@ -51,6 +51,14 @@ enum VerificationStatus {
   TAKEN_DOWN
 }
 
+enum MaterialProcessingStatus {
+  UPLOADED
+  QUEUED
+  EXTRACTING
+  EXTRACTED
+  FAILED
+}
+
 enum ChunkStatus {
   PENDING
   UPLOADED
@@ -271,6 +279,12 @@ model Material {
   file_ref            String
   file_type           FileType
   verification_status VerificationStatus @default(PENDING)
+  processing_status   MaterialProcessingStatus @default(UPLOADED)
+  processing_attempts Int                @default(0)
+  processing_error    String?            @db.Text
+  processing_started_at DateTime?
+  processing_completed_at DateTime?
+  next_retry_at       DateTime?
   upload_count        Int                @default(1)
   contributor_ids     Json               @default("[]")
   verified_at         DateTime?
@@ -293,6 +307,7 @@ model Material {
   @@index([level])
   @@index([course_code, level, semester])
   @@index([verification_status])
+  @@index([processing_status, next_retry_at])
   @@map("materials")
 }
 

@@ -64,7 +64,10 @@ const markQueueFailure = (error: unknown) => {
   queueHealth.lastError = error instanceof Error ? error.message : String(error);
 };
 
-const BACKGROUND_JOB_NAMES = new Set<JobName>([]);
+const BACKGROUND_JOB_NAMES = new Set<JobName>([
+  JOB_NAMES.INGEST_MATERIAL,
+  JOB_NAMES.ASSEMBLE_CHUNKS,
+]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
 const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string }> = [];

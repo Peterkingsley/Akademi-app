@@ -23,6 +23,7 @@ import notificationRoutes from './modules/notifications/notifications.routes';
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
 import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
+import { startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
 import { getSystemHealthSnapshot } from './shared/system/system-health';
 import { getRuntimeState, markShuttingDown, markStartupComplete } from './shared/system/runtime-state';
 
@@ -125,6 +126,7 @@ const startServer = async () => {
     if (config.serviceType === 'api') {
       // await typesenseService.initCollections();
       initWebSocket(server);
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
@@ -138,6 +140,7 @@ const startServer = async () => {
     } else if (config.serviceType === 'jobs') {
       console.log('Jobs Processor mode active');
       startCompetitionScheduler();
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
@@ -147,6 +150,7 @@ const startServer = async () => {
       // await typesenseService.initCollections();
       initWebSocket(server);
       startCompetitionScheduler();
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
@@ -180,6 +184,7 @@ const gracefulShutdown = async (signal: string) => {
 
   try {
     stopCompetitionScheduler();
+    stopMaterialRetryScheduler();
     await shutdownWebSocket();
     await shutdownQueue();
     await new Promise<void>((resolve, reject) => {

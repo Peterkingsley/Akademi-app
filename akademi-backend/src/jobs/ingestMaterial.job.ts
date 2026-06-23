@@ -8,6 +8,7 @@ import * as vision from '@google-cloud/vision';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
+import { computeMaterialRetryAt } from '../modules/materials/material-processing';
 const JSZip = require('jszip');
 
 const s3Client = new S3Client({
@@ -224,104 +225,169 @@ function injectFallbackImagesIntoReaderStructure(
 }
 
 export async function ingestMaterialJob(materialId: string) {
+  type ProcessingMaterialRecord = {
+    id: string;
+    file_ref: string;
+    file_type: FileType;
+    processing_status: 'UPLOADED' | 'QUEUED' | 'EXTRACTING' | 'EXTRACTED' | 'FAILED';
+    processing_attempts: number;
+  };
+
   const material = await prisma.material.findUnique({
     where: { id: materialId },
-  });
+    select: {
+      id: true,
+      file_ref: true,
+      file_type: true,
+      processing_status: true as any,
+      processing_attempts: true as any,
+    } as any,
+  }) as ProcessingMaterialRecord | null;
 
   if (!material) throw new Error('Material not found');
+  if ((material as any).processing_status === 'EXTRACTED') return;
 
-  const command = new GetObjectCommand({
-    Bucket: config.r2BucketName,
-    Key: material.file_ref,
-  });
-
-  const response = await s3Client.send(command);
-  const body = await response.Body?.transformToByteArray();
-  if (!body) throw new Error('Failed to download material file');
-  const buffer = Buffer.from(body);
-
-  let extractedText = '';
-  let readerStructure: any = null;
-
-  if (material.file_type === FileType.PDF) {
-    extractedText = await extractPdfText(buffer);
-  } else if (material.file_type === FileType.DOC) {
-    const rawTextResult = await mammoth.extractRawText({ buffer });
-    extractedText = rawTextResult.value;
-
-    const imageMetaBySrc = new Map<string, { description?: string; alt?: string }>();
-    const htmlResult = await mammoth.convertToHtml(
-      { buffer },
-      {
-        convertImage: mammoth.images.imgElement(async (image) => {
-          const base64 = await image.read('base64');
-          const src = `data:${image.contentType};base64,${base64}`;
-          const imageBuffer = Buffer.from(base64, 'base64');
-          const description = await describeEmbeddedImage(imageBuffer, image.contentType);
-          imageMetaBySrc.set(src, {
-            description,
-          });
-          return { src };
-        }),
-      },
-    );
-
-    readerStructure = buildReaderStructureFromHtml(
-      htmlResult.value,
-      normalizeExtractedText(extractedText),
-      imageMetaBySrc,
-    );
-
-    const extractedImages = await extractDocxEmbeddedImages(buffer);
-    readerStructure = injectFallbackImagesIntoReaderStructure(readerStructure, extractedImages);
-  } else if (material.file_type === FileType.IMAGE) {
-    const [result] = await getVisionClient().textDetection(buffer);
-    const detections = result.textAnnotations;
-    extractedText =
-      detections && detections.length > 0
-        ? detections[0].description || ''
-        : '';
-  }
-
-  if (!extractedText) {
-    throw new Error('No text extracted from material');
-  }
-
-  const normalizedText = normalizeExtractedText(extractedText);
-  const resolvedReaderStructure = readerStructure || buildReaderStructure(normalizedText);
-
-  await prisma.material.update({
-    where: { id: materialId },
+  const claim = await prisma.material.updateMany({
+    where: {
+      id: materialId,
+      processing_status: {
+        in: ['UPLOADED', 'QUEUED', 'FAILED'],
+      } as any,
+    } as any,
     data: {
-      content: normalizedText,
-      reader_structure: resolvedReaderStructure as any,
-    }
-  });
-
-  const chunks = chunkText(normalizedText, 2000);
-
-  await prisma.materialEmbedding.deleteMany({
-    where: { material_id: materialId },
-  });
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunkText = chunks[i];
-    const embedding = await generateEmbedding(chunkText);
-
-    await prisma.materialEmbedding.create({
-      data: {
-        material_id: materialId,
-        chunk_index: i,
-        chunk_text: chunkText,
-        embedding: embedding as any,
+      processing_status: 'EXTRACTING',
+      processing_started_at: new Date(),
+      processing_error: null,
+      next_retry_at: null,
+      processing_attempts: {
+        increment: 1,
       },
-    });
-  }
+    } as any,
+  });
 
-  console.log(
-    `Material ${materialId} ingested successfully. Triggering checkVerificationThresholdJob.`,
-  );
-  await checkVerificationThresholdJob(materialId);
+  if (claim.count === 0) return;
+
+  const claimedMaterial = await prisma.material.findUnique({
+    where: { id: materialId },
+    select: {
+      id: true,
+      file_ref: true,
+      file_type: true,
+      processing_attempts: true as any,
+    } as any,
+  }) as Pick<ProcessingMaterialRecord, 'id' | 'file_ref' | 'file_type' | 'processing_attempts'> | null;
+
+  if (!claimedMaterial) throw new Error('Material not found');
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: config.r2BucketName,
+      Key: claimedMaterial.file_ref,
+    });
+
+    const response = await s3Client.send(command);
+    const body = await response.Body?.transformToByteArray();
+    if (!body) throw new Error('Failed to download material file');
+    const buffer = Buffer.from(body);
+
+    let extractedText = '';
+    let readerStructure: any = null;
+
+    if (claimedMaterial.file_type === FileType.PDF) {
+      extractedText = await extractPdfText(buffer);
+    } else if (claimedMaterial.file_type === FileType.DOC) {
+      const rawTextResult = await mammoth.extractRawText({ buffer });
+      extractedText = rawTextResult.value;
+
+      const imageMetaBySrc = new Map<string, { description?: string; alt?: string }>();
+      const htmlResult = await mammoth.convertToHtml(
+        { buffer },
+        {
+          convertImage: mammoth.images.imgElement(async (image) => {
+            const base64 = await image.read('base64');
+            const src = `data:${image.contentType};base64,${base64}`;
+            const imageBuffer = Buffer.from(base64, 'base64');
+            const description = await describeEmbeddedImage(imageBuffer, image.contentType);
+            imageMetaBySrc.set(src, {
+              description,
+            });
+            return { src };
+          }),
+        },
+      );
+
+      readerStructure = buildReaderStructureFromHtml(
+        htmlResult.value,
+        normalizeExtractedText(extractedText),
+        imageMetaBySrc,
+      );
+
+      const extractedImages = await extractDocxEmbeddedImages(buffer);
+      readerStructure = injectFallbackImagesIntoReaderStructure(readerStructure, extractedImages);
+    } else if (claimedMaterial.file_type === FileType.IMAGE) {
+      const [result] = await getVisionClient().textDetection(buffer);
+      const detections = result.textAnnotations;
+      extractedText =
+        detections && detections.length > 0
+          ? detections[0].description || ''
+          : '';
+    }
+
+    if (!extractedText) {
+      throw new Error('No text extracted from material');
+    }
+
+    const normalizedText = normalizeExtractedText(extractedText);
+    const resolvedReaderStructure = readerStructure || buildReaderStructure(normalizedText);
+
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        content: normalizedText,
+        reader_structure: resolvedReaderStructure as any,
+        processing_status: 'EXTRACTED' as any,
+        processing_completed_at: new Date(),
+        processing_error: null,
+        next_retry_at: null,
+      } as any,
+    });
+
+    const chunks = chunkText(normalizedText, 2000);
+
+    await prisma.materialEmbedding.deleteMany({
+      where: { material_id: materialId },
+    });
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkText = chunks[i];
+      const embedding = await generateEmbedding(chunkText);
+
+      await prisma.materialEmbedding.create({
+        data: {
+          material_id: materialId,
+          chunk_index: i,
+          chunk_text: chunkText,
+          embedding: embedding as any,
+        },
+      });
+    }
+
+    console.log(
+      `Material ${materialId} ingested successfully. Triggering checkVerificationThresholdJob.`,
+    );
+    await checkVerificationThresholdJob(materialId);
+  } catch (error) {
+    const attempts = Number((claimedMaterial as any).processing_attempts || 1);
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        processing_status: 'FAILED' as any,
+        processing_error: error instanceof Error ? error.message : 'Unknown ingestion error',
+        next_retry_at: computeMaterialRetryAt(attempts),
+      } as any,
+    });
+    throw error;
+  }
 }
 
 function chunkText(text: string, size: number): string[] {

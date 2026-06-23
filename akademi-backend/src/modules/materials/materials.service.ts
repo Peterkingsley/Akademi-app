@@ -9,6 +9,7 @@ import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
+import { queueMaterialIngestion } from './material-processing';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -416,6 +417,12 @@ export class MaterialsService {
         academic_year: validated.academicYear || this.getAcademicYear(semesterStart),
         file_type: data.file_type,
         verification_status: VerificationStatus.PENDING,
+        processing_status: 'UPLOADED' as any,
+        processing_attempts: 0,
+        processing_error: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        next_retry_at: null,
         uploaded_by: userId,
         file_ref: '', // Will be updated after upload or derived
         contributor_ids: [userId],
@@ -617,6 +624,11 @@ export class MaterialsService {
       where: { id },
       data: {
         verification_status: VerificationStatus.PENDING,
+        processing_status: 'QUEUED' as any,
+        processing_error: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        next_retry_at: null,
       },
     });
 
@@ -630,10 +642,9 @@ export class MaterialsService {
     try {
       // If chunks exist, trigger assembly
       if (material.upload_chunks.length > 0) {
-        await systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id });
+        await queueMaterialIngestion(id, true);
       } else {
-        // Direct upload, trigger ingestion
-        await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
+        await queueMaterialIngestion(id, false);
       }
       processingNotice = {
         status: 'queued',
@@ -641,6 +652,15 @@ export class MaterialsService {
       };
     } catch (error) {
       console.error(`Material ${id} upload confirmed, but ingestion failed:`, error);
+      await prisma.material.update({
+        where: { id },
+        data: {
+          processing_status: 'FAILED' as any,
+          processing_error: error instanceof Error ? error.message : 'Unknown queue error',
+        } as any,
+      }).catch((updateError) => {
+        console.error(`Failed to persist processing failure for material ${id}:`, updateError);
+      });
       processingNotice = {
         status: 'degraded',
         message: 'Upload saved, but processing is delayed right now. The material will need a retry when queue health recovers.',
