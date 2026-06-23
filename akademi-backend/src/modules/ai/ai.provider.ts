@@ -29,11 +29,6 @@ const GEMINI_FALLBACK_MODELS = [
   'gemini-3.5-flash',
 ];
 
-const GEMINI_IMAGE_FALLBACK_MODELS = [
-  'gemini-2.5-flash-image',
-  'gemini-3.1-flash-image',
-  'gemini-3-pro-image',
-];
 
 function isPlaceholder(key: string | undefined | null): boolean {
   if (!key) return true;
@@ -43,10 +38,6 @@ function isPlaceholder(key: string | undefined | null): boolean {
 
 function uniqueModels(primary?: string) {
   return Array.from(new Set([primary, ...GEMINI_FALLBACK_MODELS].filter(Boolean))) as string[];
-}
-
-function uniqueImageModels(primary?: string) {
-  return Array.from(new Set([primary, ...GEMINI_IMAGE_FALLBACK_MODELS].filter(Boolean))) as string[];
 }
 
 function isRetryableGeminiError(message: string) {
@@ -223,64 +214,53 @@ export class AIProvider {
       throw new Error('Gemini API key is missing or invalid');
     }
 
-    let lastError: string | null = null;
+    const model = config.geminiImageModel;
+    // eslint-disable-next-line no-console
+    console.log(`CALLING GEMINI IMAGE API - model: ${model} - prompt: ${prompt}`);
 
-    for (const model of uniqueImageModels(config.geminiImageModel)) {
-      // eslint-disable-next-line no-console
-      console.log(`CALLING GEMINI IMAGE API - model: ${model} - prompt: ${prompt}`);
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: prompt }],
-              },
-            ],
-            generationConfig: {
-              responseModalities: ['TEXT', 'IMAGE'],
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
             },
-          }),
-        },
+          ],
+          generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+          },
+        }),
+      },
+    );
+
+    const payload = await response.json() as any;
+    // eslint-disable-next-line no-console
+    console.log(`GEMINI RAW RESPONSE: ${JSON.stringify(payload)}`);
+
+    if (!response.ok) {
+      throw new Error(
+        `Gemini image generation failed for model ${model}: ${payload?.error?.message || response.statusText}`,
       );
-
-      const payload = await response.json() as any;
-      // eslint-disable-next-line no-console
-      console.log(`GEMINI RAW RESPONSE: ${JSON.stringify(payload)}`);
-
-      if (!response.ok) {
-        const errorMessage = payload?.error?.message || 'Gemini image generation failed';
-        lastError = errorMessage;
-        if (isRetryableGeminiError(errorMessage)) {
-          await sleep(350);
-          continue;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const parts = payload?.candidates?.[0]?.content?.parts || [];
-      const imagePart = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
-      const inlineData = imagePart?.inlineData || imagePart?.inline_data;
-      const data = inlineData?.data;
-      const mimeType = inlineData?.mimeType || inlineData?.mime_type || 'image/png';
-
-      if (!data) {
-        lastError = `Gemini model ${model} did not return an image`;
-        await sleep(350);
-        continue;
-      }
-
-      return {
-        buffer: Buffer.from(data, 'base64'),
-        mimeType,
-      };
     }
 
-    throw new Error(lastError || 'Gemini did not return an image');
+    const parts = payload?.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find((part: any) => part?.inlineData?.data || part?.inline_data?.data);
+    const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+    const data = inlineData?.data;
+    const mimeType = inlineData?.mimeType || inlineData?.mime_type || 'image/png';
+
+    if (!data) {
+      throw new Error(`Gemini image generation failed for model ${model}: response did not include an image`);
+    }
+
+    return {
+      buffer: Buffer.from(data, 'base64'),
+      mimeType,
+    };
   }
 }
 
