@@ -27,6 +27,15 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 
+const settle = async <T,>(promise: Promise<T>) => {
+  try {
+    const value = await promise;
+    return { status: "fulfilled" as const, value };
+  } catch (reason) {
+    return { status: "rejected" as const, reason };
+  }
+};
+
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
@@ -202,80 +211,96 @@ export const LibraryScreen: React.FC = () => {
     setUploading(true);
     try {
       const normalizedCourseCode = uploadCourseCode.trim().toUpperCase();
-      const uploadResults = await Promise.allSettled(
+      const uploadResults = await Promise.all(
         selectedFiles.map(async (file, index) => {
-          const fileExtension = file.name.split(".").pop()?.toUpperCase();
-          const fileType =
-            fileExtension === "PDF"
-              ? "PDF"
-              : ["JPG", "JPEG", "PNG", "WEBP"].includes(fileExtension || "")
-                ? "IMAGE"
-                : "DOC";
-          const mimeType =
-            file.mimeType ||
-            (fileType === "PDF"
-              ? "application/pdf"
-              : fileType === "IMAGE"
-                ? fileExtension === "PNG"
-                  ? "image/png"
-                  : fileExtension === "WEBP"
-                    ? "image/webp"
-                    : "image/jpeg"
-                : fileExtension === "DOC"
-                  ? "application/msword"
-                  : fileExtension === "TXT"
-                    ? "text/plain"
-                    : fileExtension === "MD"
-                      ? "text/markdown"
-                      : fileExtension === "CSV"
-                        ? "text/csv"
-                        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-          const fallbackTitle = file.name.replace(/\.[^.]+$/, "").toUpperCase();
-          const title =
-            selectedFiles.length === 1
-              ? (uploadTitle.trim() || fallbackTitle).toUpperCase()
-              : fallbackTitle;
+          return settle((async () => {
+            const fileExtension = file.name.split(".").pop()?.toUpperCase();
+            const fileType =
+              fileExtension === "PDF"
+                ? "PDF"
+                : ["JPG", "JPEG", "PNG", "WEBP"].includes(fileExtension || "")
+                  ? "IMAGE"
+                  : "DOC";
+            const mimeType =
+              file.mimeType ||
+              (fileType === "PDF"
+                ? "application/pdf"
+                : fileType === "IMAGE"
+                  ? fileExtension === "PNG"
+                    ? "image/png"
+                    : fileExtension === "WEBP"
+                      ? "image/webp"
+                      : "image/jpeg"
+                  : fileExtension === "DOC"
+                    ? "application/msword"
+                    : fileExtension === "TXT"
+                      ? "text/plain"
+                      : fileExtension === "MD"
+                        ? "text/markdown"
+                        : fileExtension === "CSV"
+                          ? "text/csv"
+                          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            const fallbackTitle = file.name.replace(/\.[^.]+$/, "").toUpperCase();
+            const title =
+              selectedFiles.length === 1
+                ? (uploadTitle.trim() || fallbackTitle).toUpperCase()
+                : fallbackTitle;
 
-          const { materialId, presignedUrl } = await materialService.uploadMaterial({
-            title,
-            course_code: normalizedCourseCode,
-            university: user?.university || "",
-            faculty: user?.faculty || "",
-            department: user?.department || "",
-            level: userLevel,
-            semester: selectedCourseMeta?.semester || null,
-            semester_start:
-              "semester_start" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_start || null : null,
-            semester_end:
-              "semester_end" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_end || null : null,
-            file_type: fileType,
-            file_name: file.name,
-            file_size: file.size || 0,
-            mime_type: mimeType,
-          });
+            const { materialId, presignedUrl } = await materialService.uploadMaterial({
+              title,
+              course_code: normalizedCourseCode,
+              university: user?.university || "",
+              faculty: user?.faculty || "",
+              department: user?.department || "",
+              level: userLevel,
+              semester: selectedCourseMeta?.semester || null,
+              semester_start:
+                "semester_start" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_start || null : null,
+              semester_end:
+                "semester_end" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_end || null : null,
+              file_type: fileType,
+              file_name: file.name,
+              file_size: file.size || 0,
+              mime_type: mimeType,
+            });
 
-          const response = await fetch(file.uri);
-          const blob = await response.blob();
+            const localFileResponse = await fetch(file.uri);
+            if (!localFileResponse.ok) {
+              throw new Error(`Could not read selected file (${localFileResponse.status})`);
+            }
 
-          await fetch(presignedUrl, {
-            method: "PUT",
-            body: blob,
-            headers: { "Content-Type": mimeType },
-          });
+            const blob = await localFileResponse.blob();
+            const uploadResponse = await fetch(presignedUrl, {
+              method: "PUT",
+              body: blob,
+              headers: { "Content-Type": mimeType },
+            });
 
-          const confirmedMaterial = await materialService.confirmUpload(materialId);
-          return { confirmedMaterial, index };
+            if (!uploadResponse.ok) {
+              throw new Error(`Cloud upload failed (${uploadResponse.status})`);
+            }
+
+            const confirmedMaterial = await materialService.confirmUpload(materialId);
+            return { confirmedMaterial, index };
+          })());
         }),
       );
 
       const successfulUploads = uploadResults.filter(
-        (result): result is PromiseFulfilledResult<{ confirmedMaterial: Material; index: number }> =>
+        (result): result is { status: "fulfilled"; value: { confirmedMaterial: Material; index: number } } =>
           result.status === "fulfilled",
       );
       const failedUploads = uploadResults.length - successfulUploads.length;
 
       if (successfulUploads.length === 0) {
-        throw new Error("All uploads failed");
+        const firstFailure = uploadResults.find(
+          (result): result is { status: "rejected"; reason: any } => result.status === "rejected",
+        );
+        throw new Error(
+          firstFailure?.reason?.response?.data?.message ||
+          firstFailure?.reason?.message ||
+          "All uploads failed",
+        );
       }
 
       bottomSheetRef.current?.close();
@@ -300,7 +325,7 @@ export const LibraryScreen: React.FC = () => {
       navigation.navigate("MyUploads", { uploadStatus: "success" });
     } catch (err) {
       setToast({
-        message: "Upload failed. Please check your connection and try again.",
+        message: err instanceof Error ? err.message : "Upload failed. Please try again.",
         type: "error",
       });
     } finally {
