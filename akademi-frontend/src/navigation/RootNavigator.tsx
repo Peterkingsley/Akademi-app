@@ -88,9 +88,12 @@ export const RootNavigator = () => {
           updateUser(profile);
           // Register for push notifications
           registerForPushNotificationsAsync().catch(console.error);
-        } catch (error) {
+        } catch (error: any) {
           socketService.disconnect();
-          clearAuth();
+          const status = error?.response?.status;
+          if (status === 401) {
+            clearAuth();
+          }
           console.error("Auth verification failed on startup:", error);
         }
       }

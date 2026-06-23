@@ -236,7 +236,7 @@ export const HomeScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.all([
+      const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.allSettled([
         api.get("/users/me/sessions?limit=4"),
         api.get("/users/me/learning-profile"),
         userService.getProgress(),
@@ -245,17 +245,31 @@ export const HomeScreen: React.FC = () => {
         competitionService.getTournaments().catch(() => []),
       ]);
 
-      setSessions(sessionsRes.data || []);
-      setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
-      setProgress(progressRes);
-      setExams(examsRes.data || []);
-      setUnreadNotifications(notificationsRes.filter((item) => !item.read).length);
-      const liveCampaigns = (tournamentsRes || []).filter(
+      if (sessionsRes.status === "fulfilled") {
+        setSessions(sessionsRes.value.data || []);
+      }
+
+      if (profileRes.status === "fulfilled") {
+        setLearningProfile(profileRes.value.data || { session_count: 0, subject_weaknesses: [] });
+      }
+
+      if (progressRes.status === "fulfilled") {
+        setProgress(progressRes.value);
+      }
+
+      if (examsRes.status === "fulfilled") {
+        setExams(examsRes.value.data || []);
+      }
+
+      if (notificationsRes.status === "fulfilled") {
+        setUnreadNotifications(notificationsRes.value.filter((item) => !item.read).length);
+      }
+
+      const tournamentData = tournamentsRes.status === "fulfilled" ? tournamentsRes.value : [];
+      const liveCampaigns = (tournamentData || []).filter(
         (item) => item.status === "PUBLISHED" || item.status === "LIVE"
       );
       setCampaigns(liveCampaigns);
-    } catch (error) {
-      console.error("Error fetching home data:", error);
     } finally {
       setLoading(false);
     }
