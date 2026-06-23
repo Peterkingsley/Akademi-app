@@ -118,7 +118,7 @@ export class AdminService {
       materialsPending,
       flaggedContent,
       aiRequestsToday
-    ] = await Promise.all([
+    ] = await prisma.$transaction([
       prisma.user.count({
         where: { is_deleted: false }
       }),
