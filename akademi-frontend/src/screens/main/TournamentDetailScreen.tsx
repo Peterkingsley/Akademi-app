@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { CalendarDays, Eye, Heart, Share2, Swords, Trophy, Users } from "lucide-react-native";
+import { CalendarDays, Eye, Heart, Lock, Share2, Swords, Trophy, Users } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { colors } from "../../theme/colors";
@@ -256,6 +256,9 @@ export const TournamentDetailScreen: React.FC = () => {
     }
     return (b.love_count || 0) - (a.love_count || 0);
   });
+  const predictedEntry = tournament.predicted_user_id
+    ? rankedLeaderboard.find((entry) => entry.user_id === tournament.predicted_user_id)
+    : null;
 
   return (
     <Screen style={styles.screen}>
@@ -402,6 +405,14 @@ export const TournamentDetailScreen: React.FC = () => {
           <Card style={styles.leaderboardCard}>
             <Text style={styles.campaignEyebrow}>Live spectator leaderboard</Text>
             <Text style={styles.campaignText}>Ranked by score, with live support shown beside each contestant.</Text>
+            {tournament.prediction_enabled && tournament.predicted_user_id ? (
+              <View style={styles.predictionLockedBanner}>
+                <Lock size={14} color={colors.primary} />
+                <Text style={styles.predictionLockedText}>
+                  Prediction locked: {predictedEntry?.display_name || "your selected contestant"}
+                </Text>
+              </View>
+            ) : null}
             {rankedLeaderboard.slice(0, 12).map((entry, index) => (
               <View key={entry.user_id} style={styles.leaderRow}>
                 <Text style={styles.leaderRank}>{entry.rank || index + 1}</Text>
@@ -412,10 +423,15 @@ export const TournamentDetailScreen: React.FC = () => {
                   </Text>
                 </View>
                 <View style={styles.leaderActions}>
-                  {tournament.prediction_enabled ? (
+                  {tournament.prediction_enabled && !tournament.predicted_user_id ? (
                     <TouchableOpacity style={styles.iconButton} onPress={() => predictParticipant(entry.user_id)}>
                       <Trophy size={14} color={colors.primary} />
                     </TouchableOpacity>
+                  ) : tournament.prediction_enabled && tournament.predicted_user_id === entry.user_id ? (
+                    <View style={styles.lockedPickPill}>
+                      <Lock size={12} color={colors.primary} />
+                      <Text style={styles.lockedPickText}>Picked</Text>
+                    </View>
                   ) : null}
                   <TouchableOpacity style={styles.iconButton} onPress={() => cheerParticipant(entry.user_id)}>
                     <Heart size={14} color={colors.primary} />
@@ -703,7 +719,41 @@ const styles = StyleSheet.create({
   },
   leaderActions: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 8,
+  },
+  predictionLockedBanner: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceElevated,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  predictionLockedText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
+    flex: 1,
+  },
+  lockedPickPill: {
+    minHeight: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  lockedPickText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "800",
   },
   iconButton: {
     width: 34,

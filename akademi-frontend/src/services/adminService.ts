@@ -205,6 +205,7 @@ export interface AdminTournament {
   title: string;
   description: string | null;
   status: "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
+  campaign_type: "SIMPLE" | "MULTI_STAGE";
   format: "SHARED_COURSE" | "DUAL_COURSE";
   shared_course_code: string | null;
   source_material_ids: string[];
@@ -223,6 +224,10 @@ export interface AdminTournament {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  prediction_enabled: boolean;
+  prediction_prize_summary: string | null;
+  prediction_winner_count: number | null;
+  prediction_closes_at: string | null;
   audience_scope: "EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT";
   audience_university: string | null;
   audience_faculty: string | null;
@@ -232,6 +237,13 @@ export interface AdminTournament {
   checked_in_count?: number;
   standby_count?: number;
   room_id?: string | null;
+  stages?: Array<{
+    id: string;
+    name: string;
+    stage_order: number;
+    status: string;
+    starts_at: string;
+  }>;
 }
 
 export interface AdminCompetitionRoom {
