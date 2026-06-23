@@ -2,13 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetFlatList, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import * as DocumentPicker from "expo-document-picker";
 import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeInUp, Layout } from "react-native-reanimated";
@@ -455,7 +454,12 @@ export const LibraryScreen: React.FC = () => {
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandle}
       >
-        <BottomSheetView style={styles.bottomSheetContent}>
+        <BottomSheetScrollView
+          style={styles.bottomSheetContent}
+          contentContainerStyle={styles.bottomSheetScrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
           <Text style={styles.sheetTitle}>Upload material</Text>
           <Text style={styles.sheetSubtitle}>
             Your upload goes to admin review before other students can see it.
@@ -522,25 +526,30 @@ export const LibraryScreen: React.FC = () => {
               </TouchableOpacity>
 
               {showCourseOptions ? (
-                <ScrollView style={styles.courseOptionsCard} nestedScrollEnabled>
-                  {availableCourseOptions.map((course) => {
-                    const active = course.code.toUpperCase() === uploadCourseCode.trim().toUpperCase();
-                    return (
-                      <TouchableOpacity
-                        key={`${course.code}-${course.level}-${course.semester}`}
-                        style={[styles.courseOptionRow, active && styles.courseOptionRowActive]}
-                        onPress={() => {
-                          setUploadCourseCode(course.code.toUpperCase());
-                          setShowCourseOptions(false);
+                <BottomSheetFlatList
+                  style={styles.courseOptionsCard}
+                  data={availableCourseOptions}
+                  keyExtractor={(course) => `${course.code}-${course.level}-${course.semester}`}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.courseOptionsContent}
+                  nestedScrollEnabled
+                  renderItem={({ item: course }) => {
+                      const active = course.code.toUpperCase() === uploadCourseCode.trim().toUpperCase();
+                      return (
+                        <TouchableOpacity
+                          style={[styles.courseOptionRow, active && styles.courseOptionRowActive]}
+                          onPress={() => {
+                            setUploadCourseCode(course.code.toUpperCase());
+                            setShowCourseOptions(false);
                         }}
                         activeOpacity={0.82}
                       >
                         <Text style={styles.courseOptionCode}>{course.code.toUpperCase()}</Text>
                         <Text style={styles.courseOptionMeta}>SEMESTER {course.semester}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                        </TouchableOpacity>
+                      );
+                    }}
+                />
               ) : null}
             </View>
           ) : (
@@ -593,7 +602,7 @@ export const LibraryScreen: React.FC = () => {
             icon={<FileUp size={18} color="#FFFFFF" />}
             style={styles.uploadButton}
           />
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheet>
 
       {toast && (
@@ -787,6 +796,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   bottomSheetContent: {
     flex: 1,
+  },
+  bottomSheetScrollContent: {
     padding: 24,
   },
   sheetTitle: {
@@ -891,6 +902,9 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderWidth: 1,
     marginBottom: 14,
     maxHeight: 208,
+  },
+  courseOptionsContent: {
+    paddingBottom: 4,
   },
   courseOptionRow: {
     borderBottomColor: colors.border,

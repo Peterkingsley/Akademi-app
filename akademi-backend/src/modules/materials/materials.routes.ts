@@ -16,7 +16,7 @@ router.get('/', materialsController.list);
 router.get('/pending', materialsController.getPending);
 router.get('/:id', materialsController.getOne);
 router.post('/upload', materialUploadRateLimiter, materialsController.upload);
-router.post('/:id/confirm', materialUploadRateLimiter, materialsController.confirm);
+router.post('/:id/confirm', materialsController.confirm);
 router.get('/:id/download', materialsController.getDownloadUrl);
 router.get('/:id/questions', materialsController.getQuestions);
 router.post('/:id/questions/attempts', materialsController.submitQuestionAttempts);

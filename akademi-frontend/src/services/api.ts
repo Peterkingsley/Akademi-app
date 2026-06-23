@@ -115,11 +115,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Logging failed requests for diagnostics
-    console.error(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, {
+    // Log expected client/API failures as warnings to avoid dev-screen noise for handled cases.
+    const logPayload = {
       status: error.response?.status,
       data: error.response?.data
-    });
+    };
+    if (error.response?.status === 429 || (error.response?.status && error.response.status < 500)) {
+      console.warn(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, logPayload);
+    } else {
+      console.error(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, logPayload);
+    }
 
     if (error.response?.status >= 500 || !error.response) {
       captureFrontendException(error, {

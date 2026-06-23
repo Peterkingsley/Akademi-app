@@ -177,7 +177,7 @@ export const sessionInteractionRateLimiter = createRateLimiter({
 export const materialUploadRateLimiter = createRateLimiter({
   namespace: 'material-upload',
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 80,
   strategy: 'hybrid',
   message: 'Too many material upload requests. Please try again later.',
 });
