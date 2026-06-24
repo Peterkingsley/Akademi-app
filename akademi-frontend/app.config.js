@@ -17,14 +17,6 @@ const plugins = [
       microphonePermission: "Allow Akademi to capture your spoken assignment questions.",
     },
   ],
-  [
-    "expo-speech-recognition",
-    {
-      microphonePermission: "Allow Akademi to listen while you speak to the AI Tutor.",
-      speechRecognitionPermission: "Allow Akademi to convert your speech into live text for the AI Tutor.",
-      androidSpeechServicePackages: ["com.google.android.googlequicksearchbox", "com.google.android.as"],
-    },
-  ],
   "expo-font",
   "expo-asset",
   "@react-native-community/datetimepicker",
@@ -68,7 +60,6 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false,
         NSCameraUsageDescription: "Used to capture assignment questions",
         NSMicrophoneUsageDescription: "Allow Akademi to capture your spoken assignment questions.",
-        NSSpeechRecognitionUsageDescription: "Allow Akademi to convert your speech into live text for the AI Tutor.",
       },
     },
     android: {

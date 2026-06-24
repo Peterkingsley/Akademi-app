@@ -37,6 +37,7 @@ import * as ImagePicker from "expo-image-picker";
 import {
   prepareAudioRecording,
   requestMicrophonePermission,
+  speakAiText,
   stopRecording,
   transcribeAudioUri,
 } from "../../services/voice";
@@ -82,40 +83,6 @@ const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
 const looksMathHeavy = (content: string) =>
   /\\\(|\\\[|[$=^_∫∑√≤≥≈πμλθβαγωσ÷×]/.test(content);
 
-type SpeechRecognitionModuleLike = {
-  stop: () => void;
-  start: (options: Record<string, unknown>) => void;
-  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
-  addListener: (eventName: string, listener: (event: any) => void) => { remove: () => void };
-};
-
-const getSpeechRecognitionBridge = (): {
-  module: SpeechRecognitionModuleLike | null;
-  isAvailable: boolean;
-} => {
-  // Expo Go cannot load custom native speech modules.
-  // Keep live speech disabled there and use the recording/transcription fallback instead.
-  if (__DEV__) {
-    return {
-      module: null,
-      isAvailable: false,
-    };
-  }
-
-  try {
-    const speech = require("expo-speech-recognition");
-    return {
-      module: (speech?.ExpoSpeechRecognitionModule as SpeechRecognitionModuleLike) || null,
-      isAvailable: typeof speech?.isRecognitionAvailable === "function" ? Boolean(speech.isRecognitionAvailable()) : false,
-    };
-  } catch {
-    return {
-      module: null,
-      isAvailable: false,
-    };
-  }
-};
-
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -137,10 +104,6 @@ export const StudyCompanionScreen: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [recording, setRecording] = useState<any | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
-  const latestVoiceTranscriptRef = useRef("");
-  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shouldAutoSendVoiceRef = useRef(false);
-  const speechBridge = useMemo(() => getSpeechRecognitionBridge(), []);
 
   const reload = useCallback(async () => {
     try {
@@ -172,13 +135,6 @@ export const StudyCompanionScreen: React.FC = () => {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
   }, [messages]);
-
-  const clearSilenceTimer = useCallback(() => {
-    if (silenceTimeoutRef.current) {
-      clearTimeout(silenceTimeoutRef.current);
-      silenceTimeoutRef.current = null;
-    }
-  }, []);
 
   const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
 
@@ -228,6 +184,7 @@ export const StudyCompanionScreen: React.FC = () => {
       setMessages((prev) => [...prev.filter((msg) => msg.id !== optimistic.id), aiMessage]);
       const state = await sessionService.getCompanionState(sessionId);
       setCompanionState(state);
+      await speakAiText(aiMessage.content);
     } catch (err: any) {
       setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
       setInput(trimmed);
@@ -241,121 +198,42 @@ export const StudyCompanionScreen: React.FC = () => {
     try {
       if (recording) {
         setSending(true);
+
         const uri = await stopRecording(recording);
         setRecording(null);
         setIsListening(false);
+
         if (!uri) return;
+
         const transcript = await transcribeAudioUri(uri);
-        setInput((prev) => (prev ? `${prev} ${transcript}`.trim() : transcript));
+
         if (transcript.trim()) {
-          void sendDraft(transcript);
-        }
-        return;
-      }
-
-      if (isListening) {
-        clearSilenceTimer();
-        shouldAutoSendVoiceRef.current = Boolean(latestVoiceTranscriptRef.current.trim());
-        speechBridge.module?.stop();
-        return;
-      }
-
-      if (speechBridge.module && speechBridge.isAvailable) {
-        const permissions = await speechBridge.module.requestPermissionsAsync();
-        if (!permissions.granted) {
-          setError("Microphone and speech recognition permissions are required for live voice replies.");
-          return;
+          setInput(transcript);
+          await sendDraft(transcript);
         }
 
-        clearSilenceTimer();
-        latestVoiceTranscriptRef.current = "";
-        shouldAutoSendVoiceRef.current = false;
-        setError(null);
-        setIsListening(true);
-
-        speechBridge.module.start({
-          lang: "en-US",
-          interimResults: true,
-          continuous: false,
-          addsPunctuation: true,
-          androidIntentOptions: {
-            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-          },
-        });
         return;
       }
 
       const granted = await requestMicrophonePermission();
+
       if (!granted) {
         setError("Microphone permission is required for voice replies.");
         return;
       }
 
-      setError("Live voice needs the new app build. Using standard voice capture for now.");
+      setError(null);
       setIsListening(true);
+
       const nextRecording = await prepareAudioRecording();
       setRecording(nextRecording);
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Voice input failed.");
       setIsListening(false);
       setRecording(null);
+      setSending(false);
     }
-  }, [clearSilenceTimer, isListening, recording, sendDraft, speechBridge]);
-
-  useEffect(() => {
-    if (!speechBridge.module) {
-      return;
-    }
-
-    const resultSub = speechBridge.module.addListener("result", (event: any) => {
-      const transcript = event?.results?.[0]?.transcript?.trim() || "";
-      if (!transcript) return;
-
-      latestVoiceTranscriptRef.current = transcript;
-      setInput(transcript);
-      clearSilenceTimer();
-
-      if (event?.isFinal) {
-        shouldAutoSendVoiceRef.current = false;
-        setIsListening(false);
-        void sendDraft(transcript);
-        return;
-      }
-
-      shouldAutoSendVoiceRef.current = true;
-      silenceTimeoutRef.current = setTimeout(() => {
-        speechBridge.module?.stop();
-      }, 3000);
-    });
-
-    const endSub = speechBridge.module.addListener("end", () => {
-      clearSilenceTimer();
-      setIsListening(false);
-      if (shouldAutoSendVoiceRef.current && latestVoiceTranscriptRef.current.trim()) {
-        const finalTranscript = latestVoiceTranscriptRef.current.trim();
-        shouldAutoSendVoiceRef.current = false;
-        void sendDraft(finalTranscript);
-      }
-    });
-
-    const errorSub = speechBridge.module.addListener("error", (event: any) => {
-      clearSilenceTimer();
-      setIsListening(false);
-      shouldAutoSendVoiceRef.current = false;
-      if (event?.error !== "aborted" && event?.error !== "no-speech") {
-        setError(event?.message || "Live voice input failed.");
-      }
-    });
-
-    return () => {
-      clearSilenceTimer();
-      resultSub.remove();
-      endSub.remove();
-      errorSub.remove();
-    };
-  }, [clearSilenceTimer, sendDraft, speechBridge]);
-
+  }, [recording, sendDraft]);
   const handleUploadSolution = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -490,14 +368,14 @@ export const StudyCompanionScreen: React.FC = () => {
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder={isListening ? "Listening... pause for 3 seconds to send" : "Reply to Akademi"}
+              placeholder={isListening ? "Recording... tap mic again to send" : "Reply to Akademi"}
               placeholderTextColor={colors.textMuted}
               multiline
               style={styles.input}
             />
             <View style={styles.composerStatusRow}>
               <Text style={styles.composerStatusText}>
-                {isListening ? `Live voice active - ${phaseLabel}` : phaseLabel}
+                {isListening ? `Recording voice - ${phaseLabel}` : phaseLabel}
               </Text>
             </View>
             <View style={styles.composerActions}>
@@ -970,3 +848,4 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       textAlign: "center",
     },
   });
+
