@@ -20,6 +20,46 @@ export async function queueMaterialIngestion(materialId: string, hasChunks: bool
   await systemQueue.add(jobName, { materialId });
 }
 
+export async function recoverPendingMaterials() {
+  try {
+    const stuck = await prisma.material.findMany({
+      where: {
+        verification_status: VerificationStatus.PENDING,
+        content: null,
+        processing_status: {
+          in: ['UPLOADED', 'QUEUED', 'EXTRACTING', 'FAILED'],
+        } as any,
+      } as any,
+      select: {
+        id: true,
+        upload_chunks: {
+          select: { id: true },
+          take: 1,
+        },
+      },
+      take: 20,
+    });
+
+    for (const material of stuck) {
+      await prisma.material.update({
+        where: { id: material.id },
+        data: {
+          processing_status: 'QUEUED' as any,
+          processing_error: null,
+          next_retry_at: null,
+        } as any,
+      });
+      await queueMaterialIngestion(material.id, material.upload_chunks.length > 0);
+    }
+
+    if (stuck.length) {
+      console.log(`Startup recovery: re-queued ${stuck.length} stuck PENDING materials`);
+    }
+  } catch (error) {
+    console.error('Startup material recovery failed:', error);
+  }
+}
+
 async function retryEligiblePdfMaterials() {
   if (retrySweepRunning) return;
 
