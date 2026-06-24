@@ -27,6 +27,7 @@ import { VoiceInputButton } from "./VoiceInputButton";
 import { AiVoiceToggleButton } from "./AiVoiceToggleButton";
 
 type AskAction = "ask" | "summarize" | "explain" | "teach" | "practice";
+type CompanionStartMode = "continue" | "specific" | "beginning" | "roadmap";
 
 interface ChatMessage {
   id: string;
@@ -45,6 +46,8 @@ interface AskAkademiModalProps {
   chapterTitle?: string;
   pageTitle?: string;
   materialContext?: string;
+  materialId?: string;
+  roadmapSections?: string[];
 }
 
 export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
@@ -58,12 +61,16 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   chapterTitle,
   pageTitle,
   materialContext,
+  materialId,
+  roadmapSections = [],
 }) => {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<AskAction>("ask");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [companionStarted, setCompanionStarted] = useState(false);
+  const [selectedRoadmapSection, setSelectedRoadmapSection] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const spokenMessageIdsRef = useRef<Set<string>>(new Set());
   const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
@@ -78,12 +85,16 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     stopErrorTitle: "Voice input failed",
   });
 
+  const isStudyCompanionMode = Boolean(materialId && materialTitle);
+
   useEffect(() => {
     if (visible) {
       setQuestion("");
       setMessages([]);
       setSessionId(null);
       setActiveAction("ask");
+      setCompanionStarted(false);
+      setSelectedRoadmapSection(null);
       spokenMessageIdsRef.current.clear();
     }
   }, [visible]);
@@ -113,6 +124,18 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       .join("\n");
   }, [chapterTitle, materialTitle, pageTitle, selectedPassage]);
 
+  const roadmap = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          roadmapSections
+            .map((section) => section.trim())
+            .filter(Boolean),
+        ),
+      ).slice(0, 18),
+    [roadmapSections],
+  );
+
   const buildPrompt = (action: AskAction, outgoingQuestion: string) => {
     const safeContext = contextText.trim();
     const highlighted = selectedPassage?.trim() || "";
@@ -123,14 +146,18 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       .join("\n");
 
     const sharedGuide = [
-      "You are Akademi's in-material study companion.",
+      "You are Akademi AI Study Companion.",
+      "Your primary goal is to help the student pass exams using the selected material.",
       "The student is actively reading one specific material.",
+      "This is not open-ended general chat. Stay inside the selected material and course context.",
       "Your first job is to understand the highlighted part in the context of this material.",
       "Use the selected text first. If that text is incomplete or ambiguous, use the surrounding passage to infer what it refers to.",
       "If the student's question is still genuinely ambiguous after using the material context, ask one short clarifying question before explaining further.",
-      "Do not jump into a long generic answer. Keep replies short, grounded, and conversational.",
+      "Do not jump into a long generic answer. Keep replies short, grounded, conversational, and exam-focused.",
       "Explain in the context of this material first. Any outside analogy must stay close to the material and should only support understanding.",
       "If the material's meaning and general-world meaning could differ, always privilege the meaning that fits this material.",
+      "If the material is unclear or incomplete, you may use external knowledge, but you must label it clearly as external support.",
+      "When appropriate, follow a guided study flow: big picture, details, connections, teach-back, memory dump, and mastery.",
       "Whenever you write mathematics, use proper LaTeX delimiters: inline math in \\(...\\) and standalone math in \\[...\\].",
       "End in a way that keeps the conversation open so the student can reply from where they are stuck.",
       materialTitle ? `Material title: ${materialTitle}` : "",
@@ -159,6 +186,110 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     }
   };
 
+  const buildCompanionKickoffPrompt = (mode: CompanionStartMode, section?: string) => {
+    const roadmapList = roadmap.length
+      ? roadmap.map((item, index) => `${index + 1}. ${item}`).join("\n")
+      : "No roadmap sections were extracted yet.";
+
+    const shared = [
+      "You are Akademi AI Study Companion.",
+      "Start a guided study session using the selected material only.",
+      "The student should feel like a serious but friendly tutor is leading them section by section toward exam mastery.",
+      "Use the 3 Reads -> 2 Teach-Backs -> 1 Memory Dump -> Mastery Check model.",
+      "Do not behave like general chat.",
+      `Course code: ${courseCode || "GENERAL"}`,
+      materialTitle ? `Material: ${materialTitle}` : "",
+      chapterTitle ? `Current chapter in view: ${chapterTitle}` : "",
+      materialContext ? `Material context:\n${materialContext}` : "",
+      `Extracted roadmap:\n${roadmapList}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    if (mode === "roadmap") {
+      return `${shared}\n\nTask: Create a visible study roadmap from this material. Keep it concise. Group the material into teachable sections, mark the best starting point, and ask the student which section to begin with.`;
+    }
+
+    if (mode === "specific") {
+      return `${shared}\n\nTask: The student wants to start from this section: ${section || chapterTitle || "the selected section"}.\nBegin with orientation, then give Pass 1 (big picture) for that section only. End by asking for a short teach-back.`;
+    }
+
+    if (mode === "continue") {
+      return `${shared}\n\nTask: The student wants to continue from where they stopped.\nFirst ask one refresh question from the previous section, then continue with the most likely next section using Pass 1 (big picture). Keep the response structured and calm.`;
+    }
+
+    return `${shared}\n\nTask: The student is starting from the beginning.\nOrient the student briefly, state the first section clearly, then begin Pass 1 (big picture). End with one focused check-in question.`;
+  };
+
+  const ensureSession = async (replyMode: "STUDY" | "QUESTION" = "STUDY") => {
+    if (sessionId) return sessionId;
+
+    const created = await sessionService.createSession({
+      session_type: "STUDY",
+      course_code: courseCode || "GENERAL",
+      reply_mode: replyMode,
+      topic: materialTitle || chapterTitle || "AI Study Companion",
+      material_id: materialId,
+      metadata: {
+        mode: "ai-study-companion",
+        materialTitle,
+        chapterTitle,
+        roadmap,
+      },
+    });
+
+    setSessionId(created.id);
+    return created.id;
+  };
+
+  const handleCompanionStart = async (mode: CompanionStartMode, section?: string) => {
+    if (!contextText.trim()) return;
+
+    Keyboard.dismiss();
+    setLoading(true);
+    setCompanionStarted(true);
+    if (section) setSelectedRoadmapSection(section);
+
+    try {
+      const activeSessionId = await ensureSession("STUDY");
+      const studentMessage =
+        mode === "roadmap"
+          ? "Create my study roadmap first."
+          : mode === "specific"
+            ? `Start me from this section: ${section || chapterTitle || "selected section"}.`
+            : mode === "continue"
+              ? "Continue from where I stopped."
+              : "Start from the beginning.";
+
+      setMessages((current) => [
+        ...current,
+        { id: `student-${Date.now()}`, role: "student", content: studentMessage },
+      ]);
+
+      const aiMessage = await sessionService.sendMessage(activeSessionId, {
+        content: buildCompanionKickoffPrompt(mode, section),
+        reply_mode: "STUDY",
+      });
+
+      setMessages((current) => [
+        ...current,
+        { id: aiMessage.id || `ai-${Date.now()}`, role: "ai", content: aiMessage.content },
+      ]);
+    } catch (error) {
+      console.error("Failed to start AI Study Companion:", error);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `ai-error-${Date.now()}`,
+          role: "ai",
+          content: "I couldn't start the guided study session just yet. Please try again in a moment.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAction = async (action: AskAction = activeAction) => {
     if (!contextText.trim()) return;
 
@@ -180,18 +311,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     setActiveAction(action);
 
     try {
-      const activeSessionId =
-        sessionId ||
-        (
-          await sessionService.createSession({
-            session_type: "STUDY",
-            course_code: courseCode || "GENERAL",
-            reply_mode: action === "practice" ? "QUESTION" : "STUDY",
-            topic: materialTitle || chapterTitle || "Material study help",
-          })
-        ).id;
-
-      if (!sessionId) setSessionId(activeSessionId);
+      const activeSessionId = await ensureSession(action === "practice" ? "QUESTION" : "STUDY");
 
       setMessages((current) => [
         ...current,
@@ -274,6 +394,46 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                   {previewContext || contextText}
                 </Text>
               </View>
+
+              {isStudyCompanionMode && !companionStarted && messages.length === 0 ? (
+                <View style={styles.companionIntroCard}>
+                  <Text style={styles.companionEyebrow}>AI STUDY COMPANION</Text>
+                  <Text style={styles.companionTitle}>Study this material with Akademi</Text>
+                  <Text style={styles.companionBody}>
+                    Akademi will guide this material section by section, push recall, and keep the session focused on exam success.
+                  </Text>
+                  <View style={styles.startActions}>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("continue")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Continue from last point</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("beginning")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Start from beginning</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("roadmap")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Create study roadmap</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {roadmap.length > 0 ? (
+                    <View style={styles.roadmapCard}>
+                      <Text style={styles.roadmapTitle}>Material roadmap</Text>
+                      {roadmap.slice(0, 8).map((section, index) => (
+                        <TouchableOpacity
+                          key={`${section}-${index}`}
+                          style={[
+                            styles.roadmapRow,
+                            selectedRoadmapSection === section && styles.roadmapRowActive,
+                          ]}
+                          onPress={() => handleCompanionStart("specific", section)}
+                          disabled={loading}
+                        >
+                          <Text style={styles.roadmapIndex}>{index + 1}</Text>
+                          <Text style={styles.roadmapLabel}>{section}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
 
               <View style={styles.actionRow}>
                 {actions.map((action) => (
@@ -468,6 +628,83 @@ const styles = StyleSheet.create({
   actionText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  companionIntroCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  companionEyebrow: {
+    ...typography.mono,
+    color: colors.primary,
+    fontSize: 10,
+    marginBottom: 8,
+  },
+  companionTitle: {
+    ...typography.h3,
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  companionBody: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  startActions: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  startButton: {
+    backgroundColor: "#141414",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  startButtonText: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  roadmapCard: {
+    marginTop: 4,
+    gap: 8,
+  },
+  roadmapTitle: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  roadmapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 12,
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  roadmapRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}18`,
+  },
+  roadmapIndex: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    minWidth: 18,
+  },
+  roadmapLabel: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    flex: 1,
   },
   inputArea: {
     marginBottom: 18,

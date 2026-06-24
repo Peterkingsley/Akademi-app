@@ -340,6 +340,13 @@ export const StudyModeScreen: React.FC = () => {
         material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
       ].join("\n")
     : content;
+  const roadmapSections = Array.from(
+    new Set(
+      readerPages
+        .map((page) => page.chapterTitle?.trim())
+        .filter(Boolean) as string[],
+    ),
+  );
   useEffect(() => {
     Animated.timing(skeletonOpacity, {
       toValue: 1,
@@ -942,12 +949,14 @@ export const StudyModeScreen: React.FC = () => {
         onClose={() => setIsAskModalVisible(false)}
         contextText={selectedText}
         courseCode={courseCode}
+        materialId={material?.id}
         materialTitle={material?.title}
         selectedPassage={selectedPassage || undefined}
         surroundingPassage={currentPage?.content || undefined}
         chapterTitle={currentPage?.chapterTitle}
         pageTitle={currentPage?.pageTitle}
         materialContext={materialContext}
+        roadmapSections={roadmapSections}
       />
     </Screen>
   );
