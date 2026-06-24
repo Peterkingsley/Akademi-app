@@ -8,6 +8,7 @@ interface CardProps {
   elevated?: boolean;
   onPress?: () => void;
   bordered?: boolean;
+  noPadding?: boolean;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -16,6 +17,7 @@ export const Card: React.FC<CardProps> = ({
   elevated = false,
   onPress,
   bordered = true,
+  noPadding = false,
 }) => {
   const Container = onPress ? TouchableOpacity : View;
 
@@ -25,6 +27,7 @@ export const Card: React.FC<CardProps> = ({
       activeOpacity={0.8}
       style={[
         styles.base,
+        noPadding && styles.noPadding,
         elevated ? styles.elevated : styles.default,
         bordered && styles.bordered,
         style,
@@ -40,6 +43,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     overflow: "hidden",
+  },
+  noPadding: {
+    padding: 0,
   },
   default: {
     backgroundColor: colors.surface,

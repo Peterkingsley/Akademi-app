@@ -650,7 +650,10 @@ export const StudyModeScreen: React.FC = () => {
         ) : null}
 
         <View style={material ? styles.documentSurface : undefined}>
-        <Card style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
+        <Card
+          noPadding={Boolean(material)}
+          style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}
+        >
           {!material && (
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
@@ -973,7 +976,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderRadius: 0,
     marginBottom: 0,
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
     paddingTop: 8,
     paddingBottom: 12,
     borderWidth: 0,

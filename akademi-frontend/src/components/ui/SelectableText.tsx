@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -120,6 +121,8 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   onHighlight,
   fixedHeight,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.max(windowWidth - 32, 240);
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
@@ -166,11 +169,20 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         user-select: text;
       }
       #content {
-        width: 100%;
+        width: ${contentWidth}px;
+        max-width: 100%;
+        box-sizing: border-box;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
       }
       .paragraph {
+        width: 100%;
+        display: block;
         margin: 0 0 0.6em 0;
         word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
       }
       .math-line {
         margin: 0.2em 0 0.45em 0;
@@ -278,7 +290,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
     </script>
   </body>
 </html>`,
-    [content]
+    [content, contentWidth]
   );
 
   const clearSelection = () => {
@@ -317,7 +329,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         javaScriptEnabled
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        style={[styles.webview, { height: fixedHeight ?? height }]}
+        style={[styles.webview, { width: contentWidth, height: fixedHeight ?? height }]}
         containerStyle={styles.webviewContainer}
         onMessage={(event) => {
           try {
