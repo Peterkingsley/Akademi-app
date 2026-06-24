@@ -82,6 +82,9 @@ const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
   MASTERED: "Mastered",
 };
 
+const looksMathHeavy = (content: string) =>
+  /\\\(|\\\[|[$=^_∫∑√≤≥≈πμλθβαγωσ÷×]/.test(content);
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -262,13 +265,16 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isStudent = item.role === "STUDENT";
+    const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
     return (
       <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
         <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
           {isStudent ? (
             <Text style={styles.studentText}>{item.content}</Text>
-          ) : item.content ? (
+          ) : item.content && shouldUseMathRenderer ? (
             <RichMathText content={item.content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
+          ) : item.content ? (
+            <Text style={styles.aiText}>{item.content}</Text>
           ) : (
             <Text style={styles.aiFallbackText}>...</Text>
           )}
@@ -645,7 +651,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       borderRadius: 12,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      overflow: "hidden",
     },
     studentBubble: {
       backgroundColor: colors.primary,
@@ -656,6 +661,14 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       borderWidth: 1,
       borderColor: colors.border,
       borderTopLeftRadius: 4,
+      width: "88%",
+      alignSelf: "flex-start",
+    },
+    aiText: {
+      ...typography.body,
+      color: colors.textPrimary,
+      fontSize: 14,
+      lineHeight: 22,
     },
     studentText: {
       ...typography.body,
