@@ -288,7 +288,7 @@ export const StudyModeScreen: React.FC = () => {
   const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { sessionId, materialId } = route.params || {};
+  const { sessionId, materialId, autoOpenTutor } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [material, setMaterial] = useState<Material | null>(null);
@@ -307,6 +307,7 @@ export const StudyModeScreen: React.FC = () => {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [hasReachedMaterialEnd, setHasReachedMaterialEnd] = useState(false);
+  const [hasAutoOpenedTutor, setHasAutoOpenedTutor] = useState(false);
   const skeletonOpacity = useRef(new Animated.Value(0)).current;
   const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
@@ -513,6 +514,28 @@ export const StudyModeScreen: React.FC = () => {
   useEffect(() => {
     setHasReachedMaterialEnd(false);
   }, [material?.id, material?.file_type, pdfData, documentUrl]);
+
+  useEffect(() => {
+    setHasAutoOpenedTutor(false);
+  }, [materialId, sessionId]);
+
+  useEffect(() => {
+    if (!autoOpenTutor || hasAutoOpenedTutor || loading || !material) return;
+
+    const tutorContext = [
+      `Material title: ${material.title}`,
+      `Course: ${courseCode}`,
+      `University: ${material.university}`,
+      `Department: ${material.department}`,
+      `Level: ${material.level}L`,
+      material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
+    ].join("\n");
+
+    setSelectedPassage(material.title);
+    setSelectedText(tutorContext);
+    setIsAskModalVisible(true);
+    setHasAutoOpenedTutor(true);
+  }, [autoOpenTutor, hasAutoOpenedTutor, loading, material, courseCode]);
 
   const handleAskAkademi = (text: string) => {
     const focusedPassage = text?.trim() || "";

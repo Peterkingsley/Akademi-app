@@ -86,7 +86,7 @@ export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   AITutor: undefined;
   AssignmentResult: { sessionId: string };
-  StudyMode: { sessionId?: string; materialId?: string };
+  StudyMode: { sessionId?: string; materialId?: string; autoOpenTutor?: boolean };
   MaterialPractice: { materialId: string; title?: string };
   ChallengeResult: { sessionId: string };
   Camera: undefined;

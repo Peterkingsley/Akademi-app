@@ -169,7 +169,7 @@ export const AITutorScreen: React.FC = () => {
                   date={new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
                   rating={item.rating}
                   isBookmarked={item.isBookmarked}
-                  onPress={() => navigation.navigate("StudyMode", { materialId: item.id })}
+                  onPress={() => navigation.navigate("StudyMode", { materialId: item.id, autoOpenTutor: true })}
                 />
               </Animated.View>
             )}
