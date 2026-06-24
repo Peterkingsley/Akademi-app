@@ -93,6 +93,15 @@ const getSpeechRecognitionBridge = (): {
   module: SpeechRecognitionModuleLike | null;
   isAvailable: boolean;
 } => {
+  // Expo Go cannot load custom native speech modules.
+  // Keep live speech disabled there and use the recording/transcription fallback instead.
+  if (__DEV__) {
+    return {
+      module: null,
+      isAvailable: false,
+    };
+  }
+
   try {
     const speech = require("expo-speech-recognition");
     return {
