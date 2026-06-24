@@ -362,54 +362,6 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
     clearSelection();
   };
 
-  if (!shouldLoadKatex) {
-    return (
-      <View style={styles.container}>
-        <Text
-          selectable
-          selectionColor="rgba(34, 197, 94, 0.32)"
-          style={styles.nativeText}
-          onLongPress={() => {
-            const trimmed = normalizeText(content);
-            if (!trimmed) return;
-            setSelectedText(trimmed);
-            setMenuVisible(true);
-          }}
-        >
-          {normalizeText(content)}
-        </Text>
-
-        <Modal
-          visible={menuVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={clearSelection}
-        >
-          <TouchableWithoutFeedback onPress={clearSelection}>
-            <View style={styles.modalOverlay}>
-              <View style={styles.menuContainer}>
-                <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
-                  <Copy size={18} color="#FFFFFF" />
-                  <Text style={styles.menuText}>Copy</Text>
-                </TouchableOpacity>
-                <View style={styles.divider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleHighlightAction}>
-                  <Highlighter size={18} color="#FFFFFF" />
-                  <Text style={styles.menuText}>Highlight</Text>
-                </TouchableOpacity>
-                <View style={styles.divider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleAskAction}>
-                  <MessageSquare size={18} color="#FFFFFF" />
-                  <Text style={styles.menuText}>Ask Akademi</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </Modal>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <WebView
@@ -476,11 +428,6 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-  },
-  nativeText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    lineHeight: 26,
   },
   webviewContainer: {
     backgroundColor: "transparent",

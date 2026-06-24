@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
 import { WebView } from "react-native-webview";
+import * as FileSystem from "expo-file-system";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,6 +28,7 @@ import { materialService, Material, offlineService } from "../../services/materi
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { PdfSelectableViewer } from "../../components/ui/PdfSelectableViewer";
 
 const formatStudyContent = (value: string) =>
   value
@@ -301,7 +303,7 @@ export const StudyModeScreen: React.FC = () => {
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [readerMode, setReaderMode] = useState<"original" | "text">("text");
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const skeletonOpacity = useRef(new Animated.Value(0)).current;
@@ -459,16 +461,9 @@ export const StudyModeScreen: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadPdfUrl = async () => {
+    const loadPdfData = async () => {
       if (!material || material.file_type !== "PDF") {
-        setPdfUrl(null);
-        setPdfLoadError(null);
-        setPdfLoading(false);
-        return;
-      }
-
-      if (material.file_ref?.startsWith("file://")) {
-        setPdfUrl(material.file_ref);
+        setPdfData(null);
         setPdfLoadError(null);
         setPdfLoading(false);
         return;
@@ -478,9 +473,31 @@ export const StudyModeScreen: React.FC = () => {
       setPdfLoadError(null);
 
       try {
-        const { url } = await materialService.getMaterialDownloadUrl(material.id);
+        let base64Data = "";
+
+        if (material.file_ref?.startsWith("file://")) {
+          base64Data = await FileSystem.readAsStringAsync(material.file_ref, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } else {
+          const { url } = await materialService.getMaterialDownloadUrl(material.id);
+          if (cancelled) return;
+
+          const cacheUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}${material.id}-viewer.pdf`;
+          const downloadResult = await FileSystem.downloadAsync(url, cacheUri);
+          if (cancelled) return;
+
+          if (downloadResult.status !== 200) {
+            throw new Error(`PDF download failed with status ${downloadResult.status}`);
+          }
+
+          base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+
         if (cancelled) return;
-        setPdfUrl(url);
+        setPdfData(base64Data);
       } catch (error) {
         console.error("Failed to load PDF url:", error);
         if (cancelled) return;
@@ -492,7 +509,7 @@ export const StudyModeScreen: React.FC = () => {
       }
     };
 
-    void loadPdfUrl();
+    void loadPdfData();
 
     return () => {
       cancelled = true;
@@ -687,7 +704,7 @@ export const StudyModeScreen: React.FC = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, showOriginalPdf && styles.scrollContentPdf]}
         scrollEnabled={!showOriginalPdf}
       >
         {material?.diagnostics?.warnings?.length ? (
@@ -709,10 +726,16 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View style={material ? styles.documentSurface : undefined}>
+        <View style={material ? [styles.documentSurface, showOriginalPdf && styles.documentSurfacePdf] : undefined}>
         <Card
           noPadding={Boolean(material)}
-          style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}
+          style={
+            material
+              ? (showOriginalPdf
+                  ? { ...styles.documentCard, ...styles.documentCardPdf }
+                  : styles.documentCard)
+              : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }
+          }
         >
           {!material && (
             <View style={styles.aiHeader}>
@@ -799,26 +822,12 @@ export const StudyModeScreen: React.FC = () => {
                         style={styles.pdfFallbackButton}
                       />
                     </View>
-                  ) : pdfUrl ? (
-                    <WebView
-                      source={{
-                        uri: pdfUrl.startsWith("file://")
-                          ? pdfUrl
-                          : `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdfUrl)}`,
-                      }}
-                      style={[styles.pdfViewer, { height: pdfViewerHeight }]}
-                      originWhitelist={["*"]}
-                      startInLoadingState
-                      nestedScrollEnabled
-                      renderLoading={() => (
-                        <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
-                          <ActivityIndicator size="small" color={colors.primary} />
-                          <Text style={styles.pdfStatusText}>Opening original PDF...</Text>
-                        </View>
-                      )}
-                      onError={() => {
-                        setPdfLoadError("We couldn't render the original PDF. You can keep reading in Text View.");
-                      }}
+                  ) : pdfData ? (
+                    <PdfSelectableViewer
+                      pdfBase64={pdfData}
+                      height={pdfViewerHeight}
+                      onAskAkademi={handleAskAkademi}
+                      onHighlight={handleHighlight}
                     />
                   ) : (
                     <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
@@ -1109,6 +1118,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  scrollContentPdf: {
+    paddingHorizontal: 0,
+  },
   studyCard: {
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -1118,6 +1130,9 @@ const styles = StyleSheet.create({
   },
   documentSurface: {
     marginBottom: 20,
+  },
+  documentSurfacePdf: {
+    marginBottom: 0,
   },
   documentCard: {
     backgroundColor: "transparent",
@@ -1129,6 +1144,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     shadowOpacity: 0,
     elevation: 0,
+  },
+  documentCardPdf: {
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   diagnosticBanner: {
     backgroundColor: "#2A1606",
@@ -1207,11 +1226,10 @@ const styles = StyleSheet.create({
   },
   pdfViewerShell: {
     overflow: "hidden",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 0,
+    borderWidth: 0,
     backgroundColor: "#0F1115",
-    marginBottom: 12,
+    marginBottom: 0,
   },
   pdfViewer: {
     width: "100%",
