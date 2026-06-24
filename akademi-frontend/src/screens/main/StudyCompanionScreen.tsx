@@ -28,21 +28,13 @@ import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import {
   ArrowLeft,
-  BookOpen,
   Mic,
   Route as RouteIcon,
   Send,
-  Sparkles,
   Upload,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import {
-  prepareAudioRecording,
-  requestMicrophonePermission,
-  stopRecording,
-  transcribeAudioUri,
-} from "../../services/voice";
-import { Audio } from "expo-av";
+import { ExpoSpeechRecognitionModule, isRecognitionAvailable } from "expo-speech-recognition";
 
 type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
 type StartMode = "beginning" | "continue" | "specific" | "roadmap";
@@ -103,8 +95,11 @@ export const StudyCompanionScreen: React.FC = () => {
   const [startModalVisible, setStartModalVisible] = useState(false);
   const [roadmapVisible, setRoadmapVisible] = useState(false);
   const [specificSection, setSpecificSection] = useState("");
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
+  const latestVoiceTranscriptRef = useRef("");
+  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shouldAutoSendVoiceRef = useRef(false);
 
   const reload = useCallback(async () => {
     try {
@@ -137,11 +132,13 @@ export const StudyCompanionScreen: React.FC = () => {
     }
   }, [messages]);
 
-  const progress = companionState?.progress;
-  const completedRatio =
-    progress && progress.totalSections > 0
-      ? progress.completedSections / progress.totalSections
-      : 0;
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+  }, []);
+
   const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
 
   const handleStart = useCallback(
@@ -167,8 +164,8 @@ export const StudyCompanionScreen: React.FC = () => {
     [sessionId],
   );
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+  const sendDraft = useCallback(async (draftContent?: string) => {
+    const trimmed = (draftContent ?? input).trim();
     if (!trimmed || sending) return;
 
     const optimistic: Message = {
@@ -199,33 +196,96 @@ export const StudyCompanionScreen: React.FC = () => {
     }
   }, [input, sending, sessionId]);
 
-  const handleToggleRecording = useCallback(async () => {
+  const handleToggleVoice = useCallback(async () => {
     try {
-      if (recording) {
-        setSending(true);
-        const uri = await stopRecording(recording);
-        setRecording(null);
-        if (!uri) return;
-        const transcript = await transcribeAudioUri(uri);
-        setInput((prev) => (prev ? `${prev} ${transcript}`.trim() : transcript));
+      if (isListening) {
+        clearSilenceTimer();
+        shouldAutoSendVoiceRef.current = Boolean(latestVoiceTranscriptRef.current.trim());
+        ExpoSpeechRecognitionModule.stop();
         return;
       }
 
-      const granted = await requestMicrophonePermission();
-      if (!granted) {
-        setError("Microphone permission is required for voice replies.");
+      if (!isRecognitionAvailable()) {
+        setError("Live speech recognition is not available on this device.");
         return;
       }
 
-      const nextRecording = await prepareAudioRecording();
-      setRecording(nextRecording);
+      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permissions.granted) {
+        setError("Microphone and speech recognition permissions are required for live voice replies.");
+        return;
+      }
+
+      clearSilenceTimer();
+      latestVoiceTranscriptRef.current = "";
+      shouldAutoSendVoiceRef.current = false;
+      setError(null);
+      setIsListening(true);
+
+      ExpoSpeechRecognitionModule.start({
+        lang: "en-US",
+        interimResults: true,
+        continuous: false,
+        addsPunctuation: true,
+        androidIntentOptions: {
+          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+        },
+      });
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Voice input failed.");
-      setRecording(null);
-    } finally {
-      setSending(false);
+      setIsListening(false);
     }
-  }, [recording]);
+  }, [clearSilenceTimer, isListening]);
+
+  useEffect(() => {
+    const resultSub = ExpoSpeechRecognitionModule.addListener("result", (event: any) => {
+      const transcript = event?.results?.[0]?.transcript?.trim() || "";
+      if (!transcript) return;
+
+      latestVoiceTranscriptRef.current = transcript;
+      setInput(transcript);
+      clearSilenceTimer();
+
+      if (event?.isFinal) {
+        shouldAutoSendVoiceRef.current = false;
+        setIsListening(false);
+        void sendDraft(transcript);
+        return;
+      }
+
+      shouldAutoSendVoiceRef.current = true;
+      silenceTimeoutRef.current = setTimeout(() => {
+        ExpoSpeechRecognitionModule.stop();
+      }, 3000);
+    });
+
+    const endSub = ExpoSpeechRecognitionModule.addListener("end", () => {
+      clearSilenceTimer();
+      setIsListening(false);
+      if (shouldAutoSendVoiceRef.current && latestVoiceTranscriptRef.current.trim()) {
+        const finalTranscript = latestVoiceTranscriptRef.current.trim();
+        shouldAutoSendVoiceRef.current = false;
+        void sendDraft(finalTranscript);
+      }
+    });
+
+    const errorSub = ExpoSpeechRecognitionModule.addListener("error", (event: any) => {
+      clearSilenceTimer();
+      setIsListening(false);
+      shouldAutoSendVoiceRef.current = false;
+      if (event?.error !== "aborted" && event?.error !== "no-speech") {
+        setError(event?.message || "Live voice input failed.");
+      }
+    });
+
+    return () => {
+      clearSilenceTimer();
+      resultSub.remove();
+      endSub.remove();
+      errorSub.remove();
+    };
+  }, [clearSilenceTimer, sendDraft]);
 
   const handleUploadSolution = useCallback(async () => {
     try {
@@ -308,39 +368,12 @@ export const StudyCompanionScreen: React.FC = () => {
           <View style={styles.headerBody}>
             <Text style={styles.headerTitle}>AI Tutor</Text>
             <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {sessionTitle}
+              {sessionCourseCode || sessionTitle}
             </Text>
           </View>
           <TouchableOpacity onPress={() => setRoadmapVisible(true)} style={styles.iconButton} activeOpacity={0.85}>
             <RouteIcon size={20} color={colors.textPrimary} />
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.metaCard}>
-          <View style={styles.metaRow}>
-            <View style={styles.courseChip}>
-              <BookOpen size={14} color={colors.primary} />
-              <Text style={styles.courseChipText}>{sessionCourseCode || "Study"}</Text>
-            </View>
-            <View style={styles.phaseChip}>
-              <Sparkles size={14} color={colors.primary} />
-              <Text style={styles.phaseChipText}>{phaseLabel}</Text>
-            </View>
-          </View>
-          <Text style={styles.metaTitle} numberOfLines={1}>
-            {sessionTitle}
-          </Text>
-          <View style={styles.progressRow}>
-            <Text style={styles.progressLabel}>
-              {progress ? `${progress.completedSections}/${progress.totalSections} sections complete` : "Session not started"}
-            </Text>
-            <Text style={styles.progressLabel}>
-              {progress ? `${progress.masteredSections} mastered` : ""}
-            </Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${Math.max(6, completedRatio * 100)}%` }]} />
-          </View>
         </View>
 
         {error ? (
@@ -388,19 +421,24 @@ export const StudyCompanionScreen: React.FC = () => {
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder="Reply to Akademi"
+              placeholder={isListening ? "Listening... pause for 3 seconds to send" : "Reply to Akademi"}
               placeholderTextColor={colors.textMuted}
               multiline
               style={styles.input}
             />
+            <View style={styles.composerStatusRow}>
+              <Text style={styles.composerStatusText}>
+                {isListening ? `Live voice active - ${phaseLabel}` : phaseLabel}
+              </Text>
+            </View>
             <View style={styles.composerActions}>
               <Pressable onPress={handleUploadSolution} style={styles.smallAction}>
                 <Upload size={18} color={colors.textSecondary} />
               </Pressable>
-              <Pressable onPress={handleToggleRecording} style={[styles.smallAction, recording ? styles.smallActionActive : null]}>
-                <Mic size={18} color={recording ? "#08130C" : colors.textSecondary} />
+              <Pressable onPress={handleToggleVoice} style={[styles.smallAction, isListening ? styles.smallActionActive : null]}>
+                <Mic size={18} color={isListening ? "#08130C" : colors.textSecondary} />
               </Pressable>
-              <Pressable onPress={handleSend} style={[styles.sendButton, !input.trim() || sending ? styles.sendButtonDisabled : null]}>
+              <Pressable onPress={() => void sendDraft()} style={[styles.sendButton, !input.trim() || sending ? styles.sendButtonDisabled : null]}>
                 <Send size={18} color="#08130C" />
               </Pressable>
             </View>
@@ -540,81 +578,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       marginTop: 2,
       fontSize: 11,
     },
-    metaCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderWidth: 1,
-      borderRadius: 8,
-      marginHorizontal: 18,
-      padding: 16,
-      marginBottom: 12,
-    },
-    metaRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      gap: 10,
-      marginBottom: 12,
-    },
-    courseChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderRadius: 999,
-      backgroundColor: "rgba(34,197,94,0.14)",
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-    },
-    courseChipText: {
-      ...typography.bodySmall,
-      color: colors.primary,
-      fontSize: 11,
-      fontWeight: "700",
-    },
-    phaseChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-      maxWidth: "58%",
-    },
-    phaseChipText: {
-      ...typography.bodySmall,
-      color: colors.textPrimary,
-      fontSize: 11,
-      fontWeight: "700",
-    },
-    metaTitle: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      fontSize: 18,
-      marginBottom: 10,
-    },
-    progressRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      gap: 10,
-      marginBottom: 8,
-    },
-    progressLabel: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      fontSize: 11,
-    },
-    progressTrack: {
-      height: 8,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceElevated,
-      overflow: "hidden",
-    },
-    progressFill: {
-      height: "100%",
-      borderRadius: 999,
-      backgroundColor: colors.primary,
-    },
     errorBanner: {
       marginHorizontal: 18,
       borderRadius: 8,
@@ -752,6 +715,14 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontSize: 14,
       padding: 0,
       marginBottom: 12,
+    },
+    composerStatusRow: {
+      marginBottom: 10,
+    },
+    composerStatusText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 11,
     },
     composerActions: {
       flexDirection: "row",
