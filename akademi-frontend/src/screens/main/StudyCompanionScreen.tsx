@@ -34,7 +34,12 @@ import {
   Upload,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
-import { ExpoSpeechRecognitionModule, isRecognitionAvailable } from "expo-speech-recognition";
+import {
+  prepareAudioRecording,
+  requestMicrophonePermission,
+  stopRecording,
+  transcribeAudioUri,
+} from "../../services/voice";
 
 type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
 type StartMode = "beginning" | "continue" | "specific" | "roadmap";
@@ -77,6 +82,31 @@ const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
 const looksMathHeavy = (content: string) =>
   /\\\(|\\\[|[$=^_∫∑√≤≥≈πμλθβαγωσ÷×]/.test(content);
 
+type SpeechRecognitionModuleLike = {
+  stop: () => void;
+  start: (options: Record<string, unknown>) => void;
+  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
+  addListener: (eventName: string, listener: (event: any) => void) => { remove: () => void };
+};
+
+const getSpeechRecognitionBridge = (): {
+  module: SpeechRecognitionModuleLike | null;
+  isAvailable: boolean;
+} => {
+  try {
+    const speech = require("expo-speech-recognition");
+    return {
+      module: (speech?.ExpoSpeechRecognitionModule as SpeechRecognitionModuleLike) || null,
+      isAvailable: typeof speech?.isRecognitionAvailable === "function" ? Boolean(speech.isRecognitionAvailable()) : false,
+    };
+  } catch {
+    return {
+      module: null,
+      isAvailable: false,
+    };
+  }
+};
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -96,10 +126,12 @@ export const StudyCompanionScreen: React.FC = () => {
   const [roadmapVisible, setRoadmapVisible] = useState(false);
   const [specificSection, setSpecificSection] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [recording, setRecording] = useState<any | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
   const latestVoiceTranscriptRef = useRef("");
   const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldAutoSendVoiceRef = useRef(false);
+  const speechBridge = useMemo(() => getSpeechRecognitionBridge(), []);
 
   const reload = useCallback(async () => {
     try {
@@ -198,48 +230,76 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const handleToggleVoice = useCallback(async () => {
     try {
+      if (recording) {
+        setSending(true);
+        const uri = await stopRecording(recording);
+        setRecording(null);
+        setIsListening(false);
+        if (!uri) return;
+        const transcript = await transcribeAudioUri(uri);
+        setInput((prev) => (prev ? `${prev} ${transcript}`.trim() : transcript));
+        if (transcript.trim()) {
+          void sendDraft(transcript);
+        }
+        return;
+      }
+
       if (isListening) {
         clearSilenceTimer();
         shouldAutoSendVoiceRef.current = Boolean(latestVoiceTranscriptRef.current.trim());
-        ExpoSpeechRecognitionModule.stop();
+        speechBridge.module?.stop();
         return;
       }
 
-      if (!isRecognitionAvailable()) {
-        setError("Live speech recognition is not available on this device.");
+      if (speechBridge.module && speechBridge.isAvailable) {
+        const permissions = await speechBridge.module.requestPermissionsAsync();
+        if (!permissions.granted) {
+          setError("Microphone and speech recognition permissions are required for live voice replies.");
+          return;
+        }
+
+        clearSilenceTimer();
+        latestVoiceTranscriptRef.current = "";
+        shouldAutoSendVoiceRef.current = false;
+        setError(null);
+        setIsListening(true);
+
+        speechBridge.module.start({
+          lang: "en-US",
+          interimResults: true,
+          continuous: false,
+          addsPunctuation: true,
+          androidIntentOptions: {
+            EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+            EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
+          },
+        });
         return;
       }
 
-      const permissions = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!permissions.granted) {
-        setError("Microphone and speech recognition permissions are required for live voice replies.");
+      const granted = await requestMicrophonePermission();
+      if (!granted) {
+        setError("Microphone permission is required for voice replies.");
         return;
       }
 
-      clearSilenceTimer();
-      latestVoiceTranscriptRef.current = "";
-      shouldAutoSendVoiceRef.current = false;
-      setError(null);
+      setError("Live voice needs the new app build. Using standard voice capture for now.");
       setIsListening(true);
-
-      ExpoSpeechRecognitionModule.start({
-        lang: "en-US",
-        interimResults: true,
-        continuous: false,
-        addsPunctuation: true,
-        androidIntentOptions: {
-          EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-          EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 3000,
-        },
-      });
+      const nextRecording = await prepareAudioRecording();
+      setRecording(nextRecording);
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Voice input failed.");
       setIsListening(false);
+      setRecording(null);
     }
-  }, [clearSilenceTimer, isListening]);
+  }, [clearSilenceTimer, isListening, recording, sendDraft, speechBridge]);
 
   useEffect(() => {
-    const resultSub = ExpoSpeechRecognitionModule.addListener("result", (event: any) => {
+    if (!speechBridge.module) {
+      return;
+    }
+
+    const resultSub = speechBridge.module.addListener("result", (event: any) => {
       const transcript = event?.results?.[0]?.transcript?.trim() || "";
       if (!transcript) return;
 
@@ -256,11 +316,11 @@ export const StudyCompanionScreen: React.FC = () => {
 
       shouldAutoSendVoiceRef.current = true;
       silenceTimeoutRef.current = setTimeout(() => {
-        ExpoSpeechRecognitionModule.stop();
+        speechBridge.module?.stop();
       }, 3000);
     });
 
-    const endSub = ExpoSpeechRecognitionModule.addListener("end", () => {
+    const endSub = speechBridge.module.addListener("end", () => {
       clearSilenceTimer();
       setIsListening(false);
       if (shouldAutoSendVoiceRef.current && latestVoiceTranscriptRef.current.trim()) {
@@ -270,7 +330,7 @@ export const StudyCompanionScreen: React.FC = () => {
       }
     });
 
-    const errorSub = ExpoSpeechRecognitionModule.addListener("error", (event: any) => {
+    const errorSub = speechBridge.module.addListener("error", (event: any) => {
       clearSilenceTimer();
       setIsListening(false);
       shouldAutoSendVoiceRef.current = false;
@@ -285,7 +345,7 @@ export const StudyCompanionScreen: React.FC = () => {
       endSub.remove();
       errorSub.remove();
     };
-  }, [clearSilenceTimer, sendDraft]);
+  }, [clearSilenceTimer, sendDraft, speechBridge]);
 
   const handleUploadSolution = useCallback(async () => {
     try {
