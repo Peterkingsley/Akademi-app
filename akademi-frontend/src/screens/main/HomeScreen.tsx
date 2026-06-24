@@ -73,7 +73,7 @@ const QUICK_ACTIONS = [
     description: "Guided study",
     icon: Sparkles,
     tint: "#A855F7",
-    screen: "Library",
+    screen: "AITutor",
   },
   {
     id: "compete",
@@ -464,17 +464,6 @@ export const HomeScreen: React.FC = () => {
   };
 
   const openQuickAction = (action: QuickAction) => {
-    if (action.id === "ai_tutor") {
-      navigation.navigate("Library");
-      setTimeout(() => {
-        Alert.alert(
-          "Open AI Tutor",
-          "Choose a study material from Library to start the AI Tutor."
-        );
-      }, 250);
-      return;
-    }
-
     navigation.navigate(action.screen);
   };
 
