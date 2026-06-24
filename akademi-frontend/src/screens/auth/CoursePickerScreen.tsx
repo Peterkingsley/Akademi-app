@@ -48,6 +48,7 @@ export const CoursePickerScreen: React.FC = () => {
   const [manualCode, setManualCode] = useState("");
   const [selectedCourses, setSelectedCourses] = useState<CourseSuggestion[]>([]);
   const [suggestions, setSuggestions] = useState<CourseSuggestion[]>([]);
+  const [showManualEntry, setShowManualEntry] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -115,7 +116,17 @@ export const CoursePickerScreen: React.FC = () => {
 
   const handleDone = () => {
     if (!canContinue) {
-      setError("Add at least one course code and your semester start/end dates.");
+      const hasCourses = selectedCourses.length > 0;
+      const hasStart = !!semesterStart.trim();
+      const hasEnd = !!semesterEnd.trim();
+
+      if (!hasCourses && (!hasStart || !hasEnd)) {
+        setError("Select at least one course code and add your semester start/end dates.");
+      } else if (!hasCourses) {
+        setError("Select at least one course code to continue.");
+      } else {
+        setError("Add your semester start and end dates to continue.");
+      }
       return;
     }
 
@@ -216,6 +227,8 @@ export const CoursePickerScreen: React.FC = () => {
                   placeholder="YYYY-MM-DD"
                   value={semesterStart}
                   onChangeText={setSemesterStart}
+                  keyboardType="numbers-and-punctuation"
+                  enableVoiceInput={false}
                   leftIcon={<CalendarDays size={17} color={colors.textMuted} />}
                   style={styles.dateInput}
                 />
@@ -224,24 +237,49 @@ export const CoursePickerScreen: React.FC = () => {
                   placeholder="YYYY-MM-DD"
                   value={semesterEnd}
                   onChangeText={setSemesterEnd}
+                  keyboardType="numbers-and-punctuation"
+                  enableVoiceInput={false}
                   leftIcon={<CalendarDays size={17} color={colors.textMuted} />}
                   style={styles.dateInput}
                 />
               </View>
 
-              <View style={styles.manualCard}>
-                <Input
-                  label="Course code"
-                  placeholder="e.g. EEE 301"
-                  value={manualCode}
-                  onChangeText={setManualCode}
-                  style={styles.manualInput}
-                />
-                <TouchableOpacity style={styles.addButton} onPress={addManualCourse} activeOpacity={0.85}>
-                  <Plus size={18} color={colors.background} />
-                  <Text style={styles.addButtonText}>Add code</Text>
+              {showManualEntry ? (
+                <View style={styles.manualCard}>
+                  <Input
+                    label="Course code"
+                    placeholder="e.g. EEE 301"
+                    value={manualCode}
+                    onChangeText={setManualCode}
+                    style={styles.manualInput}
+                  />
+                  <View style={styles.manualActionsRow}>
+                    <TouchableOpacity style={styles.addButton} onPress={addManualCourse} activeOpacity={0.85}>
+                      <Plus size={18} color={colors.background} />
+                      <Text style={styles.addButtonText}>Add code</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.manualSecondaryButton}
+                      onPress={() => {
+                        setManualCode("");
+                        setShowManualEntry(false);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.manualSecondaryButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.manualEntryToggle}
+                  onPress={() => setShowManualEntry(true)}
+                  activeOpacity={0.85}
+                >
+                  <Plus size={16} color={colors.primary} />
+                  <Text style={styles.manualEntryToggleText}>Add a course code manually</Text>
                 </TouchableOpacity>
-              </View>
+              )}
 
               {selectedCourses.length > 0 ? (
                 <View style={styles.selectionSummary}>
@@ -385,6 +423,11 @@ const styles = StyleSheet.create({
   manualInput: {
     marginBottom: 10,
   },
+  manualActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   addButton: {
     alignItems: "center",
     alignSelf: "flex-start",
@@ -399,6 +442,33 @@ const styles = StyleSheet.create({
     color: colors.background,
     fontWeight: "700",
     marginLeft: 6,
+  },
+  manualSecondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  manualSecondaryButtonText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  manualEntryToggle: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    marginBottom: 12,
+    paddingVertical: 6,
+  },
+  manualEntryToggleText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
+    marginLeft: 8,
   },
   selectedRow: {
     gap: 8,

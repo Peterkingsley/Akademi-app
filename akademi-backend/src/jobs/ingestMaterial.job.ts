@@ -9,7 +9,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 import { computeMaterialRetryAt } from '../modules/materials/material-processing';
-const JSZip = require('jszip');
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -142,87 +141,7 @@ async function describeEmbeddedImage(buffer: Buffer, mimeType: string) {
   return '';
 }
 
-function guessMimeTypeFromPath(filePath: string) {
-  const lower = filePath.toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.gif')) return 'image/gif';
-  if (lower.endsWith('.bmp')) return 'image/bmp';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  if (lower.endsWith('.svg')) return 'image/svg+xml';
-  return 'application/octet-stream';
-}
-
-async function extractDocxEmbeddedImages(buffer: Buffer) {
-  const zip = await JSZip.loadAsync(buffer);
-  const mediaEntries = Object.keys(zip.files)
-    .filter((filePath) => /^word\/media\//i.test(filePath) && !zip.files[filePath].dir)
-    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' }));
-
-  const images: Array<{ src: string; description: string; alt?: string; caption?: string }> = [];
-
-  for (const filePath of mediaEntries) {
-    const file = zip.files[filePath];
-    if (!file) continue;
-    const imageBuffer = await file.async('nodebuffer');
-    const mimeType = guessMimeTypeFromPath(filePath);
-    const description = await describeEmbeddedImage(imageBuffer, mimeType);
-    images.push({
-      src: `data:${mimeType};base64,${imageBuffer.toString('base64')}`,
-      description,
-    });
-  }
-
-  return images;
-}
-
-function injectFallbackImagesIntoReaderStructure(
-  readerStructure: any,
-  extractedImages: Array<{ src: string; description: string; alt?: string; caption?: string }>,
-) {
-  if (!readerStructure?.pages?.length || !extractedImages.length) return readerStructure;
-
-  const hasAnyImages = readerStructure.pages.some((page: any) =>
-    Array.isArray(page.blocks) && page.blocks.some((block: any) => block?.type === 'image' && block?.src)
-  );
-
-  if (hasAnyImages) return readerStructure;
-
-  const candidatePages = readerStructure.pages
-    .map((page: any, index: number) => ({ page, index }))
-    .filter(({ page }: any) => {
-      const combinedText = `${page.pageTitle || ''}\n${page.chapterTitle || ''}\n${page.content || ''}`.toLowerCase();
-      return /(figure\s*\d+|diagram|chart|graph|illustration|image)/i.test(combinedText);
-    });
-
-  const targetPages = candidatePages.length
-    ? candidatePages
-    : readerStructure.pages.map((page: any, index: number) => ({ page, index }));
-
-  extractedImages.forEach((image, imageIndex) => {
-    const target = targetPages[Math.min(imageIndex, targetPages.length - 1)];
-    if (!target) return;
-
-    const captionMatch = String(target.page.content || '')
-      .split('\n')
-      .map((line: string) => line.trim())
-      .find((line: string) => /^(figure|diagram|chart|image)\s*\d*/i.test(line));
-
-    const imageBlock = {
-      id: `fallback-image-${target.index + 1}-${imageIndex + 1}`,
-      type: 'image',
-      src: image.src,
-      alt: image.alt || '',
-      description: image.description || '',
-      caption: image.caption || captionMatch || '',
-    };
-
-    target.page.blocks = Array.isArray(target.page.blocks) ? target.page.blocks : [];
-    target.page.blocks.unshift(imageBlock);
-  });
-
-  return readerStructure;
-}
+const EMBEDDING_BATCH_SIZE = Math.max(Number(process.env.MATERIAL_EMBEDDING_BATCH_SIZE || 5), 1);
 
 export async function ingestMaterialJob(materialId: string) {
   type ProcessingMaterialRecord = {
@@ -321,9 +240,6 @@ export async function ingestMaterialJob(materialId: string) {
         normalizeExtractedText(extractedText),
         imageMetaBySrc,
       );
-
-      const extractedImages = await extractDocxEmbeddedImages(buffer);
-      readerStructure = injectFallbackImagesIntoReaderStructure(readerStructure, extractedImages);
     } else if (claimedMaterial.file_type === FileType.IMAGE) {
       const [result] = await getVisionClient().textDetection(buffer);
       const detections = result.textAnnotations;
@@ -358,18 +274,21 @@ export async function ingestMaterialJob(materialId: string) {
       where: { material_id: materialId },
     });
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkText = chunks[i];
-      const embedding = await generateEmbedding(chunkText);
-
-      await prisma.materialEmbedding.create({
-        data: {
-          material_id: materialId,
-          chunk_index: i,
-          chunk_text: chunkText,
-          embedding: embedding as any,
-        },
-      });
+    for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
+      const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (chunk, batchIndex) => {
+          const embedding = await generateEmbedding(chunk);
+          await prisma.materialEmbedding.create({
+            data: {
+              material_id: materialId,
+              chunk_index: i + batchIndex,
+              chunk_text: chunk,
+              embedding: embedding as any,
+            },
+          });
+        }),
+      );
     }
 
     console.log(
