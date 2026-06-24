@@ -185,8 +185,15 @@ export const sessionService = {
   },
 
   getCompanionState: async (sessionId: string) => {
-    const response = await api.get<StudyCompanionState | null>(`/sessions/${sessionId}/companion`);
-    return response.data;
+    try {
+      const response = await api.get<StudyCompanionState | null>(`/sessions/${sessionId}/companion`);
+      return response.data;
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   startCompanion: async (

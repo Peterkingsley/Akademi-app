@@ -115,7 +115,8 @@ export const StudyCompanionScreen: React.FC = () => {
       setCompanionState(state);
       setSessionTitle(session.material?.title || session.topic || materialTitle);
       setSessionCourseCode(session.material?.course_code || session.course_code || courseCode);
-      setStartModalVisible(!state || list.filter((item) => item.role === "AI").length === 0);
+      const hasAIMessages = list.some((item) => item.role === "AI");
+      setStartModalVisible(!hasAIMessages);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to load AI Tutor session.");
     } finally {
@@ -351,8 +352,15 @@ export const StudyCompanionScreen: React.FC = () => {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Ready to begin</Text>
               <Text style={styles.emptyText}>
-                Start the study flow and Akademi will guide you section by section.
+                Tap the button below to begin your study session with Akademi.
               </Text>
+              {!startModalVisible ? (
+                <Button
+                  title="Start Session"
+                  onPress={() => setStartModalVisible(true)}
+                  style={styles.emptyActionButton}
+                />
+              ) : null}
             </View>
           }
           ListFooterComponent={
@@ -391,7 +399,7 @@ export const StudyCompanionScreen: React.FC = () => {
           </View>
         </View>
 
-        <Modal transparent visible={startModalVisible} animationType="fade">
+        <Modal transparent visible={startModalVisible} animationType="slide" statusBarTranslucent>
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>Start AI Tutor</Text>
@@ -674,6 +682,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       lineHeight: 20,
       textAlign: "center",
     },
+    emptyActionButton: {
+      marginTop: 24,
+      minWidth: 180,
+    },
     typingRow: {
       alignItems: "flex-start",
       marginTop: 6,
@@ -755,8 +767,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.68)",
       alignItems: "center",
-      justifyContent: "center",
+      justifyContent: "flex-end",
       paddingHorizontal: 20,
+      paddingBottom: 24,
+      zIndex: 999,
     },
     modalCard: {
       width: "100%",
