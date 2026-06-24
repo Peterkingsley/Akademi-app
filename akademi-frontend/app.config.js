@@ -42,7 +42,7 @@ module.exports = {
     owner: "akademiapp21",
     scheme: "akademi",
     version: "1.0.0",
-    newArchEnabled: false,
+    newArchEnabled: true,
     platforms: ["ios", "android", "web"],
     orientation: "portrait",
     icon: "./assets/akademi-logo-icon.png",
