@@ -17,6 +17,7 @@ import { Input } from "../../components/ui/Input";
 import { MaterialCard } from "../../components/ui/MaterialCard";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { materialService, Material } from "../../services/material";
+import { sessionService } from "../../services/session";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -35,6 +36,7 @@ export const AITutorScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startingMaterialId, setStartingMaterialId] = useState<string | null>(null);
 
   const fetchMaterials = async () => {
     try {
@@ -79,6 +81,32 @@ export const AITutorScreen: React.FC = () => {
       return matchesCourse && matchesSearch;
     });
   }, [materials, searchQuery, selectedCourse]);
+
+  const openCompanion = async (item: Material) => {
+    try {
+      setStartingMaterialId(item.id);
+      setError(null);
+      const session = await sessionService.createSession({
+        session_type: "STUDY",
+        course_code: item.course_code || "General",
+        material_id: item.id,
+        topic: item.title,
+        metadata: {
+          mode: "ai-study-companion",
+        },
+      });
+
+      navigation.navigate("StudyCompanion", {
+        sessionId: session.id,
+        materialTitle: item.title,
+        courseCode: item.course_code || "General",
+      });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not open AI Tutor for this material.");
+    } finally {
+      setStartingMaterialId(null);
+    }
+  };
 
   return (
     <Screen hideHeader style={styles.screen}>
@@ -169,8 +197,11 @@ export const AITutorScreen: React.FC = () => {
                   date={new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
                   rating={item.rating}
                   isBookmarked={item.isBookmarked}
-                  onPress={() => navigation.navigate("StudyMode", { materialId: item.id, autoOpenTutor: true })}
+                  onPress={() => openCompanion(item)}
                 />
+                {startingMaterialId === item.id ? (
+                  <Text style={styles.startingText}>Opening AI Tutor...</Text>
+                ) : null}
               </Animated.View>
             )}
             ListEmptyComponent={
@@ -347,5 +378,13 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontSize: 13,
       lineHeight: 20,
       textAlign: "center",
+    },
+    startingText: {
+      ...typography.bodySmall,
+      color: colors.primary,
+      fontSize: 11,
+      marginTop: 6,
+      marginBottom: 10,
+      marginLeft: 4,
     },
   });

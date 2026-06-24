@@ -122,4 +122,17 @@ export class SessionsController {
       res.status(statusForError(error)).json({ message: error.message });
     }
   }
+
+  async sendCompanionMessage(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.sendCompanionMessage(
+        req.user!.userId,
+        req.params.id,
+        req.body,
+      );
+      res.status(201).json(message);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
 }

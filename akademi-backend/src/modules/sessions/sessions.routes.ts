@@ -76,6 +76,7 @@ router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
 router.get('/:id/companion', sessionsController.getCompanionState);
 router.post('/:id/companion/start', sessionInteractionRateLimiter, sessionsController.startCompanion);
+router.post('/:id/companion/message', sessionInteractionRateLimiter, sessionsController.sendCompanionMessage);
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionInteractionRateLimiter, sessionsController.sendMessage);

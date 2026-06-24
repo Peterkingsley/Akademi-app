@@ -347,4 +347,11 @@ export class SessionsService {
       },
     });
   }
+
+  async sendCompanionMessage(userId: string, sessionId: string, data: SendMessageRequest) {
+    return this.sendMessage(userId, sessionId, {
+      content: data.content,
+      reply_mode: ReplyMode.STUDY,
+    });
+  }
 }

@@ -53,6 +53,11 @@ export interface Message {
   created_at: string;
 }
 
+export interface TranscriptionResult {
+  transcript: string;
+  fileName?: string;
+}
+
 export interface StudyRoadmapSection {
   key: string;
   title: string;
@@ -194,6 +199,34 @@ export const sessionService = {
     const response = await api.post<Message>(`/sessions/${sessionId}/companion/start`, data, {
       timeout: 90000,
     });
+    return response.data;
+  },
+
+  sendCompanionMessage: async (sessionId: string, content: string) => {
+    const response = await api.post<Message>(
+      `/sessions/${sessionId}/companion/message`,
+      { content },
+      { timeout: 90000 },
+    );
+    return response.data;
+  },
+
+  sendPhotoMessage: async (sessionId: string, uri: string, name = "solution.jpg") => {
+    const formData = new FormData();
+    formData.append("photo", {
+      uri,
+      name,
+      type: "image/jpeg",
+    } as any);
+
+    const response = await api.post<{ extractedText: string; message: Message }>(
+      `/sessions/${sessionId}/messages/photo`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 90000,
+      },
+    );
     return response.data;
   },
 };

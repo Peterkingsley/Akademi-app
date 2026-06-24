@@ -85,6 +85,11 @@ export type AdminStackParamList = {
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   AITutor: undefined;
+  StudyCompanion: {
+    sessionId: string;
+    materialTitle: string;
+    courseCode: string;
+  };
   AssignmentResult: { sessionId: string };
   StudyMode: { sessionId?: string; materialId?: string; autoOpenTutor?: boolean };
   MaterialPractice: { materialId: string; title?: string };
