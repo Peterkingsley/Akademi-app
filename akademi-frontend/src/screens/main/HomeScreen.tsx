@@ -68,6 +68,14 @@ const QUICK_ACTIONS = [
     screen: "ExamPrep",
   },
   {
+    id: "ai_tutor",
+    label: "AI Tutor",
+    description: "Guided study",
+    icon: Sparkles,
+    tint: "#A855F7",
+    screen: "Library",
+  },
+  {
     id: "compete",
     label: "Compete",
     description: "Live battles",
@@ -455,6 +463,21 @@ export const HomeScreen: React.FC = () => {
     navigation.navigate("ExamPrep");
   };
 
+  const openQuickAction = (action: QuickAction) => {
+    if (action.id === "ai_tutor") {
+      navigation.navigate("Library");
+      setTimeout(() => {
+        Alert.alert(
+          "Open AI Tutor",
+          "Choose a study material from Library to start the AI Tutor."
+        );
+      }, 250);
+      return;
+    }
+
+    navigation.navigate(action.screen);
+  };
+
   const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (
     <Animated.View entering={FadeInUp.delay(index * 80)} style={styles.sessionItem}>
       <TouchableOpacity
@@ -673,7 +696,7 @@ export const HomeScreen: React.FC = () => {
               key={action.id}
               action={action}
               isTourTarget={isTourVisible && activeTourStep?.id === action.id}
-              onPress={() => navigation.navigate(action.screen)}
+              onPress={() => openQuickAction(action)}
             />
           ))}
         </View>
