@@ -141,6 +141,13 @@ async function describeEmbeddedImage(buffer: Buffer, mimeType: string) {
   return '';
 }
 
+function guessImageMimeType(fileRef: string) {
+  const lower = String(fileRef || '').toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
 const EMBEDDING_BATCH_SIZE = Math.max(Number(process.env.MATERIAL_EMBEDDING_BATCH_SIZE || 5), 1);
 
 export async function ingestMaterialJob(materialId: string) {
@@ -241,12 +248,35 @@ export async function ingestMaterialJob(materialId: string) {
         imageMetaBySrc,
       );
     } else if (claimedMaterial.file_type === FileType.IMAGE) {
-      const [result] = await getVisionClient().textDetection(buffer);
-      const detections = result.textAnnotations;
-      extractedText =
-        detections && detections.length > 0
-          ? detections[0].description || ''
-          : '';
+      const client = getGeminiClient();
+      if (client) {
+        try {
+          const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+          const result = await model.generateContent([
+            {
+              text: 'Extract all text from this image exactly as written. If it contains mathematical notation, preserve it accurately. Include all headings, examples, definitions, and formulas. Output plain text only.',
+            },
+            {
+              inlineData: {
+                mimeType: guessImageMimeType(claimedMaterial.file_ref),
+                data: buffer.toString('base64'),
+              },
+            },
+          ]);
+          extractedText = result.response.text().trim();
+        } catch (error) {
+          console.error('Gemini image extraction failed, falling back to Vision OCR:', error);
+        }
+      }
+
+      if (!extractedText) {
+        const [result] = await getVisionClient().textDetection(buffer);
+        const detections = result.textAnnotations;
+        extractedText =
+          detections && detections.length > 0
+            ? detections[0].description || ''
+            : '';
+      }
     }
 
     if (!extractedText) {
