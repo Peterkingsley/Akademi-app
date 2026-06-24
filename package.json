@@ -7,6 +7,9 @@
     "react-native-pager-view": "^8.0.1",
     "react-native-tab-view": "^4.3.0"
   },
+  "scripts": {
+    "test": "cd akademi-backend && npm test"
+  },
   "devDependencies": {
     "@playwright/test": "^1.59.1"
   }
