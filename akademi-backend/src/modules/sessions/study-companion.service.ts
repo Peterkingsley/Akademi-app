@@ -78,6 +78,37 @@ function normalizeText(value: string) {
   return value.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function isIntroLikeSection(section: RoadmapSection) {
+  const title = section.title.toLowerCase().trim();
+
+  return [
+    'introduction',
+    'intro',
+    'overview',
+    'preface',
+    'course outline',
+    'table of contents',
+    'contents',
+  ].some((keyword) => title.includes(keyword));
+}
+
+function hasEnoughTeachingContent(section: RoadmapSection) {
+  const text = normalizeText(section.content || '');
+  return text.length >= 500;
+}
+
+function findFirstRealTeachingSection(roadmap: RoadmapSection[], startIndex = 0) {
+  for (let i = startIndex; i < roadmap.length; i++) {
+    const section = roadmap[i];
+
+    if (!isIntroLikeSection(section) && hasEnoughTeachingContent(section)) {
+      return i;
+    }
+  }
+
+  return startIndex;
+}
+
 function truncate(value: string, max = 900) {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 3).trimEnd()}...`;
@@ -419,6 +450,8 @@ export class StudyCompanionService {
       };
     }
 
+    nextIndex = findFirstRealTeachingSection(roadmap, nextIndex);
+
     const section = this.sectionAt(roadmap, nextIndex);
     roadmap.forEach((item, index) => {
       if (index === nextIndex && item.status === StudyRoadmapStatus.NOT_STARTED) {
@@ -432,7 +465,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
-      'Task: Briefly orient the student, then deliver Pass 1 (big picture) for this section. End with a short check-in line.',
+      'Task: Start naturally. Do not over-introduce. If this is an introduction/overview section, summarize it in 2 short sentences and move into the first real teachable section. Deliver Pass 1 only when there is enough real study content. End with a short check-in line.',
     ].join('\n\n');
 
     const content = await generateText(introPrompt, this.companionSystemPrompt());
