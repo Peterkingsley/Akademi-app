@@ -35,6 +35,13 @@ type CompanionMetadata = {
   roadmap?: string[];
 };
 
+type CompanionResponseMetadata = {
+  autoContinue?: boolean;
+  waitForStudent?: boolean;
+  nextAction?: 'continue_teaching' | 'wait_for_student';
+  study_companion: PublicState | null;
+};
+
 type CompanionStartMode = 'continue' | 'specific' | 'beginning' | 'roadmap';
 
 type PublicState = {
@@ -184,6 +191,16 @@ async function generateText(prompt: string, systemPrompt: string, maxTokens = 90
 }
 
 export class StudyCompanionService {
+  private async buildResponseMetadata(
+    sessionId: string,
+    extra: Omit<CompanionResponseMetadata, 'study_companion'> = {},
+  ): Promise<CompanionResponseMetadata> {
+    return {
+      ...extra,
+      study_companion: await this.getPublicState(sessionId),
+    };
+  }
+
   private parseMetadata(session: Session) {
     return safeJsonObject<CompanionMetadata>(session.metadata, {});
   }
@@ -446,9 +463,11 @@ export class StudyCompanionService {
       });
       return {
         content: message,
-        metadata: {
-          study_companion: await this.getPublicState(sessionId),
-        },
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
       };
     }
 
@@ -481,9 +500,11 @@ export class StudyCompanionService {
 
     return {
       content,
-      metadata: {
-        study_companion: await this.getPublicState(sessionId),
-      },
+      metadata: await this.buildResponseMetadata(sessionId, {
+        autoContinue: true,
+        waitForStudent: false,
+        nextAction: 'continue_teaching',
+      }),
     };
   }
 
@@ -595,39 +616,66 @@ export class StudyCompanionService {
     const { state, roadmap } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const trimmed = studentResponse.trim();
+    const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
 
     if (!trimmed) {
       throw new Error('Please send a response so Akademi can continue the study flow.');
     }
 
     if (state.current_phase === PASS_1) {
-      const content = await this.buildTeachingPass(section, 2);
+      const content = await this.buildTeachingPass(section, 1);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: true,
+          waitForStudent: false,
+          nextAction: 'continue_teaching',
+        }),
+      };
     }
 
     if (state.current_phase === PASS_2) {
-      const content = await this.buildTeachingPass(section, 3);
+      const content = await this.buildTeachingPass(section, 2);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: true,
+          waitForStudent: false,
+          nextAction: 'continue_teaching',
+        }),
+      };
     }
 
     if (state.current_phase === PASS_3) {
-      const content = await this.buildTeachBackPrompt(section, 1);
+      const teaching = await this.buildTeachingPass(section, 3);
+      const checkpoint = await this.buildTeachBackPrompt(section, 1);
+      const content = [teaching, '', checkpoint].join('\n\n');
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_1,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
+      };
     }
 
     if (state.current_phase === TEACHBACK_1) {
+      if (isAutoContinue) {
+        throw new Error('Akademi is waiting for your explanation before continuing.');
+      }
       const evaluation = await this.evaluateTeachBack(section, trimmed, 1);
       await prisma.teachBackAttempt.create({
         data: {
@@ -653,10 +701,20 @@ export class StudyCompanionService {
         current_phase: TEACHBACK_2,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
+      };
     }
 
     if (state.current_phase === TEACHBACK_2) {
+      if (isAutoContinue) {
+        throw new Error('Akademi is waiting for your second teach-back before continuing.');
+      }
       const evaluation = await this.evaluateTeachBack(section, trimmed, 2);
       await prisma.teachBackAttempt.create({
         data: {
@@ -681,10 +739,20 @@ export class StudyCompanionService {
         current_phase: MEMORY_DUMP,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
+      };
     }
 
     if (state.current_phase === MEMORY_DUMP) {
+      if (isAutoContinue) {
+        throw new Error('Akademi is waiting for your memory dump before continuing.');
+      }
       const evaluation = await this.evaluateMemoryDump(section, trimmed);
       await prisma.memoryDumpAttempt.create({
         data: {
@@ -744,7 +812,14 @@ export class StudyCompanionService {
           pending_prompt: content,
           session_summary: hasNextSection ? null : `Completed all ${roadmap.length} sections.`,
         });
-        return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+        return {
+          content,
+          metadata: await this.buildResponseMetadata(sessionId, {
+            autoContinue: false,
+            waitForStudent: true,
+            nextAction: 'wait_for_student',
+          }),
+        };
       }
 
       roadmap[state.current_section_index] = {
@@ -760,7 +835,14 @@ export class StudyCompanionService {
         last_mastery_score: finalScore,
         pending_prompt: content,
       });
-      return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+      return {
+        content,
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
+      };
     }
 
     if (state.current_phase === NEXT_SECTION) {
@@ -777,7 +859,14 @@ export class StudyCompanionService {
           current_section_index: nextIndex,
           pending_prompt: content,
         });
-        return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+        return {
+          content,
+          metadata: await this.buildResponseMetadata(sessionId, {
+            autoContinue: true,
+            waitForStudent: false,
+            nextAction: 'continue_teaching',
+          }),
+        };
       }
 
       const affirmative = /(yes|continue|next|move on|go on|ready)/i.test(trimmed);
@@ -794,19 +883,34 @@ export class StudyCompanionService {
           current_section_index: nextIndex,
           pending_prompt: content,
         });
-        return { content, metadata: { study_companion: await this.getPublicState(sessionId) } };
+        return {
+          content,
+          metadata: await this.buildResponseMetadata(sessionId, {
+            autoContinue: true,
+            waitForStudent: false,
+            nextAction: 'continue_teaching',
+          }),
+        };
       }
 
       return {
         content: 'Reply with "continue" when you are ready for the next section, or tell me which section you want to revisit.',
-        metadata: { study_companion: await this.getPublicState(sessionId) },
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
       };
     }
 
     if (state.current_phase === SESSION_DONE) {
       return {
         content: 'You have completed this material roadmap. If you want, reply with the section name you want to review and I will reopen it for targeted revision.',
-        metadata: { study_companion: await this.getPublicState(sessionId) },
+        metadata: await this.buildResponseMetadata(sessionId, {
+          autoContinue: false,
+          waitForStudent: true,
+          nextAction: 'wait_for_student',
+        }),
       };
     }
 
@@ -815,7 +919,14 @@ export class StudyCompanionService {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
     });
-    return { content: fallback, metadata: { study_companion: await this.getPublicState(sessionId) } };
+    return {
+      content: fallback,
+      metadata: await this.buildResponseMetadata(sessionId, {
+        autoContinue: false,
+        waitForStudent: true,
+        nextAction: 'wait_for_student',
+      }),
+    };
   }
 }
 

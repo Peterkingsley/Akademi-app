@@ -44,6 +44,9 @@ import {
 
 type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
 type StartMode = "beginning" | "continue" | "specific" | "roadmap";
+type SendDraftOptions = {
+  hidden?: boolean;
+};
 
 const phaseLabels: Record<string, string> = {
   MATERIAL_SELECTION_REQUIRED: "Choose material",
@@ -104,6 +107,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [recording, setRecording] = useState<any | null>(null);
   const listRef = useRef<FlatList<Message>>(null);
+  const autoContinueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -130,6 +134,12 @@ export const StudyCompanionScreen: React.FC = () => {
     reload();
   }, [reload]);
 
+  useEffect(() => () => {
+    if (autoContinueTimeoutRef.current) {
+      clearTimeout(autoContinueTimeoutRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     if (messages.length > 0) {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -137,6 +147,56 @@ export const StudyCompanionScreen: React.FC = () => {
   }, [messages]);
 
   const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
+
+  const sendDraft = useCallback(async (draftContent?: string, options?: SendDraftOptions) => {
+    const trimmed = (draftContent ?? input).trim();
+    if (!trimmed || sending) return;
+    const hidden = options?.hidden === true;
+
+    const optimistic: Message = {
+      id: `local-${Date.now()}`,
+      session_id: sessionId,
+      user_id: "me",
+      role: "STUDENT",
+      content: trimmed,
+      created_at: new Date().toISOString(),
+    };
+
+    if (!hidden) {
+      setMessages((prev) => [...prev, optimistic]);
+      setInput("");
+    }
+    setSending(true);
+    setError(null);
+
+    try {
+      const aiMessage = await sessionService.sendCompanionMessage(sessionId, trimmed);
+      setMessages((prev) =>
+        hidden
+          ? [...prev, aiMessage]
+          : [...prev.filter((msg) => msg.id !== optimistic.id), aiMessage],
+      );
+      const state = await sessionService.getCompanionState(sessionId);
+      setCompanionState(state);
+      await speakAiText(aiMessage.content);
+      if (aiMessage.metadata?.autoContinue) {
+        if (autoContinueTimeoutRef.current) {
+          clearTimeout(autoContinueTimeoutRef.current);
+        }
+        autoContinueTimeoutRef.current = setTimeout(() => {
+          void sendDraft("__AUTO_CONTINUE__", { hidden: true });
+        }, 900);
+      }
+    } catch (err: any) {
+      if (!hidden) {
+        setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
+        setInput(trimmed);
+      }
+      setError(err?.response?.data?.message || "Could not send that response.");
+    } finally {
+      setSending(false);
+    }
+  }, [input, sending, sessionId]);
 
   const handleStart = useCallback(
     async (mode: StartMode, sectionTitle?: string) => {
@@ -149,6 +209,14 @@ export const StudyCompanionScreen: React.FC = () => {
         });
         setMessages((prev) => [...prev, message]);
         await speakAiText(message.content);
+        if (message.metadata?.autoContinue) {
+          if (autoContinueTimeoutRef.current) {
+            clearTimeout(autoContinueTimeoutRef.current);
+          }
+          autoContinueTimeoutRef.current = setTimeout(() => {
+            void sendDraft("__AUTO_CONTINUE__", { hidden: true });
+          }, 900);
+        }
         setStartModalVisible(false);
         setSpecificSection("");
         const state = await sessionService.getCompanionState(sessionId);
@@ -159,41 +227,8 @@ export const StudyCompanionScreen: React.FC = () => {
         setSending(false);
       }
     },
-    [sessionId],
+    [sendDraft, sessionId],
   );
-
-  const sendDraft = useCallback(async (draftContent?: string) => {
-    const trimmed = (draftContent ?? input).trim();
-    if (!trimmed || sending) return;
-
-    const optimistic: Message = {
-      id: `local-${Date.now()}`,
-      session_id: sessionId,
-      user_id: "me",
-      role: "STUDENT",
-      content: trimmed,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, optimistic]);
-    setInput("");
-    setSending(true);
-    setError(null);
-
-    try {
-      const aiMessage = await sessionService.sendCompanionMessage(sessionId, trimmed);
-      setMessages((prev) => [...prev.filter((msg) => msg.id !== optimistic.id), aiMessage]);
-      const state = await sessionService.getCompanionState(sessionId);
-      setCompanionState(state);
-      await speakAiText(aiMessage.content);
-    } catch (err: any) {
-      setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
-      setInput(trimmed);
-      setError(err?.response?.data?.message || "Could not send that response.");
-    } finally {
-      setSending(false);
-    }
-  }, [input, sending, sessionId]);
 
   const handleToggleVoice = useCallback(async () => {
     try {

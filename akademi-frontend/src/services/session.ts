@@ -29,6 +29,9 @@ export interface Message {
   role: "STUDENT" | "AI";
   content: string;
   metadata?: {
+    autoContinue?: boolean;
+    waitForStudent?: boolean;
+    nextAction?: "continue_teaching" | "wait_for_student";
     whiteboard?: {
       available?: boolean;
       subject_family?: string;
