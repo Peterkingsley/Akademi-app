@@ -47,9 +47,55 @@ export interface Message {
         summary?: string;
       };
     };
+    study_companion?: StudyCompanionState | null;
   };
   reply_mode?: string;
   created_at: string;
+}
+
+export interface StudyRoadmapSection {
+  key: string;
+  title: string;
+  content: string;
+  status: "NOT_STARTED" | "IN_PROGRESS" | "NEEDS_REVIEW" | "MASTERED";
+  pageStart: number;
+  pageEnd: number;
+}
+
+export interface StudyCompanionState {
+  phase:
+    | "MATERIAL_SELECTION_REQUIRED"
+    | "MATERIAL_SELECTED"
+    | "ROADMAP_GENERATED"
+    | "TEACHING_PASS_1_BIG_PICTURE"
+    | "TEACHING_PASS_2_DETAILS"
+    | "TEACHING_PASS_3_CONNECTIONS"
+    | "TEACHBACK_1_REQUESTED"
+    | "TEACHBACK_1_EVALUATION"
+    | "GAP_RETEACH"
+    | "TEACHBACK_2_REQUESTED"
+    | "TEACHBACK_2_EVALUATION"
+    | "MEMORY_DUMP_REQUESTED"
+    | "MEMORY_DUMP_EVALUATION"
+    | "MASTERY_PASSED"
+    | "MASTERY_FAILED"
+    | "SECTION_COMPLETED"
+    | "NEXT_SECTION_READY"
+    | "SESSION_COMPLETED";
+  currentSectionIndex: number;
+  lastCompletedIndex: number;
+  lastMasteryScore: number | null;
+  masteryThreshold: number;
+  roadmap: StudyRoadmapSection[];
+  progress: {
+    completedSections: number;
+    totalSections: number;
+    masteredSections: number;
+  };
+  refreshQuestion: string | null;
+  pendingPrompt: string | null;
+  materialId: string;
+  courseCode: string;
 }
 
 export interface SessionSummary {
@@ -128,6 +174,24 @@ export const sessionService = {
     }
   ) => {
     const response = await api.post<Message>(`/sessions/${sessionId}/messages`, data, {
+      timeout: 90000,
+    });
+    return response.data;
+  },
+
+  getCompanionState: async (sessionId: string) => {
+    const response = await api.get<StudyCompanionState | null>(`/sessions/${sessionId}/companion`);
+    return response.data;
+  },
+
+  startCompanion: async (
+    sessionId: string,
+    data: {
+      mode: "continue" | "specific" | "beginning" | "roadmap";
+      section_title?: string;
+    }
+  ) => {
+    const response = await api.post<Message>(`/sessions/${sessionId}/companion/start`, data, {
       timeout: 90000,
     });
     return response.data;

@@ -1,6 +1,6 @@
 import prisma from '../../config/db';
-import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest } from './sessions.types';
-import { SessionType, MessageRole, Feature, Prisma } from '@prisma/client';
+import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest } from './sessions.types';
+import { SessionType, MessageRole, Feature, Prisma, ReplyMode } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
@@ -8,6 +8,7 @@ import { config } from '../../config/env';
 import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
 import { aiProvider } from '../ai/ai.provider';
+import { studyCompanionService } from './study-companion.service';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -112,6 +113,7 @@ export class SessionsService {
         topic: data.topic || null,
         duration: data.duration || null,
         material_id: data.material_id?.trim() || null,
+        metadata: (data.metadata || {}) as Prisma.InputJsonValue,
         university: user.university,
         department: user.department,
       },
@@ -190,8 +192,15 @@ export class SessionsService {
       },
     });
 
-    // AI Orchestration Logic
-    const aiResponse = await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
+    const companionState = await studyCompanionService.ensureState(sessionId);
+    const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+
+    const aiResponse =
+      companionState && metadata.mode === 'ai-study-companion'
+        ? await studyCompanionService.handleStudentReply(sessionId, data.content)
+        : await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
 
     // Save AI message
     return prisma.message.create({
@@ -293,5 +302,49 @@ export class SessionsService {
           key_points: ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
           next_steps: ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
+  }
+
+  async getCompanionState(sessionId: string) {
+    return studyCompanionService.getPublicState(sessionId);
+  }
+
+  async startCompanion(sessionId: string, data: StartCompanionRequest) {
+    const session = await this.getSession(sessionId);
+    const kickoffText =
+      data.mode === 'roadmap'
+        ? 'Create my study roadmap first.'
+        : data.mode === 'specific'
+          ? `Start me from this section: ${data.section_title || 'selected section'}.`
+          : data.mode === 'continue'
+            ? 'Continue from where I stopped.'
+            : 'Start from the beginning.';
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.STUDENT,
+        content: kickoffText,
+        reply_mode: ReplyMode.STUDY,
+        metadata: {
+          study_companion_start: true,
+          mode: data.mode,
+          section_title: data.section_title || null,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    const response = await studyCompanionService.start(sessionId, data.mode, data.section_title);
+
+    return prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.AI,
+        content: response.content,
+        reply_mode: ReplyMode.STUDY,
+        metadata: (response.metadata || {}) as Prisma.InputJsonValue,
+      },
+    });
   }
 }

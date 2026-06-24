@@ -19,6 +19,11 @@ export interface SendPhotoMessageRequest {
   reply_mode?: ReplyMode;
 }
 
+export interface StartCompanionRequest {
+  mode: 'continue' | 'specific' | 'beginning' | 'roadmap';
+  section_title?: string;
+}
+
 export interface SessionResponse {
   id: string;
   session_type: SessionType;

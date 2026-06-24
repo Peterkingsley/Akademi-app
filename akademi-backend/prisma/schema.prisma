@@ -33,6 +33,39 @@ enum SessionType {
   EXAM_PREP
 }
 
+enum StudyCompanionPhase {
+  MATERIAL_SELECTION_REQUIRED
+  MATERIAL_SELECTED
+  ROADMAP_GENERATED
+  TEACHING_PASS_1_BIG_PICTURE
+  TEACHING_PASS_2_DETAILS
+  TEACHING_PASS_3_CONNECTIONS
+  TEACHBACK_1_REQUESTED
+  TEACHBACK_1_EVALUATION
+  GAP_RETEACH
+  TEACHBACK_2_REQUESTED
+  TEACHBACK_2_EVALUATION
+  MEMORY_DUMP_REQUESTED
+  MEMORY_DUMP_EVALUATION
+  MASTERY_PASSED
+  MASTERY_FAILED
+  SECTION_COMPLETED
+  NEXT_SECTION_READY
+  SESSION_COMPLETED
+}
+
+enum StudyRoadmapStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  NEEDS_REVIEW
+  MASTERED
+}
+
+enum MasteryStatus {
+  PASSED
+  FAILED
+}
+
 enum MessageRole {
   STUDENT
   AI
@@ -206,6 +239,10 @@ model User {
   learning_profile  LearningProfile?
   sessions          Session[]
   messages          Message[]
+  companion_states  StudyCompanionState[]
+  teachback_attempts TeachBackAttempt[]
+  memory_dump_attempts MemoryDumpAttempt[]
+  mastery_records   MasteryRecord[]
   feature_access    FeatureAccess[]
   refresh_tokens    RefreshToken[]
   materials         Material[]       @relation("UploadedBy")
@@ -300,6 +337,10 @@ model Material {
   embeddings  MaterialEmbedding[]
   upload_chunks      UploadChunk[] // Named upload_chunks to match codebase
   sessions    Session[]
+  companion_states  StudyCompanionState[]
+  teachback_attempts TeachBackAttempt[]
+  memory_dump_attempts MemoryDumpAttempt[]
+  mastery_records    MasteryRecord[]
 
   @@index([course_code])
   @@index([university])
@@ -345,15 +386,20 @@ model Session {
   course_code  String?
   topic        String?
   duration     Int?
+  metadata     Json        @default("{}")
   university   String
   department   String
   started_at   DateTime    @default(now())
   ended_at     DateTime?
   created_at   DateTime    @default(now())
 
-  user      User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material  Material? @relation(fields: [material_id], references: [id], onDelete: SetNull)
-  messages  Message[]
+  user              User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material          Material?             @relation(fields: [material_id], references: [id], onDelete: SetNull)
+  messages          Message[]
+  companion_state   StudyCompanionState?
+  teachbacks        TeachBackAttempt[]
+  memory_dumps      MemoryDumpAttempt[]
+  mastery_records   MasteryRecord[]
   @@index([user_id])
   @@index([material_id])
   @@index([user_id, material_id, session_type])
@@ -377,6 +423,113 @@ model Message {
 
   @@index([session_id])
   @@map("messages")
+}
+
+model StudyCompanionState {
+  id                     String               @id @default(uuid())
+  session_id             String               @unique
+  user_id                String
+  material_id            String
+  course_code            String
+  current_phase          StudyCompanionPhase  @default(MATERIAL_SELECTED)
+  current_section_index  Int                  @default(0)
+  last_completed_index   Int                  @default(-1)
+  last_mastery_score     Int?
+  mastery_threshold      Int                  @default(80)
+  roadmap                Json                 @default("[]")
+  progress               Json                 @default("{}")
+  section_context        Json                 @default("{}")
+  refresh_question       String?
+  refresh_answer         String?
+  pending_prompt         String?
+  session_summary        String?
+  external_support_used  Boolean              @default(false)
+  created_at             DateTime             @default(now())
+  updated_at             DateTime             @updatedAt
+
+  session          Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material         Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  teachbacks       TeachBackAttempt[]
+  memory_dumps     MemoryDumpAttempt[]
+  mastery_records  MasteryRecord[]
+
+  @@index([user_id, material_id, course_code])
+  @@index([current_phase])
+  @@map("study_companion_states")
+}
+
+model TeachBackAttempt {
+  id                    String              @id @default(uuid())
+  session_id            String
+  companion_state_id    String
+  user_id               String
+  material_id           String
+  section_index         Int
+  attempt_number        Int
+  phase                 StudyCompanionPhase
+  prompt                String?
+  student_response      String
+  evaluation            String
+  score                 Int
+  passed                Boolean             @default(false)
+  created_at            DateTime            @default(now())
+
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, section_index, attempt_number])
+  @@index([companion_state_id, section_index])
+  @@map("teachback_attempts")
+}
+
+model MemoryDumpAttempt {
+  id                    String              @id @default(uuid())
+  session_id            String
+  companion_state_id    String
+  user_id               String
+  material_id           String
+  section_index         Int
+  prompt                String?
+  student_response      String
+  evaluation            String
+  score                 Int
+  created_at            DateTime            @default(now())
+
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, section_index])
+  @@index([companion_state_id, section_index])
+  @@map("memory_dump_attempts")
+}
+
+model MasteryRecord {
+  id                    String              @id @default(uuid())
+  session_id            String
+  companion_state_id    String
+  user_id               String
+  material_id           String
+  course_code           String
+  section_index         Int
+  section_title         String
+  score                 Int
+  status                MasteryStatus
+  failed_concepts       Json                @default("[]")
+  created_at            DateTime            @default(now())
+
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, course_code, material_id])
+  @@index([companion_state_id, section_index])
+  @@map("mastery_records")
 }
 
 model Question {

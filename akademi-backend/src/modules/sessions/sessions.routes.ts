@@ -74,6 +74,8 @@ router.post('/ingest/document', sessionInteractionRateLimiter, documentUpload.si
 router.post('/ingest/audio', sessionInteractionRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
+router.get('/:id/companion', sessionsController.getCompanionState);
+router.post('/:id/companion/start', sessionInteractionRateLimiter, sessionsController.startCompanion);
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionInteractionRateLimiter, sessionsController.sendMessage);

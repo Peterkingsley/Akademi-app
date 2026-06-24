@@ -104,4 +104,22 @@ export class SessionsController {
       res.status(404).json({ message: error.message });
     }
   }
+
+  async getCompanionState(req: Request, res: Response) {
+    try {
+      const state = await sessionsService.getCompanionState(req.params.id);
+      res.status(200).json(state);
+    } catch (error: any) {
+      res.status(statusForError(error, 404)).json({ message: error.message });
+    }
+  }
+
+  async startCompanion(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.startCompanion(req.params.id, req.body);
+      res.status(200).json(message);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
 }
