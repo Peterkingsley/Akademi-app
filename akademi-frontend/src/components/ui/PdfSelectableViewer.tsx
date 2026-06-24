@@ -167,6 +167,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
             const availableWidth = Math.max(window.innerWidth, 320);
             const scale = availableWidth / baseViewport.width;
             const viewport = page.getViewport({ scale });
+            const dpr = Math.max(window.devicePixelRatio || 1, 1);
 
             const shell = document.createElement('div');
             shell.className = 'page-shell';
@@ -179,8 +180,8 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
 
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
             canvas.style.width = viewport.width + 'px';
             canvas.style.height = viewport.height + 'px';
 
@@ -196,7 +197,11 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
             shell.appendChild(pageEl);
             viewerEl.appendChild(shell);
 
-            await page.render({ canvasContext: context, viewport }).promise;
+            await page.render({
+              canvasContext: context,
+              viewport,
+              transform: dpr === 1 ? undefined : [dpr, 0, 0, dpr, 0, 0],
+            }).promise;
 
             const textContent = await page.getTextContent();
             renderTextLayer(textLayerDiv, textContent, viewport);
