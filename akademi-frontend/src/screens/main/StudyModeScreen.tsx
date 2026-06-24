@@ -68,8 +68,8 @@ interface ReaderSection {
   blocks: ReaderBlock[];
 }
 
-const BOOK_PAGE_TARGET_CHARS = 1800;
-const PAGE_FILL_MIN_RATIO = 0.68;
+const BOOK_PAGE_TARGET_CHARS = 3500;
+const PAGE_FILL_MIN_RATIO = 0.4;
 
 const HEADING_PATTERNS = [
   /^chapter\s+\d+/i,
@@ -80,6 +80,12 @@ const HEADING_PATTERNS = [
 
 const SOFT_HEADING_PATTERNS = [
   /^slide\s+\d+/i,
+];
+
+const HARD_HEADING_PATTERNS = [
+  /^chapter\s+\d+/i,
+  /^unit\s+\d+/i,
+  /^part\s+\d+/i,
 ];
 
 const isLikelyHeading = (line: string) => {
@@ -93,6 +99,7 @@ const isLikelyHeading = (line: string) => {
 };
 
 const isSoftHeading = (line: string) => SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
+const isHardHeading = (line: string) => HARD_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 
 const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] => {
   const paragraphs = body
@@ -150,9 +157,11 @@ const repaginateStructuredPages = (pages: ReaderPage[]): ReaderPage[] => {
 
     if (!renderedSection) return;
 
-    if (!isSoftHeading(title)) {
+    if (isHardHeading(title)) {
       flushCurrent();
-      mergedPages.push(...chunkSection(title, page.content.trim(), BOOK_PAGE_TARGET_CHARS));
+      currentStartTitle = title;
+      currentTitle = title;
+      currentContent = page.content.trim();
       return;
     }
 

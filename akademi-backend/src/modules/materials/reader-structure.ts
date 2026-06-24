@@ -24,8 +24,8 @@ export interface ReaderStructure {
   pages: ReaderPage[];
 }
 
-const BOOK_PAGE_TARGET_CHARS = 1800;
-const PAGE_FILL_MIN_RATIO = 0.68;
+const BOOK_PAGE_TARGET_CHARS = 3500;
+const PAGE_FILL_MIN_RATIO = 0.4;
 const IMAGE_BLOCK_WEIGHT = 520;
 
 const HEADING_PATTERNS = [
