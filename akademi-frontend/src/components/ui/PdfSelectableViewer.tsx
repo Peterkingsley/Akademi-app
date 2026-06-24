@@ -17,12 +17,14 @@ interface PdfSelectableViewerProps {
   height: number;
   onAskAkademi: (selectedText: string) => void;
   onHighlight?: (selectedText: string) => void;
+  onReachEndChange?: (reachedEnd: boolean) => void;
 }
 
 type WebMessage =
   | { type: "ready" }
   | { type: "error"; value: string }
-  | { type: "selection"; value: string };
+  | { type: "selection"; value: string }
+  | { type: "endState"; value: boolean };
 
 const escapeHtml = (value: string) =>
   value
@@ -37,6 +39,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
   height,
   onAskAkademi,
   onHighlight,
+  onReachEndChange,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -120,6 +123,18 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         const selection = window.getSelection();
         const text = selection ? selection.toString().replace(/\\s{2,}/g, ' ').trim() : '';
         post({ type: 'selection', value: text });
+      }
+
+      function updateEndState() {
+        const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const fullHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          viewportHeight
+        );
+        const reachedEnd = scrollTop + viewportHeight >= fullHeight - 48;
+        post({ type: 'endState', value: reachedEnd });
       }
 
       function renderTextLayer(textLayerDiv, textContent, viewport) {
@@ -221,13 +236,18 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       document.addEventListener('click', function () {
         setTimeout(updateSelection, 20);
       });
+      window.addEventListener('scroll', function () {
+        updateEndState();
+      }, { passive: true });
       window.clearNativeSelection = function () {
         const selection = window.getSelection();
         if (selection) selection.removeAllRanges();
         post({ type: 'selection', value: '' });
       };
 
-      renderPdf();
+      renderPdf().then(function () {
+        setTimeout(updateEndState, 60);
+      });
     </script>
   </body>
 </html>`,
@@ -276,6 +296,11 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
               const nextSelected = String(payload.value || "").trim();
               setSelectedText(nextSelected);
               setMenuVisible(nextSelected.length > 0);
+              return;
+            }
+
+            if (payload.type === "endState") {
+              onReachEndChange?.(Boolean(payload.value));
               return;
             }
 

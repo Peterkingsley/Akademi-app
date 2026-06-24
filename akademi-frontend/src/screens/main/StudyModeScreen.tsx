@@ -306,6 +306,7 @@ export const StudyModeScreen: React.FC = () => {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const [hasReachedMaterialEnd, setHasReachedMaterialEnd] = useState(false);
   const skeletonOpacity = useRef(new Animated.Value(0)).current;
   const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
@@ -502,6 +503,10 @@ export const StudyModeScreen: React.FC = () => {
     setCurrentPageIndex(0);
   }, [content, materialId, sessionId]);
 
+  useEffect(() => {
+    setHasReachedMaterialEnd(false);
+  }, [material?.id, material?.file_type, pdfData, documentUrl]);
+
   const handleAskAkademi = (text: string) => {
     const focusedPassage = text?.trim() || "";
     const surroundingPassage = currentPage?.content?.trim() || "";
@@ -573,6 +578,12 @@ export const StudyModeScreen: React.FC = () => {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleDocumentScroll = (event: any) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const reachedEnd = contentOffset.y + layoutMeasurement.height >= contentSize.height - 48;
+    setHasReachedMaterialEnd(reachedEnd);
   };
 
   if (loading) {
@@ -766,6 +777,7 @@ export const StudyModeScreen: React.FC = () => {
                       height={pdfViewerHeight}
                       onAskAkademi={handleAskAkademi}
                       onHighlight={handleHighlight}
+                      onReachEndChange={setHasReachedMaterialEnd}
                     />
                   ) : (
                     <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
@@ -794,6 +806,8 @@ export const StudyModeScreen: React.FC = () => {
                       originWhitelist={["*"]}
                       startInLoadingState
                       nestedScrollEnabled
+                      onScroll={handleDocumentScroll}
+                      scrollEventThrottle={16}
                       renderLoading={() => (
                         <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
                           <ActivityIndicator size="small" color={colors.primary} />
@@ -903,7 +917,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
-        {(material || isLastPage) && (
+        {((material && hasReachedMaterialEnd) || (!material && isLastPage)) && (
           <View style={[styles.bottomBar, material && styles.bottomBarDocument]}>
             {material && (
               <Button
