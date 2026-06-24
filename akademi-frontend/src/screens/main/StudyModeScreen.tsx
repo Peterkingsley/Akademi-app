@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   View,
   Text,
@@ -11,7 +12,7 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -24,6 +25,7 @@ import { sessionService, Message } from "../../services/session";
 import { materialService, Material, offlineService } from "../../services/material";
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
+import { Skeleton } from "../../components/ui/Skeleton";
 
 const formatStudyContent = (value: string) =>
   value
@@ -274,6 +276,9 @@ export const StudyModeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [material, setMaterial] = useState<Material | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [selectedPassage, setSelectedPassage] = useState("");
@@ -281,6 +286,8 @@ export const StudyModeScreen: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const skeletonOpacity = useRef(new Animated.Value(0)).current;
+  const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
   const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
   const displayContent = formatStudyContent(content || "No content available.");
@@ -330,28 +337,98 @@ export const StudyModeScreen: React.FC = () => {
     : [];
 
   useEffect(() => {
-    const fetchContent = async () => {
+    Animated.timing(skeletonOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [skeletonOpacity]);
+
+  useEffect(() => {
+    if (!isExtracting) {
+      extractionProgress.stopAnimation();
+      extractionProgress.setValue(0);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(extractionProgress, {
+          toValue: 0.85,
+          duration: 2400,
+          useNativeDriver: false,
+        }),
+        Animated.timing(extractionProgress, {
+          toValue: 0.2,
+          duration: 0,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      extractionProgress.stopAnimation();
+    };
+  }, [isExtracting, extractionProgress]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const fetchContent = async (polling = false) => {
       try {
+        if (!polling) {
+          setLoading(true);
+        }
+        setLoadError(null);
+
         if (sessionId) {
           const messages = await sessionService.listMessages(sessionId);
+          if (cancelled) return;
           const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
-          if (aiMsg) setContent(aiMsg.content);
-        } else if (materialId) {
-          const data = await materialService.getMaterialDetails(materialId);
-          setMaterial(data);
-          setContent(data.content || "No text content available for this material.");
-          const downloaded = await offlineService.isDownloaded(materialId);
-          setIsDownloaded(downloaded);
+          setContent(aiMsg?.content || "");
+          setIsExtracting(false);
+          return;
         }
-      } catch (error) {
+
+        if (materialId) {
+          const data = await materialService.getMaterialDetails(materialId);
+          if (cancelled) return;
+          setMaterial(data);
+          const hasContent = typeof data.content === "string" && data.content.trim().length > 0;
+          setContent(hasContent ? data.content! : "No text content available for this material.");
+          setIsExtracting(!hasContent);
+          const downloaded = await offlineService.isDownloaded(materialId);
+          if (cancelled) return;
+          setIsDownloaded(downloaded);
+
+          if (!hasContent) {
+            pollTimer = setTimeout(() => {
+              void fetchContent(true);
+            }, 10000);
+          }
+        }
+      } catch (error: any) {
+        if (cancelled) return;
         console.error("Failed to fetch content:", error);
+        setLoadError(error?.response?.data?.message || error?.message || "This material could not be loaded. Please try again.");
+        setIsExtracting(false);
       } finally {
-        setLoading(false);
+        if (!cancelled && !polling) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchContent();
-  }, [sessionId, materialId]);
+    void fetchContent();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
+  }, [sessionId, materialId, retryTick]);
 
   useEffect(() => {
     setCurrentPageIndex(0);
@@ -433,8 +510,72 @@ export const StudyModeScreen: React.FC = () => {
   if (loading) {
     return (
       <Screen style={styles.screen} hideHeader={true}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <Animated.ScrollView
+          style={{ opacity: skeletonOpacity }}
+          contentContainerStyle={styles.skeletonContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {[0, 1, 2].map((section) => (
+            <View key={section} style={styles.skeletonSection}>
+              <Skeleton height={24} width="60%" borderRadius={8} style={styles.skeletonTitle} />
+              {[0, 1, 2, 3, 4].map((line) => (
+                <Skeleton key={line} height={14} width="100%" borderRadius={6} style={styles.skeletonLine} />
+              ))}
+              <Skeleton height={14} width="75%" borderRadius={6} style={styles.skeletonShortLine} />
+            </View>
+          ))}
+        </Animated.ScrollView>
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen style={styles.screen} hideHeader={true}>
+        <View style={styles.statusContainer}>
+          <AlertCircle size={34} color={colors.error} />
+          <Text style={styles.statusTitle}>Failed to load material</Text>
+          <Text style={styles.statusText}>{loadError || "This material could not be loaded. Please try again."}</Text>
+          <Button
+            label="Retry"
+            onPress={() => {
+              setLoadError(null);
+              setMaterial(null);
+              setContent("");
+              setLoading(true);
+              setRetryTick((value) => value + 1);
+            }}
+            style={styles.statusPrimaryButton}
+          />
+          <Button
+            label="Go Back"
+            variant="secondary"
+            onPress={() => navigation.goBack()}
+            style={styles.statusSecondaryButton}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (isExtracting && material) {
+    const progressWidth = extractionProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["0%", "100%"],
+    });
+
+    return (
+      <Screen style={styles.screen} hideHeader={true}>
+        <View style={styles.statusContainer}>
+          <BookOpen size={34} color={colors.primary} />
+          <Text style={styles.statusTitle}>Preparing your material</Text>
+          <Text style={styles.statusText}>
+            We're extracting and processing this file. This usually takes 30 seconds to 2 minutes depending on file size.
+          </Text>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+          </View>
+          <Text style={styles.progressHint}>We’ll keep checking automatically.</Text>
         </View>
       </Screen>
     );
@@ -705,6 +846,66 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  skeletonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 32,
+  },
+  skeletonSection: {
+    marginBottom: 28,
+  },
+  skeletonTitle: {
+    marginBottom: 16,
+  },
+  skeletonLine: {
+    marginBottom: 10,
+  },
+  skeletonShortLine: {
+    marginBottom: 24,
+  },
+  statusContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  statusTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  statusText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  progressTrack: {
+    width: "100%",
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceElevated,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  progressHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  statusPrimaryButton: {
+    marginTop: 6,
+  },
+  statusSecondaryButton: {
+    marginTop: 10,
   },
   header: {
     flexDirection: "row",
