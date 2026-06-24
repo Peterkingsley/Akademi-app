@@ -267,8 +267,10 @@ export const StudyCompanionScreen: React.FC = () => {
         <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
           {isStudent ? (
             <Text style={styles.studentText}>{item.content}</Text>
-          ) : (
+          ) : item.content ? (
             <RichMathText content={item.content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
+          ) : (
+            <Text style={styles.aiFallbackText}>...</Text>
           )}
         </View>
       </View>
@@ -685,6 +687,12 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     emptyActionButton: {
       marginTop: 24,
       minWidth: 180,
+    },
+    aiFallbackText: {
+      ...typography.body,
+      color: colors.textPrimary,
+      fontSize: 14,
+      lineHeight: 20,
     },
     typingRow: {
       alignItems: "flex-start",

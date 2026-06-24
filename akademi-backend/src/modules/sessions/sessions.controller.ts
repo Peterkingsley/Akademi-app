@@ -117,7 +117,7 @@ export class SessionsController {
   async startCompanion(req: Request, res: Response) {
     try {
       const message = await sessionsService.startCompanion(req.params.id, req.body);
-      res.status(200).json(message);
+      res.status(201).json(message);
     } catch (error: any) {
       res.status(statusForError(error)).json({ message: error.message });
     }

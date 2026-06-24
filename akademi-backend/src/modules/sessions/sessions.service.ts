@@ -196,9 +196,18 @@ export class SessionsService {
     const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
       ? session.metadata as Record<string, unknown>
       : {};
+    const shouldUseCompanion =
+      !!companionState || metadata.mode === 'ai-study-companion';
+
+    console.log('COMPANION CHECK', {
+      sessionId,
+      hasCompanionState: !!companionState,
+      mode: metadata.mode ?? null,
+      shouldUseCompanion,
+    });
 
     const aiResponse =
-      companionState && metadata.mode === 'ai-study-companion'
+      shouldUseCompanion
         ? await studyCompanionService.handleStudentReply(sessionId, data.content)
         : await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
 
