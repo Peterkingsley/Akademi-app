@@ -148,6 +148,7 @@ export const StudyCompanionScreen: React.FC = () => {
           section_title: sectionTitle,
         });
         setMessages((prev) => [...prev, message]);
+        await speakAiText(message.content);
         setStartModalVisible(false);
         setSpecificSection("");
         const state = await sessionService.getCompanionState(sessionId);

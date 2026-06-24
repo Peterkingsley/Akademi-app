@@ -390,8 +390,10 @@ export class StudyCompanionService {
       'Stay inside the selected course and material.',
       'Use external knowledge only when the uploaded material is incomplete or unclear, and label it as External support.',
       'Always be structured, clear, patient, and slightly demanding about recall.',
-      'Keep replies practical, moderate in length, and ready for a Nigerian university student.',
+      'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
       'Whenever math appears, render it using proper LaTeX delimiters.',
+      'Do not use markdown syntax, bold markers, heading markers, or chatbot-style formatting.',
+      'Teach like a live tutor, one idea at a time.',
     ].join('\n');
   }
 
@@ -465,7 +467,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
-      'Task: Start naturally. Do not over-introduce. If this is an introduction/overview section, summarize it in 2 short sentences and move into the first real teachable section. Deliver Pass 1 only when there is enough real study content. End with a short check-in line.',
+      'Task: Write the opening tutor message only. Keep it to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, and end with a simple line like Ready? Let us begin. Do not teach the full lesson yet. Do not ask the student a question yet.',
     ].join('\n\n');
 
     const content = await generateText(introPrompt, this.companionSystemPrompt());
@@ -488,10 +490,10 @@ export class StudyCompanionService {
   private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3) {
     const instructions =
       pass === 1
-        ? 'Give Pass 1: big picture only. Explain what this section is about and why it matters for exams.'
+        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask the student a question inside the teaching paragraph.'
         : pass === 2
-          ? 'Give Pass 2: details. Explain definitions, formulas, steps, and one strong example from this section.'
-          : 'Give Pass 3: connections. Connect this section to earlier ideas and likely exam use.'
+          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown.'
+          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural.'
 
     const prompt = [
       `Section title: ${section.title}`,
