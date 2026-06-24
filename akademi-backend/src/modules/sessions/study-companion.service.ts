@@ -467,7 +467,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
-      'Task: Write the opening tutor message only. Keep it to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, and end with a simple line like Ready? Let us begin. Do not teach the full lesson yet. Do not ask the student a question yet.',
+      'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
 
     const content = await generateText(introPrompt, this.companionSystemPrompt());
@@ -499,7 +499,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
-      'End with one short line that prepares the student for the next phase.',
+      'End naturally without asking for permission to continue.',
     ].join('\n\n');
 
     return generateText(prompt, this.companionSystemPrompt(), 900);
