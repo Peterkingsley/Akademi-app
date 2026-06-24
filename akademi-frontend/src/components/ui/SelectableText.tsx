@@ -47,13 +47,13 @@ const looksLikeStandaloneMath = (line: string) => {
   if (!trimmed) return false;
   if (isBulletLine(trimmed)) return false;
   if (/^\d+\.\s/.test(trimmed)) return false;
-  if (/[.!?]$/.test(trimmed)) return false;
+  if (trimmed.split(/\s+/).length > 15) return false;
 
   const mathSignals =
-    /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|\d+\s*[A-Za-z]|[A-Za-z]\([^)]+\)/;
-  const wordMatches = trimmed.match(/[A-Za-z]{3,}/g) || [];
+    /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥×÷]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|n\([^)]+\)|[A-Z]\s*=\s*[A-Z0-9]|[0-9]+\s*[A-Za-z]\s*[=×]|[A-Za-z]\([^)]+\)\s*=|²|³|μ|λ|θ|α|β|γ|δ|ω|σ/;
+  const wordMatches = trimmed.match(/[A-Za-z]{4,}/g) || [];
 
-  return trimmed.length <= 120 && mathSignals.test(trimmed) && wordMatches.length <= 6;
+  return trimmed.length <= 150 && mathSignals.test(trimmed) && wordMatches.length <= 8;
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
@@ -183,11 +183,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         margin: 0 0 0.35em 0;
       }
       .katex {
-        color: #FFFFFF;
-        font-size: 1em;
+        color: inherit;
+        font-size: 1.05em;
       }
       .katex-display {
-        margin: 0.2em 0;
+        margin: 0.6em 0;
         overflow-x: auto;
         overflow-y: hidden;
       }

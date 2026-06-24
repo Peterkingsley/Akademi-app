@@ -14,6 +14,7 @@ import { notificationsService } from '../notifications/notifications.service';
 import { Resend } from 'resend';
 import { getSystemHealthSnapshot } from '../../shared/system/system-health';
 import { getQueueHealth } from '../../config/queue';
+import { queueMaterialIngestion } from '../materials/material-processing';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -913,6 +914,47 @@ export class AdminService {
 
   async forceVerify(id: string, adminId: string) {
     return this.approveMaterial(id, adminId);
+  }
+
+  async reingestAllPdfMaterials(secret: string) {
+    if (!config.adminReingestSecret || secret !== config.adminReingestSecret) {
+      throw new Error('Invalid admin secret');
+    }
+
+    const materials = await prisma.material.findMany({
+      where: {
+        file_type: 'PDF' as any,
+        verification_status: VerificationStatus.VERIFIED,
+      },
+      select: {
+        id: true,
+        upload_chunks: {
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    for (const material of materials) {
+      await prisma.material.update({
+        where: { id: material.id },
+        data: {
+          content: null,
+          reader_structure: null,
+          processing_status: 'QUEUED' as any,
+          processing_error: null,
+          processing_started_at: null,
+          processing_completed_at: null,
+          next_retry_at: null,
+        } as any,
+      });
+      await queueMaterialIngestion(material.id, material.upload_chunks.length > 0);
+    }
+
+    return {
+      count: materials.length,
+      queued: materials.length,
+    };
   }
 
   // Pillar 4: Discipline Documents

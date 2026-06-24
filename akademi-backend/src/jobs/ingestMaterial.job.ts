@@ -86,7 +86,39 @@ async function generateEmbedding(text: string) {
   return hashTextEmbedding(text);
 }
 
-async function extractPdfText(buffer: Buffer) {
+async function extractPdfText(buffer: Buffer, geminiClient: GoogleGenerativeAI | null) {
+  if (geminiClient) {
+    try {
+      const model = geminiClient.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent([
+        {
+          text: `Extract all text from this PDF document.
+Important rules:
+- Preserve ALL mathematical formulas exactly, writing them in LaTeX notation wrapped in \\( \\) for inline math or \\[ \\] for display math
+- For example: if you see F = ma, write it as \\(F = ma\\)
+- If you see a fraction, use LaTeX: \\(\\frac{numerator}{denominator}\\)
+- If you see superscripts like v², write \\(v^2\\)
+- If you see subscripts like a₁, write \\(a_1\\)
+- Preserve all headings, paragraphs, bullet points, and tables
+- Output plain text with LaTeX math notation only - no markdown, no HTML`,
+        },
+        {
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: buffer.toString('base64'),
+          },
+        },
+      ]);
+
+      const extracted = result.response.text().trim();
+      if (extracted.length > 100) {
+        return extracted;
+      }
+    } catch (error) {
+      console.error('Gemini PDF extraction failed, falling back to pdf-parse:', error);
+    }
+  }
+
   const parserModule = pdfParse as any;
   const parse = parserModule.default || parserModule;
 
@@ -220,7 +252,7 @@ export async function ingestMaterialJob(materialId: string) {
     let readerStructure: any = null;
 
     if (claimedMaterial.file_type === FileType.PDF) {
-      extractedText = await extractPdfText(buffer);
+      extractedText = await extractPdfText(buffer, getGeminiClient());
     } else if (claimedMaterial.file_type === FileType.DOC) {
       const rawTextResult = await mammoth.extractRawText({ buffer });
       extractedText = rawTextResult.value;

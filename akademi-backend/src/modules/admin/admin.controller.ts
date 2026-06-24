@@ -318,6 +318,17 @@ export class AdminController {
     }
   }
 
+  async reingestAllMaterials(req: Request, res: Response) {
+    try {
+      const result = await adminService.reingestAllPdfMaterials(String(req.headers['x-admin-secret'] || ''));
+      res.json(result);
+    } catch (error: any) {
+      const message = String(error?.message || 'Failed to re-queue materials');
+      const status = message.toLowerCase().includes('secret') ? 403 : 500;
+      res.status(status).json({ message });
+    }
+  }
+
   // Pillar 4: Discipline Documents
   async listDisciplineDocuments(req: Request, res: Response) {
     try {

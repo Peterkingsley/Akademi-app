@@ -68,6 +68,10 @@ interface ReaderSection {
   blocks: ReaderBlock[];
 }
 
+const isMajorSectionTitle = (title: string) =>
+  /^(chapter|unit|part|section)\s+\d+/i.test(title.trim()) ||
+  /^\d+\.\s+[A-Z]/.test(title.trim());
+
 const BOOK_PAGE_TARGET_CHARS = 3500;
 const PAGE_FILL_MIN_RATIO = 0.4;
 
@@ -716,7 +720,10 @@ export const StudyModeScreen: React.FC = () => {
                       )
                     )}
                   </View>
-                  {sectionIndex < continuousSections.length - 1 ? <View style={styles.documentDivider} /> : null}
+                  {sectionIndex < continuousSections.length - 1 &&
+                  isMajorSectionTitle(continuousSections[sectionIndex + 1].title) ? (
+                    <View style={styles.documentDivider} />
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -1025,7 +1032,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   documentSectionSpacing: {
-    marginBottom: 12,
+    marginBottom: 20,
+    marginTop: 20,
   },
   documentHeading: {
     color: "#D6E4FF",

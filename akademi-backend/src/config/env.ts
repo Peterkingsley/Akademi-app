@@ -37,4 +37,5 @@ export const config = {
   serviceType: process.env.SERVICE_TYPE || 'api',
   unlockAllFeatures: process.env.UNLOCK_ALL_FEATURES === 'true',
   tournamentActivationIntervalMs: parseInt(process.env.TOURNAMENT_ACTIVATION_INTERVAL_MS || '15000', 10),
+  adminReingestSecret: process.env.ADMIN_REINGEST_SECRET || '',
 };

@@ -94,6 +94,7 @@ router.patch('/materials/:id/approve', authorizeRoles(AdminRole.SUPER_ADMIN, Adm
 router.patch('/materials/:id/takedown', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.takedownMaterial(req, res));
 router.patch('/materials/:id/restore', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.restoreMaterial(req, res));
 router.post('/materials/:id/force-verify', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.forceVerify(req, res));
+router.post('/reingest-all-materials', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.reingestAllMaterials(req, res));
 
 // Pillar 4: Discipline Documents
 router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));
