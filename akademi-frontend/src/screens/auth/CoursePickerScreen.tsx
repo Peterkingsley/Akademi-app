@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -139,10 +140,14 @@ export const CoursePickerScreen: React.FC = () => {
   const renderSuggestion = ({ item }: { item: CourseSuggestion }) => {
     const isSelected = selectedCodes.has(item.code);
     return (
-      <TouchableOpacity
-        style={[styles.suggestionCard, isSelected && styles.selectedSuggestionCard]}
-        onPress={() => toggleSuggestion(item)}
-        activeOpacity={0.85}
+      <Pressable
+        style={({ pressed }) => [
+          styles.suggestionCard,
+          isSelected && styles.selectedSuggestionCard,
+          pressed && styles.pressedSuggestionCard,
+        ]}
+        onPressIn={() => toggleSuggestion(item)}
+        hitSlop={8}
       >
         <View style={styles.suggestionHeader}>
           <Text style={styles.courseCode}>{item.code}</Text>
@@ -159,7 +164,7 @@ export const CoursePickerScreen: React.FC = () => {
             {isSelected ? "Selected" : "Tap to add"}
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -450,6 +455,9 @@ const styles = StyleSheet.create({
   selectedSuggestionCard: {
     borderColor: colors.primary,
     backgroundColor: "#101412",
+  },
+  pressedSuggestionCard: {
+    transform: [{ scale: 0.985 }],
   },
   suggestionHeader: {
     alignItems: "center",
