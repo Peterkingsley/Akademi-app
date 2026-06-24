@@ -154,6 +154,11 @@ export const CoursePickerScreen: React.FC = () => {
         <Text style={styles.sourceText}>
           {item.usageCount ? `${item.usageCount} student${item.usageCount === 1 ? "" : "s"} used this` : item.source || "suggested"}
         </Text>
+        <View style={[styles.suggestionAction, isSelected && styles.selectedSuggestionAction]}>
+          <Text style={[styles.suggestionActionText, isSelected && styles.selectedSuggestionActionText]}>
+            {isSelected ? "Selected" : "Tap to add"}
+          </Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -234,14 +239,19 @@ export const CoursePickerScreen: React.FC = () => {
               </View>
 
               {selectedCourses.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedRow}>
-                  {selectedCourses.map((course) => (
-                    <TouchableOpacity key={course.code} style={styles.selectedPill} onPress={() => removeCourse(course.code)}>
-                      <Text style={styles.selectedPillText}>{course.code}</Text>
-                      <X size={14} color={colors.primary} />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={styles.selectionSummary}>
+                  <Text style={styles.selectionSummaryText}>
+                    Tap any selected course below to remove it before you continue.
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedRow}>
+                    {selectedCourses.map((course) => (
+                      <TouchableOpacity key={course.code} style={styles.selectedPill} onPress={() => removeCourse(course.code)}>
+                        <Text style={styles.selectedPillText}>{course.code}</Text>
+                        <X size={14} color={colors.primary} />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               ) : null}
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -389,6 +399,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: 14,
   },
+  selectionSummary: {
+    marginBottom: 12,
+  },
+  selectionSummaryText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
   selectedPill: {
     alignItems: "center",
     backgroundColor: "#101412",
@@ -431,6 +449,7 @@ const styles = StyleSheet.create({
   },
   selectedSuggestionCard: {
     borderColor: colors.primary,
+    backgroundColor: "#101412",
   },
   suggestionHeader: {
     alignItems: "center",
@@ -453,6 +472,25 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 8,
+  },
+  suggestionAction: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 999,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  selectedSuggestionAction: {
+    backgroundColor: "rgba(34, 197, 94, 0.14)",
+  },
+  suggestionActionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
+  selectedSuggestionActionText: {
+    color: colors.primary,
   },
   emptyCard: {
     alignItems: "center",
