@@ -115,6 +115,22 @@ type WebMessage =
   | { type: "height"; value: number }
   | { type: "selection"; value: string };
 
+const contentHasMath = (content: string) => {
+  const normalized = normalizeText(content);
+  if (!normalized) return false;
+
+  return normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some(
+      (line) =>
+        explicitDisplayMathPattern.test(line) ||
+        explicitInlineMathPattern.test(line) ||
+        looksLikeStandaloneMath(line),
+    );
+};
+
 export const SelectableText: React.FC<SelectableTextProps> = ({
   content,
   onAskAkademi,
@@ -123,23 +139,18 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   const contentWidth = Math.max(windowWidth - 32, 240);
+  const shouldLoadKatex = useMemo(() => contentHasMath(content), [content]);
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [height, setHeight] = useState(64);
-  const heightRef = useRef(64);
-  const isHeightLockedRef = useRef(Boolean(fixedHeight));
 
   useEffect(() => {
     if (fixedHeight) {
-      heightRef.current = fixedHeight;
-      isHeightLockedRef.current = true;
       setHeight(fixedHeight);
       return;
     }
 
-    heightRef.current = 64;
-    isHeightLockedRef.current = false;
     setHeight(64);
   }, [content, fixedHeight]);
 
@@ -150,9 +161,9 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+    ${shouldLoadKatex ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>' : ""}
     <style>
       html, body {
         margin: 0;
@@ -258,6 +269,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       }
 
       function waitForMathRenderer(attempt) {
+        if (!${shouldLoadKatex ? "true" : "false"}) {
+          postFinalHeight();
+          return;
+        }
+
         if (window.renderMathInElement) {
           renderMath();
           return;
@@ -285,12 +301,39 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       document.addEventListener('click', function () {
         setTimeout(updateSelection, 20);
       });
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(function () {
+          postFinalHeight();
+        });
+        resizeObserver.observe(document.body);
+      }
+      if (window.MutationObserver) {
+        const mutationObserver = new MutationObserver(function () {
+          postFinalHeight();
+        });
+        mutationObserver.observe(document.getElementById('content'), {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
+      let heightPollCount = 0;
+      const heightPoller = setInterval(function () {
+        postFinalHeight();
+        heightPollCount += 1;
+        if (heightPollCount >= 8) {
+          clearInterval(heightPoller);
+        }
+      }, 250);
       window.addEventListener('load', function () { waitForMathRenderer(0); });
-      document.addEventListener('DOMContentLoaded', function () { waitForMathRenderer(0); });
+      document.addEventListener('DOMContentLoaded', function () {
+        postFinalHeight();
+        waitForMathRenderer(0);
+      });
     </script>
   </body>
 </html>`,
-    [content, contentWidth]
+    [content, contentWidth, shouldLoadKatex]
   );
 
   const clearSelection = () => {
@@ -319,6 +362,54 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
     clearSelection();
   };
 
+  if (!shouldLoadKatex) {
+    return (
+      <View style={styles.container}>
+        <Text
+          selectable
+          selectionColor="rgba(34, 197, 94, 0.32)"
+          style={styles.nativeText}
+          onLongPress={() => {
+            const trimmed = normalizeText(content);
+            if (!trimmed) return;
+            setSelectedText(trimmed);
+            setMenuVisible(true);
+          }}
+        >
+          {normalizeText(content)}
+        </Text>
+
+        <Modal
+          visible={menuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={clearSelection}
+        >
+          <TouchableWithoutFeedback onPress={clearSelection}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.menuContainer}>
+                <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
+                  <Copy size={18} color="#FFFFFF" />
+                  <Text style={styles.menuText}>Copy</Text>
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleHighlightAction}>
+                  <Highlighter size={18} color="#FFFFFF" />
+                  <Text style={styles.menuText}>Highlight</Text>
+                </TouchableOpacity>
+                <View style={styles.divider} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleAskAction}>
+                  <MessageSquare size={18} color="#FFFFFF" />
+                  <Text style={styles.menuText}>Ask Akademi</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <WebView
@@ -335,11 +426,8 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           try {
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
-              if (isHeightLockedRef.current) return;
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
-              heightRef.current = nextHeight;
-              isHeightLockedRef.current = true;
-              setHeight(nextHeight);
+              setHeight((currentHeight) => (nextHeight > currentHeight ? nextHeight : currentHeight));
               return;
             }
 
@@ -388,6 +476,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: "100%",
+  },
+  nativeText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    lineHeight: 26,
   },
   webviewContainer: {
     backgroundColor: "transparent",

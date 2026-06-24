@@ -13,6 +13,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
+import { WebView } from "react-native-webview";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -299,6 +300,10 @@ export const StudyModeScreen: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [readerMode, setReaderMode] = useState<"original" | "text">("text");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const skeletonOpacity = useRef(new Animated.Value(0)).current;
   const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
@@ -317,6 +322,9 @@ export const StudyModeScreen: React.FC = () => {
   const embeddedImageHeight = hasImagePage
     ? Math.max(280, Math.floor(windowHeight * 0.32))
     : 220;
+  const pdfViewerHeight = Math.max(windowHeight * 0.74, 560);
+  const isPdfMaterial = material?.file_type === "PDF";
+  const showOriginalPdf = isPdfMaterial && readerMode === "original";
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -442,6 +450,54 @@ export const StudyModeScreen: React.FC = () => {
       if (pollTimer) clearTimeout(pollTimer);
     };
   }, [sessionId, materialId, retryTick]);
+
+  useEffect(() => {
+    if (!material) return;
+    setReaderMode(material.file_type === "PDF" ? "original" : "text");
+  }, [material?.id, material?.file_type]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPdfUrl = async () => {
+      if (!material || material.file_type !== "PDF") {
+        setPdfUrl(null);
+        setPdfLoadError(null);
+        setPdfLoading(false);
+        return;
+      }
+
+      if (material.file_ref?.startsWith("file://")) {
+        setPdfUrl(material.file_ref);
+        setPdfLoadError(null);
+        setPdfLoading(false);
+        return;
+      }
+
+      setPdfLoading(true);
+      setPdfLoadError(null);
+
+      try {
+        const { url } = await materialService.getMaterialDownloadUrl(material.id);
+        if (cancelled) return;
+        setPdfUrl(url);
+      } catch (error) {
+        console.error("Failed to load PDF url:", error);
+        if (cancelled) return;
+        setPdfLoadError("We couldn't open the original PDF right now.");
+      } finally {
+        if (!cancelled) {
+          setPdfLoading(false);
+        }
+      }
+    };
+
+    void loadPdfUrl();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [material?.id, material?.file_type, material?.file_ref]);
 
   useEffect(() => {
     setCurrentPageIndex(0);
@@ -629,7 +685,11 @@ export const StudyModeScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!showOriginalPdf}
+      >
         {material?.diagnostics?.warnings?.length ? (
           <View style={styles.diagnosticBanner}>
             <Text style={[styles.diagnosticTitle, typography.bodySmall]}>
@@ -683,6 +743,91 @@ export const StudyModeScreen: React.FC = () => {
               <Text style={styles.documentMeta}>
                 {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
               </Text>
+              {isPdfMaterial ? (
+                <View style={styles.readerModeSwitch}>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setReaderMode("original")}
+                    style={[
+                      styles.readerModeButton,
+                      readerMode === "original" && styles.readerModeButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.readerModeLabel,
+                        readerMode === "original" && styles.readerModeLabelActive,
+                      ]}
+                    >
+                      Original PDF
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => setReaderMode("text")}
+                    style={[
+                      styles.readerModeButton,
+                      readerMode === "text" && styles.readerModeButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.readerModeLabel,
+                        readerMode === "text" && styles.readerModeLabelActive,
+                      ]}
+                    >
+                      Text View
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+              {showOriginalPdf ? (
+                <View style={styles.pdfViewerShell}>
+                  {pdfLoading ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.pdfStatusText}>Opening original PDF...</Text>
+                    </View>
+                  ) : pdfLoadError ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <AlertCircle size={20} color={colors.warning} />
+                      <Text style={styles.pdfStatusText}>{pdfLoadError}</Text>
+                      <Button
+                        label="Use Text View"
+                        variant="secondary"
+                        onPress={() => setReaderMode("text")}
+                        style={styles.pdfFallbackButton}
+                      />
+                    </View>
+                  ) : pdfUrl ? (
+                    <WebView
+                      source={{
+                        uri: pdfUrl.startsWith("file://")
+                          ? pdfUrl
+                          : `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(pdfUrl)}`,
+                      }}
+                      style={[styles.pdfViewer, { height: pdfViewerHeight }]}
+                      originWhitelist={["*"]}
+                      startInLoadingState
+                      nestedScrollEnabled
+                      renderLoading={() => (
+                        <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                          <ActivityIndicator size="small" color={colors.primary} />
+                          <Text style={styles.pdfStatusText}>Opening original PDF...</Text>
+                        </View>
+                      )}
+                      onError={() => {
+                        setPdfLoadError("We couldn't render the original PDF. You can keep reading in Text View.");
+                      }}
+                    />
+                  ) : (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <Text style={styles.pdfStatusText}>Original PDF is not ready yet.</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <>
               {continuousSections.map((section, sectionIndex) => (
                 <View
                   key={section.id}
@@ -729,6 +874,8 @@ export const StudyModeScreen: React.FC = () => {
                   ) : null}
                 </View>
               ))}
+                </>
+              )}
             </View>
           ) : (
             <View style={hasImagePage ? styles.pageContentWithImage : undefined}>
@@ -1030,6 +1177,60 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginBottom: 22,
+  },
+  readerModeSwitch: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  readerModeButton: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  readerModeButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  readerModeLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  readerModeLabelActive: {
+    color: "#04130A",
+  },
+  pdfViewerShell: {
+    overflow: "hidden",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "#0F1115",
+    marginBottom: 12,
+  },
+  pdfViewer: {
+    width: "100%",
+    backgroundColor: "#0F1115",
+  },
+  pdfStatus: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+  pdfStatusText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  pdfFallbackButton: {
+    marginTop: 6,
   },
   documentSection: {
     gap: 10,
