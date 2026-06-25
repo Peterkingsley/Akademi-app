@@ -135,4 +135,17 @@ export class SessionsController {
       res.status(statusForError(error)).json({ message: error.message });
     }
   }
+
+  async handleCompanionTurn(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.handleCompanionTurn(
+        req.user!.userId,
+        req.params.id,
+        req.body,
+      );
+      res.status(201).json(message);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
 }

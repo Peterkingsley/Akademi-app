@@ -39,12 +39,17 @@ type CompanionResponseMetadata = {
   autoContinue?: boolean;
   waitForStudent?: boolean;
   nextAction?: 'continue_teaching' | 'evaluate_answer' | 'ask_followup' | 'move_next';
-  turnType?: 'teaching_chunk' | 'checkpoint_question' | 'evaluation' | 'reteach' | 'transition';
+  turnType?: 'teaching' | 'checkpoint_question' | 'evaluation' | 'reteach' | 'transition';
+  allowInterruption?: boolean;
+  questionCount?: number;
   study_companion: PublicState | null;
 };
 
 type SectionContext = {
   pass3QuestionPending?: boolean;
+  reteachDelivered?: boolean;
+  nextPromptKind?: 'teachback_2' | 'memory_dump';
+  failedConcepts?: string[];
 };
 
 type CompanionStartMode = 'continue' | 'specific' | 'beginning' | 'roadmap';
@@ -92,6 +97,21 @@ function normalizeText(value: string) {
 
 function readSectionContext(value: unknown): SectionContext {
   return safeJsonObject<SectionContext>(value, {});
+}
+
+function questionCountForContent(content: string) {
+  const matches = content.match(/\?/g);
+  return matches ? matches.length : 0;
+}
+
+function trimAfterFirstQuestion(content: string) {
+  const index = content.indexOf('?');
+  if (index < 0) return content.trim();
+  return content.slice(0, index + 1).trim();
+}
+
+function sanitizeSingleQuestionTurn(content: string) {
+  return trimAfterFirstQuestion(normalizeText(content));
 }
 
 function isIntroLikeSection(section: RoadmapSection) {
@@ -200,11 +220,45 @@ async function generateText(prompt: string, systemPrompt: string, maxTokens = 90
 }
 
 export class StudyCompanionService {
+  private metadataDefaultsForTurnType(turnType: NonNullable<CompanionResponseMetadata['turnType']>) {
+    switch (turnType) {
+      case 'checkpoint_question':
+        return { waitForStudent: true, autoContinue: false };
+      case 'evaluation':
+        return { waitForStudent: false, autoContinue: true };
+      case 'teaching':
+      case 'reteach':
+      case 'transition':
+      default:
+        return { waitForStudent: false, autoContinue: true };
+    }
+  }
+
+  private async buildTurnMetadata(
+    sessionId: string,
+    turnType: NonNullable<CompanionResponseMetadata['turnType']>,
+    extra: Omit<CompanionResponseMetadata, 'study_companion' | 'turnType' | 'waitForStudent' | 'autoContinue'> & {
+      waitForStudent?: boolean;
+      autoContinue?: boolean;
+    } = {},
+  ) {
+    const defaults = this.metadataDefaultsForTurnType(turnType);
+    return this.buildResponseMetadata(sessionId, {
+      turnType,
+      waitForStudent: extra.waitForStudent ?? defaults.waitForStudent,
+      autoContinue: extra.autoContinue ?? defaults.autoContinue,
+      ...extra,
+    });
+  }
+
   private async buildResponseMetadata(
     sessionId: string,
     extra: Omit<CompanionResponseMetadata, 'study_companion'> = {},
   ): Promise<CompanionResponseMetadata> {
+    const questionCount = extra.questionCount ?? 0;
     return {
+      allowInterruption: extra.allowInterruption ?? true,
+      questionCount,
       ...extra,
       study_companion: await this.getPublicState(sessionId),
     };
@@ -474,11 +528,10 @@ export class StudyCompanionService {
       });
       return {
         content: message,
-        metadata: await this.buildResponseMetadata(sessionId, {
+        metadata: await this.buildTurnMetadata(sessionId, 'transition', {
           autoContinue: false,
           waitForStudent: true,
           nextAction: 'move_next',
-          turnType: 'transition',
         }),
       };
     }
@@ -513,13 +566,15 @@ export class StudyCompanionService {
 
     return {
       content,
-      metadata: await this.buildResponseMetadata(sessionId, {
-        autoContinue: true,
-        waitForStudent: false,
+      metadata: await this.buildTurnMetadata(sessionId, 'transition', {
         nextAction: 'continue_teaching',
-        turnType: 'transition',
+        questionCount: questionCountForContent(content),
       }),
     };
+  }
+
+  async handleTutorContinue(sessionId: string) {
+    return this.handleStudentReply(sessionId, '__AUTO_CONTINUE__');
   }
 
   private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3) {
@@ -581,11 +636,12 @@ export class StudyCompanionService {
         : 'Ask the student for Teach-Back 2. Tell them to explain again, this time correcting the missing ideas from the first attempt.',
     ].join('\n\n');
 
-    return generateText(prompt, this.companionSystemPrompt(), 220);
+    const content = await generateText(prompt, this.companionSystemPrompt(), 220);
+    return sanitizeSingleQuestionTurn(content);
   }
 
   private async buildMemoryDumpPrompt(section: RoadmapSection) {
-    return generateText(
+    const content = await generateText(
       [
         `Section title: ${section.title}`,
         `Section content:\n${truncate(section.content, 2600)}`,
@@ -594,6 +650,7 @@ export class StudyCompanionService {
       this.companionSystemPrompt(),
       220,
     );
+    return sanitizeSingleQuestionTurn(content);
   }
 
   private async buildGapReteach(section: RoadmapSection, failedConcepts: string[]) {
@@ -607,6 +664,18 @@ export class StudyCompanionService {
       this.companionSystemPrompt(),
       650,
     );
+  }
+
+  private async buildInterruptResponse(section: RoadmapSection, studentResponse: string) {
+    const prompt = [
+      `Section title: ${section.title}`,
+      `Section content:\n${truncate(section.content, 2600)}`,
+      `Student interruption:\n${truncate(studentResponse, 600)}`,
+      'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
+    ].join('\n\n');
+
+    const content = await generateText(prompt, this.companionSystemPrompt(), 320);
+    return sanitizeSingleQuestionTurn(content);
   }
 
   private async buildMasteryOutcome(section: RoadmapSection, score: number, passed: boolean, failedConcepts: string[]) {
@@ -626,18 +695,34 @@ export class StudyCompanionService {
     ].join('\n\n');
   }
 
-  async handleStudentReply(sessionId: string, studentResponse: string) {
+  async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
     const { state, roadmap } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const sectionContext = readSectionContext(state.section_context);
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
+    const isInterrupt = options?.interrupted === true;
 
     if (!trimmed) {
       throw new Error('Please send a response so Akademi can continue the study flow.');
     }
 
     if (state.current_phase === PASS_1) {
+      if (isInterrupt) {
+        const content = await this.buildInterruptResponse(section, trimmed);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: TEACHBACK_1,
+          pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            questionCount: 1,
+          }),
+        };
+      }
       if (!isAutoContinue) {
         throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
       }
@@ -649,16 +734,29 @@ export class StudyCompanionService {
       });
       return {
         content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: true,
-          waitForStudent: false,
+        metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
           nextAction: 'continue_teaching',
-          turnType: 'teaching_chunk',
+          questionCount: questionCountForContent(content),
         }),
       };
     }
 
     if (state.current_phase === PASS_2) {
+      if (isInterrupt) {
+        const content = await this.buildInterruptResponse(section, trimmed);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: TEACHBACK_1,
+          pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            questionCount: 1,
+          }),
+        };
+      }
       if (!isAutoContinue) {
         throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
       }
@@ -670,16 +768,29 @@ export class StudyCompanionService {
       });
       return {
         content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: true,
-          waitForStudent: false,
+        metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
           nextAction: 'continue_teaching',
-          turnType: 'teaching_chunk',
+          questionCount: questionCountForContent(content),
         }),
       };
     }
 
     if (state.current_phase === PASS_3) {
+      if (isInterrupt) {
+        const content = await this.buildInterruptResponse(section, trimmed);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: TEACHBACK_1,
+          pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            questionCount: 1,
+          }),
+        };
+      }
       if (!sectionContext.pass3QuestionPending) {
         if (!isAutoContinue) {
           throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
@@ -692,11 +803,9 @@ export class StudyCompanionService {
         });
         return {
           content,
-          metadata: await this.buildResponseMetadata(sessionId, {
-            autoContinue: true,
-            waitForStudent: false,
+          metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
             nextAction: 'ask_followup',
-            turnType: 'teaching_chunk',
+            questionCount: questionCountForContent(content),
           }),
         };
       }
@@ -713,11 +822,9 @@ export class StudyCompanionService {
       });
       return {
         content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: false,
-          waitForStudent: true,
+        metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
           nextAction: 'evaluate_answer',
-          turnType: 'checkpoint_question',
+          questionCount: 1,
         }),
       };
     }
@@ -744,21 +851,20 @@ export class StudyCompanionService {
         },
       });
 
-      const reteach = await this.buildGapReteach(section, evaluation.failedConcepts);
-      const followUpPrompt = await this.buildTeachBackPrompt(section, 2);
-      const content = [evaluation.evaluation, '', reteach, '', followUpPrompt].join('\n\n');
       await this.persistRoadmap(state.id, roadmap, {
-        current_phase: TEACHBACK_2,
-        pending_prompt: content,
-        section_context: {} as Prisma.InputJsonValue,
+        current_phase: GAP_RETEACH,
+        pending_prompt: evaluation.evaluation,
+        section_context: {
+          reteachDelivered: false,
+          nextPromptKind: 'teachback_2',
+          failedConcepts: evaluation.failedConcepts,
+        } as Prisma.InputJsonValue,
       });
       return {
-        content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: false,
-          waitForStudent: true,
-          nextAction: 'evaluate_answer',
-          turnType: 'evaluation',
+        content: evaluation.evaluation,
+        metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+          nextAction: 'continue_teaching',
+          questionCount: questionCountForContent(evaluation.evaluation),
         }),
       };
     }
@@ -785,25 +891,86 @@ export class StudyCompanionService {
         },
       });
 
-      const memoryDumpPrompt = await this.buildMemoryDumpPrompt(section);
-      const content = [evaluation.evaluation, '', memoryDumpPrompt].join('\n\n');
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: MEMORY_DUMP,
+        pending_prompt: evaluation.evaluation,
+        section_context: {
+          nextPromptKind: 'memory_dump',
+        } as Prisma.InputJsonValue,
+      });
+      return {
+        content: evaluation.evaluation,
+        metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+          nextAction: 'continue_teaching',
+          questionCount: questionCountForContent(evaluation.evaluation),
+        }),
+      };
+    }
+
+    if (state.current_phase === GAP_RETEACH) {
+      if (!isAutoContinue) {
+        throw new Error('Akademi is reteaching right now. Let it finish before you respond.');
+      }
+
+      if (!sectionContext.reteachDelivered) {
+        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || []);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: GAP_RETEACH,
+          pending_prompt: content,
+          section_context: {
+            ...sectionContext,
+            reteachDelivered: true,
+          } as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'reteach', {
+            nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(content),
+          }),
+        };
+      }
+
+      const content =
+        sectionContext.nextPromptKind === 'teachback_2'
+          ? await this.buildTeachBackPrompt(section, 2)
+          : await this.buildMemoryDumpPrompt(section);
+
+      await this.persistRoadmap(state.id, roadmap, {
+        current_phase: sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP,
         pending_prompt: content,
         section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: false,
-          waitForStudent: true,
+        metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
           nextAction: 'evaluate_answer',
-          turnType: 'evaluation',
+          questionCount: 1,
         }),
       };
     }
 
     if (state.current_phase === MEMORY_DUMP) {
+      if (sectionContext.nextPromptKind === 'memory_dump') {
+        if (!isAutoContinue) {
+          throw new Error('Akademi is preparing the next checkpoint. Wait one moment.');
+        }
+
+        const content = await this.buildMemoryDumpPrompt(section);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: MEMORY_DUMP,
+          pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            questionCount: 1,
+          }),
+        };
+      }
+
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your memory dump before continuing.');
       }
@@ -869,11 +1036,10 @@ export class StudyCompanionService {
         });
         return {
           content,
-          metadata: await this.buildResponseMetadata(sessionId, {
+          metadata: await this.buildTurnMetadata(sessionId, 'transition', {
             autoContinue: false,
             waitForStudent: true,
             nextAction: 'move_next',
-            turnType: 'transition',
           }),
         };
       }
@@ -883,22 +1049,21 @@ export class StudyCompanionService {
         status: StudyRoadmapStatus.NEEDS_REVIEW,
       };
       const outcome = await this.buildMasteryOutcome(section, finalScore, false, failedConcepts);
-      const reteach = await this.buildGapReteach(section, failedConcepts);
-      const teachBackAgain = await this.buildTeachBackPrompt(section, 2);
-      const content = [outcome, '', reteach, '', teachBackAgain].join('\n\n');
       await this.persistRoadmap(state.id, roadmap, {
-        current_phase: TEACHBACK_2,
+        current_phase: GAP_RETEACH,
         last_mastery_score: finalScore,
-        pending_prompt: content,
-        section_context: {} as Prisma.InputJsonValue,
+        pending_prompt: outcome,
+        section_context: {
+          reteachDelivered: false,
+          nextPromptKind: 'teachback_2',
+          failedConcepts,
+        } as Prisma.InputJsonValue,
       });
       return {
-        content,
-        metadata: await this.buildResponseMetadata(sessionId, {
-          autoContinue: false,
-          waitForStudent: true,
-          nextAction: 'ask_followup',
-          turnType: 'reteach',
+        content: outcome,
+        metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+          nextAction: 'continue_teaching',
+          questionCount: questionCountForContent(outcome),
         }),
       };
     }
@@ -920,11 +1085,8 @@ export class StudyCompanionService {
         });
         return {
           content,
-          metadata: await this.buildResponseMetadata(sessionId, {
-            autoContinue: true,
-            waitForStudent: false,
+          metadata: await this.buildTurnMetadata(sessionId, 'transition', {
             nextAction: 'continue_teaching',
-            turnType: 'transition',
           }),
         };
       }
@@ -946,22 +1108,18 @@ export class StudyCompanionService {
         });
         return {
           content,
-          metadata: await this.buildResponseMetadata(sessionId, {
-            autoContinue: true,
-            waitForStudent: false,
+          metadata: await this.buildTurnMetadata(sessionId, 'transition', {
             nextAction: 'continue_teaching',
-            turnType: 'transition',
           }),
         };
       }
 
       return {
         content: 'Reply with "continue" when you are ready for the next section, or tell me which section you want to revisit.',
-        metadata: await this.buildResponseMetadata(sessionId, {
+        metadata: await this.buildTurnMetadata(sessionId, 'transition', {
           autoContinue: false,
           waitForStudent: true,
           nextAction: 'move_next',
-          turnType: 'transition',
         }),
       };
     }
@@ -969,11 +1127,10 @@ export class StudyCompanionService {
     if (state.current_phase === SESSION_DONE) {
       return {
         content: 'You have completed this material roadmap. If you want, reply with the section name you want to review and I will reopen it for targeted revision.',
-        metadata: await this.buildResponseMetadata(sessionId, {
+        metadata: await this.buildTurnMetadata(sessionId, 'transition', {
           autoContinue: false,
           waitForStudent: true,
           nextAction: 'move_next',
-          turnType: 'transition',
         }),
       };
     }
@@ -986,11 +1143,9 @@ export class StudyCompanionService {
     });
     return {
       content: fallback,
-      metadata: await this.buildResponseMetadata(sessionId, {
-        autoContinue: false,
-        waitForStudent: true,
+      metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
         nextAction: 'evaluate_answer',
-        turnType: 'checkpoint_question',
+        questionCount: 1,
       }),
     };
   }

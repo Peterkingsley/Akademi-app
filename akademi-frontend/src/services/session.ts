@@ -32,7 +32,9 @@ export interface Message {
     autoContinue?: boolean;
     waitForStudent?: boolean;
     nextAction?: "continue_teaching" | "evaluate_answer" | "ask_followup" | "move_next";
-    turnType?: "teaching_chunk" | "checkpoint_question" | "evaluation" | "reteach" | "transition";
+    turnType?: "teaching" | "checkpoint_question" | "evaluation" | "reteach" | "transition";
+    allowInterruption?: boolean;
+    questionCount?: number;
     whiteboard?: {
       available?: boolean;
       subject_family?: string;
@@ -219,6 +221,21 @@ export const sessionService = {
       { content },
       { timeout: 90000 },
     );
+    return response.data;
+  },
+
+  sendCompanionTurn: async (
+    sessionId: string,
+    data: {
+      action: "tutor:start" | "tutor:continue" | "tutor:student_response" | "tutor:interrupt";
+      mode?: "continue" | "specific" | "beginning" | "roadmap";
+      section_title?: string;
+      content?: string;
+    }
+  ) => {
+    const response = await api.post<Message>(`/sessions/${sessionId}/companion/turn`, data, {
+      timeout: 90000,
+    });
     return response.data;
   },
 

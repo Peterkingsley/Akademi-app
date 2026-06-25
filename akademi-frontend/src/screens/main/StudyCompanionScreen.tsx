@@ -13,10 +13,13 @@ import {
   View,
 } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { ArrowLeft, Mic, MicOff, Route as RouteIcon, Send, Upload } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+
+import { Screen } from "../../components/layout/Screen";
 import { BottomSheet } from "../../components/ui/BottomSheet";
 import { Button } from "../../components/ui/Button";
 import { RichMathText } from "../../components/ui/RichMathText";
-import { Screen } from "../../components/layout/Screen";
 import { MainStackParamList } from "../../navigation/types";
 import {
   Message,
@@ -27,26 +30,24 @@ import {
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import {
-  ArrowLeft,
-  Mic,
-  Route as RouteIcon,
-  Send,
-  Upload,
-} from "lucide-react-native";
-import * as ImagePicker from "expo-image-picker";
-import {
+  addLiveRecognitionListener,
+  estimateSpeechDurationMs,
+  getLiveRecognitionAvailability,
   prepareAudioRecording,
+  requestLiveRecognitionPermission,
   requestMicrophonePermission,
   speakAiText,
+  startLiveRecognition,
+  stopAiSpeech,
+  stopLiveRecognition,
   stopRecording,
   transcribeAudioUri,
 } from "../../services/voice";
 
 type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
 type StartMode = "beginning" | "continue" | "specific" | "roadmap";
-type SendDraftOptions = {
-  hidden?: boolean;
-};
+type TutorRuntimeState = "idle" | "ai_speaking" | "listening" | "student_speaking" | "thinking" | "muted";
+type UiMessage = Message & { displayContent: string; interrupted?: boolean };
 
 const phaseLabels: Record<string, string> = {
   MATERIAL_SELECTION_REQUIRED: "Choose material",
@@ -86,6 +87,11 @@ const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
 const looksMathHeavy = (content: string) =>
   /\\\(|\\\[|[$=^_∫∑√≤≥≈πμλθβαγωσ÷×]/.test(content);
 
+const toUiMessage = (message: Message): UiMessage => ({
+  ...message,
+  displayContent: message.content,
+});
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -95,19 +101,55 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const [sessionTitle, setSessionTitle] = useState(materialTitle);
   const [sessionCourseCode, setSessionCourseCode] = useState(courseCode);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [runtimeState, setRuntimeState] = useState<TutorRuntimeState>("idle");
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [startModalVisible, setStartModalVisible] = useState(false);
   const [roadmapVisible, setRoadmapVisible] = useState(false);
   const [specificSection, setSpecificSection] = useState("");
-  const [isListening, setIsListening] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
+  const [liveRecognitionAvailable] = useState(() => getLiveRecognitionAvailability());
+  const [liveRecognitionReady, setLiveRecognitionReady] = useState(false);
+  const [recognitionTranscript, setRecognitionTranscript] = useState("");
   const [recording, setRecording] = useState<any | null>(null);
-  const listRef = useRef<FlatList<Message>>(null);
-  const autoContinueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const listRef = useRef<FlatList<UiMessage>>(null);
+  const runtimeStateRef = useRef<TutorRuntimeState>("idle");
+  const micMutedRef = useRef(false);
+  const currentAiMessageIdRef = useRef<string | null>(null);
+  const playbackTokenRef = useRef(0);
+  const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recognitionActiveRef = useRef(false);
+  const pendingAutoContinueRef = useRef(false);
+  const requestInFlightRef = useRef(false);
+  const interruptingRef = useRef(false);
+
+  const setTutorState = useCallback((state: TutorRuntimeState) => {
+    runtimeStateRef.current = state;
+    setRuntimeState(state);
+  }, []);
+
+  const cancelRevealTimer = useCallback(() => {
+    if (revealTimerRef.current) {
+      clearInterval(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+  }, []);
+
+  const stopPlaybackNow = useCallback(async () => {
+    playbackTokenRef.current += 1;
+    pendingAutoContinueRef.current = false;
+    cancelRevealTimer();
+    await stopAiSpeech();
+  }, [cancelRevealTimer]);
+
+  const refreshCompanionState = useCallback(async () => {
+    const state = await sessionService.getCompanionState(sessionId);
+    setCompanionState(state);
+  }, [sessionId]);
 
   const reload = useCallback(async () => {
     try {
@@ -117,28 +159,30 @@ export const StudyCompanionScreen: React.FC = () => {
         sessionService.listMessages(sessionId),
         sessionService.getCompanionState(sessionId),
       ]);
-      setMessages(list);
+      setMessages(list.map(toUiMessage));
       setCompanionState(state);
       setSessionTitle(session.material?.title || session.topic || materialTitle);
       setSessionCourseCode(session.material?.course_code || session.course_code || courseCode);
-      const hasAIMessages = list.some((item) => item.role === "AI");
-      setStartModalVisible(!hasAIMessages);
+      setStartModalVisible(!list.some((item) => item.role === "AI"));
+      setTutorState(micMutedRef.current ? "muted" : "idle");
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to load AI Tutor session.");
     } finally {
       setLoading(false);
     }
-  }, [courseCode, materialTitle, sessionId]);
+  }, [courseCode, materialTitle, sessionId, setTutorState]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
-  useEffect(() => () => {
-    if (autoContinueTimeoutRef.current) {
-      clearTimeout(autoContinueTimeoutRef.current);
-    }
-  }, []);
+  useEffect(() => {
+    runtimeStateRef.current = runtimeState;
+  }, [runtimeState]);
+
+  useEffect(() => {
+    micMutedRef.current = micMuted;
+  }, [micMuted]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -146,143 +190,320 @@ export const StudyCompanionScreen: React.FC = () => {
     }
   }, [messages]);
 
-  const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
-
-  const sendDraft = useCallback(async (draftContent?: string, options?: SendDraftOptions) => {
-    const trimmed = (draftContent ?? input).trim();
-    if (!trimmed || sending) return;
-    const hidden = options?.hidden === true;
-
-    if (autoContinueTimeoutRef.current) {
-      clearTimeout(autoContinueTimeoutRef.current);
-      autoContinueTimeoutRef.current = null;
+  const startListening = useCallback(async () => {
+    if (!liveRecognitionAvailable || micMutedRef.current || recognitionActiveRef.current) {
+      return;
     }
+    if (runtimeStateRef.current === "ai_speaking" || runtimeStateRef.current === "thinking") {
+      return;
+    }
+    await startLiveRecognition();
+    recognitionActiveRef.current = true;
+    setTutorState("listening");
+  }, [liveRecognitionAvailable, setTutorState]);
 
-    const optimistic: Message = {
-      id: `local-${Date.now()}`,
+  const stopListening = useCallback(async () => {
+    if (!recognitionActiveRef.current) return;
+    recognitionActiveRef.current = false;
+    await stopLiveRecognition();
+  }, []);
+
+  const finalizeAiMessage = useCallback((messageId: string, fullContent: string) => {
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === messageId
+          ? {
+              ...item,
+              displayContent: fullContent,
+            }
+          : item,
+      ),
+    );
+  }, []);
+
+  const appendStudentMessage = useCallback((content: string) => {
+    const studentMessage: UiMessage = {
+      id: `student-${Date.now()}`,
       session_id: sessionId,
       user_id: "me",
       role: "STUDENT",
-      content: trimmed,
+      content,
+      displayContent: content,
       created_at: new Date().toISOString(),
     };
+    setMessages((prev) => [...prev, studentMessage]);
+  }, [sessionId]);
 
-    if (!hidden) {
-      setMessages((prev) => [...prev, optimistic]);
-      setInput("");
+  const runAutoContinueIfNeeded = useCallback(async (message: Message) => {
+    const metadata = message.metadata;
+    if (!metadata) return;
+    if (metadata.waitForStudent) {
+      pendingAutoContinueRef.current = false;
+      if (micMutedRef.current) {
+        setTutorState("muted");
+      } else if (liveRecognitionAvailable) {
+        await startListening();
+      } else {
+        setTutorState("idle");
+      }
+      return;
     }
-    setSending(true);
-    setError(null);
+
+    if (metadata.autoContinue) {
+      pendingAutoContinueRef.current = true;
+      requestInFlightRef.current = true;
+      setTutorState("thinking");
+      try {
+        const nextMessage = await sessionService.sendCompanionTurn(sessionId, {
+          action: "tutor:continue",
+        });
+        await refreshCompanionState();
+        setMessages((prev) => [...prev, { ...toUiMessage(nextMessage), displayContent: "" }]);
+        return nextMessage;
+      } catch (err: any) {
+        setError(err?.response?.data?.message || "Could not continue the tutor flow.");
+        setTutorState(micMutedRef.current ? "muted" : "idle");
+      } finally {
+        requestInFlightRef.current = false;
+        pendingAutoContinueRef.current = false;
+      }
+    } else {
+      setTutorState(micMutedRef.current ? "muted" : "idle");
+    }
+
+    return null;
+  }, [liveRecognitionAvailable, refreshCompanionState, sessionId, setTutorState, startListening]);
+
+  const playAiTurn = useCallback(async (message: Message) => {
+    const token = playbackTokenRef.current + 1;
+    playbackTokenRef.current = token;
+    currentAiMessageIdRef.current = message.id;
+    cancelRevealTimer();
+    await stopListening();
+    setRecognitionTranscript("");
+    setTutorState("ai_speaking");
+
+    const fullContent = message.content || "";
+    const words = fullContent.split(/\s+/).filter(Boolean);
+    if (words.length) {
+      const durationMs = estimateSpeechDurationMs(fullContent);
+      const stepMs = Math.max(45, Math.floor(durationMs / words.length));
+      let visibleCount = 0;
+      revealTimerRef.current = setInterval(() => {
+        if (playbackTokenRef.current !== token || currentAiMessageIdRef.current !== message.id) {
+          cancelRevealTimer();
+          return;
+        }
+        visibleCount = Math.min(words.length, visibleCount + 1);
+        const displayContent = words.slice(0, visibleCount).join(" ");
+        setMessages((prev) =>
+          prev.map((item) => (item.id === message.id ? { ...item, displayContent } : item)),
+        );
+        if (visibleCount >= words.length) {
+          cancelRevealTimer();
+        }
+      }, stepMs);
+    }
+
+    await speakAiText(fullContent);
+    if (playbackTokenRef.current !== token) {
+      return null;
+    }
+
+    cancelRevealTimer();
+    finalizeAiMessage(message.id, fullContent);
+    currentAiMessageIdRef.current = null;
+    return runAutoContinueIfNeeded(message);
+  }, [cancelRevealTimer, finalizeAiMessage, runAutoContinueIfNeeded, setTutorState, stopListening]);
+
+  const processTutorMessage = useCallback(async (message: Message) => {
+    setMessages((prev) => [...prev, { ...toUiMessage(message), displayContent: "" }]);
+    await playAiTurn(message);
+  }, [playAiTurn]);
+
+  const sendTypedOrSpokenResponse = useCallback(async (content: string, interrupted = false) => {
+    const trimmed = content.trim();
+    if (!trimmed || requestInFlightRef.current) return;
+
+    requestInFlightRef.current = true;
+    pendingAutoContinueRef.current = false;
+    interruptingRef.current = false;
+    setRecognitionTranscript("");
+    setInput("");
+    appendStudentMessage(trimmed);
+    setTutorState("thinking");
 
     try {
-      const aiMessage = await sessionService.sendCompanionMessage(sessionId, trimmed);
-      setMessages((prev) =>
-        hidden
-          ? [...prev, aiMessage]
-          : [...prev.filter((msg) => msg.id !== optimistic.id), aiMessage],
-      );
-      const state = await sessionService.getCompanionState(sessionId);
-      setCompanionState(state);
-      await speakAiText(aiMessage.content);
-      if (aiMessage.metadata?.waitForStudent) {
-        setIsListening(false);
-      } else if (aiMessage.metadata?.autoContinue) {
-        if (autoContinueTimeoutRef.current) {
-          clearTimeout(autoContinueTimeoutRef.current);
-        }
-        autoContinueTimeoutRef.current = setTimeout(() => {
-          void sendDraft("__AUTO_CONTINUE__", { hidden: true });
-        }, 450);
-      }
+      const response = await sessionService.sendCompanionTurn(sessionId, {
+        action: interrupted ? "tutor:interrupt" : "tutor:student_response",
+        content: trimmed,
+      });
+      await refreshCompanionState();
+      await processTutorMessage(response);
     } catch (err: any) {
-      if (!hidden) {
-        setMessages((prev) => prev.filter((msg) => msg.id !== optimistic.id));
-        setInput(trimmed);
-      }
       setError(err?.response?.data?.message || "Could not send that response.");
+      setTutorState(micMutedRef.current ? "muted" : "idle");
     } finally {
-      setSending(false);
+      requestInFlightRef.current = false;
     }
-  }, [input, sending, sessionId]);
+  }, [appendStudentMessage, processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
 
-  const handleStart = useCallback(
-    async (mode: StartMode, sectionTitle?: string) => {
-      try {
-        setSending(true);
-        setError(null);
-        if (autoContinueTimeoutRef.current) {
-          clearTimeout(autoContinueTimeoutRef.current);
-          autoContinueTimeoutRef.current = null;
-        }
-        const message = await sessionService.startCompanion(sessionId, {
-          mode,
-          section_title: sectionTitle,
-        });
-        setMessages((prev) => [...prev, message]);
-        await speakAiText(message.content);
-        if (message.metadata?.waitForStudent) {
-          setIsListening(false);
-        } else if (message.metadata?.autoContinue) {
-          if (autoContinueTimeoutRef.current) {
-            clearTimeout(autoContinueTimeoutRef.current);
-          }
-          autoContinueTimeoutRef.current = setTimeout(() => {
-            void sendDraft("__AUTO_CONTINUE__", { hidden: true });
-          }, 450);
-        }
-        setStartModalVisible(false);
-        setSpecificSection("");
-        const state = await sessionService.getCompanionState(sessionId);
-        setCompanionState(state);
-      } catch (err: any) {
-        setError(err?.response?.data?.message || "Could not start the AI Tutor.");
-      } finally {
-        setSending(false);
+  const handleBargeIn = useCallback(async (transcript: string) => {
+    if (!transcript.trim() || interruptingRef.current) return;
+    interruptingRef.current = true;
+    setMessages((prev) =>
+      prev.map((item) =>
+        item.id === currentAiMessageIdRef.current ? { ...item, interrupted: true } : item,
+      ),
+    );
+    await stopPlaybackNow();
+    await sendTypedOrSpokenResponse(transcript, true);
+  }, [sendTypedOrSpokenResponse, stopPlaybackNow]);
+
+  useEffect(() => {
+    if (!liveRecognitionAvailable) return;
+
+    const resultListener = addLiveRecognitionListener("result", (event?: any) => {
+      const transcript = String(event?.transcript || event?.results?.[0] || "").trim();
+      if (!transcript) return;
+
+      setRecognitionTranscript(transcript);
+      if (runtimeStateRef.current === "ai_speaking" && !micMutedRef.current) {
+        setTutorState("student_speaking");
+        void handleBargeIn(transcript);
+        return;
       }
-    },
-    [sendDraft, sessionId],
-  );
 
-  const handleToggleVoice = useCallback(async () => {
+      if (runtimeStateRef.current === "listening") {
+        setTutorState("student_speaking");
+      }
+
+      if (event?.isFinal) {
+        void sendTypedOrSpokenResponse(transcript, false);
+      }
+    });
+
+    const errorListener = addLiveRecognitionListener("error", () => {
+      recognitionActiveRef.current = false;
+      if (!micMutedRef.current && runtimeStateRef.current !== "ai_speaking" && runtimeStateRef.current !== "thinking") {
+        setTutorState("idle");
+      }
+    });
+
+    return () => {
+      resultListener.remove();
+      errorListener.remove();
+    };
+  }, [handleBargeIn, liveRecognitionAvailable, sendTypedOrSpokenResponse, setTutorState]);
+
+  useEffect(() => {
+    if (!liveRecognitionAvailable) {
+      setLiveRecognitionReady(false);
+      return;
+    }
+
+    let active = true;
+    requestLiveRecognitionPermission()
+      .then((granted) => {
+        if (!active) return;
+        setLiveRecognitionReady(granted);
+        if (!granted) {
+          setError("Live speech recognition permission is required for hands-free AI Tutor.");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setLiveRecognitionReady(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [liveRecognitionAvailable]);
+
+  useEffect(() => {
+    if (!liveRecognitionAvailable || !liveRecognitionReady) return;
+
+    if (micMuted) {
+      void stopListening();
+      setTutorState("muted");
+      return;
+    }
+
+    if (runtimeStateRef.current === "idle" || runtimeStateRef.current === "listening") {
+      void startListening();
+    }
+  }, [liveRecognitionAvailable, liveRecognitionReady, micMuted, setTutorState, startListening, stopListening]);
+
+  useEffect(() => {
+    return () => {
+      void stopListening();
+      void stopAiSpeech();
+      cancelRevealTimer();
+    };
+  }, [cancelRevealTimer, stopListening]);
+
+  const handleStart = useCallback(async (mode: StartMode, sectionTitle?: string) => {
+    if (requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
+    setError(null);
+    setTutorState("thinking");
+
+    try {
+      const message = await sessionService.sendCompanionTurn(sessionId, {
+        action: "tutor:start",
+        mode,
+        section_title: sectionTitle,
+      });
+      setStartModalVisible(false);
+      setSpecificSection("");
+      await refreshCompanionState();
+      await processTutorMessage(message);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not start the AI Tutor.");
+      setTutorState(micMutedRef.current ? "muted" : "idle");
+    } finally {
+      requestInFlightRef.current = false;
+    }
+  }, [processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
+
+  const handleSendText = useCallback(async () => {
+    await sendTypedOrSpokenResponse(input, false);
+  }, [input, sendTypedOrSpokenResponse]);
+
+  const handleMicPress = useCallback(async () => {
+    if (liveRecognitionAvailable) {
+      setMicMuted((prev) => !prev);
+      return;
+    }
+
     try {
       if (recording) {
-        setSending(true);
-
+        setTutorState("thinking");
         const uri = await stopRecording(recording);
         setRecording(null);
-        setIsListening(false);
-
         if (!uri) return;
-
         const transcript = await transcribeAudioUri(uri);
-
-        if (transcript.trim()) {
-          setInput(transcript);
-          await sendDraft(transcript);
-        }
-
+        await sendTypedOrSpokenResponse(transcript, false);
         return;
       }
 
       const granted = await requestMicrophonePermission();
-
       if (!granted) {
         setError("Microphone permission is required for voice replies.");
         return;
       }
 
-      setError(null);
-      setIsListening(true);
-
       const nextRecording = await prepareAudioRecording();
       setRecording(nextRecording);
+      setTutorState("student_speaking");
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Voice input failed.");
-      setIsListening(false);
+      setError(err?.message || "Voice input failed.");
+      setTutorState("idle");
       setRecording(null);
-      setSending(false);
     }
-  }, [recording, sendDraft]);
+  }, [liveRecognitionAvailable, recording, sendTypedOrSpokenResponse, setTutorState]);
+
   const handleUploadSolution = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -295,45 +516,52 @@ export const StudyCompanionScreen: React.FC = () => {
         return;
       }
 
-      setSending(true);
+      requestInFlightRef.current = true;
+      setTutorState("thinking");
       setError(null);
       const response = await sessionService.sendPhotoMessage(sessionId, result.assets[0].uri);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `local-photo-${Date.now()}`,
-          session_id: sessionId,
-          user_id: "me",
-          role: "STUDENT",
-          content: response.extractedText,
-          created_at: new Date().toISOString(),
-        },
-        response.message,
-      ]);
-      const state = await sessionService.getCompanionState(sessionId);
-      setCompanionState(state);
+      appendStudentMessage(response.extractedText);
+      await refreshCompanionState();
+      await processTutorMessage(response.message);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Could not upload the solution image.");
+      setTutorState(micMutedRef.current ? "muted" : "idle");
     } finally {
-      setSending(false);
+      requestInFlightRef.current = false;
     }
-  }, [sessionId]);
+  }, [appendStudentMessage, processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
+
+  const micStatusText = liveRecognitionAvailable
+    ? micMuted
+      ? "Mic muted"
+      : recognitionTranscript
+        ? `Listening: ${recognitionTranscript}`
+        : runtimeState === "student_speaking"
+          ? "Student speaking"
+          : "Mic live"
+    : recording
+      ? "Recording fallback"
+      : "Live recognition unavailable";
+
+  const renderMessage = ({ item }: { item: UiMessage }) => {
     const isStudent = item.role === "STUDENT";
+    const content = isStudent ? item.content : item.displayContent;
     const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
     return (
       <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
         <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
           {isStudent ? (
-            <Text style={styles.studentText}>{item.content}</Text>
-          ) : item.content && shouldUseMathRenderer ? (
-            <RichMathText content={item.content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
-          ) : item.content ? (
-            <Text style={styles.aiText}>{item.content}</Text>
+            <Text style={styles.studentText}>{content}</Text>
+          ) : content && shouldUseMathRenderer ? (
+            <RichMathText content={content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
+          ) : content ? (
+            <Text style={styles.aiText}>{content}</Text>
           ) : (
             <Text style={styles.aiFallbackText}>...</Text>
           )}
+          {!isStudent && item.interrupted ? <Text style={styles.interruptedText}>Interrupted</Text> : null}
         </View>
       </View>
     );
@@ -378,6 +606,11 @@ export const StudyCompanionScreen: React.FC = () => {
           </View>
         ) : null}
 
+        <View style={styles.statusBar}>
+          <Text style={styles.statusLabel}>{phaseLabel}</Text>
+          <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
+        </View>
+
         <FlatList
           ref={listRef}
           data={messages}
@@ -389,7 +622,7 @@ export const StudyCompanionScreen: React.FC = () => {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Ready to begin</Text>
               <Text style={styles.emptyText}>
-                Tap the button below to begin your study session with Akademi.
+                Start the live tutor and Akademi will teach in spoken turns, wait for your answers, and keep the mic open.
               </Text>
               {!startModalVisible ? (
                 <Button
@@ -401,7 +634,7 @@ export const StudyCompanionScreen: React.FC = () => {
             </View>
           }
           ListFooterComponent={
-            sending ? (
+            runtimeState === "thinking" ? (
               <View style={styles.typingRow}>
                 <View style={styles.typingBubble}>
                   <ActivityIndicator color={colors.primary} size="small" />
@@ -417,24 +650,37 @@ export const StudyCompanionScreen: React.FC = () => {
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder={isListening ? "Recording... tap mic again to send" : "Reply to Akademi"}
+              placeholder="Type if you prefer, or just speak"
               placeholderTextColor={colors.textMuted}
               multiline
               style={styles.input}
             />
             <View style={styles.composerStatusRow}>
-              <Text style={styles.composerStatusText}>
-                {isListening ? `Recording voice - ${phaseLabel}` : phaseLabel}
-              </Text>
+              <Text style={styles.composerStatusText}>{micStatusText}</Text>
+              <Text style={styles.composerStatusText}>{phaseLabel}</Text>
             </View>
             <View style={styles.composerActions}>
               <Pressable onPress={handleUploadSolution} style={styles.smallAction}>
                 <Upload size={18} color={colors.textSecondary} />
               </Pressable>
-              <Pressable onPress={handleToggleVoice} style={[styles.smallAction, isListening ? styles.smallActionActive : null]}>
-                <Mic size={18} color={isListening ? "#08130C" : colors.textSecondary} />
+              <Pressable
+                onPress={handleMicPress}
+                style={[
+                  styles.smallAction,
+                  !micMuted && liveRecognitionAvailable ? styles.smallActionActive : null,
+                  recording ? styles.smallActionActive : null,
+                ]}
+              >
+                {micMuted && liveRecognitionAvailable ? (
+                  <MicOff size={18} color={colors.textSecondary} />
+                ) : (
+                  <Mic size={18} color={!micMuted || recording ? "#08130C" : colors.textSecondary} />
+                )}
               </Pressable>
-              <Pressable onPress={() => void sendDraft()} style={[styles.sendButton, !input.trim() || sending ? styles.sendButtonDisabled : null]}>
+              <Pressable
+                onPress={() => void handleSendText()}
+                style={[styles.sendButton, !input.trim() || requestInFlightRef.current ? styles.sendButtonDisabled : null]}
+              >
                 <Send size={18} color="#08130C" />
               </Pressable>
             </View>
@@ -449,9 +695,9 @@ export const StudyCompanionScreen: React.FC = () => {
                 Choose how you want Akademi to begin this study session.
               </Text>
               <View style={styles.startOptions}>
-                <Button title="Start from beginning" onPress={() => handleStart("beginning")} loading={sending} style={styles.startButton} />
-                <Button title="Continue where I stopped" onPress={() => handleStart("continue")} loading={sending} variant="secondary" style={styles.startButton} />
-                <Button title="Show roadmap first" onPress={() => handleStart("roadmap")} loading={sending} variant="outline" style={styles.startButton} />
+                <Button title="Start from beginning" onPress={() => handleStart("beginning")} style={styles.startButton} />
+                <Button title="Continue where I stopped" onPress={() => handleStart("continue")} variant="secondary" style={styles.startButton} />
+                <Button title="Show roadmap first" onPress={() => handleStart("roadmap")} variant="outline" style={styles.startButton} />
               </View>
               <View style={styles.specificSectionBox}>
                 <Text style={styles.specificLabel}>Start from a specific section</Text>
@@ -509,13 +755,6 @@ export const StudyCompanionScreen: React.FC = () => {
                   />
                 </View>
               ))}
-              {!(companionState?.roadmap || []).length ? (
-                <View style={styles.emptyRoadmap}>
-                  <Text style={styles.emptyRoadmapText}>
-                    Start the AI Tutor first and the roadmap will appear here.
-                  </Text>
-                </View>
-              ) : null}
             </View>
           </BottomSheet>
         ) : null}
@@ -590,6 +829,30 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontSize: 11,
       lineHeight: 17,
     },
+    statusBar: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    statusLabel: {
+      ...typography.bodySmall,
+      color: colors.textPrimary,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    statusValue: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 12,
+      textTransform: "capitalize",
+    },
     chatContent: {
       paddingHorizontal: 18,
       paddingBottom: 16,
@@ -635,6 +898,13 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontSize: 14,
       lineHeight: 20,
       fontWeight: "600",
+    },
+    interruptedText: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      fontSize: 10,
+      marginTop: 8,
+      textTransform: "uppercase",
     },
     emptyState: {
       alignItems: "center",
@@ -714,11 +984,15 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     composerStatusRow: {
       marginBottom: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 10,
     },
     composerStatusText: {
       ...typography.bodySmall,
       color: colors.textSecondary,
       fontSize: 11,
+      flex: 1,
     },
     composerActions: {
       flexDirection: "row",
@@ -886,15 +1160,4 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       width: "auto",
       height: 34,
     },
-    emptyRoadmap: {
-      paddingVertical: 28,
-      alignItems: "center",
-    },
-    emptyRoadmapText: {
-      ...typography.body,
-      color: colors.textSecondary,
-      fontSize: 13,
-      textAlign: "center",
-    },
   });
-

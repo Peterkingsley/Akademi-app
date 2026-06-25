@@ -1,5 +1,5 @@
 import prisma from '../../config/db';
-import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest } from './sessions.types';
+import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest, CompanionTurnRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature, Prisma, ReplyMode } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -361,6 +361,80 @@ export class SessionsService {
     return this.sendMessage(userId, sessionId, {
       content: data.content,
       reply_mode: ReplyMode.STUDY,
+    });
+  }
+
+  async handleCompanionTurn(userId: string, sessionId: string, data: CompanionTurnRequest) {
+    switch (data.action) {
+      case 'tutor:start':
+        if (!data.mode) {
+          throw new Error('A start mode is required to begin the tutor session.');
+        }
+        return this.startCompanion(sessionId, {
+          mode: data.mode,
+          section_title: data.section_title,
+        });
+      case 'tutor:continue': {
+        const session = await this.getSession(sessionId);
+        const response = await studyCompanionService.handleTutorContinue(sessionId);
+        return prisma.message.create({
+          data: {
+            session_id: sessionId,
+            user_id: session.user_id,
+            role: MessageRole.AI,
+            content: response.content,
+            reply_mode: ReplyMode.STUDY,
+            metadata: (response.metadata || {}) as Prisma.InputJsonValue,
+          },
+        });
+      }
+      case 'tutor:student_response':
+        if (!data.content?.trim()) {
+          throw new Error('A student response is required.');
+        }
+        return this.sendCompanionMessage(userId, sessionId, {
+          content: data.content,
+          reply_mode: ReplyMode.STUDY,
+        });
+      case 'tutor:interrupt':
+        if (!data.content?.trim()) {
+          throw new Error('An interruption transcript is required.');
+        }
+        return this.sendCompanionInterrupt(userId, sessionId, data.content.trim());
+      default:
+        throw new Error('Unsupported tutor action.');
+    }
+  }
+
+  async sendCompanionInterrupt(userId: string, sessionId: string, content: string) {
+    const session = await this.getSession(sessionId);
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: userId,
+        role: MessageRole.STUDENT,
+        content,
+        reply_mode: ReplyMode.STUDY,
+        metadata: {
+          tutor_interrupt: true,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    const aiResponse = await studyCompanionService.handleStudentReply(sessionId, content, {
+      interrupted: true,
+    });
+
+    return prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.AI,
+        content: aiResponse.content,
+        metadata: (aiResponse.metadata || {}) as Prisma.InputJsonValue,
+        reply_mode: ReplyMode.STUDY,
+      },
     });
   }
 }
