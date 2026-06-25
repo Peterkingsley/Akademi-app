@@ -88,6 +88,36 @@ const toUiMessage = (message: Message): UiMessage => ({
   displayContent: message.content,
 });
 
+function extractTranscript(event: any) {
+  if (!event) return "";
+
+  if (typeof event.transcript === "string") {
+    return event.transcript.trim();
+  }
+
+  if (typeof event.value === "string") {
+    return event.value.trim();
+  }
+
+  if (Array.isArray(event.results)) {
+    const first = event.results[0];
+
+    if (typeof first === "string") {
+      return first.trim();
+    }
+
+    if (typeof first?.transcript === "string") {
+      return first.transcript.trim();
+    }
+
+    if (typeof first?.alternatives?.[0]?.transcript === "string") {
+      return first.alternatives[0].transcript.trim();
+    }
+  }
+
+  return "";
+}
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -207,9 +237,16 @@ export const StudyCompanionScreen: React.FC = () => {
     if (runtimeStateRef.current === "thinking") {
       return;
     }
-    await startLiveRecognition();
-    recognitionActiveRef.current = true;
-    setTutorState("listening");
+    try {
+      await startLiveRecognition();
+      recognitionActiveRef.current = true;
+      setTutorState("listening");
+    } catch (err: any) {
+      console.error("startLiveRecognition failed", err);
+      recognitionActiveRef.current = false;
+      setError(err?.message || "Could not start live speech recognition.");
+      setTutorState(micMutedRef.current ? "muted" : "idle");
+    }
   }, [liveRecognitionAvailable, setTutorState]);
 
   const stopListening = useCallback(async () => {
@@ -297,6 +334,7 @@ export const StudyCompanionScreen: React.FC = () => {
       if (micMutedRef.current) {
         setTutorState("muted");
       } else if (liveRecognitionAvailable) {
+        setTutorState("listening");
         await startListening();
       } else {
         setTutorState("idle");
@@ -431,7 +469,13 @@ export const StudyCompanionScreen: React.FC = () => {
     if (!liveRecognitionAvailable) return;
 
     const resultListener = addLiveRecognitionListener("result", (event?: any) => {
-      const transcript = String(event?.transcript || event?.results?.[0] || "").trim();
+      try {
+        console.log("speech result event", JSON.stringify(event));
+      } catch {
+        console.log("speech result event", event);
+      }
+
+      const transcript = extractTranscript(event);
       if (!transcript) return;
 
       latestTranscriptRef.current = transcript;
