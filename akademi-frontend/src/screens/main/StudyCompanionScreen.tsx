@@ -123,6 +123,9 @@ export const StudyCompanionScreen: React.FC = () => {
   const interruptingRef = useRef(false);
   const latestTranscriptRef = useRef("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefetchedContinueRef = useRef<Message | null>(null);
+  const continuePrefetchPromiseRef = useRef<Promise<Message | null> | null>(null);
+  const continuePrefetchTokenRef = useRef(0);
 
   const setTutorState = useCallback((state: TutorRuntimeState) => {
     runtimeStateRef.current = state;
@@ -146,6 +149,9 @@ export const StudyCompanionScreen: React.FC = () => {
   const stopPlaybackNow = useCallback(async () => {
     playbackTokenRef.current += 1;
     pendingAutoContinueRef.current = false;
+    continuePrefetchTokenRef.current += 1;
+    prefetchedContinueRef.current = null;
+    continuePrefetchPromiseRef.current = null;
     cancelRevealTimer();
     await stopAiSpeech();
   }, [cancelRevealTimer]);
@@ -238,11 +244,56 @@ export const StudyCompanionScreen: React.FC = () => {
     setMessages((prev) => [...prev, studentMessage]);
   }, [sessionId]);
 
-  const runAutoContinueIfNeeded = useCallback(async (message: Message) => {
+  const beginAutoContinuePrefetch = useCallback((message: Message) => {
     const metadata = message.metadata;
-    if (!metadata) return;
+    if (!metadata) return null;
     if (metadata.waitForStudent) {
       pendingAutoContinueRef.current = false;
+      continuePrefetchTokenRef.current += 1;
+      prefetchedContinueRef.current = null;
+      continuePrefetchPromiseRef.current = null;
+      return null;
+    }
+
+    if (metadata.autoContinue) {
+      pendingAutoContinueRef.current = true;
+      const token = continuePrefetchTokenRef.current + 1;
+      continuePrefetchTokenRef.current = token;
+      prefetchedContinueRef.current = null;
+      const prefetchPromise = sessionService
+        .sendCompanionTurn(sessionId, {
+          action: "tutor:continue",
+        })
+        .then(async (nextMessage) => {
+          await refreshCompanionState();
+          if (continuePrefetchTokenRef.current !== token) {
+            return null;
+          }
+          prefetchedContinueRef.current = nextMessage;
+          return nextMessage;
+        })
+        .catch((err: any) => {
+          if (continuePrefetchTokenRef.current === token) {
+            setError(err?.response?.data?.message || "Could not continue the tutor flow.");
+          }
+          return null;
+        });
+      continuePrefetchPromiseRef.current = prefetchPromise;
+      return prefetchPromise;
+    }
+
+    return null;
+  }, [refreshCompanionState, sessionId]);
+
+  const resolveAutoContinueAfterSpeech = useCallback(async (message: Message) => {
+    const metadata = message.metadata;
+    if (!metadata) return null;
+
+    if (metadata.waitForStudent) {
+      pendingAutoContinueRef.current = false;
+      continuePrefetchTokenRef.current += 1;
+      prefetchedContinueRef.current = null;
+      continuePrefetchPromiseRef.current = null;
       if (micMutedRef.current) {
         setTutorState("muted");
       } else if (liveRecognitionAvailable) {
@@ -250,32 +301,38 @@ export const StudyCompanionScreen: React.FC = () => {
       } else {
         setTutorState("idle");
       }
-      return;
+      return null;
     }
 
-    if (metadata.autoContinue) {
-      pendingAutoContinueRef.current = true;
-      requestInFlightRef.current = true;
-      setTutorState("thinking");
-      try {
-        const nextMessage = await sessionService.sendCompanionTurn(sessionId, {
-          action: "tutor:continue",
-        });
-        await refreshCompanionState();
-        return nextMessage;
-      } catch (err: any) {
-        setError(err?.response?.data?.message || "Could not continue the tutor flow.");
-        setTutorState(micMutedRef.current ? "muted" : "idle");
-      } finally {
-        requestInFlightRef.current = false;
-        pendingAutoContinueRef.current = false;
-      }
-    } else {
+    if (!metadata.autoContinue) {
+      pendingAutoContinueRef.current = false;
+      continuePrefetchTokenRef.current += 1;
+      prefetchedContinueRef.current = null;
+      continuePrefetchPromiseRef.current = null;
+      setTutorState(micMutedRef.current ? "muted" : "idle");
+      return null;
+    }
+
+    if (prefetchedContinueRef.current) {
+      const prefetched = prefetchedContinueRef.current;
+      prefetchedContinueRef.current = null;
+      continuePrefetchPromiseRef.current = null;
+      pendingAutoContinueRef.current = false;
+      return prefetched;
+    }
+
+    setTutorState("thinking");
+    const awaitedMessage = continuePrefetchPromiseRef.current
+      ? await continuePrefetchPromiseRef.current
+      : null;
+    continuePrefetchPromiseRef.current = null;
+    prefetchedContinueRef.current = null;
+    pendingAutoContinueRef.current = false;
+    if (!awaitedMessage) {
       setTutorState(micMutedRef.current ? "muted" : "idle");
     }
-
-    return null;
-  }, [liveRecognitionAvailable, refreshCompanionState, sessionId, setTutorState, startListening]);
+    return awaitedMessage;
+  }, [liveRecognitionAvailable, setTutorState, startListening]);
 
   const playAiTurn = useCallback(async (message: Message) => {
     const token = playbackTokenRef.current + 1;
@@ -307,6 +364,7 @@ export const StudyCompanionScreen: React.FC = () => {
       }, stepMs);
     }
 
+    beginAutoContinuePrefetch(message);
     await speakAiText(fullContent);
     if (playbackTokenRef.current !== token) {
       return null;
@@ -315,13 +373,13 @@ export const StudyCompanionScreen: React.FC = () => {
     cancelRevealTimer();
     finalizeAiMessage(message.id, fullContent);
     currentAiMessageIdRef.current = null;
-    const nextMessage = await runAutoContinueIfNeeded(message);
+    const nextMessage = await resolveAutoContinueAfterSpeech(message);
     if (nextMessage) {
       setMessages((prev) => [...prev, { ...toUiMessage(nextMessage), displayContent: "" }]);
       return playAiTurn(nextMessage);
     }
     return null;
-  }, [cancelRevealTimer, finalizeAiMessage, runAutoContinueIfNeeded, setTutorState]);
+  }, [beginAutoContinuePrefetch, cancelRevealTimer, finalizeAiMessage, resolveAutoContinueAfterSpeech, setTutorState]);
 
   const processTutorMessage = useCallback(async (message: Message) => {
     setMessages((prev) => [...prev, { ...toUiMessage(message), displayContent: "" }]);
