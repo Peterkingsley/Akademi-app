@@ -31,7 +31,8 @@ export interface Message {
   metadata?: {
     autoContinue?: boolean;
     waitForStudent?: boolean;
-    nextAction?: "continue_teaching" | "wait_for_student";
+    nextAction?: "continue_teaching" | "evaluate_answer" | "ask_followup" | "move_next";
+    turnType?: "teaching_chunk" | "checkpoint_question" | "evaluation" | "reteach" | "transition";
     whiteboard?: {
       available?: boolean;
       subject_family?: string;

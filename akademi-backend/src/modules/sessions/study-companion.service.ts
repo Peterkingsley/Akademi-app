@@ -38,8 +38,13 @@ type CompanionMetadata = {
 type CompanionResponseMetadata = {
   autoContinue?: boolean;
   waitForStudent?: boolean;
-  nextAction?: 'continue_teaching' | 'wait_for_student';
+  nextAction?: 'continue_teaching' | 'evaluate_answer' | 'ask_followup' | 'move_next';
+  turnType?: 'teaching_chunk' | 'checkpoint_question' | 'evaluation' | 'reteach' | 'transition';
   study_companion: PublicState | null;
+};
+
+type SectionContext = {
+  pass3QuestionPending?: boolean;
 };
 
 type CompanionStartMode = 'continue' | 'specific' | 'beginning' | 'roadmap';
@@ -83,6 +88,10 @@ function safeJsonArray<T>(value: unknown): T[] {
 
 function normalizeText(value: string) {
   return value.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function readSectionContext(value: unknown): SectionContext {
+  return safeJsonObject<SectionContext>(value, {});
 }
 
 function isIntroLikeSection(section: RoadmapSection) {
@@ -358,6 +367,7 @@ export class StudyCompanionService {
     pending_prompt: string | null;
     session_summary: string | null;
     external_support_used: boolean;
+    section_context: Prisma.InputJsonValue;
   }> = {}) {
     return prisma.studyCompanionState.update({
       where: { id: stateId },
@@ -460,13 +470,15 @@ export class StudyCompanionService {
         current_phase: StudyCompanionPhase.ROADMAP_GENERATED,
         pending_prompt: message,
         refresh_question: null,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content: message,
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'move_next',
+          turnType: 'transition',
         }),
       };
     }
@@ -496,6 +508,7 @@ export class StudyCompanionService {
       pending_prompt: content,
       refresh_question: refreshQuestion,
       refresh_answer: null,
+      section_context: {} as Prisma.InputJsonValue,
     });
 
     return {
@@ -504,6 +517,7 @@ export class StudyCompanionService {
         autoContinue: true,
         waitForStudent: false,
         nextAction: 'continue_teaching',
+        turnType: 'transition',
       }),
     };
   }
@@ -615,6 +629,7 @@ export class StudyCompanionService {
   async handleStudentReply(sessionId: string, studentResponse: string) {
     const { state, roadmap } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
+    const sectionContext = readSectionContext(state.section_context);
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
 
@@ -623,10 +638,14 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === PASS_1) {
+      if (!isAutoContinue) {
+        throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
+      }
       const content = await this.buildTeachingPass(section, 1);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
@@ -634,15 +653,20 @@ export class StudyCompanionService {
           autoContinue: true,
           waitForStudent: false,
           nextAction: 'continue_teaching',
+          turnType: 'teaching_chunk',
         }),
       };
     }
 
     if (state.current_phase === PASS_2) {
+      if (!isAutoContinue) {
+        throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
+      }
       const content = await this.buildTeachingPass(section, 2);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
@@ -650,24 +674,50 @@ export class StudyCompanionService {
           autoContinue: true,
           waitForStudent: false,
           nextAction: 'continue_teaching',
+          turnType: 'teaching_chunk',
         }),
       };
     }
 
     if (state.current_phase === PASS_3) {
-      const teaching = await this.buildTeachingPass(section, 3);
-      const checkpoint = await this.buildTeachBackPrompt(section, 1);
-      const content = [teaching, '', checkpoint].join('\n\n');
+      if (!sectionContext.pass3QuestionPending) {
+        if (!isAutoContinue) {
+          throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
+        }
+        const content = await this.buildTeachingPass(section, 3);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: PASS_3,
+          pending_prompt: content,
+          section_context: { pass3QuestionPending: true } as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildResponseMetadata(sessionId, {
+            autoContinue: true,
+            waitForStudent: false,
+            nextAction: 'ask_followup',
+            turnType: 'teaching_chunk',
+          }),
+        };
+      }
+
+      if (!isAutoContinue) {
+        throw new Error('Akademi is preparing the checkpoint question. Wait one moment.');
+      }
+
+      const content = await this.buildTeachBackPrompt(section, 1);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_1,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'evaluate_answer',
+          turnType: 'checkpoint_question',
         }),
       };
     }
@@ -700,13 +750,15 @@ export class StudyCompanionService {
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_2,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'evaluate_answer',
+          turnType: 'evaluation',
         }),
       };
     }
@@ -738,13 +790,15 @@ export class StudyCompanionService {
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: MEMORY_DUMP,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'evaluate_answer',
+          turnType: 'evaluation',
         }),
       };
     }
@@ -811,13 +865,15 @@ export class StudyCompanionService {
           last_mastery_score: finalScore,
           pending_prompt: content,
           session_summary: hasNextSection ? null : `Completed all ${roadmap.length} sections.`,
+          section_context: {} as Prisma.InputJsonValue,
         });
         return {
           content,
           metadata: await this.buildResponseMetadata(sessionId, {
             autoContinue: false,
             waitForStudent: true,
-            nextAction: 'wait_for_student',
+            nextAction: 'move_next',
+            turnType: 'transition',
           }),
         };
       }
@@ -834,13 +890,15 @@ export class StudyCompanionService {
         current_phase: TEACHBACK_2,
         last_mastery_score: finalScore,
         pending_prompt: content,
+        section_context: {} as Prisma.InputJsonValue,
       });
       return {
         content,
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'ask_followup',
+          turnType: 'reteach',
         }),
       };
     }
@@ -858,6 +916,7 @@ export class StudyCompanionService {
           current_phase: PASS_1,
           current_section_index: nextIndex,
           pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
         });
         return {
           content,
@@ -865,6 +924,7 @@ export class StudyCompanionService {
             autoContinue: true,
             waitForStudent: false,
             nextAction: 'continue_teaching',
+            turnType: 'transition',
           }),
         };
       }
@@ -882,6 +942,7 @@ export class StudyCompanionService {
           current_phase: PASS_1,
           current_section_index: nextIndex,
           pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
         });
         return {
           content,
@@ -889,6 +950,7 @@ export class StudyCompanionService {
             autoContinue: true,
             waitForStudent: false,
             nextAction: 'continue_teaching',
+            turnType: 'transition',
           }),
         };
       }
@@ -898,7 +960,8 @@ export class StudyCompanionService {
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'move_next',
+          turnType: 'transition',
         }),
       };
     }
@@ -909,7 +972,8 @@ export class StudyCompanionService {
         metadata: await this.buildResponseMetadata(sessionId, {
           autoContinue: false,
           waitForStudent: true,
-          nextAction: 'wait_for_student',
+          nextAction: 'move_next',
+          turnType: 'transition',
         }),
       };
     }
@@ -918,13 +982,15 @@ export class StudyCompanionService {
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
+      section_context: {} as Prisma.InputJsonValue,
     });
     return {
       content: fallback,
       metadata: await this.buildResponseMetadata(sessionId, {
         autoContinue: false,
         waitForStudent: true,
-        nextAction: 'wait_for_student',
+        nextAction: 'evaluate_answer',
+        turnType: 'checkpoint_question',
       }),
     };
   }

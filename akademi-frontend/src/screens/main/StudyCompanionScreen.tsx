@@ -153,6 +153,11 @@ export const StudyCompanionScreen: React.FC = () => {
     if (!trimmed || sending) return;
     const hidden = options?.hidden === true;
 
+    if (autoContinueTimeoutRef.current) {
+      clearTimeout(autoContinueTimeoutRef.current);
+      autoContinueTimeoutRef.current = null;
+    }
+
     const optimistic: Message = {
       id: `local-${Date.now()}`,
       session_id: sessionId,
@@ -179,13 +184,15 @@ export const StudyCompanionScreen: React.FC = () => {
       const state = await sessionService.getCompanionState(sessionId);
       setCompanionState(state);
       await speakAiText(aiMessage.content);
-      if (aiMessage.metadata?.autoContinue) {
+      if (aiMessage.metadata?.waitForStudent) {
+        setIsListening(false);
+      } else if (aiMessage.metadata?.autoContinue) {
         if (autoContinueTimeoutRef.current) {
           clearTimeout(autoContinueTimeoutRef.current);
         }
         autoContinueTimeoutRef.current = setTimeout(() => {
           void sendDraft("__AUTO_CONTINUE__", { hidden: true });
-        }, 900);
+        }, 450);
       }
     } catch (err: any) {
       if (!hidden) {
@@ -203,19 +210,25 @@ export const StudyCompanionScreen: React.FC = () => {
       try {
         setSending(true);
         setError(null);
+        if (autoContinueTimeoutRef.current) {
+          clearTimeout(autoContinueTimeoutRef.current);
+          autoContinueTimeoutRef.current = null;
+        }
         const message = await sessionService.startCompanion(sessionId, {
           mode,
           section_title: sectionTitle,
         });
         setMessages((prev) => [...prev, message]);
         await speakAiText(message.content);
-        if (message.metadata?.autoContinue) {
+        if (message.metadata?.waitForStudent) {
+          setIsListening(false);
+        } else if (message.metadata?.autoContinue) {
           if (autoContinueTimeoutRef.current) {
             clearTimeout(autoContinueTimeoutRef.current);
           }
           autoContinueTimeoutRef.current = setTimeout(() => {
             void sendDraft("__AUTO_CONTINUE__", { hidden: true });
-          }, 900);
+          }, 450);
         }
         setStartModalVisible(false);
         setSpecificSection("");

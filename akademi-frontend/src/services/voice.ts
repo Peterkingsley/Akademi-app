@@ -109,9 +109,21 @@ export const speakAiText = async (content: string) => {
   if (!sanitized) return;
 
   await Speech.stop();
-  Speech.speak(sanitized, {
-    rate: 0.95,
-    pitch: 1,
-    language: "en",
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    Speech.speak(sanitized, {
+      rate: 0.95,
+      pitch: 1,
+      language: "en",
+      onDone: finish,
+      onStopped: finish,
+      onError: finish,
+    });
   });
 };
