@@ -33,15 +33,11 @@ import {
   addLiveRecognitionListener,
   estimateSpeechDurationMs,
   getLiveRecognitionAvailability,
-  prepareAudioRecording,
   requestLiveRecognitionPermission,
-  requestMicrophonePermission,
   speakAiText,
   startLiveRecognition,
   stopAiSpeech,
   stopLiveRecognition,
-  stopRecording,
-  transcribeAudioUri,
 } from "../../services/voice";
 
 type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
@@ -114,7 +110,6 @@ export const StudyCompanionScreen: React.FC = () => {
   const [liveRecognitionAvailable] = useState(() => getLiveRecognitionAvailability());
   const [liveRecognitionReady, setLiveRecognitionReady] = useState(false);
   const [recognitionTranscript, setRecognitionTranscript] = useState("");
-  const [recording, setRecording] = useState<any | null>(null);
 
   const listRef = useRef<FlatList<UiMessage>>(null);
   const runtimeStateRef = useRef<TutorRuntimeState>("idle");
@@ -126,6 +121,8 @@ export const StudyCompanionScreen: React.FC = () => {
   const pendingAutoContinueRef = useRef(false);
   const requestInFlightRef = useRef(false);
   const interruptingRef = useRef(false);
+  const latestTranscriptRef = useRef("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setTutorState = useCallback((state: TutorRuntimeState) => {
     runtimeStateRef.current = state;
@@ -136,6 +133,13 @@ export const StudyCompanionScreen: React.FC = () => {
     if (revealTimerRef.current) {
       clearInterval(revealTimerRef.current);
       revealTimerRef.current = null;
+    }
+  }, []);
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
     }
   }, []);
 
@@ -194,7 +198,7 @@ export const StudyCompanionScreen: React.FC = () => {
     if (!liveRecognitionAvailable || micMutedRef.current || recognitionActiveRef.current) {
       return;
     }
-    if (runtimeStateRef.current === "ai_speaking" || runtimeStateRef.current === "thinking") {
+    if (runtimeStateRef.current === "thinking") {
       return;
     }
     await startLiveRecognition();
@@ -258,7 +262,6 @@ export const StudyCompanionScreen: React.FC = () => {
           action: "tutor:continue",
         });
         await refreshCompanionState();
-        setMessages((prev) => [...prev, { ...toUiMessage(nextMessage), displayContent: "" }]);
         return nextMessage;
       } catch (err: any) {
         setError(err?.response?.data?.message || "Could not continue the tutor flow.");
@@ -279,7 +282,6 @@ export const StudyCompanionScreen: React.FC = () => {
     playbackTokenRef.current = token;
     currentAiMessageIdRef.current = message.id;
     cancelRevealTimer();
-    await stopListening();
     setRecognitionTranscript("");
     setTutorState("ai_speaking");
 
@@ -313,8 +315,13 @@ export const StudyCompanionScreen: React.FC = () => {
     cancelRevealTimer();
     finalizeAiMessage(message.id, fullContent);
     currentAiMessageIdRef.current = null;
-    return runAutoContinueIfNeeded(message);
-  }, [cancelRevealTimer, finalizeAiMessage, runAutoContinueIfNeeded, setTutorState, stopListening]);
+    const nextMessage = await runAutoContinueIfNeeded(message);
+    if (nextMessage) {
+      setMessages((prev) => [...prev, { ...toUiMessage(nextMessage), displayContent: "" }]);
+      return playAiTurn(nextMessage);
+    }
+    return null;
+  }, [cancelRevealTimer, finalizeAiMessage, runAutoContinueIfNeeded, setTutorState]);
 
   const processTutorMessage = useCallback(async (message: Message) => {
     setMessages((prev) => [...prev, { ...toUiMessage(message), displayContent: "" }]);
@@ -328,6 +335,8 @@ export const StudyCompanionScreen: React.FC = () => {
     requestInFlightRef.current = true;
     pendingAutoContinueRef.current = false;
     interruptingRef.current = false;
+    latestTranscriptRef.current = "";
+    clearSilenceTimer();
     setRecognitionTranscript("");
     setInput("");
     appendStudentMessage(trimmed);
@@ -346,7 +355,7 @@ export const StudyCompanionScreen: React.FC = () => {
     } finally {
       requestInFlightRef.current = false;
     }
-  }, [appendStudentMessage, processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
+  }, [appendStudentMessage, clearSilenceTimer, processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
 
   const handleBargeIn = useCallback(async (transcript: string) => {
     if (!transcript.trim() || interruptingRef.current) return;
@@ -367,6 +376,7 @@ export const StudyCompanionScreen: React.FC = () => {
       const transcript = String(event?.transcript || event?.results?.[0] || "").trim();
       if (!transcript) return;
 
+      latestTranscriptRef.current = transcript;
       setRecognitionTranscript(transcript);
       if (runtimeStateRef.current === "ai_speaking" && !micMutedRef.current) {
         setTutorState("student_speaking");
@@ -378,7 +388,20 @@ export const StudyCompanionScreen: React.FC = () => {
         setTutorState("student_speaking");
       }
 
+      if (runtimeStateRef.current === "listening" || runtimeStateRef.current === "student_speaking") {
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+          const finalTranscript = latestTranscriptRef.current.trim();
+          if (finalTranscript && !requestInFlightRef.current) {
+            latestTranscriptRef.current = "";
+            void sendTypedOrSpokenResponse(finalTranscript, false);
+          }
+        }, 1200);
+      }
+
       if (event?.isFinal) {
+        clearSilenceTimer();
+        latestTranscriptRef.current = "";
         void sendTypedOrSpokenResponse(transcript, false);
       }
     });
@@ -394,7 +417,7 @@ export const StudyCompanionScreen: React.FC = () => {
       resultListener.remove();
       errorListener.remove();
     };
-  }, [handleBargeIn, liveRecognitionAvailable, sendTypedOrSpokenResponse, setTutorState]);
+  }, [clearSilenceTimer, handleBargeIn, liveRecognitionAvailable, sendTypedOrSpokenResponse, setTutorState]);
 
   useEffect(() => {
     if (!liveRecognitionAvailable) {
@@ -408,7 +431,7 @@ export const StudyCompanionScreen: React.FC = () => {
         if (!active) return;
         setLiveRecognitionReady(granted);
         if (!granted) {
-          setError("Live speech recognition permission is required for hands-free AI Tutor.");
+          setError("AI Tutor live mode requires live speech recognition permission in a development/custom build.");
         }
       })
       .catch(() => {
@@ -419,6 +442,12 @@ export const StudyCompanionScreen: React.FC = () => {
     return () => {
       active = false;
     };
+  }, [liveRecognitionAvailable]);
+
+  useEffect(() => {
+    if (!liveRecognitionAvailable) {
+      setError("AI Tutor live mode requires expo-speech-recognition in a development build or custom build. Expo Go cannot support the always-live mic or interruption flow.");
+    }
   }, [liveRecognitionAvailable]);
 
   useEffect(() => {
@@ -440,8 +469,9 @@ export const StudyCompanionScreen: React.FC = () => {
       void stopListening();
       void stopAiSpeech();
       cancelRevealTimer();
+      clearSilenceTimer();
     };
-  }, [cancelRevealTimer, stopListening]);
+  }, [cancelRevealTimer, clearSilenceTimer, stopListening]);
 
   const handleStart = useCallback(async (mode: StartMode, sectionTitle?: string) => {
     if (requestInFlightRef.current) return;
@@ -472,37 +502,12 @@ export const StudyCompanionScreen: React.FC = () => {
   }, [input, sendTypedOrSpokenResponse]);
 
   const handleMicPress = useCallback(async () => {
-    if (liveRecognitionAvailable) {
-      setMicMuted((prev) => !prev);
+    if (!liveRecognitionAvailable) {
+      setError("AI Tutor live mode requires expo-speech-recognition in a development build or custom build. Expo Go cannot support the always-live mic or interruption flow.");
       return;
     }
-
-    try {
-      if (recording) {
-        setTutorState("thinking");
-        const uri = await stopRecording(recording);
-        setRecording(null);
-        if (!uri) return;
-        const transcript = await transcribeAudioUri(uri);
-        await sendTypedOrSpokenResponse(transcript, false);
-        return;
-      }
-
-      const granted = await requestMicrophonePermission();
-      if (!granted) {
-        setError("Microphone permission is required for voice replies.");
-        return;
-      }
-
-      const nextRecording = await prepareAudioRecording();
-      setRecording(nextRecording);
-      setTutorState("student_speaking");
-    } catch (err: any) {
-      setError(err?.message || "Voice input failed.");
-      setTutorState("idle");
-      setRecording(null);
-    }
-  }, [liveRecognitionAvailable, recording, sendTypedOrSpokenResponse, setTutorState]);
+    setMicMuted((prev) => !prev);
+  }, [liveRecognitionAvailable]);
 
   const handleUploadSolution = useCallback(async () => {
     try {
@@ -541,9 +546,7 @@ export const StudyCompanionScreen: React.FC = () => {
         : runtimeState === "student_speaking"
           ? "Student speaking"
           : "Mic live"
-    : recording
-      ? "Recording fallback"
-      : "Live recognition unavailable";
+    : "Live tutor build setup required";
 
   const renderMessage = ({ item }: { item: UiMessage }) => {
     const isStudent = item.role === "STUDENT";
@@ -668,13 +671,12 @@ export const StudyCompanionScreen: React.FC = () => {
                 style={[
                   styles.smallAction,
                   !micMuted && liveRecognitionAvailable ? styles.smallActionActive : null,
-                  recording ? styles.smallActionActive : null,
                 ]}
               >
                 {micMuted && liveRecognitionAvailable ? (
                   <MicOff size={18} color={colors.textSecondary} />
                 ) : (
-                  <Mic size={18} color={!micMuted || recording ? "#08130C" : colors.textSecondary} />
+                  <Mic size={18} color={!micMuted ? "#08130C" : colors.textSecondary} />
                 )}
               </Pressable>
               <Pressable

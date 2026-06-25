@@ -708,7 +708,7 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === PASS_1) {
-      if (isInterrupt) {
+      if (isInterrupt || !isAutoContinue) {
         const content = await this.buildInterruptResponse(section, trimmed);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -722,9 +722,6 @@ export class StudyCompanionService {
             questionCount: 1,
           }),
         };
-      }
-      if (!isAutoContinue) {
-        throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
       }
       const content = await this.buildTeachingPass(section, 1);
       await this.persistRoadmap(state.id, roadmap, {
@@ -742,7 +739,7 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === PASS_2) {
-      if (isInterrupt) {
+      if (isInterrupt || !isAutoContinue) {
         const content = await this.buildInterruptResponse(section, trimmed);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -756,9 +753,6 @@ export class StudyCompanionService {
             questionCount: 1,
           }),
         };
-      }
-      if (!isAutoContinue) {
-        throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
       }
       const content = await this.buildTeachingPass(section, 2);
       await this.persistRoadmap(state.id, roadmap, {
@@ -776,7 +770,7 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === PASS_3) {
-      if (isInterrupt) {
+      if (isInterrupt || !isAutoContinue) {
         const content = await this.buildInterruptResponse(section, trimmed);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -792,9 +786,6 @@ export class StudyCompanionService {
         };
       }
       if (!sectionContext.pass3QuestionPending) {
-        if (!isAutoContinue) {
-          throw new Error('Akademi is still teaching. Wait for the checkpoint question before replying.');
-        }
         const content = await this.buildTeachingPass(section, 3);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
@@ -808,10 +799,6 @@ export class StudyCompanionService {
             questionCount: questionCountForContent(content),
           }),
         };
-      }
-
-      if (!isAutoContinue) {
-        throw new Error('Akademi is preparing the checkpoint question. Wait one moment.');
       }
 
       const content = await this.buildTeachBackPrompt(section, 1);
@@ -908,8 +895,20 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === GAP_RETEACH) {
-      if (!isAutoContinue) {
-        throw new Error('Akademi is reteaching right now. Let it finish before you respond.');
+      if (isInterrupt || !isAutoContinue) {
+        const content = await this.buildInterruptResponse(section, trimmed);
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: TEACHBACK_1,
+          pending_prompt: content,
+          section_context: {} as Prisma.InputJsonValue,
+        });
+        return {
+          content,
+          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            questionCount: 1,
+          }),
+        };
       }
 
       if (!sectionContext.reteachDelivered) {
