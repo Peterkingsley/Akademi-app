@@ -1,7 +1,7 @@
 {
   "name": "akademi-motion-video",
   "version": "1.0.0",
-  "description": "My Remotion video",
+  "description": "Akademi launch motion video",
   "repository": {},
   "license": "UNLICENSED",
   "private": true,
@@ -24,6 +24,7 @@
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion bundle",
+    "render": "set REMOTION_BROWSER_TIMEOUT=120000&& remotion render src/index.ts AkademiPromo out/akademi-promo.mp4 --timeout=120000 --browser-executable=\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc"
   },

@@ -1,18 +1,18 @@
 import "./index.css";
-import { Composition } from "remotion";
-import { MyComposition } from "./Composition";
+import React from "react";
+import {Composition} from "remotion";
+import {AkademiPromo} from "./video/AkademiPromo";
+import {videoSpec} from "./video/theme";
 
 export const RemotionRoot: React.FC = () => {
   return (
-    <>
-      <Composition
-        id="AkademiPromo"
-        component={MyComposition}
-        durationInFrames={540}
-        fps={30}
-        width={1280}
-        height={720}
-      />
-    </>
+    <Composition
+      id="AkademiPromo"
+      component={AkademiPromo}
+      durationInFrames={videoSpec.durationInFrames}
+      fps={videoSpec.fps}
+      width={videoSpec.width}
+      height={videoSpec.height}
+    />
   );
 };
