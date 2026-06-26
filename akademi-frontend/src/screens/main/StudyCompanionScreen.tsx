@@ -28,6 +28,7 @@ import {
   sessionService,
   StudyCompanionState,
   StudyRoadmapSection,
+  StudyVisualPlan,
 } from "../../services/session";
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
@@ -157,6 +158,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [sessionCourseCode, setSessionCourseCode] = useState(courseCode);
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
+  const [visualPlan, setVisualPlan] = useState<StudyVisualPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [runtimeState, setRuntimeState] = useState<TutorRuntimeState>("idle");
   const [input, setInput] = useState("");
@@ -240,6 +242,32 @@ export const StudyCompanionScreen: React.FC = () => {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!sessionId || companionState?.currentSectionIndex === undefined || companionState?.currentSectionIndex === null) {
+      setVisualPlan(null);
+      return;
+    }
+
+    let active = true;
+    void sessionService
+      .getVisualPlan(sessionId)
+      .then((plan) => {
+        if (active) {
+          setVisualPlan(plan);
+        }
+      })
+      .catch((err: any) => {
+        console.warn("visual_plan_fetch_failed", err?.response?.data?.message || err?.message || err);
+        if (active) {
+          setVisualPlan(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [companionState?.currentSectionIndex, sessionId]);
 
   const finalizeAiMessage = useCallback((messageId: string, fullContent: string) => {
     setMessages((prev) =>
@@ -631,6 +659,12 @@ export const StudyCompanionScreen: React.FC = () => {
           <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
         </View>
 
+        {visualPlan?.visuals?.length ? (
+          <View style={styles.visualPlanBanner}>
+            <Text style={styles.visualPlanText}>Visual aid available</Text>
+          </View>
+        ) : null}
+
         <FlatList
           ref={listRef}
           data={messages}
@@ -867,6 +901,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       color: colors.textSecondary,
       fontSize: 12,
       textTransform: "capitalize",
+    },
+    visualPlanBanner: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      alignSelf: "flex-start",
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    visualPlanText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
     },
     chatContent: {
       paddingHorizontal: 18,

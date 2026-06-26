@@ -109,6 +109,31 @@ export interface StudyCompanionState {
   courseCode: string;
 }
 
+export interface StudyVisualItem {
+  title: string;
+  diagramType: string;
+  description: string;
+  whenToShow: string;
+  studentShouldNotice: string[];
+  suggestedRenderer:
+    | "mental_model"
+    | "flowchart"
+    | "graph"
+    | "equation_breakdown"
+    | "labeled_diagram"
+    | "process_steps"
+    | "table"
+    | "future_image_generation";
+  priority: number;
+}
+
+export interface StudyVisualPlan {
+  sectionIndex: number;
+  sectionTitle: string;
+  isDiagramHeavy: boolean;
+  visuals: StudyVisualItem[];
+}
+
 export interface SessionSummary {
   id: string;
   summary: string;
@@ -200,6 +225,11 @@ export const sessionService = {
       }
       throw error;
     }
+  },
+
+  getVisualPlan: async (sessionId: string) => {
+    const response = await api.get<StudyVisualPlan>(`/sessions/${sessionId}/visual-plan`);
+    return response.data;
   },
 
   startCompanion: async (

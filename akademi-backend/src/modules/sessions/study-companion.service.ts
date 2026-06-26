@@ -160,6 +160,33 @@ type DiagramTeachingContext = {
   summary: string;
 };
 
+type StudyVisualSuggestedRenderer =
+  | 'mental_model'
+  | 'flowchart'
+  | 'graph'
+  | 'equation_breakdown'
+  | 'labeled_diagram'
+  | 'process_steps'
+  | 'table'
+  | 'future_image_generation';
+
+type StudyVisualItem = {
+  title: string;
+  diagramType: string;
+  description: string;
+  whenToShow: string;
+  studentShouldNotice: string[];
+  suggestedRenderer: StudyVisualSuggestedRenderer;
+  priority: number;
+};
+
+type StudyVisualPlan = {
+  sectionIndex: number;
+  sectionTitle: string;
+  isDiagramHeavy: boolean;
+  visuals: StudyVisualItem[];
+};
+
 type StudentMemoryRecord = {
   understood: string[];
   weakPoints: string[];
@@ -849,6 +876,29 @@ function buildDiagramInstructions(pass: 1 | 2 | 3, diagramContext: DiagramTeachi
     'Highlight common visual mistakes or mislabeling.',
     'Explain how the student should reproduce or interpret the diagram.',
   ].join(' ');
+}
+
+function mapDiagramTypeToSuggestedRenderer(diagramType?: string): StudyVisualSuggestedRenderer {
+  const normalized = String(diagramType || '').trim().toLowerCase();
+
+  switch (normalized) {
+    case 'flowchart':
+      return 'flowchart';
+    case 'graph':
+      return 'graph';
+    case 'equation_breakdown':
+      return 'equation_breakdown';
+    case 'anatomy':
+      return 'labeled_diagram';
+    case 'process':
+      return 'process_steps';
+    case 'table':
+      return 'table';
+    case 'map':
+      return 'future_image_generation';
+    default:
+      return 'mental_model';
+  }
 }
 
 function buildTeacherBrainPromptContext(
@@ -2542,6 +2592,63 @@ export class StudyCompanionService {
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
     return roadmap[Math.max(0, Math.min(index, roadmap.length - 1))];
+  }
+
+  async getVisualPlan(sessionId: string): Promise<StudyVisualPlan> {
+    console.log('visual_plan_requested', { sessionId });
+
+    const { state, roadmap, teacherBrain } = await this.loadSessionContext(sessionId);
+    const section = this.sectionAt(roadmap, state.current_section_index);
+    const teacherBrainSectionContext = getTeacherBrainSectionContext(
+      teacherBrain,
+      state.current_section_index,
+      section.title,
+    );
+    const diagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
+
+    if (!diagramContext.detected || !teacherBrainSectionContext.diagrams.length) {
+      console.log('visual_plan_missing', {
+        sessionId,
+        sectionIndex: state.current_section_index,
+        sectionTitle: section.title,
+      });
+      return {
+        sectionIndex: state.current_section_index,
+        sectionTitle: section.title,
+        isDiagramHeavy: false,
+        visuals: [],
+      };
+    }
+
+    const visuals = teacherBrainSectionContext.diagrams.map((diagram, index) => ({
+      title: String(diagram.title || section.title || `Section ${state.current_section_index + 1} visual`).trim(),
+      diagramType: String(diagram.diagram_type || 'other').trim() || 'other',
+      description: String(diagram.description || '').trim(),
+      whenToShow: String(diagram.when_to_show || '').trim(),
+      studentShouldNotice: (diagram.student_should_notice || [])
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, 5),
+      suggestedRenderer: mapDiagramTypeToSuggestedRenderer(diagram.diagram_type),
+      priority: index + 1,
+    }));
+
+    const plan: StudyVisualPlan = {
+      sectionIndex: state.current_section_index,
+      sectionTitle: section.title,
+      isDiagramHeavy: diagramContext.detected,
+      visuals,
+    };
+
+    console.log('visual_plan_returned', {
+      sessionId,
+      sectionIndex: plan.sectionIndex,
+      sectionTitle: plan.sectionTitle,
+      visualCount: plan.visuals.length,
+      isDiagramHeavy: plan.isDiagramHeavy,
+    });
+
+    return plan;
   }
 
   private companionSystemPrompt() {

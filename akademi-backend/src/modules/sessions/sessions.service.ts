@@ -296,6 +296,14 @@ export class SessionsService {
     };
   }
 
+  async getVisualPlan(
+    sessionId: string,
+    requester: { userId: string; email: string },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+    return studyCompanionService.getVisualPlan(sessionId);
+  }
+
   private mapSessionTypeToFeature(type: SessionType): Feature {
     switch (type) {
       case SessionType.ASSIGNMENT:

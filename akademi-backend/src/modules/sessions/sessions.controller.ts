@@ -151,6 +151,18 @@ export class SessionsController {
     }
   }
 
+  async getVisualPlan(req: Request, res: Response) {
+    try {
+      const visualPlan = await sessionsService.getVisualPlan(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+      );
+      res.status(200).json(visualPlan);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
   async listTutorTraces(req: Request, res: Response) {
     try {
       const traces = await sessionsService.listTutorTraces(
