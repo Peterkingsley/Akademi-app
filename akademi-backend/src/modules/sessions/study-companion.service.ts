@@ -28,6 +28,115 @@ type RoadmapSection = {
   pageEnd: number;
 };
 
+type TeacherBrainSummary = {
+  material_title?: string;
+  overall_summary?: string;
+  main_learning_goal?: string;
+  difficulty_level?: string;
+  recommended_study_order?: string[];
+};
+
+type TeacherBrainChapterSummary = {
+  section_index?: number;
+  title?: string;
+  summary?: string;
+  key_points?: string[];
+  why_it_matters?: string;
+  connects_to?: string[];
+};
+
+type TeacherBrainConcept = {
+  concept?: string;
+  depends_on?: string[];
+  leads_to?: string[];
+  section_indexes?: number[];
+  importance?: 'low' | 'medium' | 'high' | string;
+};
+
+type TeacherBrainPrerequisite = {
+  concept?: string;
+  needed_for?: string;
+  section_index?: number;
+  student_should_know?: string;
+};
+
+type TeacherBrainFormula = {
+  name?: string;
+  formula_latex?: string;
+  variables?: string[];
+  section_index?: number;
+  when_to_use?: string;
+};
+
+type TeacherBrainCalculationMethod = {
+  topic?: string;
+  section_index?: number;
+  method_steps?: string[];
+  worked_example_summary?: string;
+  common_mistakes?: string[];
+  unit_or_answer_format?: string;
+};
+
+type TeacherBrainDiagram = {
+  title?: string;
+  section_index?: number;
+  diagram_type?: string;
+  description?: string;
+  when_to_show?: string;
+  student_should_notice?: string[];
+};
+
+type TeacherBrainMisconception = {
+  misconception?: string;
+  correction?: string;
+  section_index?: number;
+};
+
+type TeacherBrainExamAngle = {
+  section_index?: number;
+  likely_question_type?: string;
+  what_examiner_tests?: string;
+  how_to_answer?: string;
+};
+
+type TeacherBrainNotes = {
+  teaching_style?: string;
+  best_analogies?: string[];
+  sections_that_need_extra_care?: string[];
+  calculation_heavy_sections?: number[];
+  diagram_heavy_sections?: number[];
+  recommended_teaching_sequence?: string[];
+};
+
+type ParsedTeacherBrain = {
+  summary: TeacherBrainSummary;
+  chapterSummaries: TeacherBrainChapterSummary[];
+  conceptGraph: TeacherBrainConcept[];
+  prerequisites: TeacherBrainPrerequisite[];
+  formulas: TeacherBrainFormula[];
+  calculationMethods: TeacherBrainCalculationMethod[];
+  diagrams: TeacherBrainDiagram[];
+  misconceptions: TeacherBrainMisconception[];
+  examAngles: TeacherBrainExamAngle[];
+  teacherNotes: TeacherBrainNotes;
+  subjectFamily: string | null;
+  confidence: number;
+};
+
+type TeacherBrainSectionContext = {
+  currentChapterSummary?: TeacherBrainChapterSummary | null;
+  previousChapterSummary?: TeacherBrainChapterSummary | null;
+  nextChapterSummary?: TeacherBrainChapterSummary | null;
+  concepts: TeacherBrainConcept[];
+  prerequisites: TeacherBrainPrerequisite[];
+  formulas: TeacherBrainFormula[];
+  calculationMethods: TeacherBrainCalculationMethod[];
+  diagrams: TeacherBrainDiagram[];
+  misconceptions: TeacherBrainMisconception[];
+  examAngles: TeacherBrainExamAngle[];
+  teacherNotes: TeacherBrainNotes;
+};
+
 type CompanionMetadata = {
   mode?: string;
   materialTitle?: string;
@@ -161,6 +270,273 @@ function findFirstRealTeachingSection(roadmap: RoadmapSection[], startIndex = 0)
 function truncate(value: string, max = 900) {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 3).trimEnd()}...`;
+}
+
+function truncateList(items: string[], limit = 4, max = 180) {
+  return items
+    .map((item) => truncate(String(item || '').trim(), max))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function safeStringArray(value: unknown) {
+  return Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : [];
+}
+
+function normalizeTitle(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
+function parseTeacherBrain(value: unknown): ParsedTeacherBrain | null {
+  const source = safeJsonObject<Record<string, unknown> | null>(value, null);
+  if (!source) return null;
+
+  const summary = safeJsonObject<TeacherBrainSummary>(source.summary, {});
+  const chapterSummaries = safeJsonArray<Record<string, unknown>>(source.chapter_summaries).map((item) => ({
+    section_index: Number(item.section_index),
+    title: String(item.title || ''),
+    summary: String(item.summary || ''),
+    key_points: safeStringArray(item.key_points),
+    why_it_matters: String(item.why_it_matters || ''),
+    connects_to: safeStringArray(item.connects_to),
+  }));
+
+  const conceptGraph = safeJsonArray<Record<string, unknown>>(source.concept_graph).map((item) => ({
+    concept: String(item.concept || ''),
+    depends_on: safeStringArray(item.depends_on),
+    leads_to: safeStringArray(item.leads_to),
+    section_indexes: Array.isArray(item.section_indexes)
+      ? item.section_indexes.map((entry) => Number(entry)).filter((entry) => Number.isFinite(entry))
+      : [],
+    importance: String(item.importance || 'medium'),
+  }));
+
+  const prerequisites = safeJsonArray<Record<string, unknown>>(source.prerequisites).map((item) => ({
+    concept: String(item.concept || ''),
+    needed_for: String(item.needed_for || ''),
+    section_index: Number(item.section_index),
+    student_should_know: String(item.student_should_know || ''),
+  }));
+
+  const formulas = safeJsonArray<Record<string, unknown>>(source.formulas).map((item) => ({
+    name: String(item.name || ''),
+    formula_latex: String(item.formula_latex || ''),
+    variables: safeStringArray(item.variables),
+    section_index: Number(item.section_index),
+    when_to_use: String(item.when_to_use || ''),
+  }));
+
+  const calculationMethods = safeJsonArray<Record<string, unknown>>(source.calculation_methods).map((item) => ({
+    topic: String(item.topic || ''),
+    section_index: Number(item.section_index),
+    method_steps: safeStringArray(item.method_steps),
+    worked_example_summary: String(item.worked_example_summary || ''),
+    common_mistakes: safeStringArray(item.common_mistakes),
+    unit_or_answer_format: String(item.unit_or_answer_format || ''),
+  }));
+
+  const diagrams = safeJsonArray<Record<string, unknown>>(source.diagrams).map((item) => ({
+    title: String(item.title || ''),
+    section_index: Number(item.section_index),
+    diagram_type: String(item.diagram_type || ''),
+    description: String(item.description || ''),
+    when_to_show: String(item.when_to_show || ''),
+    student_should_notice: safeStringArray(item.student_should_notice),
+  }));
+
+  const misconceptions = safeJsonArray<Record<string, unknown>>(source.misconceptions).map((item) => ({
+    misconception: String(item.misconception || ''),
+    correction: String(item.correction || ''),
+    section_index: Number(item.section_index),
+  }));
+
+  const examAngles = safeJsonArray<Record<string, unknown>>(source.exam_angles).map((item) => ({
+    section_index: Number(item.section_index),
+    likely_question_type: String(item.likely_question_type || ''),
+    what_examiner_tests: String(item.what_examiner_tests || ''),
+    how_to_answer: String(item.how_to_answer || ''),
+  }));
+
+  const teacherNotesSource = safeJsonObject<Record<string, unknown>>(source.teacher_notes, {});
+  const teacherNotes: TeacherBrainNotes = {
+    teaching_style: String(teacherNotesSource.teaching_style || ''),
+    best_analogies: safeStringArray(teacherNotesSource.best_analogies),
+    sections_that_need_extra_care: safeStringArray(teacherNotesSource.sections_that_need_extra_care),
+    calculation_heavy_sections: Array.isArray(teacherNotesSource.calculation_heavy_sections)
+      ? teacherNotesSource.calculation_heavy_sections
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry))
+      : [],
+    diagram_heavy_sections: Array.isArray(teacherNotesSource.diagram_heavy_sections)
+      ? teacherNotesSource.diagram_heavy_sections
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry))
+      : [],
+    recommended_teaching_sequence: safeStringArray(teacherNotesSource.recommended_teaching_sequence),
+  };
+
+  return {
+    summary: {
+      material_title: String(summary.material_title || ''),
+      overall_summary: String(summary.overall_summary || ''),
+      main_learning_goal: String(summary.main_learning_goal || ''),
+      difficulty_level: String(summary.difficulty_level || ''),
+      recommended_study_order: safeStringArray(summary.recommended_study_order),
+    },
+    chapterSummaries,
+    conceptGraph,
+    prerequisites,
+    formulas,
+    calculationMethods,
+    diagrams,
+    misconceptions,
+    examAngles,
+    teacherNotes,
+    subjectFamily: source.subject_family ? String(source.subject_family) : null,
+    confidence: Number.isFinite(Number(source.confidence)) ? Number(source.confidence) : 50,
+  };
+}
+
+function getTeacherBrainSectionContext(
+  teacherBrain: ParsedTeacherBrain | null,
+  sectionIndex: number,
+  sectionTitle: string,
+): TeacherBrainSectionContext {
+  if (!teacherBrain) {
+    return {
+      currentChapterSummary: null,
+      previousChapterSummary: null,
+      nextChapterSummary: null,
+      concepts: [],
+      prerequisites: [],
+      formulas: [],
+      calculationMethods: [],
+      diagrams: [],
+      misconceptions: [],
+      examAngles: [],
+      teacherNotes: {
+        teaching_style: '',
+        best_analogies: [],
+        sections_that_need_extra_care: [],
+        calculation_heavy_sections: [],
+        diagram_heavy_sections: [],
+        recommended_teaching_sequence: [],
+      },
+    };
+  }
+
+  const normalizedCurrentTitle = normalizeTitle(sectionTitle);
+  const chapterMatch = (entry: TeacherBrainChapterSummary) =>
+    entry.section_index === sectionIndex ||
+    normalizeTitle(String(entry.title || '')) === normalizedCurrentTitle;
+
+  const currentChapterSummary = teacherBrain.chapterSummaries.find(chapterMatch) || null;
+  const previousChapterSummary =
+    teacherBrain.chapterSummaries.find((item) => item.section_index === sectionIndex - 1) || null;
+  const nextChapterSummary =
+    teacherBrain.chapterSummaries.find((item) => item.section_index === sectionIndex + 1) || null;
+
+  const concepts = teacherBrain.conceptGraph.filter((item) =>
+    (item.section_indexes || []).includes(sectionIndex),
+  );
+
+  const prerequisites = teacherBrain.prerequisites.filter((item) => item.section_index === sectionIndex);
+  const formulas = teacherBrain.formulas.filter((item) => item.section_index === sectionIndex);
+  const calculationMethods = teacherBrain.calculationMethods.filter((item) => item.section_index === sectionIndex);
+  const diagrams = teacherBrain.diagrams.filter((item) => item.section_index === sectionIndex);
+  const misconceptions = teacherBrain.misconceptions.filter((item) => item.section_index === sectionIndex);
+  const examAngles = teacherBrain.examAngles.filter((item) => item.section_index === sectionIndex);
+
+  return {
+    currentChapterSummary,
+    previousChapterSummary,
+    nextChapterSummary,
+    concepts,
+    prerequisites,
+    formulas,
+    calculationMethods,
+    diagrams,
+    misconceptions,
+    examAngles,
+    teacherNotes: teacherBrain.teacherNotes,
+  };
+}
+
+function buildTeacherBrainPromptContext(
+  teacherBrain: ParsedTeacherBrain | null,
+  currentSectionIndex: number,
+  roadmap: RoadmapSection[],
+) {
+  if (!teacherBrain) return '';
+
+  const currentSection = roadmap[Math.max(0, Math.min(currentSectionIndex, roadmap.length - 1))];
+  const sectionContext = getTeacherBrainSectionContext(teacherBrain, currentSectionIndex, currentSection?.title || '');
+  const lines: string[] = [];
+
+  if (teacherBrain.summary.overall_summary) {
+    lines.push(`Overall material summary: ${truncate(teacherBrain.summary.overall_summary, 320)}`);
+  }
+  if (teacherBrain.summary.main_learning_goal) {
+    lines.push(`Main learning goal: ${truncate(teacherBrain.summary.main_learning_goal, 180)}`);
+  }
+  if (teacherBrain.subjectFamily) {
+    lines.push(`Subject family: ${teacherBrain.subjectFamily}`);
+  }
+  if (teacherBrain.summary.recommended_study_order?.length) {
+    lines.push(`Recommended study order: ${truncateList(teacherBrain.summary.recommended_study_order, 6, 80).join(' | ')}`);
+  }
+  if (sectionContext.currentChapterSummary?.summary) {
+    lines.push(`Current chapter summary: ${truncate(sectionContext.currentChapterSummary.summary, 220)}`);
+  }
+  if (sectionContext.previousChapterSummary?.summary) {
+    lines.push(`Previous section bridge: ${truncate(sectionContext.previousChapterSummary.summary, 140)}`);
+  }
+  if (sectionContext.nextChapterSummary?.summary) {
+    lines.push(`Next section preview: ${truncate(sectionContext.nextChapterSummary.summary, 140)}`);
+  }
+  if (sectionContext.concepts.length) {
+    lines.push(`Connected concepts: ${truncateList(sectionContext.concepts.map((item) => `${item.concept} (${item.importance})`), 5, 90).join(' | ')}`);
+  }
+  if (sectionContext.prerequisites.length) {
+    lines.push(`Prerequisites: ${truncateList(sectionContext.prerequisites.map((item) => `${item.concept}: ${item.student_should_know}`), 4, 120).join(' | ')}`);
+  }
+  if (sectionContext.formulas.length) {
+    lines.push(`Formulas: ${truncateList(sectionContext.formulas.map((item) => `${item.name}: ${item.formula_latex} | use: ${item.when_to_use}`), 4, 140).join(' | ')}`);
+  }
+  if (sectionContext.calculationMethods.length) {
+    lines.push(`Calculation methods: ${truncateList(sectionContext.calculationMethods.map((item) => `${item.topic} | steps: ${(item.method_steps || []).slice(0, 4).join(' -> ')} | mistakes: ${(item.common_mistakes || []).slice(0, 2).join(', ')}`), 3, 180).join(' | ')}`);
+  }
+  if (sectionContext.diagrams.length) {
+    lines.push(`Diagrams: ${truncateList(sectionContext.diagrams.map((item) => `${item.title} (${item.diagram_type}) - ${item.description}`), 3, 140).join(' | ')}`);
+  }
+  if (sectionContext.misconceptions.length) {
+    lines.push(`Common misconceptions: ${truncateList(sectionContext.misconceptions.map((item) => `${item.misconception} -> ${item.correction}`), 3, 140).join(' | ')}`);
+  }
+  if (sectionContext.examAngles.length) {
+    lines.push(`Exam angles: ${truncateList(sectionContext.examAngles.map((item) => `${item.likely_question_type}: ${item.what_examiner_tests}`), 3, 140).join(' | ')}`);
+  }
+
+  const notes: string[] = [];
+  if (sectionContext.teacherNotes.teaching_style) {
+    notes.push(`style: ${truncate(sectionContext.teacherNotes.teaching_style, 120)}`);
+  }
+  if ((sectionContext.teacherNotes.best_analogies || []).length) {
+    notes.push(`analogies: ${truncateList(sectionContext.teacherNotes.best_analogies || [], 2, 80).join(', ')}`);
+  }
+  if ((sectionContext.teacherNotes.sections_that_need_extra_care || []).some((item) => normalizeTitle(item) === normalizeTitle(currentSection?.title || ''))) {
+    notes.push('this section needs extra care');
+  }
+  if ((sectionContext.teacherNotes.calculation_heavy_sections || []).includes(currentSectionIndex)) {
+    notes.push('calculation-heavy section');
+  }
+  if ((sectionContext.teacherNotes.diagram_heavy_sections || []).includes(currentSectionIndex)) {
+    notes.push('diagram-heavy section');
+  }
+  if (notes.length) {
+    lines.push(`Teacher notes: ${notes.join(' | ')}`);
+  }
+
+  return lines.join('\n');
 }
 
 function countKeywordHits(source: string, target: string) {
@@ -457,6 +833,22 @@ export class StudyCompanionService {
             course_code: true,
             content: true,
             reader_structure: true,
+            teacher_brain: {
+              select: {
+                summary: true,
+                chapter_summaries: true,
+                concept_graph: true,
+                prerequisites: true,
+                formulas: true,
+                calculation_methods: true,
+                diagrams: true,
+                misconceptions: true,
+                exam_angles: true,
+                teacher_notes: true,
+                subject_family: true,
+                confidence: true,
+              },
+            },
           },
         },
         companion_state: true,
@@ -470,7 +862,21 @@ export class StudyCompanionService {
     if (!state) throw new Error('Companion state is unavailable');
 
     const roadmap = safeJsonArray<RoadmapSection>(state.roadmap);
-    return { session, material: session.material, state, roadmap };
+    const teacherBrain = parseTeacherBrain(session.material.teacher_brain);
+    if (teacherBrain) {
+      console.log('teacher_brain_context_loaded', {
+        sessionId,
+        materialId: session.material.id,
+        subjectFamily: teacherBrain.subjectFamily,
+        confidence: teacherBrain.confidence,
+      });
+    } else {
+      console.log('teacher_brain_context_missing', {
+        sessionId,
+        materialId: session.material.id,
+      });
+    }
+    return { session, material: session.material, state, roadmap, teacherBrain };
   }
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
@@ -483,6 +889,14 @@ export class StudyCompanionService {
       'Your goal is exam success through guided teaching.',
       'Stay inside the selected course and material.',
       'Use external knowledge only when the uploaded material is incomplete or unclear, and label it as External support.',
+      'You understand the whole material through Teacher Brain context.',
+      'Use the current section content as the source of truth.',
+      'Use Teacher Brain for continuity, prerequisite awareness, exam angles, misconceptions, calculations, and diagram planning.',
+      'Do not invent material content.',
+      'If Teacher Brain conflicts with section content, trust section content.',
+      'Teach like a tertiary institution tutor.',
+      'For calculation-heavy topics, identify the formula, explain variables, show when to use it, solve step by step, warn about common mistakes, and keep units or answer format clear.',
+      'For diagram-heavy topics, explain what visual would help naturally, but do not generate images yet.',
       'Always be structured, clear, patient, and slightly demanding about recall.',
       'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
       'Whenever math appears, render it using proper LaTeX delimiters.',
@@ -509,7 +923,7 @@ export class StudyCompanionService {
   }
 
   async start(sessionId: string, mode: CompanionStartMode, sectionTitle?: string) {
-    const { session, material, state, roadmap } = await this.loadSessionContext(sessionId);
+    const { session, material, state, roadmap, teacherBrain } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
       throw new Error('This material does not have a usable roadmap yet.');
     }
@@ -552,6 +966,7 @@ export class StudyCompanionService {
     nextIndex = findFirstRealTeachingSection(roadmap, nextIndex);
 
     const section = this.sectionAt(roadmap, nextIndex);
+    const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
     roadmap.forEach((item, index) => {
       if (index === nextIndex && item.status === StudyRoadmapStatus.NOT_STARTED) {
         item.status = StudyRoadmapStatus.IN_PROGRESS;
@@ -562,11 +977,20 @@ export class StudyCompanionService {
       `Material title: ${material.title}`,
       `Course code: ${session.course_code || material.course_code || 'GENERAL'}`,
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
 
+    if (teacherBrainContext) {
+      console.log('teacher_brain_context_applied', {
+        sessionId,
+        materialId: material.id,
+        sectionIndex: nextIndex,
+        prompt: 'start_intro',
+      });
+    }
     const content = await generateText(introPrompt, this.companionSystemPrompt());
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: PASS_1,
@@ -590,7 +1014,7 @@ export class StudyCompanionService {
     return this.handleStudentReply(sessionId, '__AUTO_CONTINUE__');
   }
 
-  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3) {
+  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
     const instructions =
       pass === 1
         ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
@@ -600,23 +1024,37 @@ export class StudyCompanionService {
 
     const prompt = [
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
     ].join('\n\n');
 
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
     const content = await generateText(prompt, this.companionSystemPrompt(), 900);
     return removeAccidentalTeachingQuestions(content);
   }
 
-  private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number) {
+  private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
     const heuristicScore = computeCoverageScore(section, studentResponse);
     const prompt = [
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student teach-back attempt ${attemptNumber}:\n${studentResponse}`,
       'Task: Evaluate the teach-back. State what the student got right, what is missing, and what exact idea must be corrected next. Keep it concise and exam-focused.',
     ].join('\n\n');
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: `evaluate_teachback_${attemptNumber}`,
+      });
+    }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 500);
     return {
       evaluation,
@@ -625,14 +1063,21 @@ export class StudyCompanionService {
     };
   }
 
-  private async evaluateMemoryDump(section: RoadmapSection, studentResponse: string) {
+  private async evaluateMemoryDump(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
     const heuristicScore = Math.max(20, computeCoverageScore(section, studentResponse) - 5);
     const prompt = [
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student memory dump:\n${studentResponse}`,
       'Task: Compare the memory dump to the expected knowledge for this section. Briefly identify what was remembered well and what is still missing.',
     ].join('\n\n');
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'evaluate_memory_dump',
+      });
+    }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 450);
     return {
       evaluation,
@@ -641,23 +1086,37 @@ export class StudyCompanionService {
     };
   }
 
-  private async buildTeachBackPrompt(section: RoadmapSection, attemptNumber: 1 | 2) {
+  private async buildTeachBackPrompt(section: RoadmapSection, attemptNumber: 1 | 2, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
     const prompt = [
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
       attemptNumber === 1
         ? 'Ask the student for Teach-Back 1. Tell them to explain the section in their own words without copying.'
         : 'Ask the student for Teach-Back 2. Tell them to explain again, this time correcting the missing ideas from the first attempt.',
     ].join('\n\n');
 
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: `teachback_prompt_${attemptNumber}`,
+      });
+    }
     const content = await generateText(prompt, this.companionSystemPrompt(), 220);
     return sanitizeSingleQuestionTurn(content);
   }
 
-  private async buildMemoryDumpPrompt(section: RoadmapSection) {
+  private async buildMemoryDumpPrompt(section: RoadmapSection, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'memory_dump_prompt',
+      });
+    }
     const content = await generateText(
       [
         `Section title: ${section.title}`,
+        teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
         `Section content:\n${truncate(section.content, 2600)}`,
         'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
       ].join('\n\n'),
@@ -667,10 +1126,17 @@ export class StudyCompanionService {
     return sanitizeSingleQuestionTurn(content);
   }
 
-  private async buildGapReteach(section: RoadmapSection, failedConcepts: string[]) {
+  private async buildGapReteach(section: RoadmapSection, failedConcepts: string[], teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+      });
+    }
     return generateText(
       [
         `Section title: ${section.title}`,
+        teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
         `Section content:\n${truncate(section.content, 3000)}`,
         `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
         'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
@@ -680,14 +1146,21 @@ export class StudyCompanionService {
     );
   }
 
-  private async buildInterruptResponse(section: RoadmapSection, studentResponse: string) {
+  private async buildInterruptResponse(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
     const prompt = [
       `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
     ].join('\n\n');
 
+    if (teacherBrainContext && contextMeta) {
+      console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'interrupt_response',
+      });
+    }
     const content = await generateText(prompt, this.companionSystemPrompt(), 320);
     return sanitizeSingleQuestionTurn(content);
   }
@@ -710,8 +1183,14 @@ export class StudyCompanionService {
   }
 
   async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
-    const { state, roadmap } = await this.loadSessionContext(sessionId);
+    const { state, roadmap, material, teacherBrain } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
+    const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
+    const contextMeta = {
+      sessionId,
+      materialId: material.id,
+      sectionIndex: state.current_section_index,
+    };
     const sectionContext = readSectionContext(state.section_context);
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
@@ -723,7 +1202,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_1) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -737,7 +1216,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 1);
+      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
@@ -754,7 +1233,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_2) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -768,7 +1247,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 2);
+      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
@@ -785,7 +1264,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_3) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -800,7 +1279,7 @@ export class StudyCompanionService {
         };
       }
       if (!sectionContext.pass3QuestionPending) {
-        const content = await this.buildTeachingPass(section, 3);
+        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
           pending_prompt: content,
@@ -815,7 +1294,7 @@ export class StudyCompanionService {
         };
       }
 
-      const content = await this.buildTeachBackPrompt(section, 1);
+      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_1,
         pending_prompt: content,
@@ -834,7 +1313,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your explanation before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 1);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -874,7 +1353,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your second teach-back before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 2);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -910,7 +1389,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === GAP_RETEACH) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -926,7 +1405,7 @@ export class StudyCompanionService {
       }
 
       if (!sectionContext.reteachDelivered) {
-        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || []);
+        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: GAP_RETEACH,
           pending_prompt: content,
@@ -946,8 +1425,8 @@ export class StudyCompanionService {
 
       const content =
         sectionContext.nextPromptKind === 'teachback_2'
-          ? await this.buildTeachBackPrompt(section, 2)
-          : await this.buildMemoryDumpPrompt(section);
+          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta)
+          : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta);
 
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP,
@@ -969,7 +1448,7 @@ export class StudyCompanionService {
           throw new Error('Akademi is preparing the next checkpoint. Wait one moment.');
         }
 
-        const content = await this.buildMemoryDumpPrompt(section);
+        const content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: MEMORY_DUMP,
           pending_prompt: content,
@@ -987,7 +1466,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your memory dump before continuing.');
       }
-      const evaluation = await this.evaluateMemoryDump(section, trimmed);
+      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta);
       await prisma.memoryDumpAttempt.create({
         data: {
           session_id: sessionId,
@@ -1089,7 +1568,12 @@ export class StudyCompanionService {
           ...nextSection,
           status: StudyRoadmapStatus.IN_PROGRESS,
         };
-        const content = await this.buildTeachingPass(nextSection, 1);
+        const nextTeacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
+        const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
+          sessionId,
+          materialId: material.id,
+          sectionIndex: nextIndex,
+        });
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -1112,7 +1596,12 @@ export class StudyCompanionService {
           ...nextSection,
           status: StudyRoadmapStatus.IN_PROGRESS,
         };
-        const content = await this.buildTeachingPass(nextSection, 1);
+        const nextTeacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
+        const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
+          sessionId,
+          materialId: material.id,
+          sectionIndex: nextIndex,
+        });
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -1148,7 +1637,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await this.buildTeachBackPrompt(section, 1);
+    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta);
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
