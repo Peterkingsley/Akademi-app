@@ -98,6 +98,204 @@ async function extractTextFromImage(buffer: Buffer) {
 }
 
 export class SessionsService {
+  private async assertTutorTraceAccess(sessionId: string, requester: { userId: string; email: string }) {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        user_id: true,
+      },
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    if (session.user_id === requester.userId) {
+      return session;
+    }
+
+    const admin = await prisma.admin.findFirst({
+      where: { email: requester.email },
+      select: { id: true, role: true, status: true },
+    });
+
+    if (admin && admin.status === 'active') {
+      return session;
+    }
+
+    throw new Error('You do not have access to these tutor traces.');
+  }
+
+  async listTutorTraces(
+    sessionId: string,
+    requester: { userId: string; email: string },
+    filters: { limit?: string | number; phase?: string; sectionIndex?: string | number; errorsOnly?: string | boolean },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+
+    const parsedLimit = Math.min(Math.max(Number(filters.limit) || 20, 1), 100);
+    const parsedSectionIndex =
+      filters.sectionIndex !== undefined && filters.sectionIndex !== null && `${filters.sectionIndex}` !== ''
+        ? Number(filters.sectionIndex)
+        : null;
+    const errorsOnly =
+      filters.errorsOnly === true ||
+      filters.errorsOnly === 'true' ||
+      filters.errorsOnly === '1';
+
+    console.log('tutor_trace_debug_list_requested', {
+      sessionId,
+      requesterUserId: requester.userId,
+      limit: parsedLimit,
+      phase: filters.phase || null,
+      sectionIndex: parsedSectionIndex,
+      errorsOnly,
+    });
+
+    return prisma.tutorTurnTrace.findMany({
+      where: {
+        session_id: sessionId,
+        ...(filters.phase ? { phase: String(filters.phase) } : {}),
+        ...(Number.isFinite(parsedSectionIndex as number) ? { section_index: parsedSectionIndex as number } : {}),
+        ...(errorsOnly ? { error_message: { not: null } } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      take: parsedLimit,
+      select: {
+        id: true,
+        phase: true,
+        turn_type: true,
+        action: true,
+        section_index: true,
+        section_title: true,
+        teacher_brain_used: true,
+        student_memory_used: true,
+        lesson_plan_used: true,
+        relevant_material_used: true,
+        calculation_context_used: true,
+        diagram_context_used: true,
+        quality_guardrail_used: true,
+        quality_issues: true,
+        latency_ms: true,
+        ai_latency_ms: true,
+        response_chars: true,
+        prompt_tokens_estimate: true,
+        error_message: true,
+        metadata: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async getTutorTraceSummary(
+    sessionId: string,
+    requester: { userId: string; email: string },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+
+    console.log('tutor_trace_debug_summary_requested', {
+      sessionId,
+      requesterUserId: requester.userId,
+    });
+
+    const traces = await prisma.tutorTurnTrace.findMany({
+      where: { session_id: sessionId },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        phase: true,
+        turn_type: true,
+        action: true,
+        section_index: true,
+        section_title: true,
+        teacher_brain_used: true,
+        student_memory_used: true,
+        lesson_plan_used: true,
+        relevant_material_used: true,
+        calculation_context_used: true,
+        diagram_context_used: true,
+        quality_guardrail_used: true,
+        quality_issues: true,
+        latency_ms: true,
+        ai_latency_ms: true,
+        response_chars: true,
+        prompt_tokens_estimate: true,
+        error_message: true,
+        metadata: true,
+        created_at: true,
+      },
+    });
+
+    const totalTurns = traces.length;
+    const withLatency = traces.filter((trace) => typeof trace.latency_ms === 'number');
+    const withAiLatency = traces.filter((trace) => typeof trace.ai_latency_ms === 'number');
+    const qualityIssueCounts = traces.reduce<Record<string, number>>((acc, trace) => {
+      const issues = Array.isArray(trace.quality_issues) ? trace.quality_issues : [];
+      issues.forEach((issue) => {
+        const key = String(issue || '').trim();
+        if (!key) return;
+        acc[key] = (acc[key] || 0) + 1;
+      });
+      return acc;
+    }, {});
+    const contextUsageCounts = traces.reduce(
+      (acc, trace) => {
+        acc.teacherBrainUsed += trace.teacher_brain_used ? 1 : 0;
+        acc.studentMemoryUsed += trace.student_memory_used ? 1 : 0;
+        acc.lessonPlanUsed += trace.lesson_plan_used ? 1 : 0;
+        acc.relevantMaterialUsed += trace.relevant_material_used ? 1 : 0;
+        acc.calculationContextUsed += trace.calculation_context_used ? 1 : 0;
+        acc.diagramContextUsed += trace.diagram_context_used ? 1 : 0;
+        acc.qualityGuardrailUsed += trace.quality_guardrail_used ? 1 : 0;
+        return acc;
+      },
+      {
+        teacherBrainUsed: 0,
+        studentMemoryUsed: 0,
+        lessonPlanUsed: 0,
+        relevantMaterialUsed: 0,
+        calculationContextUsed: 0,
+        diagramContextUsed: 0,
+        qualityGuardrailUsed: 0,
+      },
+    );
+    const phases = traces.reduce<Record<string, number>>((acc, trace) => {
+      acc[trace.phase] = (acc[trace.phase] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      totalTurns,
+      averageLatencyMs: withLatency.length
+        ? Math.round(withLatency.reduce((sum, trace) => sum + Number(trace.latency_ms || 0), 0) / withLatency.length)
+        : null,
+      averageAiLatencyMs: withAiLatency.length
+        ? Math.round(withAiLatency.reduce((sum, trace) => sum + Number(trace.ai_latency_ms || 0), 0) / withAiLatency.length)
+        : null,
+      slowestTurns: [...traces]
+        .sort((a, b) => Number(b.latency_ms || 0) - Number(a.latency_ms || 0))
+        .slice(0, 5)
+        .map((trace) => ({
+          id: trace.id,
+          phase: trace.phase,
+          turn_type: trace.turn_type,
+          action: trace.action,
+          section_index: trace.section_index,
+          section_title: trace.section_title,
+          latency_ms: trace.latency_ms,
+          ai_latency_ms: trace.ai_latency_ms,
+          error_message: trace.error_message,
+          created_at: trace.created_at,
+        })),
+      contextUsageCounts,
+      qualityIssueCounts,
+      errorCount: traces.filter((trace) => !!trace.error_message).length,
+      phases,
+    };
+  }
+
   private mapSessionTypeToFeature(type: SessionType): Feature {
     switch (type) {
       case SessionType.ASSIGNMENT:

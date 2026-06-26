@@ -151,6 +151,31 @@ export class SessionsController {
     }
   }
 
+  async listTutorTraces(req: Request, res: Response) {
+    try {
+      const traces = await sessionsService.listTutorTraces(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+        req.query as any,
+      );
+      res.status(200).json(traces);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
+  async getTutorTraceSummary(req: Request, res: Response) {
+    try {
+      const summary = await sessionsService.getTutorTraceSummary(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+      );
+      res.status(200).json(summary);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
   async startCompanion(req: Request, res: Response) {
     try {
       const message = await sessionsService.startCompanion(req.params.id, req.body);

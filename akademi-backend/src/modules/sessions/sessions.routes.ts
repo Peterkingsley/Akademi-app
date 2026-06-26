@@ -78,6 +78,8 @@ router.get('/:id/voice/stream-audio/:streamId', sessionInteractionRateLimiter, s
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
 router.get('/:id/companion', sessionsController.getCompanionState);
+router.get('/:id/tutor-traces', sessionsController.listTutorTraces);
+router.get('/:id/tutor-traces/summary', sessionsController.getTutorTraceSummary);
 router.post('/:id/companion/start', sessionInteractionRateLimiter, sessionsController.startCompanion);
 router.post('/:id/companion/message', sessionInteractionRateLimiter, sessionsController.sendCompanionMessage);
 router.post('/:id/companion/turn', sessionInteractionRateLimiter, sessionsController.handleCompanionTurn);
