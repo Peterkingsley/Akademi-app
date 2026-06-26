@@ -10,6 +10,7 @@ import { checkVerificationThresholdJob } from './checkVerificationThreshold.job'
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 import { computeMaterialRetryAt } from '../modules/materials/material-processing';
 import { createFallbackTeacherBrain, generateMaterialTeacherBrain } from '../modules/materials/teacher-brain.service';
+import { aiProvider } from '../modules/ai/ai.provider';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -45,46 +46,6 @@ function getGeminiClient() {
     geminiClient = new GoogleGenerativeAI(config.geminiApiKey);
   }
   return geminiClient;
-}
-
-function normalizeVector(values: number[]) {
-  const magnitude = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
-  if (!magnitude) return values;
-  return values.map(value => Number((value / magnitude).toFixed(6)));
-}
-
-function hashTextEmbedding(text: string, dimensions = 256) {
-  const vector = new Array(dimensions).fill(0);
-  const tokens = text.toLowerCase().match(/[a-z0-9]+/g) || [];
-
-  for (const token of tokens) {
-    let hash = 2166136261;
-    for (let i = 0; i < token.length; i++) {
-      hash ^= token.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    const index = Math.abs(hash) % dimensions;
-    vector[index] += 1;
-  }
-
-  return normalizeVector(vector);
-}
-
-async function generateEmbedding(text: string) {
-  const client = getGeminiClient();
-
-  if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: 'embedding-001' });
-      const result = await model.embedContent(text.slice(0, 8000));
-      const values = result.embedding.values;
-      if (values?.length) return values;
-    } catch (error) {
-      console.error('Gemini embedding failed, using deterministic fallback:', error);
-    }
-  }
-
-  return hashTextEmbedding(text);
 }
 
 async function extractPdfText(buffer: Buffer, geminiClient: GoogleGenerativeAI | null) {
@@ -341,7 +302,7 @@ export async function ingestMaterialJob(materialId: string) {
       const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
       await Promise.all(
         batch.map(async (chunk, batchIndex) => {
-          const embedding = await generateEmbedding(chunk);
+          const embedding = await aiProvider.generateEmbedding(chunk);
           await prisma.materialEmbedding.create({
             data: {
               material_id: materialId,
