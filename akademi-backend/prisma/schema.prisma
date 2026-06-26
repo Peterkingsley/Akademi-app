@@ -244,9 +244,10 @@ model User {
   memory_dump_attempts MemoryDumpAttempt[]
   mastery_records      MasteryRecord[]
   material_memories    StudentMaterialMemory[]
+  lesson_plans         StudySectionLessonPlan[]
   feature_access       FeatureAccess[]
   refresh_tokens       RefreshToken[]
-  materials            Material[]              @relation("UploadedBy")
+  materials            Material[]               @relation("UploadedBy")
 
   // Relations to additional models used in codebase
   question_attempts             QuestionAttempt[]
@@ -335,7 +336,7 @@ model Material {
   content                 String?                  @db.Text
   reader_structure        Json?
 
-  user                 User                    @relation("UploadedBy", fields: [uploaded_by], references: [id])
+  user                 User                     @relation("UploadedBy", fields: [uploaded_by], references: [id])
   questions            Question[]
   embeddings           MaterialEmbedding[]
   teacher_brain        MaterialTeacherBrain?
@@ -346,6 +347,7 @@ model Material {
   memory_dump_attempts MemoryDumpAttempt[]
   mastery_records      MasteryRecord[]
   material_memories    StudentMaterialMemory[]
+  lesson_plans         StudySectionLessonPlan[]
 
   @@index([course_code])
   @@index([university])
@@ -431,13 +433,14 @@ model Session {
   ended_at     DateTime?
   created_at   DateTime    @default(now())
 
-  user            User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material        Material?            @relation(fields: [material_id], references: [id], onDelete: SetNull)
+  user            User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material?                @relation(fields: [material_id], references: [id], onDelete: SetNull)
   messages        Message[]
   companion_state StudyCompanionState?
   teachbacks      TeachBackAttempt[]
   memory_dumps    MemoryDumpAttempt[]
   mastery_records MasteryRecord[]
+  lesson_plans    StudySectionLessonPlan[]
 
   @@index([user_id])
   @@index([material_id])
@@ -486,12 +489,13 @@ model StudyCompanionState {
   created_at            DateTime            @default(now())
   updated_at            DateTime            @updatedAt
 
-  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
-  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  session         Session                  @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user            User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material                 @relation(fields: [material_id], references: [id], onDelete: Cascade)
   teachbacks      TeachBackAttempt[]
   memory_dumps    MemoryDumpAttempt[]
   mastery_records MasteryRecord[]
+  lesson_plans    StudySectionLessonPlan[]
 
   @@index([user_id, material_id, course_code])
   @@index([current_phase])
@@ -597,6 +601,37 @@ model StudentMaterialMemory {
   @@index([user_id, material_id, course_code])
   @@index([user_id, material_id, section_index])
   @@map("student_material_memories")
+}
+
+model StudySectionLessonPlan {
+  id                   String   @id @default(uuid())
+  session_id           String
+  companion_state_id   String
+  user_id              String
+  material_id          String
+  course_code          String
+  section_index        Int
+  section_title        String
+  lesson_objective     String
+  prerequisite_refresh Json     @default("[]")
+  teaching_sequence    Json     @default("[]")
+  analogy_plan         Json     @default("[]")
+  calculation_plan     Json     @default("[]")
+  diagram_plan         Json     @default("[]")
+  checkpoint_focus     Json     @default("[]")
+  exam_focus           Json     @default("[]")
+  fallback_plan        Json     @default("[]")
+  generated_at         DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id, section_index])
+  @@index([user_id, material_id, course_code])
+  @@map("study_section_lesson_plans")
 }
 
 model Question {

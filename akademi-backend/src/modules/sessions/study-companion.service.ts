@@ -171,6 +171,19 @@ type StudentMemoryRecord = {
   compressedSummary: string | null;
 };
 
+type StudySectionLessonPlanRecord = {
+  lessonObjective: string;
+  prerequisiteRefresh: string[];
+  teachingSequence: string[];
+  analogyPlan: string[];
+  calculationPlan: string[];
+  diagramPlan: string[];
+  checkpointFocus: string[];
+  examFocus: string[];
+  fallbackPlan: string[];
+  promptContext: string;
+};
+
 type StudentMaterialMemoryRow = {
   id: string;
   user_id: string;
@@ -188,6 +201,26 @@ type StudentMaterialMemoryRow = {
   preferred_explanation_style: string | null;
   revisit_later: unknown;
   compressed_summary: string | null;
+};
+
+type StudySectionLessonPlanRow = {
+  id: string;
+  session_id: string;
+  companion_state_id: string;
+  user_id: string;
+  material_id: string;
+  course_code: string;
+  section_index: number;
+  section_title: string;
+  lesson_objective: string;
+  prerequisite_refresh: unknown;
+  teaching_sequence: unknown;
+  analogy_plan: unknown;
+  calculation_plan: unknown;
+  diagram_plan: unknown;
+  checkpoint_focus: unknown;
+  exam_focus: unknown;
+  fallback_plan: unknown;
 };
 
 type CompanionMetadata = {
@@ -912,6 +945,169 @@ function buildDeterministicStudentMemoryFallback(args: {
   };
 }
 
+function parseStudySectionLessonPlanRecord(value: {
+  lesson_objective?: string | null;
+  prerequisite_refresh?: unknown;
+  teaching_sequence?: unknown;
+  analogy_plan?: unknown;
+  calculation_plan?: unknown;
+  diagram_plan?: unknown;
+  checkpoint_focus?: unknown;
+  exam_focus?: unknown;
+  fallback_plan?: unknown;
+}): StudySectionLessonPlanRecord {
+  const lessonObjective = String(value.lesson_objective || '').trim();
+  const prerequisiteRefresh = safeStringArray(value.prerequisite_refresh);
+  const teachingSequence = safeStringArray(value.teaching_sequence);
+  const analogyPlan = safeStringArray(value.analogy_plan);
+  const calculationPlan = safeStringArray(value.calculation_plan);
+  const diagramPlan = safeStringArray(value.diagram_plan);
+  const checkpointFocus = safeStringArray(value.checkpoint_focus);
+  const examFocus = safeStringArray(value.exam_focus);
+  const fallbackPlan = safeStringArray(value.fallback_plan);
+
+  const lines: string[] = [];
+  if (lessonObjective) {
+    lines.push(`Lesson objective: ${truncate(lessonObjective, 180)}`);
+  }
+  if (prerequisiteRefresh.length) {
+    lines.push(`Prerequisite refresh: ${truncateList(prerequisiteRefresh, 4, 110).join(' | ')}`);
+  }
+  if (teachingSequence.length) {
+    lines.push(`Teaching sequence: ${truncateList(teachingSequence, 5, 110).join(' | ')}`);
+  }
+  if (analogyPlan.length) {
+    lines.push(`Analogy plan: ${truncateList(analogyPlan, 3, 110).join(' | ')}`);
+  }
+  if (calculationPlan.length) {
+    lines.push(`Calculation plan: ${truncateList(calculationPlan, 4, 120).join(' | ')}`);
+  }
+  if (diagramPlan.length) {
+    lines.push(`Diagram plan: ${truncateList(diagramPlan, 4, 120).join(' | ')}`);
+  }
+  if (checkpointFocus.length) {
+    lines.push(`Checkpoint focus: ${truncateList(checkpointFocus, 4, 110).join(' | ')}`);
+  }
+  if (examFocus.length) {
+    lines.push(`Exam focus: ${truncateList(examFocus, 4, 110).join(' | ')}`);
+  }
+  if (fallbackPlan.length) {
+    lines.push(`Fallback plan: ${truncateList(fallbackPlan, 4, 110).join(' | ')}`);
+  }
+
+  return {
+    lessonObjective,
+    prerequisiteRefresh,
+    teachingSequence,
+    analogyPlan,
+    calculationPlan,
+    diagramPlan,
+    checkpointFocus,
+    examFocus,
+    fallbackPlan,
+    promptContext: lines.join('\n'),
+  };
+}
+
+function buildFallbackLessonPlan(args: {
+  section: RoadmapSection;
+  calculationContext: CalculationTeachingContext;
+  diagramContext: DiagramTeachingContext;
+  studentMemoryPromptContext: string;
+  teacherBrainContext: string;
+}): StudySectionLessonPlanRecord {
+  const firstParagraph = normalizeText(args.section.content || '')
+    .split(/\n{2,}|(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const sectionGoal = firstParagraph[0] || `Understand the core idea in ${args.section.title}.`;
+  const teachingSequence = firstParagraph.length
+    ? firstParagraph.map((item) => truncate(item, 120))
+    : [`Introduce ${args.section.title}`, 'Explain the main mechanism or idea clearly', 'Connect it to likely exam use'];
+  const prerequisiteRefresh = args.teacherBrainContext
+    ? truncateList(
+      args.teacherBrainContext
+        .split('\n')
+        .filter((line) => /Prerequisites:|Previous section bridge:/i.test(line))
+        .map((line) => line.replace(/^[^:]+:\s*/, '').trim()),
+      3,
+      110,
+    )
+    : [];
+  const analogyPlan = truncateList(
+    [
+      args.studentMemoryPromptContext.includes('Preferred explanation style cues')
+        ? 'Use the student’s preferred explanation style from earlier sections.'
+        : '',
+      `Use one grounded analogy to make ${args.section.title} easier to remember.`,
+    ].filter(Boolean),
+    2,
+    110,
+  );
+  const calculationPlan = args.calculationContext.detected
+    ? truncateList(
+      [
+        ...args.calculationContext.formulas.map((item) => `${item.name || 'Formula'}: explain variables and when to use it.`),
+        ...args.calculationContext.calculationMethods.map((item) => `${item.topic || 'Method'}: teach the solving order step by step.`),
+        ...args.calculationContext.commonMistakes.map((item) => `Warn about: ${item}`),
+      ],
+      4,
+      120,
+    )
+    : [];
+  const diagramPlan = args.diagramContext.detected
+    ? truncateList(
+      [
+        ...args.diagramContext.diagrams.map((item) => `${item.title || 'Diagram'}: explain ${item.diagram_type || 'visual'} using imagine language.`),
+        ...args.diagramContext.imageDescriptions.map((item) => `Use existing visual cue: ${item}`),
+      ],
+      4,
+      120,
+    )
+    : [];
+  const checkpointFocus = truncateList(
+    [
+      args.calculationContext.detected ? 'Check formula or method selection and solving order.' : '',
+      args.diagramContext.detected ? 'Check visual sequence, labels, and relationships.' : '',
+      'Check whether the student can explain the core idea without copying.',
+    ].filter(Boolean),
+    4,
+    110,
+  );
+  const examFocus = truncateList(
+    [
+      args.calculationContext.detected ? 'Connect the method to exam-style application and final answer format.' : '',
+      args.diagramContext.detected ? 'Connect the visual to exam interpretation or reproduction.' : '',
+      `Show why ${args.section.title} matters in an exam setting.`,
+    ].filter(Boolean),
+    4,
+    110,
+  );
+  const fallbackPlan = truncateList(
+    [
+      'Reteach the weak idea in simpler words.',
+      args.calculationContext.detected ? 'Use one small numeric simple example.' : '',
+      args.diagramContext.detected ? 'Use one clean verbal visualization with parts or arrows.' : '',
+      'Return to one checkpoint question after reteaching.',
+    ].filter(Boolean),
+    4,
+    110,
+  );
+
+  return parseStudySectionLessonPlanRecord({
+    lesson_objective: truncate(sectionGoal, 180),
+    prerequisite_refresh: prerequisiteRefresh,
+    teaching_sequence: teachingSequence,
+    analogy_plan: analogyPlan,
+    calculation_plan: calculationPlan,
+    diagram_plan: diagramPlan,
+    checkpoint_focus: checkpointFocus,
+    exam_focus: examFocus,
+    fallback_plan: fallbackPlan,
+  });
+}
+
 function countKeywordHits(source: string, target: string) {
   const sourceTokens = new Set(
     source
@@ -1438,6 +1634,209 @@ export class StudyCompanionService {
     }
   }
 
+  private async getOrCreateLessonPlan(args: {
+    sessionId: string;
+    companionStateId: string;
+    userId: string;
+    materialId: string;
+    courseCode: string;
+    section: RoadmapSection;
+    sectionIndex: number;
+    teacherBrainContext: string;
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    studentMemoryPromptContext: string;
+  }) {
+    const studySectionLessonPlan = (prisma as typeof prisma & {
+      studySectionLessonPlan: {
+        findFirst: (query: unknown) => Promise<StudySectionLessonPlanRow | null>;
+        upsert: (query: unknown) => Promise<StudySectionLessonPlanRow>;
+      };
+    }).studySectionLessonPlan;
+
+    const existing = await studySectionLessonPlan.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+    });
+
+    if (existing) {
+      const parsed = parseStudySectionLessonPlanRecord(existing);
+      console.log('lesson_plan_context_applied', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        source: 'reused',
+      });
+      return parsed;
+    }
+
+    console.log('lesson_plan_generation_started', {
+      sessionId: args.sessionId,
+      materialId: args.materialId,
+      sectionIndex: args.sectionIndex,
+    });
+
+    const fallback = buildFallbackLessonPlan({
+      section: args.section,
+      calculationContext: args.calculationContext,
+      diagramContext: args.diagramContext,
+      studentMemoryPromptContext: args.studentMemoryPromptContext,
+      teacherBrainContext: args.teacherBrainContext,
+    });
+
+    try {
+      const prompt = [
+        'Return JSON only.',
+        'No markdown.',
+        `Course code: ${args.courseCode}`,
+        `Section title: ${args.section.title}`,
+        args.teacherBrainContext ? `Teacher Brain context:\n${args.teacherBrainContext}` : '',
+        args.studentMemoryPromptContext ? `Student memory context:\n${args.studentMemoryPromptContext}` : '',
+        args.calculationContext.detected ? `Calculation context:\n${args.calculationContext.summary}` : '',
+        args.diagramContext.detected ? `Diagram context:\n${args.diagramContext.summary}` : '',
+        `Section content:\n${truncate(args.section.content, 3200)}`,
+        'Create a compact internal lesson plan JSON with keys: lesson_objective, prerequisite_refresh, teaching_sequence, analogy_plan, calculation_plan, diagram_plan, checkpoint_focus, exam_focus, fallback_plan.',
+        'The plan is for internal tutoring only. Keep it concise, specific to the section, exam-aware, and suitable for a tertiary institution student.',
+        'Use current section content as the source of truth.',
+      ].filter(Boolean).join('\n\n');
+
+      const raw = await generateText(
+        prompt,
+        `${this.companionSystemPrompt()}\nCreate compact internal lesson plans for one section at a time. Return valid JSON only.`,
+        900,
+      );
+
+      let parsedJson: Record<string, unknown> | null = null;
+      try {
+        parsedJson = JSON.parse(raw);
+      } catch {
+        const start = raw.indexOf('{');
+        const end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          try {
+            parsedJson = JSON.parse(raw.slice(start, end + 1));
+          } catch {
+            parsedJson = null;
+          }
+        }
+      }
+
+      if (!parsedJson) {
+        throw new Error('Lesson plan JSON parse failed.');
+      }
+
+      const normalized = parseStudySectionLessonPlanRecord({
+        lesson_objective: typeof parsedJson.lesson_objective === 'string' ? parsedJson.lesson_objective : '',
+        prerequisite_refresh: parsedJson.prerequisite_refresh,
+        teaching_sequence: parsedJson.teaching_sequence,
+        analogy_plan: parsedJson.analogy_plan,
+        calculation_plan: parsedJson.calculation_plan,
+        diagram_plan: parsedJson.diagram_plan,
+        checkpoint_focus: parsedJson.checkpoint_focus,
+        exam_focus: parsedJson.exam_focus,
+        fallback_plan: parsedJson.fallback_plan,
+      });
+
+      await studySectionLessonPlan.upsert({
+        where: { id: `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.section.title,
+          lesson_objective: normalized.lessonObjective || fallback.lessonObjective,
+          prerequisite_refresh: normalized.prerequisiteRefresh as unknown as Prisma.InputJsonValue,
+          teaching_sequence: normalized.teachingSequence as unknown as Prisma.InputJsonValue,
+          analogy_plan: normalized.analogyPlan as unknown as Prisma.InputJsonValue,
+          calculation_plan: normalized.calculationPlan as unknown as Prisma.InputJsonValue,
+          diagram_plan: normalized.diagramPlan as unknown as Prisma.InputJsonValue,
+          checkpoint_focus: normalized.checkpointFocus as unknown as Prisma.InputJsonValue,
+          exam_focus: normalized.examFocus as unknown as Prisma.InputJsonValue,
+          fallback_plan: normalized.fallbackPlan as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          section_title: args.section.title,
+          lesson_objective: normalized.lessonObjective || fallback.lessonObjective,
+          prerequisite_refresh: normalized.prerequisiteRefresh as unknown as Prisma.InputJsonValue,
+          teaching_sequence: normalized.teachingSequence as unknown as Prisma.InputJsonValue,
+          analogy_plan: normalized.analogyPlan as unknown as Prisma.InputJsonValue,
+          calculation_plan: normalized.calculationPlan as unknown as Prisma.InputJsonValue,
+          diagram_plan: normalized.diagramPlan as unknown as Prisma.InputJsonValue,
+          checkpoint_focus: normalized.checkpointFocus as unknown as Prisma.InputJsonValue,
+          exam_focus: normalized.examFocus as unknown as Prisma.InputJsonValue,
+          fallback_plan: normalized.fallbackPlan as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      console.log('lesson_plan_generation_completed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      console.log('lesson_plan_context_applied', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        source: 'generated',
+      });
+      return normalized.lessonObjective ? normalized : fallback;
+    } catch (error) {
+      console.error('lesson_plan_generation_failed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        message: error instanceof Error ? error.message : 'Unknown lesson plan error',
+      });
+
+      await studySectionLessonPlan.upsert({
+        where: { id: `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.section.title,
+          lesson_objective: fallback.lessonObjective,
+          prerequisite_refresh: fallback.prerequisiteRefresh as unknown as Prisma.InputJsonValue,
+          teaching_sequence: fallback.teachingSequence as unknown as Prisma.InputJsonValue,
+          analogy_plan: fallback.analogyPlan as unknown as Prisma.InputJsonValue,
+          calculation_plan: fallback.calculationPlan as unknown as Prisma.InputJsonValue,
+          diagram_plan: fallback.diagramPlan as unknown as Prisma.InputJsonValue,
+          checkpoint_focus: fallback.checkpointFocus as unknown as Prisma.InputJsonValue,
+          exam_focus: fallback.examFocus as unknown as Prisma.InputJsonValue,
+          fallback_plan: fallback.fallbackPlan as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          section_title: args.section.title,
+          lesson_objective: fallback.lessonObjective,
+          prerequisite_refresh: fallback.prerequisiteRefresh as unknown as Prisma.InputJsonValue,
+          teaching_sequence: fallback.teachingSequence as unknown as Prisma.InputJsonValue,
+          analogy_plan: fallback.analogyPlan as unknown as Prisma.InputJsonValue,
+          calculation_plan: fallback.calculationPlan as unknown as Prisma.InputJsonValue,
+          diagram_plan: fallback.diagramPlan as unknown as Prisma.InputJsonValue,
+          checkpoint_focus: fallback.checkpointFocus as unknown as Prisma.InputJsonValue,
+          exam_focus: fallback.examFocus as unknown as Prisma.InputJsonValue,
+          fallback_plan: fallback.fallbackPlan as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      console.log('lesson_plan_context_applied', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        source: 'fallback',
+      });
+      return fallback;
+    }
+  }
+
   private async loadSessionContext(sessionId: string) {
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
@@ -1515,6 +1914,7 @@ export class StudyCompanionService {
       'You understand the whole material through Teacher Brain context.',
       'Use the current section content as the source of truth.',
       'Use Teacher Brain for continuity, prerequisite awareness, exam angles, misconceptions, calculations, and diagram planning.',
+      'Use the internal lesson plan to keep the teaching objective, sequence, checkpoints, and fallback reteach aligned.',
       'Do not invent material content.',
       'If Teacher Brain conflicts with section content, trust section content.',
       'Teach like a tertiary institution tutor.',
@@ -1605,6 +2005,26 @@ export class StudyCompanionService {
 
     const section = this.sectionAt(roadmap, nextIndex);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
+    const teacherBrainSectionContext = getTeacherBrainSectionContext(
+      teacherBrain,
+      nextIndex,
+      section.title,
+    );
+    const sectionCalculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
+    const sectionDiagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
+    const lessonPlan = await this.getOrCreateLessonPlan({
+      sessionId,
+      companionStateId: state.id,
+      userId: state.user_id,
+      materialId: material.id,
+      courseCode: state.course_code,
+      section,
+      sectionIndex: nextIndex,
+      teacherBrainContext,
+      calculationContext: sectionCalculationContext,
+      diagramContext: sectionDiagramContext,
+      studentMemoryPromptContext: studentMemoryContext.promptContext,
+    });
     roadmap.forEach((item, index) => {
       if (index === nextIndex && item.status === StudyRoadmapStatus.NOT_STARTED) {
         item.status = StudyRoadmapStatus.IN_PROGRESS;
@@ -1617,8 +2037,11 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryContext.promptContext ? `Student memory context:\n${studentMemoryContext.promptContext}` : '',
+      lessonPlan.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
+      lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
+      lessonPlan.teachingSequence.length ? `Start with these opening sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
 
@@ -1653,7 +2076,15 @@ export class StudyCompanionService {
     return this.handleStudentReply(sessionId, '__AUTO_CONTINUE__');
   }
 
-  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext, studentMemoryPromptContext = '') {
+  private async buildTeachingPass(
+    section: RoadmapSection,
+    pass: 1 | 2 | 3,
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    teacherBrainSectionContext?: TeacherBrainSectionContext,
+    studentMemoryPromptContext = '',
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     const calculationContext = buildCalculationTeachingContext(
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
@@ -1701,9 +2132,17 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
+      pass === 1 && lessonPlan?.lessonObjective ? `Follow this lesson objective first: ${lessonPlan.lessonObjective}` : '',
+      pass === 1 && lessonPlan?.teachingSequence.length ? `Start with these sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
+      pass === 2 && lessonPlan?.teachingSequence.length ? `Follow this detailed teaching sequence: ${truncateList(lessonPlan.teachingSequence, 5, 120).join(' | ')}` : '',
+      pass === 2 && lessonPlan?.calculationPlan.length ? `Calculation lesson plan: ${truncateList(lessonPlan.calculationPlan, 4, 120).join(' | ')}` : '',
+      pass === 2 && lessonPlan?.diagramPlan.length ? `Diagram lesson plan: ${truncateList(lessonPlan.diagramPlan, 4, 120).join(' | ')}` : '',
+      pass === 3 && lessonPlan?.examFocus.length ? `Exam focus for this pass: ${truncateList(lessonPlan.examFocus, 4, 120).join(' | ')}` : '',
+      pass === 3 && lessonPlan?.checkpointFocus.length ? `Checkpoint focus for this pass: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       instructions,
       'Use student memory to adapt explanation. If the student previously struggled with a prerequisite, briefly refresh it. If calculation issues exist, slow down formula substitution. If diagram issues exist, use clearer mental visualization. Be encouraging, not judgmental.',
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
@@ -1731,7 +2170,15 @@ export class StudyCompanionService {
     return removeAccidentalTeachingQuestions(content);
   }
 
-  private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+  private async evaluateTeachBack(
+    section: RoadmapSection,
+    studentResponse: string,
+    attemptNumber: number,
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     const heuristicScore = computeCoverageScore(section, studentResponse);
     const calculationContext = buildCalculationTeachingContext(
       section,
@@ -1744,10 +2191,12 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student teach-back attempt ${attemptNumber}:\n${studentResponse}`,
+      lessonPlan?.checkpointFocus.length ? `Checkpoint focus: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       calculationContext.detected
         ? 'Task: Evaluate the teach-back. Check whether the student identified the correct formula or method, explained variables, explained solving order, mentioned units or interpretation, avoided common mistakes, and understood when to apply the method. State what was right, what is missing, and what exact idea must be corrected next.'
         : diagramContext.detected
@@ -1780,7 +2229,14 @@ export class StudyCompanionService {
     };
   }
 
-  private async evaluateMemoryDump(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+  private async evaluateMemoryDump(
+    section: RoadmapSection,
+    studentResponse: string,
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     const heuristicScore = Math.max(20, computeCoverageScore(section, studentResponse) - 5);
     const calculationContext = buildCalculationTeachingContext(
       section,
@@ -1793,10 +2249,12 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student memory dump:\n${studentResponse}`,
+      lessonPlan?.checkpointFocus.length ? `Memory checkpoint focus: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       calculationContext.detected
         ? 'Task: Compare the memory dump to the expected knowledge for this section. Check recall of the formula, variables, steps, common mistakes, when to use it, and final answer format. Briefly identify what was remembered well and what is still missing.'
         : diagramContext.detected
@@ -1829,7 +2287,14 @@ export class StudyCompanionService {
     };
   }
 
-  private async buildTeachBackPrompt(section: RoadmapSection, attemptNumber: 1 | 2, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+  private async buildTeachBackPrompt(
+    section: RoadmapSection,
+    attemptNumber: 1 | 2,
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     const diagramContext = buildDiagramTeachingContext(
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
@@ -1837,8 +2302,10 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
+      lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       diagramContext.detected
         ? attemptNumber === 1
           ? 'Ask the student for Teach-Back 1. Tell them to explain the diagram or process in their own words as if they are drawing it from memory.'
@@ -1864,7 +2331,12 @@ export class StudyCompanionService {
     return sanitizeSingleQuestionTurn(content);
   }
 
-  private async buildMemoryDumpPrompt(section: RoadmapSection, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async buildMemoryDumpPrompt(
+    section: RoadmapSection,
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
         ...contextMeta,
@@ -1875,7 +2347,9 @@ export class StudyCompanionService {
       [
         `Section title: ${section.title}`,
         teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+        lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
         `Section content:\n${truncate(section.content, 2600)}`,
+        lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
         'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
       ].join('\n\n'),
       this.companionSystemPrompt(),
@@ -1884,7 +2358,14 @@ export class StudyCompanionService {
     return sanitizeSingleQuestionTurn(content);
   }
 
-  private async buildGapReteach(section: RoadmapSection, failedConcepts: string[], teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+  private async buildGapReteach(
+    section: RoadmapSection,
+    failedConcepts: string[],
+    teacherBrainContext = '',
+    contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lessonPlan?: StudySectionLessonPlanRecord,
+  ) {
     const calculationContext = buildCalculationTeachingContext(
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
@@ -1915,10 +2396,12 @@ export class StudyCompanionService {
       [
         `Section title: ${section.title}`,
         teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+        lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
         calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
         diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
         `Section content:\n${truncate(section.content, 3000)}`,
         `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
+        lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
         calculationContext.detected
           ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
           : diagramContext.detected
@@ -1976,11 +2459,26 @@ export class StudyCompanionService {
       state.current_section_index,
       section.title,
     );
+    const sectionCalculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
+    const sectionDiagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
     const contextMeta = {
       sessionId,
       materialId: material.id,
       sectionIndex: state.current_section_index,
     };
+    const lessonPlan = await this.getOrCreateLessonPlan({
+      sessionId,
+      companionStateId: state.id,
+      userId: state.user_id,
+      materialId: material.id,
+      courseCode: state.course_code,
+      section,
+      sectionIndex: state.current_section_index,
+      teacherBrainContext,
+      calculationContext: sectionCalculationContext,
+      diagramContext: sectionDiagramContext,
+      studentMemoryPromptContext: studentMemoryContext.promptContext,
+    });
     const sectionContext = readSectionContext(state.section_context);
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
@@ -2006,7 +2504,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
+      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
@@ -2037,7 +2535,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
+      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
@@ -2069,7 +2567,7 @@ export class StudyCompanionService {
         };
       }
       if (!sectionContext.pass3QuestionPending) {
-        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
+        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
           pending_prompt: content,
@@ -2084,7 +2582,7 @@ export class StudyCompanionService {
         };
       }
 
-      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_1,
         pending_prompt: content,
@@ -2103,7 +2601,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your explanation before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -2143,7 +2641,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your second teach-back before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -2195,7 +2693,7 @@ export class StudyCompanionService {
       }
 
       if (!sectionContext.reteachDelivered) {
-        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext);
+        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: GAP_RETEACH,
           pending_prompt: content,
@@ -2215,8 +2713,8 @@ export class StudyCompanionService {
 
       const content =
         sectionContext.nextPromptKind === 'teachback_2'
-          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext)
-          : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta);
+          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan)
+          : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan);
 
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP,
@@ -2238,7 +2736,7 @@ export class StudyCompanionService {
           throw new Error('Akademi is preparing the next checkpoint. Wait one moment.');
         }
 
-        const content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta);
+        const content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: MEMORY_DUMP,
           pending_prompt: content,
@@ -2256,7 +2754,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your memory dump before continuing.');
       }
-      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
       await prisma.memoryDumpAttempt.create({
         data: {
           session_id: sessionId,
@@ -2285,9 +2783,6 @@ export class StudyCompanionService {
       const finalScore = Math.round((averageTeachBack * 0.65) + (evaluation.score * 0.35));
       const passed = finalScore >= state.mastery_threshold;
       const failedConcepts = deriveFailedConcepts(section, trimmed);
-      const sectionCalculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
-      const sectionDiagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
-
       await prisma.masteryRecord.create({
         data: {
           session_id: sessionId,
@@ -2399,17 +2894,32 @@ export class StudyCompanionService {
           nextIndex,
           nextSection.title,
         );
+        const nextSectionCalculationContext = buildCalculationTeachingContext(nextSection, nextTeacherBrainSectionContext);
+        const nextSectionDiagramContext = buildDiagramTeachingContext(nextSection, nextTeacherBrainSectionContext);
         const nextStudentMemoryContext = await this.buildStudentMemoryContext(
           state.user_id,
           state.material_id,
           state.course_code,
           nextIndex,
         );
+        const nextLessonPlan = await this.getOrCreateLessonPlan({
+          sessionId,
+          companionStateId: state.id,
+          userId: state.user_id,
+          materialId: material.id,
+          courseCode: state.course_code,
+          section: nextSection,
+          sectionIndex: nextIndex,
+          teacherBrainContext: nextTeacherBrainContext,
+          calculationContext: nextSectionCalculationContext,
+          diagramContext: nextSectionDiagramContext,
+          studentMemoryPromptContext: nextStudentMemoryContext.promptContext,
+        });
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, nextLessonPlan);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -2438,17 +2948,32 @@ export class StudyCompanionService {
           nextIndex,
           nextSection.title,
         );
+        const nextSectionCalculationContext = buildCalculationTeachingContext(nextSection, nextTeacherBrainSectionContext);
+        const nextSectionDiagramContext = buildDiagramTeachingContext(nextSection, nextTeacherBrainSectionContext);
         const nextStudentMemoryContext = await this.buildStudentMemoryContext(
           state.user_id,
           state.material_id,
           state.course_code,
           nextIndex,
         );
+        const nextLessonPlan = await this.getOrCreateLessonPlan({
+          sessionId,
+          companionStateId: state.id,
+          userId: state.user_id,
+          materialId: material.id,
+          courseCode: state.course_code,
+          section: nextSection,
+          sectionIndex: nextIndex,
+          teacherBrainContext: nextTeacherBrainContext,
+          calculationContext: nextSectionCalculationContext,
+          diagramContext: nextSectionDiagramContext,
+          studentMemoryPromptContext: nextStudentMemoryContext.promptContext,
+        });
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, nextLessonPlan);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -2484,7 +3009,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
