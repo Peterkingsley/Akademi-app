@@ -152,6 +152,14 @@ type CalculationTeachingContext = {
   summary: string;
 };
 
+type DiagramTeachingContext = {
+  detected: boolean;
+  diagrams: TeacherBrainDiagram[];
+  imageDescriptions: string[];
+  subjectFamily: string | null;
+  summary: string;
+};
+
 type CompanionMetadata = {
   mode?: string;
   materialTitle?: string;
@@ -616,6 +624,101 @@ function buildCalculationInstructions(pass: 1 | 2 | 3, calculationContext: Calcu
   ].join(' ');
 }
 
+function isDiagramHeavySection(section: RoadmapSection, teacherBrainContext: TeacherBrainSectionContext) {
+  const subjectFamily = teacherBrainContext.subjectFamily || '';
+  const diagramFamilies = new Set([
+    'biology',
+    'medicine',
+    'engineering',
+    'agriculture',
+    'geography',
+    'chemistry',
+    'computer_science',
+    'cybersecurity',
+    'economics',
+    'statistics',
+  ]);
+
+  if (teacherBrainContext.diagrams.length) {
+    return true;
+  }
+
+  if (diagramFamilies.has(subjectFamily)) {
+    return true;
+  }
+
+  const content = `${section.title}\n${section.content}`.toLowerCase();
+  return /\bdiagram\b|\bfigure\b|\bchart\b|\btable\b|\bgraph\b|\bcurve\b|\bmap\b|\bflowchart\b|\bprocess\b|\baxis\b|\bx-axis\b|\by-axis\b|\barrow\b|\blabel\b|\bimage caption\b|\bimage description\b/.test(content);
+}
+
+function buildDiagramTeachingContext(section: RoadmapSection, teacherBrainContext: TeacherBrainSectionContext): DiagramTeachingContext {
+  const imageDescriptions = truncateList(
+    section.content
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => /^image (caption|description)|^alt text|^figure|^diagram|^chart|^graph/i.test(line)),
+    5,
+    160,
+  );
+
+  const lines: string[] = [];
+  if (teacherBrainContext.diagrams.length) {
+    lines.push(
+      `Diagrams: ${truncateList(
+        teacherBrainContext.diagrams.map((item) =>
+          `${item.title} (${item.diagram_type}) | section ${Number(item.section_index) + 1} | ${item.description} | when: ${item.when_to_show} | notice: ${(item.student_should_notice || []).slice(0, 3).join(', ')}`,
+        ),
+        4,
+        220,
+      ).join(' | ')}`,
+    );
+  }
+  if (imageDescriptions.length) {
+    lines.push(`Image descriptions already in content: ${imageDescriptions.join(' | ')}`);
+  }
+
+  return {
+    detected: isDiagramHeavySection(section, teacherBrainContext),
+    diagrams: teacherBrainContext.diagrams,
+    imageDescriptions,
+    subjectFamily: teacherBrainContext.subjectFamily || null,
+    summary: lines.join('\n'),
+  };
+}
+
+function buildDiagramInstructions(pass: 1 | 2 | 3, diagramContext: DiagramTeachingContext) {
+  if (!diagramContext.detected) return '';
+
+  if (pass === 1) {
+    return [
+      'Diagram teaching mode: Pass 1.',
+      'Introduce the visual idea.',
+      'Explain why the diagram matters.',
+      'Describe the big picture without too much detail.',
+      'Use imagine or picture instead of claiming an image is on screen.',
+    ].join(' ');
+  }
+
+  if (pass === 2) {
+    return [
+      'Diagram teaching mode: Pass 2.',
+      'Walk through the diagram or process step by step.',
+      'Explain labels, parts, arrows, axes, stages, or relationships.',
+      'For graphs, explain x-axis, y-axis, trend, slope, peak, movement, or comparison where relevant.',
+      'For anatomy or biology, explain parts and functions.',
+      'For engineering or computer science, explain flow, components, inputs, outputs, or system behavior.',
+    ].join(' ');
+  }
+
+  return [
+    'Diagram teaching mode: Pass 3.',
+    'Connect the diagram to exam use.',
+    'Explain what examiners usually ask from the diagram.',
+    'Highlight common visual mistakes or mislabeling.',
+    'Explain how the student should reproduce or interpret the diagram.',
+  ].join(' ');
+}
+
 function buildTeacherBrainPromptContext(
   teacherBrain: ParsedTeacherBrain | null,
   currentSectionIndex: number,
@@ -1059,6 +1162,13 @@ export class StudyCompanionService {
       'If the material does not provide enough numbers for a worked example, create a tiny illustrative example and label it as "simple example".',
       'Do not overcomplicate explanations.',
       'For diagram-heavy topics, explain what visual would help naturally, but do not generate images yet.',
+      'For visual-heavy topics, teach with mental diagrams.',
+      'Describe diagrams clearly using simple spatial language.',
+      'Do not claim an actual image is shown unless the frontend supports it.',
+      'Say imagine or picture instead of look at this image.',
+      'For graphs, explain axes and trends.',
+      'For biological or anatomical diagrams, explain parts and functions.',
+      'For processes, explain stages in order.',
       'Always be structured, clear, patient, and slightly demanding about recall.',
       'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
       'Whenever math appears, render it using proper LaTeX delimiters.',
@@ -1181,6 +1291,10 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const diagramContext = buildDiagramTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     if (calculationContext.detected) {
       console.log('calculation_context_detected', {
         ...contextMeta,
@@ -1193,19 +1307,34 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
+    if (diagramContext.detected) {
+      console.log('diagram_context_detected', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+        subjectFamily: diagramContext.subjectFamily,
+      });
+    } else {
+      console.log('diagram_context_missing', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
     const instructions =
       calculationContext.detected
         ? buildCalculationInstructions(pass, calculationContext)
-        : pass === 1
-        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
-        : pass === 2
-          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
-          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.'
+        : diagramContext.detected
+          ? buildDiagramInstructions(pass, diagramContext)
+          : pass === 1
+            ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
+            : pass === 2
+              ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
+              : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.'
 
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
+      diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
@@ -1223,6 +1352,12 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
+    if (diagramContext.detected && contextMeta) {
+      console.log('diagram_context_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
     const content = await generateText(prompt, this.companionSystemPrompt(), 900);
     return removeAccidentalTeachingQuestions(content);
   }
@@ -1233,15 +1368,22 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const diagramContext = buildDiagramTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
+      diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student teach-back attempt ${attemptNumber}:\n${studentResponse}`,
       calculationContext.detected
         ? 'Task: Evaluate the teach-back. Check whether the student identified the correct formula or method, explained variables, explained solving order, mentioned units or interpretation, avoided common mistakes, and understood when to apply the method. State what was right, what is missing, and what exact idea must be corrected next.'
-        : 'Task: Evaluate the teach-back. State what the student got right, what is missing, and what exact idea must be corrected next. Keep it concise and exam-focused.',
+        : diagramContext.detected
+          ? 'Task: Evaluate the teach-back. Check whether the student named the key parts, explained relationships, understood sequence or flow, explained functions, and avoided common label or process mistakes. State what was right, what is missing, and what exact idea must be corrected next.'
+          : 'Task: Evaluate the teach-back. State what the student got right, what is missing, and what exact idea must be corrected next. Keep it concise and exam-focused.',
     ].join('\n\n');
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
@@ -1251,6 +1393,12 @@ export class StudyCompanionService {
     }
     if (calculationContext.detected && contextMeta) {
       console.log('calculation_context_applied', {
+        ...contextMeta,
+        prompt: `evaluate_teachback_${attemptNumber}`,
+      });
+    }
+    if (diagramContext.detected && contextMeta) {
+      console.log('diagram_context_applied', {
         ...contextMeta,
         prompt: `evaluate_teachback_${attemptNumber}`,
       });
@@ -1269,15 +1417,22 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const diagramContext = buildDiagramTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
+      diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student memory dump:\n${studentResponse}`,
       calculationContext.detected
         ? 'Task: Compare the memory dump to the expected knowledge for this section. Check recall of the formula, variables, steps, common mistakes, when to use it, and final answer format. Briefly identify what was remembered well and what is still missing.'
-        : 'Task: Compare the memory dump to the expected knowledge for this section. Briefly identify what was remembered well and what is still missing.',
+        : diagramContext.detected
+          ? 'Task: Compare the memory dump to the expected knowledge for this section. Check whether the student remembered labels or parts, sequence or stages, relationships, functions, and exam interpretation. Briefly identify what was remembered well and what is still missing.'
+          : 'Task: Compare the memory dump to the expected knowledge for this section. Briefly identify what was remembered well and what is still missing.',
     ].join('\n\n');
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
@@ -1291,6 +1446,12 @@ export class StudyCompanionService {
         prompt: 'evaluate_memory_dump',
       });
     }
+    if (diagramContext.detected && contextMeta) {
+      console.log('diagram_context_applied', {
+        ...contextMeta,
+        prompt: 'evaluate_memory_dump',
+      });
+    }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 450);
     return {
       evaluation,
@@ -1299,18 +1460,33 @@ export class StudyCompanionService {
     };
   }
 
-  private async buildTeachBackPrompt(section: RoadmapSection, attemptNumber: 1 | 2, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async buildTeachBackPrompt(section: RoadmapSection, attemptNumber: 1 | 2, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+    const diagramContext = buildDiagramTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
-      attemptNumber === 1
-        ? 'Ask the student for Teach-Back 1. Tell them to explain the section in their own words without copying.'
-        : 'Ask the student for Teach-Back 2. Tell them to explain again, this time correcting the missing ideas from the first attempt.',
+      diagramContext.detected
+        ? attemptNumber === 1
+          ? 'Ask the student for Teach-Back 1. Tell them to explain the diagram or process in their own words as if they are drawing it from memory.'
+          : 'Ask the student for Teach-Back 2. Tell them to explain the visual again, this time correcting the missing labels, flow, or relationships from the first attempt.'
+        : attemptNumber === 1
+          ? 'Ask the student for Teach-Back 1. Tell them to explain the section in their own words without copying.'
+          : 'Ask the student for Teach-Back 2. Tell them to explain again, this time correcting the missing ideas from the first attempt.',
     ].join('\n\n');
 
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: `teachback_prompt_${attemptNumber}`,
+      });
+    }
+    if (diagramContext.detected && contextMeta) {
+      console.log('diagram_context_applied', {
         ...contextMeta,
         prompt: `teachback_prompt_${attemptNumber}`,
       });
@@ -1344,6 +1520,10 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const diagramContext = buildDiagramTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
         ...contextMeta,
@@ -1356,16 +1536,25 @@ export class StudyCompanionService {
         prompt: 'gap_reteach',
       });
     }
+    if (diagramContext.detected && contextMeta) {
+      console.log('diagram_context_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+      });
+    }
     return generateText(
       [
         `Section title: ${section.title}`,
         teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
         calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
+        diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
         `Section content:\n${truncate(section.content, 3000)}`,
         `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
         calculationContext.detected
           ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
-          : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
+          : diagramContext.detected
+            ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
+            : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
       ].join('\n\n'),
       this.companionSystemPrompt(),
       650,
@@ -1525,7 +1714,7 @@ export class StudyCompanionService {
         };
       }
 
-      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta);
+      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: TEACHBACK_1,
         pending_prompt: content,
@@ -1656,7 +1845,7 @@ export class StudyCompanionService {
 
       const content =
         sectionContext.nextPromptKind === 'teachback_2'
-          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta)
+          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext)
           : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta);
 
       await this.persistRoadmap(state.id, roadmap, {
@@ -1878,7 +2067,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta);
+    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
