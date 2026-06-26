@@ -9,6 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 import { computeMaterialRetryAt } from '../modules/materials/material-processing';
+import { createFallbackTeacherBrain, generateMaterialTeacherBrain } from '../modules/materials/teacher-brain.service';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -351,6 +352,25 @@ export async function ingestMaterialJob(materialId: string) {
           });
         }),
       );
+    }
+
+    try {
+      await generateMaterialTeacherBrain(materialId);
+    } catch (error) {
+      console.error('teacher_brain_generation_failed', {
+        materialId,
+        message: error instanceof Error ? error.message : 'Unknown teacher brain error',
+      });
+      try {
+        await createFallbackTeacherBrain(materialId);
+      } catch (fallbackError) {
+        console.error('teacher_brain_generation_failed', {
+          materialId,
+          message:
+            fallbackError instanceof Error ? fallbackError.message : 'Fallback teacher brain creation failed',
+          stage: 'fallback_creation',
+        });
+      }
     }
 
     console.log(

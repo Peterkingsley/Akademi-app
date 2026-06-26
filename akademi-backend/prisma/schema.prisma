@@ -216,53 +216,54 @@ enum MatchSessionStatus {
 
 // Models
 model User {
-  id                           String         @id @default(uuid())
-  name                         String
-  email                        String         @unique
-  password_hash                String?
-  university                   String
-  faculty                      String
-  department                   String
-  level                        Int
-  profile_photo_url            String?
-  auth_provider                AuthProvider   @default(EMAIL)
-  is_verified                  Boolean        @default(false)
-  verification_token           String?
+  id                            String       @id @default(uuid())
+  name                          String
+  email                         String       @unique
+  password_hash                 String?
+  university                    String
+  faculty                       String
+  department                    String
+  level                         Int
+  profile_photo_url             String?
+  auth_provider                 AuthProvider @default(EMAIL)
+  is_verified                   Boolean      @default(false)
+  verification_token            String?
   verification_token_expires_at DateTime?
-  created_at                   DateTime       @default(now())
-  updated_at                   DateTime       @updatedAt
-  is_deleted                   Boolean        @default(false) // Required by AuthService
-  is_banned                    Boolean        @default(false)
-  push_token                   String?
-  courses                      String[]       @default([])
+  created_at                    DateTime     @default(now())
+  updated_at                    DateTime     @updatedAt
+  is_deleted                    Boolean      @default(false) // Required by AuthService
+  is_banned                     Boolean      @default(false)
+  push_token                    String?
+  courses                       String[]     @default([])
 
-  learning_profile  LearningProfile?
-  sessions          Session[]
-  messages          Message[]
-  companion_states  StudyCompanionState[]
-  teachback_attempts TeachBackAttempt[]
+  learning_profile     LearningProfile?
+  sessions             Session[]
+  messages             Message[]
+  companion_states     StudyCompanionState[]
+  teachback_attempts   TeachBackAttempt[]
   memory_dump_attempts MemoryDumpAttempt[]
-  mastery_records   MasteryRecord[]
-  feature_access    FeatureAccess[]
-  refresh_tokens    RefreshToken[]
-  materials         Material[]       @relation("UploadedBy")
+  mastery_records      MasteryRecord[]
+  feature_access       FeatureAccess[]
+  refresh_tokens       RefreshToken[]
+  materials            Material[]            @relation("UploadedBy")
 
   // Relations to additional models used in codebase
-  question_attempts QuestionAttempt[]
-  exam_prep_plans   ExamPrepPlan[]
-  mock_attempts     MockAttempt[]
-  transactions      Transaction[]
-  notifications        Notification[]
-  student_courses      StudentCourse[]
-  hosted_competitions  CompetitionRoom[]        @relation("CompetitionHost")
-  competition_entries  CompetitionParticipant[]
-  tournament_entries   TournamentEntry[]
+  question_attempts             QuestionAttempt[]
+  exam_prep_plans               ExamPrepPlan[]
+  mock_attempts                 MockAttempt[]
+  transactions                  Transaction[]
+  notifications                 Notification[]
+  student_courses               StudentCourse[]
+  hosted_competitions           CompetitionRoom[]             @relation("CompetitionHost")
+  competition_entries           CompetitionParticipant[]
+  tournament_entries            TournamentEntry[]
   tournament_stage_participants TournamentStageParticipant[]
-  tournament_interests TournamentSpectatorInterest[]
-  tournament_predictions TournamentPrediction[] @relation("TournamentPredictionUser")
-  tournament_predicted_by TournamentPrediction[] @relation("TournamentPredictedParticipant")
-  tournament_cheers_sent TournamentCheer[] @relation("TournamentCheerSpectator")
-  tournament_cheers_received TournamentCheer[] @relation("TournamentCheerParticipant")
+  tournament_interests          TournamentSpectatorInterest[]
+  tournament_predictions        TournamentPrediction[]        @relation("TournamentPredictionUser")
+  tournament_predicted_by       TournamentPrediction[]        @relation("TournamentPredictedParticipant")
+  tournament_cheers_sent        TournamentCheer[]             @relation("TournamentCheerSpectator")
+  tournament_cheers_received    TournamentCheer[]             @relation("TournamentCheerParticipant")
+
   @@index([email])
   @@index([university])
   @@index([department])
@@ -271,18 +272,19 @@ model User {
 }
 
 model LearningProfile {
-  id                    String          @id @default(uuid())
-  user_id               String          @unique
-  subject_strengths     Json            @default("{}")
-  subject_weaknesses    Json            @default("{}")
-  preferred_reply_mode  ReplyMode?
-  question_patterns     Json            @default("{}")
-  vocabulary_level      VocabularyLevel @default(BASIC)
-  session_count         Int             @default(0)
-  last_active           DateTime?
-  updated_at            DateTime        @updatedAt
+  id                   String          @id @default(uuid())
+  user_id              String          @unique
+  subject_strengths    Json            @default("{}")
+  subject_weaknesses   Json            @default("{}")
+  preferred_reply_mode ReplyMode?
+  question_patterns    Json            @default("{}")
+  vocabulary_level     VocabularyLevel @default(BASIC)
+  session_count        Int             @default(0)
+  last_active          DateTime?
+  updated_at           DateTime        @updatedAt
 
-  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@map("learning_profiles")
 }
 
@@ -302,45 +304,46 @@ model CommunityPattern {
 }
 
 model Material {
-  id                  String             @id @default(uuid())
-  title               String
-  course_code         String?
-  university          String
-  faculty             String
-  department          String
-  level               Int
-  semester            Int?
-  semester_start      DateTime?
-  semester_end        DateTime?
-  academic_year       String?
-  file_ref            String
-  file_type           FileType
-  verification_status VerificationStatus @default(PENDING)
-  processing_status   MaterialProcessingStatus @default(UPLOADED)
-  processing_attempts Int                @default(0)
-  processing_error    String?            @db.Text
-  processing_started_at DateTime?
+  id                      String                   @id @default(uuid())
+  title                   String
+  course_code             String?
+  university              String
+  faculty                 String
+  department              String
+  level                   Int
+  semester                Int?
+  semester_start          DateTime?
+  semester_end            DateTime?
+  academic_year           String?
+  file_ref                String
+  file_type               FileType
+  verification_status     VerificationStatus       @default(PENDING)
+  processing_status       MaterialProcessingStatus @default(UPLOADED)
+  processing_attempts     Int                      @default(0)
+  processing_error        String?                  @db.Text
+  processing_started_at   DateTime?
   processing_completed_at DateTime?
-  next_retry_at       DateTime?
-  upload_count        Int                @default(1)
-  contributor_ids     Json               @default("[]")
-  verified_at         DateTime?
-  uploaded_by         String
-  admin_reviewed_by   String?
-  admin_reviewed_at   DateTime?
-  created_at          DateTime           @default(now())
-  content             String?            @db.Text
-  reader_structure    Json?
+  next_retry_at           DateTime?
+  upload_count            Int                      @default(1)
+  contributor_ids         Json                     @default("[]")
+  verified_at             DateTime?
+  uploaded_by             String
+  admin_reviewed_by       String?
+  admin_reviewed_at       DateTime?
+  created_at              DateTime                 @default(now())
+  content                 String?                  @db.Text
+  reader_structure        Json?
 
-  user        User               @relation("UploadedBy", fields: [uploaded_by], references: [id])
-  questions   Question[]
-  embeddings  MaterialEmbedding[]
-  upload_chunks      UploadChunk[] // Named upload_chunks to match codebase
-  sessions    Session[]
-  companion_states  StudyCompanionState[]
-  teachback_attempts TeachBackAttempt[]
+  user                 User                  @relation("UploadedBy", fields: [uploaded_by], references: [id])
+  questions            Question[]
+  embeddings           MaterialEmbedding[]
+  teacher_brain        MaterialTeacherBrain?
+  upload_chunks        UploadChunk[] // Named upload_chunks to match codebase
+  sessions             Session[]
+  companion_states     StudyCompanionState[]
+  teachback_attempts   TeachBackAttempt[]
   memory_dump_attempts MemoryDumpAttempt[]
-  mastery_records    MasteryRecord[]
+  mastery_records      MasteryRecord[]
 
   @@index([course_code])
   @@index([university])
@@ -352,6 +355,37 @@ model Material {
   @@map("materials")
 }
 
+model MaterialTeacherBrain {
+  id                  String   @id @default(uuid())
+  material_id         String   @unique
+  course_code         String?
+  university          String
+  faculty             String
+  department          String
+  level               Int
+  summary             Json     @default("{}")
+  chapter_summaries   Json     @default("[]")
+  concept_graph       Json     @default("[]")
+  prerequisites       Json     @default("[]")
+  formulas            Json     @default("[]")
+  calculation_methods Json     @default("[]")
+  diagrams            Json     @default("[]")
+  misconceptions      Json     @default("[]")
+  exam_angles         Json     @default("[]")
+  teacher_notes       Json     @default("{}")
+  subject_family      String?
+  confidence          Int      @default(50)
+  generated_at        DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  material Material @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([course_code])
+  @@index([department])
+  @@index([subject_family])
+  @@map("material_teacher_brains")
+}
+
 model MaterialEmbedding {
   id          String   @id @default(uuid())
   material_id String
@@ -360,7 +394,8 @@ model MaterialEmbedding {
   embedding   Json
   created_at  DateTime @default(now())
 
-  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
   @@map("material_embeddings")
 }
 
@@ -373,7 +408,8 @@ model UploadChunk {
   status       ChunkStatus @default(PENDING)
   created_at   DateTime    @default(now())
 
-  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
   @@map("upload_chunks")
 }
 
@@ -393,13 +429,14 @@ model Session {
   ended_at     DateTime?
   created_at   DateTime    @default(now())
 
-  user              User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material          Material?             @relation(fields: [material_id], references: [id], onDelete: SetNull)
-  messages          Message[]
-  companion_state   StudyCompanionState?
-  teachbacks        TeachBackAttempt[]
-  memory_dumps      MemoryDumpAttempt[]
-  mastery_records   MasteryRecord[]
+  user            User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material?            @relation(fields: [material_id], references: [id], onDelete: SetNull)
+  messages        Message[]
+  companion_state StudyCompanionState?
+  teachbacks      TeachBackAttempt[]
+  memory_dumps    MemoryDumpAttempt[]
+  mastery_records MasteryRecord[]
+
   @@index([user_id])
   @@index([material_id])
   @@index([user_id, material_id, session_type])
@@ -418,41 +455,41 @@ model Message {
   reply_mode ReplyMode?
   created_at DateTime    @default(now())
 
-  session  Session  @relation(fields: [session_id], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([session_id])
   @@map("messages")
 }
 
 model StudyCompanionState {
-  id                     String               @id @default(uuid())
-  session_id             String               @unique
-  user_id                String
-  material_id            String
-  course_code            String
-  current_phase          StudyCompanionPhase  @default(MATERIAL_SELECTED)
-  current_section_index  Int                  @default(0)
-  last_completed_index   Int                  @default(-1)
-  last_mastery_score     Int?
-  mastery_threshold      Int                  @default(80)
-  roadmap                Json                 @default("[]")
-  progress               Json                 @default("{}")
-  section_context        Json                 @default("{}")
-  refresh_question       String?
-  refresh_answer         String?
-  pending_prompt         String?
-  session_summary        String?
-  external_support_used  Boolean              @default(false)
-  created_at             DateTime             @default(now())
-  updated_at             DateTime             @updatedAt
+  id                    String              @id @default(uuid())
+  session_id            String              @unique
+  user_id               String
+  material_id           String
+  course_code           String
+  current_phase         StudyCompanionPhase @default(MATERIAL_SELECTED)
+  current_section_index Int                 @default(0)
+  last_completed_index  Int                 @default(-1)
+  last_mastery_score    Int?
+  mastery_threshold     Int                 @default(80)
+  roadmap               Json                @default("[]")
+  progress              Json                @default("{}")
+  section_context       Json                @default("{}")
+  refresh_question      String?
+  refresh_answer        String?
+  pending_prompt        String?
+  session_summary       String?
+  external_support_used Boolean             @default(false)
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @updatedAt
 
-  session          Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
-  user             User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material         Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
-  teachbacks       TeachBackAttempt[]
-  memory_dumps     MemoryDumpAttempt[]
-  mastery_records  MasteryRecord[]
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  teachbacks      TeachBackAttempt[]
+  memory_dumps    MemoryDumpAttempt[]
+  mastery_records MasteryRecord[]
 
   @@index([user_id, material_id, course_code])
   @@index([current_phase])
@@ -460,20 +497,20 @@ model StudyCompanionState {
 }
 
 model TeachBackAttempt {
-  id                    String              @id @default(uuid())
-  session_id            String
-  companion_state_id    String
-  user_id               String
-  material_id           String
-  section_index         Int
-  attempt_number        Int
-  phase                 StudyCompanionPhase
-  prompt                String?
-  student_response      String
-  evaluation            String
-  score                 Int
-  passed                Boolean             @default(false)
-  created_at            DateTime            @default(now())
+  id                 String              @id @default(uuid())
+  session_id         String
+  companion_state_id String
+  user_id            String
+  material_id        String
+  section_index      Int
+  attempt_number     Int
+  phase              StudyCompanionPhase
+  prompt             String?
+  student_response   String
+  evaluation         String
+  score              Int
+  passed             Boolean             @default(false)
+  created_at         DateTime            @default(now())
 
   session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
   companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
@@ -486,17 +523,17 @@ model TeachBackAttempt {
 }
 
 model MemoryDumpAttempt {
-  id                    String              @id @default(uuid())
-  session_id            String
-  companion_state_id    String
-  user_id               String
-  material_id           String
-  section_index         Int
-  prompt                String?
-  student_response      String
-  evaluation            String
-  score                 Int
-  created_at            DateTime            @default(now())
+  id                 String   @id @default(uuid())
+  session_id         String
+  companion_state_id String
+  user_id            String
+  material_id        String
+  section_index      Int
+  prompt             String?
+  student_response   String
+  evaluation         String
+  score              Int
+  created_at         DateTime @default(now())
 
   session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
   companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
@@ -509,18 +546,18 @@ model MemoryDumpAttempt {
 }
 
 model MasteryRecord {
-  id                    String              @id @default(uuid())
-  session_id            String
-  companion_state_id    String
-  user_id               String
-  material_id           String
-  course_code           String
-  section_index         Int
-  section_title         String
-  score                 Int
-  status                MasteryStatus
-  failed_concepts       Json                @default("[]")
-  created_at            DateTime            @default(now())
+  id                 String        @id @default(uuid())
+  session_id         String
+  companion_state_id String
+  user_id            String
+  material_id        String
+  course_code        String
+  section_index      Int
+  section_title      String
+  score              Int
+  status             MasteryStatus
+  failed_concepts    Json          @default("[]")
+  created_at         DateTime      @default(now())
 
   session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
   companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
@@ -550,8 +587,8 @@ model Question {
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
 
-  material  Material  @relation(fields: [material_id], references: [id], onDelete: Cascade)
-  attempts  QuestionAttempt[]
+  material   Material          @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  attempts   QuestionAttempt[]
   mock_exams MockExam[]
 
   @@index([course_code])
@@ -573,7 +610,7 @@ model FeatureAccess {
   purchased_at   DateTime   @default(now())
   payment_ref    String     @default("")
 
-  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([feature])
@@ -583,14 +620,15 @@ model FeatureAccess {
 }
 
 model Admin {
-  id            String    @id @default(uuid())
+  id            String      @id @default(uuid())
   name          String
-  email         String    @unique
+  email         String      @unique
   password_hash String
-  role          AdminRole @default(MODERATOR)
+  role          AdminRole   @default(MODERATOR)
   status        AdminStatus @default(active)
-  created_at    DateTime  @default(now())
+  created_at    DateTime    @default(now())
   last_login    DateTime?
+
   @@map("admins")
 }
 
@@ -604,7 +642,7 @@ model RefreshToken {
   created_at  DateTime   @default(now())
   expires_at  DateTime
 
-  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([is_active])
@@ -612,16 +650,16 @@ model RefreshToken {
 }
 
 model DisciplineDocument {
-  id               String   @id @default(uuid())
-  faculty          String
-  department       String
-  course_code      String?
-  document_ref     String
-  version          Int      @default(1)
-  version_notes    String?
-  last_updated_by  String
-  updated_at       DateTime @updatedAt
-  is_active        Boolean  @default(true)
+  id              String   @id @default(uuid())
+  faculty         String
+  department      String
+  course_code     String?
+  document_ref    String
+  version         Int      @default(1)
+  version_notes   String?
+  last_updated_by String
+  updated_at      DateTime @updatedAt
+  is_active       Boolean  @default(true)
 
   @@index([department])
   @@index([course_code])
@@ -636,37 +674,38 @@ model University {
   location    String?
   departments Department[]
   created_at  DateTime     @default(now())
+
   @@map("universities")
 }
 
 model Department {
-  id            String     @id @default(uuid())
-  name          String
-  university_id String
-  university    University @relation(fields: [university_id], references: [id])
-  faculty       String
-  courses       Course[]
+  id              String          @id @default(uuid())
+  name            String
+  university_id   String
+  university      University      @relation(fields: [university_id], references: [id])
+  faculty         String
+  courses         Course[]
   student_courses StudentCourse[]
-  created_at    DateTime   @default(now())
+  created_at      DateTime        @default(now())
 
   @@unique([name, university_id])
   @@map("departments")
 }
 
 model ExamPrepPlan {
-  id           String     @id @default(uuid())
-  user_id      String
-  user         User       @relation(fields: [user_id], references: [id])
-  course_code  String?
-  assessment_type String   @default("EXAM")
-  exam_date    DateTime
-  duration_minutes Int     @default(120)
-  objective_question_count Int @default(40)
-  theory_question_count Int @default(5)
-  created_at   DateTime   @default(now())
-  updated_at   DateTime   @updatedAt
-  tasks        PrepTask[]
-  mock_exams   MockExam[]
+  id                       String     @id @default(uuid())
+  user_id                  String
+  user                     User       @relation(fields: [user_id], references: [id])
+  course_code              String?
+  assessment_type          String     @default("EXAM")
+  exam_date                DateTime
+  duration_minutes         Int        @default(120)
+  objective_question_count Int        @default(40)
+  theory_question_count    Int        @default(5)
+  created_at               DateTime   @default(now())
+  updated_at               DateTime   @updatedAt
+  tasks                    PrepTask[]
+  mock_exams               MockExam[]
 
   @@index([user_id])
   @@map("exam_prep_plans")
@@ -682,30 +721,33 @@ model PrepTask {
   completed    Boolean      @default(false)
   completed_at DateTime?
   created_at   DateTime     @default(now())
+
   @@map("prep_tasks")
 }
 
 model MockExam {
-  id          String       @id @default(uuid())
-  plan_id     String
-  plan        ExamPrepPlan @relation(fields: [plan_id], references: [id])
-  title       String
-  questions   Question[]
-  created_at  DateTime     @default(now())
-  attempts    MockAttempt[]
+  id         String        @id @default(uuid())
+  plan_id    String
+  plan       ExamPrepPlan  @relation(fields: [plan_id], references: [id])
+  title      String
+  questions  Question[]
+  created_at DateTime      @default(now())
+  attempts   MockAttempt[]
+
   @@map("mock_exams")
 }
 
 model MockAttempt {
-  id             String    @id @default(uuid())
-  mock_exam_id   String
-  mock_exam      MockExam  @relation(fields: [mock_exam_id], references: [id])
-  user_id        String
-  user           User      @relation(fields: [user_id], references: [id])
-  score          Float
-  feedback       String?
-  started_at     DateTime  @default(now())
-  completed_at   DateTime?
+  id           String    @id @default(uuid())
+  mock_exam_id String
+  mock_exam    MockExam  @relation(fields: [mock_exam_id], references: [id])
+  user_id      String
+  user         User      @relation(fields: [user_id], references: [id])
+  score        Float
+  feedback     String?
+  started_at   DateTime  @default(now())
+  completed_at DateTime?
+
   @@map("mock_attempts")
 }
 
@@ -728,11 +770,11 @@ model CompetitionRoom {
   created_at         DateTime              @default(now())
   updated_at         DateTime              @updatedAt
 
-  host         User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
-  tournament   Tournament?              @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
+  host             User                     @relation("CompetitionHost", fields: [host_user_id], references: [id], onDelete: Cascade)
+  tournament       Tournament?              @relation(fields: [tournament_id], references: [id], onDelete: SetNull)
   tournament_stage TournamentStage?
-  participants CompetitionParticipant[]
-  match_session CompetitionMatchSession?
+  participants     CompetitionParticipant[]
+  match_session    CompetitionMatchSession?
 
   @@index([host_user_id])
   @@index([tournament_id])
@@ -742,21 +784,21 @@ model CompetitionRoom {
 }
 
 model CompetitionParticipant {
-  id                 String                       @id @default(uuid())
-  room_id            String
-  user_id            String
-  course_code        String?
-  score              Int                          @default(0)
-  correct_answers    Int                          @default(0)
-  wrong_answers      Int                          @default(0)
+  id                  String                       @id @default(uuid())
+  room_id             String
+  user_id             String
+  course_code         String?
+  score               Int                          @default(0)
+  correct_answers     Int                          @default(0)
+  wrong_answers       Int                          @default(0)
   average_response_ms Int?
-  joined_at          DateTime                     @default(now())
-  ready_at           DateTime?
-  finished_at        DateTime?
-  status             CompetitionParticipantStatus @default(JOINED)
+  joined_at           DateTime                     @default(now())
+  ready_at            DateTime?
+  finished_at         DateTime?
+  status              CompetitionParticipantStatus @default(JOINED)
 
-  room  CompetitionRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
-  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  room CompetitionRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  user User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([room_id, user_id])
   @@index([user_id])
@@ -765,49 +807,49 @@ model CompetitionParticipant {
 }
 
 model Tournament {
-  id                  String            @id @default(uuid())
-  title               String
-  description         String?
-  status              TournamentStatus  @default(DRAFT)
-  campaign_type       TournamentCampaignType @default(SIMPLE)
-  format              CompetitionFormat @default(SHARED_COURSE)
-  shared_course_code  String?
-  source_material_ids String[]          @default([])
-  question_count      Int               @default(10)
-  question_timer_sec  Int               @default(20)
-  max_participants    Int?
-  prize_summary       String?
-  campaign_banner_url String?
-  campaign_accent_color String?
-  campaign_cta_label  String?
-  campaign_cta_url    String?
-  campaign_preheader  String?
-  prediction_enabled  Boolean           @default(false)
+  id                       String                  @id @default(uuid())
+  title                    String
+  description              String?
+  status                   TournamentStatus        @default(DRAFT)
+  campaign_type            TournamentCampaignType  @default(SIMPLE)
+  format                   CompetitionFormat       @default(SHARED_COURSE)
+  shared_course_code       String?
+  source_material_ids      String[]                @default([])
+  question_count           Int                     @default(10)
+  question_timer_sec       Int                     @default(20)
+  max_participants         Int?
+  prize_summary            String?
+  campaign_banner_url      String?
+  campaign_accent_color    String?
+  campaign_cta_label       String?
+  campaign_cta_url         String?
+  campaign_preheader       String?
+  prediction_enabled       Boolean                 @default(false)
   prediction_prize_summary String?
-  prediction_winner_count Int?
-  prediction_closes_at DateTime?
-  share_template      String?
-  audience_scope      TournamentAudienceScope @default(EVERYONE)
-  audience_university String?
-  audience_faculty    String?
-  audience_department String?
-  scheduled_at        DateTime
-  registration_closes_at DateTime?
-  late_join_cutoff_at DateTime?
-  check_in_opens_at   DateTime?
-  check_in_closes_at  DateTime?
-  published_at        DateTime?
-  created_by_admin_id String
-  created_at          DateTime          @default(now())
-  updated_at          DateTime          @updatedAt
+  prediction_winner_count  Int?
+  prediction_closes_at     DateTime?
+  share_template           String?
+  audience_scope           TournamentAudienceScope @default(EVERYONE)
+  audience_university      String?
+  audience_faculty         String?
+  audience_department      String?
+  scheduled_at             DateTime
+  registration_closes_at   DateTime?
+  late_join_cutoff_at      DateTime?
+  check_in_opens_at        DateTime?
+  check_in_closes_at       DateTime?
+  published_at             DateTime?
+  created_by_admin_id      String
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
 
-  entries TournamentEntry[]
-  stages  TournamentStage[]
+  entries            TournamentEntry[]
+  stages             TournamentStage[]
   stage_participants TournamentStageParticipant[]
-  interests TournamentSpectatorInterest[]
-  predictions TournamentPrediction[]
-  cheers TournamentCheer[]
-  rooms   CompetitionRoom[]
+  interests          TournamentSpectatorInterest[]
+  predictions        TournamentPrediction[]
+  cheers             TournamentCheer[]
+  rooms              CompetitionRoom[]
 
   @@index([status])
   @@index([scheduled_at])
@@ -815,12 +857,12 @@ model Tournament {
 }
 
 model TournamentEntry {
-  id            String              @id @default(uuid())
+  id            String                @id @default(uuid())
   tournament_id String
   user_id       String
   status        TournamentEntryStatus @default(REGISTERED)
-  share_token   String?             @unique
-  joined_at     DateTime            @default(now())
+  share_token   String?               @unique
+  joined_at     DateTime              @default(now())
   checked_in_at DateTime?
 
   tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
@@ -854,10 +896,10 @@ model TournamentStage {
   created_at              DateTime              @default(now())
   updated_at              DateTime              @updatedAt
 
-  tournament   Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
-  room         CompetitionRoom? @relation(fields: [room_id], references: [id], onDelete: SetNull)
+  tournament   Tournament                   @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  room         CompetitionRoom?             @relation(fields: [room_id], references: [id], onDelete: SetNull)
   participants TournamentStageParticipant[]
-  predictions TournamentPrediction[]
+  predictions  TournamentPrediction[]
 
   @@unique([tournament_id, stage_order])
   @@index([tournament_id])
@@ -895,12 +937,12 @@ model TournamentStageParticipant {
 }
 
 model TournamentSpectatorInterest {
-  id            String                 @id @default(uuid())
-  tournament_id String
-  user_id       String
-  interest_type TournamentInterestType
+  id                 String                 @id @default(uuid())
+  tournament_id      String
+  user_id            String
+  interest_type      TournamentInterestType
   supporting_user_id String?
-  created_at    DateTime               @default(now())
+  created_at         DateTime               @default(now())
 
   tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -912,19 +954,19 @@ model TournamentSpectatorInterest {
 }
 
 model TournamentPrediction {
-  id            String                     @id @default(uuid())
-  tournament_id String
-  stage_id      String?
-  user_id       String
+  id                String                     @id @default(uuid())
+  tournament_id     String
+  stage_id          String?
+  user_id           String
   predicted_user_id String
-  status        TournamentPredictionStatus @default(OPEN)
-  created_at    DateTime                   @default(now())
-  locked_at     DateTime?
+  status            TournamentPredictionStatus @default(OPEN)
+  created_at        DateTime                   @default(now())
+  locked_at         DateTime?
 
-  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
-  stage      TournamentStage? @relation(fields: [stage_id], references: [id], onDelete: Cascade)
-  user       User       @relation("TournamentPredictionUser", fields: [user_id], references: [id], onDelete: Cascade)
-  predicted_user User   @relation("TournamentPredictedParticipant", fields: [predicted_user_id], references: [id], onDelete: Cascade)
+  tournament     Tournament       @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  stage          TournamentStage? @relation(fields: [stage_id], references: [id], onDelete: Cascade)
+  user           User             @relation("TournamentPredictionUser", fields: [user_id], references: [id], onDelete: Cascade)
+  predicted_user User             @relation("TournamentPredictedParticipant", fields: [predicted_user_id], references: [id], onDelete: Cascade)
 
   @@unique([tournament_id, stage_id, user_id])
   @@index([tournament_id])
@@ -933,17 +975,17 @@ model TournamentPrediction {
 }
 
 model TournamentCheer {
-  id            String   @id @default(uuid())
-  tournament_id String
-  stage_id      String?
-  spectator_user_id String
+  id                  String   @id @default(uuid())
+  tournament_id       String
+  stage_id            String?
+  spectator_user_id   String
   participant_user_id String
-  amount        Int      @default(1)
-  created_at    DateTime @default(now())
+  amount              Int      @default(1)
+  created_at          DateTime @default(now())
 
-  tournament Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
-  spectator  User       @relation("TournamentCheerSpectator", fields: [spectator_user_id], references: [id], onDelete: Cascade)
-  participant User      @relation("TournamentCheerParticipant", fields: [participant_user_id], references: [id], onDelete: Cascade)
+  tournament  Tournament @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  spectator   User       @relation("TournamentCheerSpectator", fields: [spectator_user_id], references: [id], onDelete: Cascade)
+  participant User       @relation("TournamentCheerParticipant", fields: [participant_user_id], references: [id], onDelete: Cascade)
 
   @@index([tournament_id])
   @@index([stage_id])
@@ -952,17 +994,17 @@ model TournamentCheer {
 }
 
 model CompetitionMatchSession {
-  id                 String             @id @default(uuid())
-  room_id            String             @unique
-  status             MatchSessionStatus @default(LIVE)
-  current_index      Int                @default(0)
+  id                  String             @id @default(uuid())
+  room_id             String             @unique
+  status              MatchSessionStatus @default(LIVE)
+  current_index       Int                @default(0)
   question_started_at DateTime
   question_expires_at DateTime
-  question_ids       Json               @default("[]")
-  answered_user_ids  Json               @default("{}")
-  scoreboard         Json               @default("{}")
-  created_at         DateTime           @default(now())
-  updated_at         DateTime           @updatedAt
+  question_ids        Json               @default("[]")
+  answered_user_ids   Json               @default("{}")
+  scoreboard          Json               @default("{}")
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
 
   room CompetitionRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
 
@@ -971,16 +1013,16 @@ model CompetitionMatchSession {
 }
 
 model Transaction {
-  id          String   @id @default(uuid())
-  user_id     String
-  user        User     @relation(fields: [user_id], references: [id])
-  feature     Feature
-  plan        String
-  amount      Float
-  status      String
-  reference   String   @unique
-  university  String?
-  created_at  DateTime @default(now())
+  id         String   @id @default(uuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id])
+  feature    Feature
+  plan       String
+  amount     Float
+  status     String
+  reference  String   @unique
+  university String?
+  created_at DateTime @default(now())
 
   @@map("transactions")
 }
@@ -1007,6 +1049,7 @@ model QuestionAttempt {
   is_correct  Boolean
   feedback    String?
   created_at  DateTime @default(now())
+
   @@map("question_attempts")
 }
 
@@ -1047,7 +1090,7 @@ model Course {
 }
 
 model StudentCourse {
-  id             String     @id @default(uuid())
+  id             String   @id @default(uuid())
   user_id        String
   department_id  String
   code           String
@@ -1056,9 +1099,9 @@ model StudentCourse {
   semester       Int
   semester_start DateTime
   semester_end   DateTime
-  source         String     @default("student")
-  created_at     DateTime   @default(now())
-  updated_at     DateTime   @updatedAt
+  source         String   @default("student")
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
   department Department @relation(fields: [department_id], references: [id], onDelete: Cascade)
@@ -1070,19 +1113,19 @@ model StudentCourse {
 }
 
 model WaitlistEntry {
-  id             String   @id @default(uuid())
-  full_name      String
-  email          String   @unique
-  phone          String?
-  university     String?
-  department     String?
-  level          Int?
-  main_struggle  String?
-  source         String   @default("landing_page")
-  status         String   @default("WAITLISTED")
-  metadata       Json     @default("{}")
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  id            String   @id @default(uuid())
+  full_name     String
+  email         String   @unique
+  phone         String?
+  university    String?
+  department    String?
+  level         Int?
+  main_struggle String?
+  source        String   @default("landing_page")
+  status        String   @default("WAITLISTED")
+  metadata      Json     @default("{}")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   @@index([email])
   @@index([university])
@@ -1090,4 +1133,3 @@ model WaitlistEntry {
   @@index([created_at])
   @@map("waitlist_entries")
 }
-
