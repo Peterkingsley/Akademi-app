@@ -196,6 +196,22 @@ type RelevantMaterialContext = {
   promptContext: string;
 };
 
+type TutorMessageQualityResult = {
+  passed: boolean;
+  issues: string[];
+  correctedContent?: string;
+};
+
+type TutorMessageQualityArgs = {
+  content: string;
+  phase: StudyCompanionPhase | 'INTRO' | 'CHECKPOINT' | 'RETEACH';
+  turnType: 'teaching' | 'checkpoint_question' | 'reteach' | 'transition';
+  section: RoadmapSection;
+  isCalculationHeavy: boolean;
+  isDiagramHeavy: boolean;
+  questionAllowed: boolean;
+};
+
 type StudentMaterialMemoryRow = {
   id: string;
   user_id: string;
@@ -1032,6 +1048,117 @@ function explainChunkRelevance(chunkText: string, queryParts: string[]) {
   }
 
   return 'Supports continuity with a related explanation from the same material.';
+}
+
+function hasStepLanguage(text: string) {
+  return /\bstep\b|\bfirst\b|\bsecond\b|\bthen\b|\bnext\b|\bsubstitute\b|\bsolve\b|\bcalculate\b|\bapply\b/i.test(text);
+}
+
+function hasVisualLanguage(text: string) {
+  return /\bimagine\b|\bpicture\b|\bvisual\b|\bflow\b|\barrow\b|\bgraph\b|\baxis\b|\blabel\b|\bpart\b|\bstage\b|\bprocess\b|\bcurve\b|\bdiagram\b/i.test(text);
+}
+
+function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
+  const firstSentence = normalizeText(args.section.content || '')
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean)[0];
+
+  if (args.turnType === 'checkpoint_question') {
+    return `Explain ${args.section.title} in your own words using one clear point at a time.`;
+  }
+
+  if (args.isCalculationHeavy && args.phase === PASS_2) {
+    return `For ${args.section.title}, focus on the formula or method, define each variable clearly, and work through the steps in order with one simple example.`;
+  }
+
+  if (args.isDiagramHeavy) {
+    return `Picture ${args.section.title} as a clear process or diagram. Start with the main parts, then explain how each part or stage connects to the next.`;
+  }
+
+  return firstSentence
+    ? removeAccidentalTeachingQuestions(firstSentence)
+    : `This part explains the core idea in ${args.section.title} and why it matters for the section.`;
+}
+
+function applyTutorMessageCorrections(
+  content: string,
+  issues: string[],
+  context: TutorMessageQualityArgs,
+) {
+  let corrected = normalizeText(content);
+
+  if (issues.includes('question_not_allowed') || !context.questionAllowed) {
+    corrected = removeAccidentalTeachingQuestions(corrected);
+  }
+
+  if (issues.includes('too_long')) {
+    corrected = truncate(corrected, context.turnType === 'checkpoint_question' ? 260 : 900);
+  }
+
+  if (issues.includes('too_short') || issues.includes('empty_content')) {
+    corrected = buildDeterministicTutorFallback(context);
+  }
+
+  if (issues.includes('missing_calculation_steps') && context.phase === PASS_2) {
+    corrected = `${corrected} State the formula, define the variables, then show the steps in order.`.trim();
+  }
+
+  if (issues.includes('missing_visual_language')) {
+    corrected = `${corrected} Picture the process clearly and follow the main parts or stages in order.`.trim();
+  }
+
+  if (!context.questionAllowed) {
+    corrected = removeAccidentalTeachingQuestions(corrected);
+  } else if (context.turnType === 'checkpoint_question') {
+    corrected = sanitizeSingleQuestionTurn(corrected);
+  }
+
+  return normalizeText(corrected);
+}
+
+function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessageQualityResult {
+  const normalized = normalizeText(args.content || '');
+  const issues: string[] = [];
+
+  if (!normalized) {
+    issues.push('empty_content');
+  }
+
+  if (normalized.length > (args.turnType === 'checkpoint_question' ? 320 : 1200)) {
+    issues.push('too_long');
+  }
+
+  if (normalized.length < 40) {
+    issues.push('too_short');
+  }
+
+  if (!args.questionAllowed && normalized.includes('?')) {
+    issues.push('question_not_allowed');
+  }
+
+  if ((args.phase === PASS_1 || args.phase === PASS_2 || args.phase === PASS_3) && normalized.includes('?')) {
+    if (!issues.includes('question_not_allowed')) {
+      issues.push('question_not_allowed');
+    }
+  }
+
+  if (args.isCalculationHeavy && args.phase === PASS_2) {
+    if (!hasMathNotation(normalized) && !hasStepLanguage(normalized)) {
+      issues.push('missing_calculation_steps');
+    }
+  }
+
+  if (args.isDiagramHeavy && !hasVisualLanguage(normalized)) {
+    issues.push('missing_visual_language');
+  }
+
+  const correctedContent = issues.length ? applyTutorMessageCorrections(normalized, issues, args) : undefined;
+  return {
+    passed: issues.length === 0,
+    issues,
+    correctedContent,
+  };
 }
 
 function parseStudySectionLessonPlanRecord(value: {
@@ -2033,6 +2160,118 @@ export class StudyCompanionService {
     };
   }
 
+  private async enforceTutorMessageQuality(
+    args: TutorMessageQualityArgs & {
+      prompt: string;
+      maxTokens?: number;
+      contextMeta?: { sessionId: string; materialId: string; sectionIndex: number; prompt: string };
+    },
+  ) {
+    console.log('tutor_quality_check_started', {
+      phase: args.phase,
+      turnType: args.turnType,
+      prompt: args.contextMeta?.prompt,
+      sectionTitle: args.section.title,
+    });
+
+    const validation = validateTutorMessageQuality(args);
+    if (validation.passed) {
+      console.log('tutor_quality_check_passed', {
+        phase: args.phase,
+        turnType: args.turnType,
+        prompt: args.contextMeta?.prompt,
+      });
+      return normalizeText(args.content);
+    }
+
+    console.log('tutor_quality_check_failed', {
+      phase: args.phase,
+      turnType: args.turnType,
+      prompt: args.contextMeta?.prompt,
+      issues: validation.issues,
+    });
+
+    const corrected = normalizeText(validation.correctedContent || '');
+    const regenerationNeeded =
+      validation.issues.includes('empty_content') ||
+      validation.issues.includes('missing_calculation_steps') ||
+      validation.issues.includes('missing_visual_language');
+
+    if (!regenerationNeeded && corrected) {
+      console.log('tutor_quality_correction_applied', {
+        phase: args.phase,
+        turnType: args.turnType,
+        prompt: args.contextMeta?.prompt,
+        issues: validation.issues,
+      });
+      return corrected;
+    }
+
+    console.log('tutor_quality_regeneration_used', {
+      phase: args.phase,
+      turnType: args.turnType,
+      prompt: args.contextMeta?.prompt,
+      issues: validation.issues,
+    });
+
+    try {
+      const regenerationPrompt = [
+        args.prompt,
+        'Quality fix required:',
+        args.questionAllowed
+          ? 'Keep exactly one short question if this turn is a checkpoint.'
+          : 'Do not include any question mark or question.',
+        args.isCalculationHeavy && args.phase === PASS_2
+          ? 'This is a calculation-heavy Pass 2. Include the formula or method and the solving steps clearly.'
+          : '',
+        args.isDiagramHeavy
+          ? 'Use clear visual language such as imagine, picture, parts, arrows, stages, flow, graph, axis, or labels.'
+          : '',
+        'Stay grounded in the current section.',
+        'Keep the reply concise.',
+      ].filter(Boolean).join('\n\n');
+
+      const regenerated = await generateText(
+        regenerationPrompt,
+        this.companionSystemPrompt(),
+        args.maxTokens || 320,
+      );
+      const secondPass = validateTutorMessageQuality({
+        ...args,
+        content: regenerated,
+      });
+      if (secondPass.passed) {
+        return normalizeText(regenerated);
+      }
+      if (secondPass.correctedContent) {
+        console.log('tutor_quality_correction_applied', {
+          phase: args.phase,
+          turnType: args.turnType,
+          prompt: args.contextMeta?.prompt,
+          issues: secondPass.issues,
+        });
+        return normalizeText(secondPass.correctedContent);
+      }
+    } catch (error) {
+      console.error('tutor_quality_regeneration_used', {
+        phase: args.phase,
+        turnType: args.turnType,
+        prompt: args.contextMeta?.prompt,
+        error: error instanceof Error ? error.message : 'Unknown regeneration error',
+      });
+    }
+
+    const fallback = buildDeterministicTutorFallback(args);
+    console.log('tutor_quality_correction_applied', {
+      phase: args.phase,
+      turnType: args.turnType,
+      prompt: args.contextMeta?.prompt,
+      issues: validation.issues,
+      fallback: true,
+    });
+    return normalizeText(fallback);
+  }
+
   private async loadSessionContext(sessionId: string) {
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
@@ -2269,7 +2508,24 @@ export class StudyCompanionService {
         prompt: 'start_intro',
       });
     }
-    const content = await generateText(introPrompt, this.companionSystemPrompt());
+    const rawContent = await generateText(introPrompt, this.companionSystemPrompt());
+    const content = await this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt: introPrompt,
+      maxTokens: 260,
+      phase: 'INTRO',
+      turnType: 'transition',
+      section,
+      isCalculationHeavy: sectionCalculationContext.detected,
+      isDiagramHeavy: sectionDiagramContext.detected,
+      questionAllowed: false,
+      contextMeta: {
+        sessionId,
+        materialId: material.id,
+        sectionIndex: nextIndex,
+        prompt: 'start_intro',
+      },
+    });
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: PASS_1,
       current_section_index: nextIndex,
@@ -2390,8 +2646,19 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
-    const content = await generateText(prompt, this.companionSystemPrompt(), 900);
-    return removeAccidentalTeachingQuestions(content);
+    const rawContent = await generateText(prompt, this.companionSystemPrompt(), 900);
+    return this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt,
+      maxTokens: 900,
+      phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
+      turnType: 'teaching',
+      section,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      questionAllowed: false,
+      contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
+    });
   }
 
   private async evaluateTeachBack(
@@ -2567,8 +2834,19 @@ export class StudyCompanionService {
         prompt: `teachback_prompt_${attemptNumber}`,
       });
     }
-    const content = await generateText(prompt, this.companionSystemPrompt(), 220);
-    return sanitizeSingleQuestionTurn(content);
+    const rawContent = await generateText(prompt, this.companionSystemPrompt(), 220);
+    return this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt,
+      maxTokens: 220,
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      section,
+      isCalculationHeavy: false,
+      isDiagramHeavy: diagramContext.detected,
+      questionAllowed: true,
+      contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
+    });
   }
 
   private async buildMemoryDumpPrompt(
@@ -2583,19 +2861,31 @@ export class StudyCompanionService {
         prompt: 'memory_dump_prompt',
       });
     }
-    const content = await generateText(
-      [
-        `Section title: ${section.title}`,
-        teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
-        lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
-        `Section content:\n${truncate(section.content, 2600)}`,
-        lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
-        'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
-      ].join('\n\n'),
+    const prompt = [
+      `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
+      `Section content:\n${truncate(section.content, 2600)}`,
+      lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
+      'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
+    ].join('\n\n');
+    const rawContent = await generateText(
+      prompt,
       this.companionSystemPrompt(),
       220,
     );
-    return sanitizeSingleQuestionTurn(content);
+    return this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt,
+      maxTokens: 220,
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      section,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      questionAllowed: true,
+      contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
+    });
   }
 
   private async buildGapReteach(
@@ -2639,26 +2929,39 @@ export class StudyCompanionService {
         prompt: 'gap_reteach',
       });
     }
-    return generateText(
-      [
-        `Section title: ${section.title}`,
-        teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
-        lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
-        relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
-        calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
-        diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
-        `Section content:\n${truncate(section.content, 3000)}`,
-        `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
-        lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
-        calculationContext.detected
-          ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
-          : diagramContext.detected
-            ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
-            : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
-      ].join('\n\n'),
+    const prompt = [
+      `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
+      relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
+      diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
+      `Section content:\n${truncate(section.content, 3000)}`,
+      `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
+      lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
+      calculationContext.detected
+        ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
+        : diagramContext.detected
+          ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
+          : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
+    ].join('\n\n');
+    const rawContent = await generateText(
+      prompt,
       this.companionSystemPrompt(),
       650,
     );
+    return this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt,
+      maxTokens: 650,
+      phase: 'RETEACH',
+      turnType: 'reteach',
+      section,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      questionAllowed: false,
+      contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
+    });
   }
 
   private async buildInterruptResponse(
@@ -2691,8 +2994,19 @@ export class StudyCompanionService {
         prompt: 'interrupt_response',
       });
     }
-    const content = await generateText(prompt, this.companionSystemPrompt(), 320);
-    return sanitizeSingleQuestionTurn(content);
+    const rawContent = await generateText(prompt, this.companionSystemPrompt(), 320);
+    return this.enforceTutorMessageQuality({
+      content: rawContent,
+      prompt,
+      maxTokens: 320,
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      section,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      questionAllowed: true,
+      contextMeta: contextMeta ? { ...contextMeta, prompt: 'interrupt_response' } : undefined,
+    });
   }
 
   private async buildMasteryOutcome(section: RoadmapSection, score: number, passed: boolean, failedConcepts: string[]) {
