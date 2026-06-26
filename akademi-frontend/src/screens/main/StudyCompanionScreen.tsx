@@ -44,6 +44,7 @@ type StudyCompanionRoute = RouteProp<MainStackParamList, "StudyCompanion">;
 type StartMode = "beginning" | "continue" | "specific" | "roadmap";
 type TutorRuntimeState = "idle" | "ai_speaking" | "listening" | "student_speaking" | "thinking" | "muted";
 type UiMessage = Message & { displayContent: string; interrupted?: boolean };
+type StudyCompanionPhaseName = StudyCompanionState["phase"];
 
 const phaseLabels: Record<string, string> = {
   MATERIAL_SELECTION_REQUIRED: "Choose material",
@@ -127,6 +128,51 @@ function isLikelyAiSpeechEcho(transcript: string, aiText: string) {
   const ai = normalizeTranscriptMatch(aiText);
   if (!spoken || !ai) return false;
   return ai.includes(spoken);
+}
+
+const lockedStudyPhases = new Set<StudyCompanionPhaseName>([
+  "TEACHBACK_1_REQUESTED",
+  "TEACHBACK_2_REQUESTED",
+  "MEMORY_DUMP_REQUESTED",
+  "NEXT_SECTION_READY",
+  "ROADMAP_GENERATED",
+]);
+
+const autoContinueStudyPhases = new Set<StudyCompanionPhaseName>([
+  "TEACHING_PASS_1_BIG_PICTURE",
+  "TEACHING_PASS_2_DETAILS",
+  "TEACHING_PASS_3_CONNECTIONS",
+]);
+
+function isAutoContinueLockedTurn(message: Message) {
+  const metadata = message.metadata;
+  const phase = metadata?.study_companion?.phase;
+
+  return Boolean(
+    metadata?.waitForStudent ||
+      metadata?.turnType === "checkpoint_question" ||
+      metadata?.nextAction === "evaluate_answer" ||
+      (phase && lockedStudyPhases.has(phase)),
+  );
+}
+
+function canAutoContinueTutorTurn(message: Message) {
+  const phase = message.metadata?.study_companion?.phase;
+  return Boolean(
+    message.metadata?.autoContinue &&
+      phase &&
+      autoContinueStudyPhases.has(phase) &&
+      !isAutoContinueLockedTurn(message),
+  );
+}
+
+function hasMeaningfulStudentTranscript(transcript: string, currentAiText = "") {
+  const normalized = normalizeTranscriptMatch(transcript);
+  if (!normalized) return false;
+  if (normalized.length < 3) return false;
+  if (normalized.split(/\s+/).filter(Boolean).length === 1 && normalized.length < 4) return false;
+  if (currentAiText && isLikelyAiSpeechEcho(transcript, currentAiText)) return false;
+  return true;
 }
 
 export const StudyCompanionScreen: React.FC = () => {
@@ -296,7 +342,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const beginAutoContinuePrefetch = useCallback((message: Message) => {
     const metadata = message.metadata;
     if (!metadata) return null;
-    if (metadata.waitForStudent) {
+    if (isAutoContinueLockedTurn(message)) {
       pendingAutoContinueRef.current = false;
       continuePrefetchTokenRef.current += 1;
       prefetchedContinueRef.current = null;
@@ -304,7 +350,7 @@ export const StudyCompanionScreen: React.FC = () => {
       return null;
     }
 
-    if (metadata.autoContinue) {
+    if (canAutoContinueTutorTurn(message)) {
       pendingAutoContinueRef.current = true;
       const token = continuePrefetchTokenRef.current + 1;
       continuePrefetchTokenRef.current = token;
@@ -338,7 +384,7 @@ export const StudyCompanionScreen: React.FC = () => {
     const metadata = message.metadata;
     if (!metadata) return null;
 
-    if (metadata.waitForStudent) {
+    if (isAutoContinueLockedTurn(message)) {
       pendingAutoContinueRef.current = false;
       continuePrefetchTokenRef.current += 1;
       prefetchedContinueRef.current = null;
@@ -354,7 +400,7 @@ export const StudyCompanionScreen: React.FC = () => {
       return null;
     }
 
-    if (!metadata.autoContinue) {
+    if (!canAutoContinueTutorTurn(message)) {
       pendingAutoContinueRef.current = false;
       continuePrefetchTokenRef.current += 1;
       prefetchedContinueRef.current = null;
@@ -440,7 +486,7 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const sendTypedOrSpokenResponse = useCallback(async (content: string, interrupted = false) => {
     const trimmed = content.trim();
-    if (!trimmed || requestInFlightRef.current) return;
+    if (!hasMeaningfulStudentTranscript(trimmed, interrupted ? currentAiSpeechTextRef.current : "") || requestInFlightRef.current) return;
 
     requestInFlightRef.current = true;
     pendingAutoContinueRef.current = false;
@@ -468,7 +514,7 @@ export const StudyCompanionScreen: React.FC = () => {
   }, [appendStudentMessage, clearSilenceTimer, processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
 
   const handleBargeIn = useCallback(async (transcript: string) => {
-    if (!transcript.trim() || interruptingRef.current) return;
+    if (!hasMeaningfulStudentTranscript(transcript, currentAiSpeechTextRef.current) || interruptingRef.current) return;
     interruptingRef.current = true;
     setMessages((prev) =>
       prev.map((item) =>
@@ -484,7 +530,7 @@ export const StudyCompanionScreen: React.FC = () => {
 
     const resultListener = addLiveRecognitionListener("result", (event?: any) => {
       const transcript = extractTranscript(event);
-      if (!transcript) return;
+      if (!hasMeaningfulStudentTranscript(transcript, runtimeStateRef.current === "ai_speaking" ? currentAiSpeechTextRef.current : "")) return;
 
       latestTranscriptRef.current = transcript;
       setRecognitionTranscript(transcript);
@@ -505,7 +551,7 @@ export const StudyCompanionScreen: React.FC = () => {
         clearSilenceTimer();
         silenceTimerRef.current = setTimeout(() => {
           const finalTranscript = latestTranscriptRef.current.trim();
-          if (finalTranscript && !requestInFlightRef.current) {
+          if (hasMeaningfulStudentTranscript(finalTranscript) && !requestInFlightRef.current) {
             latestTranscriptRef.current = "";
             void sendTypedOrSpokenResponse(finalTranscript, false);
           }

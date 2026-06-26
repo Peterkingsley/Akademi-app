@@ -114,6 +114,19 @@ function sanitizeSingleQuestionTurn(content: string) {
   return trimAfterFirstQuestion(normalizeText(content));
 }
 
+function removeAccidentalTeachingQuestions(content: string) {
+  const normalized = normalizeText(content);
+  if (!normalized.includes('?')) return normalized;
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => !sentence.includes('?'));
+
+  return (sentences.join(' ') || normalized.slice(0, normalized.indexOf('?'))).trim();
+}
+
 function isIntroLikeSection(section: RoadmapSection) {
   const title = section.title.toLowerCase().trim();
 
@@ -580,19 +593,20 @@ export class StudyCompanionService {
   private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3) {
     const instructions =
       pass === 1
-        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask the student a question inside the teaching paragraph.'
+        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
         : pass === 2
-          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown.'
-          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural.'
+          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
+          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.'
 
     const prompt = [
       `Section title: ${section.title}`,
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
-      'End naturally without asking for permission to continue.',
+      'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
     ].join('\n\n');
 
-    return generateText(prompt, this.companionSystemPrompt(), 900);
+    const content = await generateText(prompt, this.companionSystemPrompt(), 900);
+    return removeAccidentalTeachingQuestions(content);
   }
 
   private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number) {
