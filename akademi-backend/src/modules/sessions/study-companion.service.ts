@@ -397,6 +397,114 @@ function readSectionContext(value: unknown): SectionContext {
   return safeJsonObject<SectionContext>(value, {});
 }
 
+function buildTeachingDecisionPromptLines(
+  decision: TeachingDecision,
+  options?: {
+    pass?: 1 | 2 | 3;
+    includeCheckpoint?: boolean;
+    includeInterrupt?: boolean;
+    includeReteach?: boolean;
+    includeIntro?: boolean;
+  },
+) {
+  const lines: string[] = [
+    `Teaching decision strategy: ${decision.strategy}.`,
+    `Teaching pace: ${decision.pace}.`,
+  ];
+
+  if (decision.shouldRepairPrerequisite) {
+    lines.push(
+      'There is a prerequisite weakness. Before teaching the main idea, insert a short prerequisite refresh.',
+    );
+  }
+
+  if (decision.pace === 'slow') {
+    lines.push('Teach slowly.');
+    lines.push('Explain every important transition.');
+    lines.push('Do not assume prior knowledge.');
+  } else if (decision.pace === 'fast') {
+    lines.push('Be concise.');
+    lines.push('Avoid over-explaining.');
+    lines.push('Move confidently.');
+  }
+
+  switch (decision.strategy) {
+    case 'worked_example_first':
+      lines.push('Preferred teaching order: worked example, then explanation, then definition.');
+      break;
+    case 'analogy_first':
+      lines.push('Preferred teaching order: analogy, then intuition, then definition, then example.');
+      break;
+    case 'visual_first':
+      lines.push('Preferred teaching order: mental visual, then explanation, then definition, then example.');
+      break;
+    case 'problem_first':
+      lines.push('Preferred teaching order: problem, then curiosity, then explanation.');
+      break;
+    case 'story_first':
+      lines.push('Preferred teaching order: short story, then insight, then explanation.');
+      break;
+    case 'exam_first':
+      lines.push('Preferred teaching order: exam framing, then explanation, then application.');
+      break;
+    case 'definition_first':
+      lines.push('Preferred teaching order: definition, then explanation, then example.');
+      break;
+    default:
+      lines.push('Use a balanced hybrid teaching order.');
+      break;
+  }
+
+  if (decision.shouldUseAnalogy) {
+    lines.push('Use one simple analogy only if it genuinely improves understanding. Avoid forced analogies.');
+  }
+  if (decision.shouldUseVisualExplanation) {
+    lines.push('Use mental imagery or a verbal diagram description. Do not generate images.');
+  }
+  if (decision.shouldUseWorkedExample) {
+    lines.push('Use a worked example when it helps understanding.');
+  }
+  if (decision.shouldUseCalculationSteps) {
+    lines.push('Show calculation steps clearly and explain variables before substitution.');
+  }
+  if (decision.shouldChallengeStudent) {
+    lines.push('Slightly increase reasoning depth without making the task overwhelming.');
+  }
+  if (decision.shouldUseExamFraming) {
+    lines.push('Include examiner expectations, common mistakes, or exam tricks where they fit naturally.');
+  }
+
+  if (options?.pass === 2 && decision.shouldUseWorkedExample) {
+    lines.push('Pass 2 must include one worked example unless the section content already contains one.');
+  }
+
+  if (options?.pass === 3 && decision.shouldUseExamFraming) {
+    lines.push('Pass 3 should naturally include examiner expectations, common mistakes, and exam tricks.');
+  }
+
+  if (options?.includeCheckpoint) {
+    lines.push('Keep the checkpoint aligned with the teaching decision and current emphasis.');
+  }
+
+  if (options?.includeInterrupt) {
+    lines.push('Answer the interruption using the same teaching strategy and pace, but stay brief.');
+  }
+
+  if (options?.includeReteach) {
+    lines.push('For reteach, keep the same strategic direction but simplify the explanation further.');
+  }
+
+  if (options?.includeIntro) {
+    lines.push('Let the opening immediately reflect the chosen strategy without delaying the lesson.');
+  }
+
+  if (decision.promptDirectives.length) {
+    lines.push(`Decision directives: ${decision.promptDirectives.join(' | ')}`);
+  }
+
+  return lines;
+}
+
 function questionCountForContent(content: string) {
   const matches = content.match(/\?/g);
   return matches ? matches.length : 0;
@@ -2896,6 +3004,7 @@ export class StudyCompanionService {
       `Section content:\n${truncate(section.content, 3500)}`,
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
       lessonPlan.teachingSequence.length ? `Start with these opening sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
+      `Teaching decision:\n${buildTeachingDecisionPromptLines(teachingDecision, { includeIntro: true, pass: 1 }).join('\n')}`,
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
     const introQualityTrace: TutorQualityTraceCapture = {
@@ -2954,6 +3063,15 @@ export class StudyCompanionService {
         prompt: 'start_intro',
       });
     }
+    console.log('teaching_decision_applied', {
+      sessionId,
+      materialId: material.id,
+      sectionIndex: nextIndex,
+      prompt: 'start_intro',
+      strategy: teachingDecision.strategy,
+      pace: teachingDecision.pace,
+      repairMode: teachingDecision.prerequisiteRepairMode,
+    });
     try {
       const aiStartedAt = Date.now();
       const rawContent = await generateText(introPrompt, this.companionSystemPrompt());
@@ -3015,6 +3133,7 @@ export class StudyCompanionService {
   private async buildTeachingPass(
     section: RoadmapSection,
     pass: 1 | 2 | 3,
+    decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
@@ -3055,16 +3174,18 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
-    const instructions =
-      calculationContext.detected
-        ? buildCalculationInstructions(pass, calculationContext)
-        : diagramContext.detected
-          ? buildDiagramInstructions(pass, diagramContext)
-          : pass === 1
-            ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
-            : pass === 2
-              ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
-              : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.'
+    const modeInstructions = [
+      calculationContext.detected ? buildCalculationInstructions(pass, calculationContext) : '',
+      diagramContext.detected ? buildDiagramInstructions(pass, diagramContext) : '',
+      ...buildTeachingDecisionPromptLines(decision, { pass }),
+      pass === 1
+        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
+        : pass === 2
+          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
+          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.',
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const prompt = [
       `Section title: ${section.title}`,
@@ -3082,7 +3203,7 @@ export class StudyCompanionService {
       pass === 2 && lessonPlan?.diagramPlan.length ? `Diagram lesson plan: ${truncateList(lessonPlan.diagramPlan, 4, 120).join(' | ')}` : '',
       pass === 3 && lessonPlan?.examFocus.length ? `Exam focus for this pass: ${truncateList(lessonPlan.examFocus, 4, 120).join(' | ')}` : '',
       pass === 3 && lessonPlan?.checkpointFocus.length ? `Checkpoint focus for this pass: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
-      instructions,
+      modeInstructions,
       'Use student memory to adapt explanation. If the student previously struggled with a prerequisite, briefly refresh it. If calculation issues exist, slow down formula substitution. If diagram issues exist, use clearer mental visualization. Be encouraging, not judgmental.',
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
     ].join('\n\n');
@@ -3109,6 +3230,15 @@ export class StudyCompanionService {
       console.log('relevant_material_context_applied', {
         ...contextMeta,
         prompt: `teaching_pass_${pass}`,
+      });
+    }
+    if (contextMeta) {
+      console.log('teaching_decision_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+        strategy: decision.strategy,
+        pace: decision.pace,
+        repairMode: decision.prerequisiteRepairMode,
       });
     }
     const rawContent = await generateText(prompt, this.companionSystemPrompt(), 900);
@@ -3263,6 +3393,7 @@ export class StudyCompanionService {
   private async buildTeachBackPrompt(
     section: RoadmapSection,
     attemptNumber: 1 | 2,
+    decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
@@ -3280,6 +3411,7 @@ export class StudyCompanionService {
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
       lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
+      `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
       diagramContext.detected
         ? attemptNumber === 1
           ? 'Ask the student for Teach-Back 1. Tell them to explain the diagram or process in their own words as if they are drawing it from memory.'
@@ -3301,6 +3433,15 @@ export class StudyCompanionService {
         prompt: `teachback_prompt_${attemptNumber}`,
       });
     }
+    if (contextMeta) {
+      console.log('teaching_decision_applied', {
+        ...contextMeta,
+        prompt: `teachback_prompt_${attemptNumber}`,
+        strategy: decision.strategy,
+        pace: decision.pace,
+        repairMode: decision.prerequisiteRepairMode,
+      });
+    }
     const rawContent = await generateText(prompt, this.companionSystemPrompt(), 220);
     return this.enforceTutorMessageQuality({
       content: rawContent,
@@ -3319,6 +3460,7 @@ export class StudyCompanionService {
 
   private async buildMemoryDumpPrompt(
     section: RoadmapSection,
+    decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     lessonPlan?: StudySectionLessonPlanRecord,
@@ -3336,8 +3478,18 @@ export class StudyCompanionService {
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
+      `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
       'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
     ].join('\n\n');
+    if (contextMeta) {
+      console.log('teaching_decision_applied', {
+        ...contextMeta,
+        prompt: 'memory_dump_prompt',
+        strategy: decision.strategy,
+        pace: decision.pace,
+        repairMode: decision.prerequisiteRepairMode,
+      });
+    }
     const rawContent = await generateText(
       prompt,
       this.companionSystemPrompt(),
@@ -3361,6 +3513,7 @@ export class StudyCompanionService {
   private async buildGapReteach(
     section: RoadmapSection,
     failedConcepts: string[],
+    decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
@@ -3410,12 +3563,22 @@ export class StudyCompanionService {
       `Section content:\n${truncate(section.content, 3000)}`,
       `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
       lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
+      `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeReteach: true }).join('\n')}`,
       calculationContext.detected
         ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
         : diagramContext.detected
           ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
           : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
     ].join('\n\n');
+    if (contextMeta) {
+      console.log('teaching_decision_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+        strategy: decision.strategy,
+        pace: decision.pace,
+        repairMode: decision.prerequisiteRepairMode,
+      });
+    }
     const rawContent = await generateText(
       prompt,
       this.companionSystemPrompt(),
@@ -3439,6 +3602,7 @@ export class StudyCompanionService {
   private async buildInterruptResponse(
     section: RoadmapSection,
     studentResponse: string,
+    decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     studentMemoryPromptContext = '',
@@ -3452,6 +3616,7 @@ export class StudyCompanionService {
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
+      `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeInterrupt: true, includeCheckpoint: true }).join('\n')}`,
       'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
     ].join('\n\n');
 
@@ -3465,6 +3630,15 @@ export class StudyCompanionService {
       console.log('relevant_material_context_applied', {
         ...contextMeta,
         prompt: 'interrupt_response',
+      });
+    }
+    if (contextMeta) {
+      console.log('teaching_decision_applied', {
+        ...contextMeta,
+        prompt: 'interrupt_response',
+        strategy: decision.strategy,
+        pace: decision.pace,
+        repairMode: decision.prerequisiteRepairMode,
       });
     }
     const rawContent = await generateText(prompt, this.companionSystemPrompt(), 320);
@@ -3600,7 +3774,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -3625,7 +3799,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        const content = await this.buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_2,
@@ -3654,7 +3828,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -3680,7 +3854,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'teaching', 'teaching_pass_2', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        const content = await this.buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
@@ -3709,7 +3883,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -3736,7 +3910,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'teaching', 'teaching_pass_3', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          const content = await this.buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: PASS_3,
@@ -3763,7 +3937,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(TEACHBACK_1, 'checkpoint_question', 'teachback_prompt_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace);
+        const content = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -3888,7 +4062,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === GAP_RETEACH) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, '', relevantMaterialContext);
+        const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', relevantMaterialContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -3908,7 +4082,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(GAP_RETEACH, 'reteach', 'gap_reteach', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: GAP_RETEACH,
@@ -3946,8 +4120,8 @@ export class StudyCompanionService {
         const aiStartedAt = Date.now();
         content =
           sectionContext.nextPromptKind === 'teachback_2'
-            ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace)
-            : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+            ? await this.buildTeachBackPrompt(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace)
+            : await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
       } catch (error) {
         await this.failTutorTrace(trace, error);
@@ -3982,7 +4156,7 @@ export class StudyCompanionService {
         let content;
         try {
           const aiStartedAt = Date.now();
-          content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+          content = await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
         } catch (error) {
           await this.failTutorTrace(trace, error);
@@ -4190,7 +4364,20 @@ export class StudyCompanionService {
           nextTeacherBrainSectionContext,
           { sessionId, sectionIndex: nextIndex },
         );
-        const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
+        const nextTeachingDecision = this.createTeachingDecision({
+          phase: PASS_1,
+          section: nextSection,
+          teacherBrainSectionContext: nextTeacherBrainSectionContext,
+          teacherBrainContext: nextTeacherBrainContext,
+          studentMemoryContext: nextStudentMemoryContext,
+          lessonPlan: nextLessonPlan,
+          calculationContext: nextSectionCalculationContext,
+          diagramContext: nextSectionDiagramContext,
+          relevantMaterialContext: nextRelevantMaterialContext,
+          currentMasteryScore: state.last_mastery_score,
+          lastMasteryScore: state.last_mastery_score,
+        });
+        const content = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
@@ -4252,7 +4439,20 @@ export class StudyCompanionService {
           nextTeacherBrainSectionContext,
           { sessionId, sectionIndex: nextIndex },
         );
-        const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
+        const nextTeachingDecision = this.createTeachingDecision({
+          phase: PASS_1,
+          section: nextSection,
+          teacherBrainSectionContext: nextTeacherBrainSectionContext,
+          teacherBrainContext: nextTeacherBrainContext,
+          studentMemoryContext: nextStudentMemoryContext,
+          lessonPlan: nextLessonPlan,
+          calculationContext: nextSectionCalculationContext,
+          diagramContext: nextSectionDiagramContext,
+          relevantMaterialContext: nextRelevantMaterialContext,
+          currentMasteryScore: state.last_mastery_score,
+          lastMasteryScore: state.last_mastery_score,
+        });
+        const content = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
@@ -4292,7 +4492,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
+    const fallback = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,
