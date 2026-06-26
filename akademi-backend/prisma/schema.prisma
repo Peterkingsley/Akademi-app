@@ -277,16 +277,30 @@ model User {
 }
 
 model LearningProfile {
-  id                   String          @id @default(uuid())
-  user_id              String          @unique
-  subject_strengths    Json            @default("{}")
-  subject_weaknesses   Json            @default("{}")
-  preferred_reply_mode ReplyMode?
-  question_patterns    Json            @default("{}")
-  vocabulary_level     VocabularyLevel @default(BASIC)
-  session_count        Int             @default(0)
-  last_active          DateTime?
-  updated_at           DateTime        @updatedAt
+  id                           String          @id @default(uuid())
+  user_id                      String          @unique
+  subject_strengths            Json            @default("{}")
+  subject_weaknesses           Json            @default("{}")
+  preferred_reply_mode         ReplyMode?
+  question_patterns            Json            @default("{}")
+  vocabulary_level             VocabularyLevel @default(BASIC)
+  session_count                Int             @default(0)
+  teaching_strategy_success    Json            @default("{}")
+  preferred_teaching_strategy  String?
+  preferred_pace               String?
+  analogy_success_score        Int             @default(50)
+  visual_success_score         Int             @default(50)
+  worked_example_success_score Int             @default(50)
+  definition_success_score     Int             @default(50)
+  problem_first_success_score  Int             @default(50)
+  story_success_score          Int             @default(50)
+  exam_first_success_score     Int             @default(50)
+  calculation_support_needed   Boolean         @default(false)
+  visual_support_needed        Boolean         @default(false)
+  confidence_support_needed    Boolean         @default(false)
+  last_profile_update_at       DateTime?
+  last_active                  DateTime?
+  updated_at                   DateTime        @updatedAt
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 

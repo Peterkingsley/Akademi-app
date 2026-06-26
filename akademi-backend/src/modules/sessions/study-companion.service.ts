@@ -9,7 +9,7 @@ import {
 } from '@prisma/client';
 import prisma from '../../config/db';
 import { aiProvider } from '../ai/ai.provider';
-import { decideTeachingStrategy, TeachingDecision } from './teaching-decision-engine';
+import { decideTeachingStrategy, TeachingDecision, TeachingPace, TeachingStrategy } from './teaching-decision-engine';
 
 type ReaderPageShape = {
   id: string;
@@ -405,6 +405,15 @@ type LearningIntelligenceContext = {
     mainReason: string | null;
     signals: string[];
   };
+};
+
+type StudentLearningProfileContext = {
+  preferredTeachingStrategy: TeachingStrategy | null;
+  preferredPace: TeachingPace | null;
+  strategySuccessScores: Partial<Record<TeachingStrategy, number>>;
+  calculationSupportNeeded: boolean;
+  visualSupportNeeded: boolean;
+  confidenceSupportNeeded: boolean;
 };
 
 type MaterialEmbeddingRow = {
@@ -1381,6 +1390,23 @@ function inferPrerequisiteWeaknessFromFailedConcepts(failedConcepts: string[]) {
   return failedConcepts.some((item) => /\bprerequisite\b|\bbasic\b|\bfoundation\b|\bprior\b|\bbackground\b/i.test(item));
 }
 
+function isTeachingStrategy(value: string | null | undefined): value is TeachingStrategy {
+  return [
+    'definition_first',
+    'analogy_first',
+    'visual_first',
+    'worked_example_first',
+    'problem_first',
+    'story_first',
+    'exam_first',
+    'hybrid',
+  ].includes(String(value || ''));
+}
+
+function isTeachingPace(value: string | null | undefined): value is TeachingPace {
+  return ['slow', 'normal', 'fast'].includes(String(value || ''));
+}
+
 function cosineSimilarity(a: number[], b: number[]) {
   if (!a.length || !b.length) return 0;
   const length = Math.min(a.length, b.length);
@@ -2110,6 +2136,49 @@ export class StudyCompanionService {
     return parsed;
   }
 
+  private async loadStudentLearningProfileContext(userId: string) {
+    const profile = await prisma.learningProfile.findUnique({
+      where: { user_id: userId },
+      select: {
+        preferred_teaching_strategy: true,
+        preferred_pace: true,
+        teaching_strategy_success: true,
+        calculation_support_needed: true,
+        visual_support_needed: true,
+        confidence_support_needed: true,
+      },
+    });
+
+    if (!profile) {
+      console.log('student_learning_profile_context_missing', { userId });
+      return null;
+    }
+
+    const rawScores = safeJsonObject<Record<string, unknown>>(profile.teaching_strategy_success, {});
+    const strategySuccessScores: Partial<Record<TeachingStrategy, number>> = {};
+    for (const [key, value] of Object.entries(rawScores)) {
+      if (isTeachingStrategy(key)) {
+        strategySuccessScores[key] = clampReflectionScore(Number(value));
+      }
+    }
+
+    const context: StudentLearningProfileContext = {
+      preferredTeachingStrategy: isTeachingStrategy(profile.preferred_teaching_strategy) ? profile.preferred_teaching_strategy : null,
+      preferredPace: isTeachingPace(profile.preferred_pace) ? profile.preferred_pace : null,
+      strategySuccessScores,
+      calculationSupportNeeded: Boolean(profile.calculation_support_needed),
+      visualSupportNeeded: Boolean(profile.visual_support_needed),
+      confidenceSupportNeeded: Boolean(profile.confidence_support_needed),
+    };
+
+    console.log('student_learning_profile_context_loaded', {
+      userId,
+      preferredTeachingStrategy: context.preferredTeachingStrategy,
+      preferredPace: context.preferredPace,
+    });
+    return context;
+  }
+
   private createTeachingDecision(args: {
     phase: string;
     section: RoadmapSection;
@@ -2121,6 +2190,7 @@ export class StudyCompanionService {
     diagramContext: DiagramTeachingContext;
     relevantMaterialContext: RelevantMaterialContext;
     learningIntelligenceContext?: LearningIntelligenceContext | null;
+    studentLearningProfileContext?: StudentLearningProfileContext | null;
     currentMasteryScore?: number | null;
     lastMasteryScore?: number | null;
   }): TeachingDecision {
@@ -2170,6 +2240,12 @@ export class StudyCompanionService {
       confidence: args.learningIntelligenceContext?.confidence ?? null,
       hiddenConfusionRisk: args.learningIntelligenceContext?.hiddenConfusionRisk ?? null,
       retentionRisk: args.learningIntelligenceContext?.retentionRisk ?? null,
+      preferredTeachingStrategy: args.studentLearningProfileContext?.preferredTeachingStrategy ?? null,
+      preferredPace: args.studentLearningProfileContext?.preferredPace ?? null,
+      strategySuccessScores: args.studentLearningProfileContext?.strategySuccessScores ?? {},
+      calculationSupportNeeded: args.studentLearningProfileContext?.calculationSupportNeeded ?? false,
+      visualSupportNeeded: args.studentLearningProfileContext?.visualSupportNeeded ?? false,
+      confidenceSupportNeeded: args.studentLearningProfileContext?.confidenceSupportNeeded ?? false,
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
     });
@@ -2881,6 +2957,162 @@ export class StudyCompanionService {
     }
   }
 
+  private async updateStudentLearningProfileAfterReflection(userId: string, courseCode: string, materialId: string) {
+    console.log('student_learning_profile_update_started', {
+      userId,
+      courseCode,
+      materialId,
+    });
+
+    try {
+      const [reflections, intelligenceRecords, memories] = await Promise.all([
+        (prisma as typeof prisma & {
+          teachingReflection: { findMany: (query: unknown) => Promise<TeachingReflectionRow[]> };
+        }).teachingReflection.findMany({
+          where: { user_id: userId },
+          orderBy: { created_at: 'desc' },
+          take: 30,
+        }),
+        (prisma as typeof prisma & {
+          learningIntelligenceRecord: { findMany: (query: unknown) => Promise<LearningIntelligenceRecordRow[]> };
+        }).learningIntelligenceRecord.findMany({
+          where: { user_id: userId },
+          orderBy: { created_at: 'desc' },
+          take: 30,
+        }),
+        (prisma as typeof prisma & {
+          studentMaterialMemory: { findMany: (query: unknown) => Promise<StudentMaterialMemoryRow[]> };
+        }).studentMaterialMemory.findMany({
+          where: { user_id: userId },
+          orderBy: { updated_at: 'desc' },
+          take: 30,
+        }),
+      ]);
+
+      const strategyScores: Record<TeachingStrategy, number> = {
+        analogy_first: 50,
+        visual_first: 50,
+        worked_example_first: 50,
+        definition_first: 50,
+        problem_first: 50,
+        story_first: 50,
+        exam_first: 50,
+        hybrid: 50,
+      };
+
+      for (const reflection of reflections) {
+        if (!isTeachingStrategy(reflection.strategy_used)) continue;
+        const scoreBase = reflection.mastery_score ?? 50;
+        const confusionPenalty = Math.max(0, (reflection.hidden_confusion_risk ?? 50) - 40) * 0.2;
+        const confidenceBonus = Math.max(0, (reflection.confidence ?? 50) - 50) * 0.15;
+        const net = clampReflectionScore(scoreBase - confusionPenalty + confidenceBonus);
+        strategyScores[reflection.strategy_used] = clampReflectionScore((strategyScores[reflection.strategy_used] * 0.65) + (net * 0.35));
+      }
+
+      const diagramHeavyReflections = reflections.filter((item) => item.visual_explanation_used);
+      if (diagramHeavyReflections.some((item) => (item.mastery_score ?? 0) >= 80 && (item.hidden_confusion_risk ?? 100) <= 40)) {
+        strategyScores.visual_first = clampReflectionScore(strategyScores.visual_first + 8);
+      }
+      const workedExampleReflections = reflections.filter((item) => item.worked_example_used);
+      if (workedExampleReflections.some((item) => (item.mastery_score ?? 0) >= 80 && (item.hidden_confusion_risk ?? 100) <= 40)) {
+        strategyScores.worked_example_first = clampReflectionScore(strategyScores.worked_example_first + 8);
+      }
+      const analogyReflections = reflections.filter((item) => item.analogy_used);
+      if (analogyReflections.some((item) => (item.confidence ?? 0) >= 65 || (item.hidden_confusion_risk ?? 100) <= 40)) {
+        strategyScores.analogy_first = clampReflectionScore(strategyScores.analogy_first + 6);
+      }
+
+      const avgConfidence = intelligenceRecords.length
+        ? intelligenceRecords.reduce((sum, item) => sum + item.confidence, 0) / intelligenceRecords.length
+        : 50;
+      const avgHiddenConfusion = intelligenceRecords.length
+        ? intelligenceRecords.reduce((sum, item) => sum + item.hidden_confusion_risk, 0) / intelligenceRecords.length
+        : 50;
+      const avgMastery = intelligenceRecords.length
+        ? intelligenceRecords.reduce((sum, item) => sum + (item.mastery_score ?? 50), 0) / intelligenceRecords.length
+        : 50;
+
+      const repeatedCalculationIssues = memories.filter((item) => safeStringArray(item.calculation_issues).length > 0).length >= 2;
+      const repeatedDiagramIssues = memories.filter((item) => safeStringArray(item.diagram_issues).length > 0).length >= 2;
+      const repeatedLowConfidence = intelligenceRecords.filter((item) => item.confidence < 50).length >= 2;
+
+      let preferredTeachingStrategy: TeachingStrategy | null = null;
+      const bestEntry = Object.entries(strategyScores).sort((a, b) => b[1] - a[1])[0];
+      const secondEntry = Object.entries(strategyScores).sort((a, b) => b[1] - a[1])[1];
+      if (bestEntry && isTeachingStrategy(bestEntry[0]) && bestEntry[1] >= 60 && (!secondEntry || bestEntry[1] - secondEntry[1] >= 5)) {
+        preferredTeachingStrategy = bestEntry[0];
+      } else if (reflections.length >= 6) {
+        preferredTeachingStrategy = 'hybrid';
+      }
+
+      let preferredPace: TeachingPace = 'normal';
+      const slowHelpful = reflections.filter((item) => item.pace_used === 'slow' && (item.mastery_score ?? 0) >= 75 && (item.hidden_confusion_risk ?? 100) <= 45).length;
+      const fastStrong = intelligenceRecords.filter((item) => (item.mastery_score ?? 0) >= 85 && item.confidence >= 75 && item.hidden_confusion_risk <= 35).length;
+      if (avgConfidence < 55 || avgHiddenConfusion > 55 || slowHelpful >= 2) {
+        preferredPace = 'slow';
+      } else if (avgMastery >= 85 && avgConfidence >= 75 && avgHiddenConfusion <= 35 && fastStrong >= 3) {
+        preferredPace = 'fast';
+      }
+
+      await prisma.learningProfile.upsert({
+        where: { user_id: userId },
+        update: {
+          teaching_strategy_success: strategyScores as unknown as Prisma.InputJsonValue,
+          preferred_teaching_strategy: preferredTeachingStrategy,
+          preferred_pace: preferredPace,
+          analogy_success_score: strategyScores.analogy_first,
+          visual_success_score: strategyScores.visual_first,
+          worked_example_success_score: strategyScores.worked_example_first,
+          definition_success_score: strategyScores.definition_first,
+          problem_first_success_score: strategyScores.problem_first,
+          story_success_score: strategyScores.story_first,
+          exam_first_success_score: strategyScores.exam_first,
+          calculation_support_needed: repeatedCalculationIssues,
+          visual_support_needed: repeatedDiagramIssues,
+          confidence_support_needed: repeatedLowConfidence,
+          last_profile_update_at: new Date(),
+          last_active: new Date(),
+        },
+        create: {
+          user_id: userId,
+          subject_strengths: {} as unknown as Prisma.InputJsonValue,
+          subject_weaknesses: {} as unknown as Prisma.InputJsonValue,
+          question_patterns: {} as unknown as Prisma.InputJsonValue,
+          teaching_strategy_success: strategyScores as unknown as Prisma.InputJsonValue,
+          preferred_teaching_strategy: preferredTeachingStrategy,
+          preferred_pace: preferredPace,
+          analogy_success_score: strategyScores.analogy_first,
+          visual_success_score: strategyScores.visual_first,
+          worked_example_success_score: strategyScores.worked_example_first,
+          definition_success_score: strategyScores.definition_first,
+          problem_first_success_score: strategyScores.problem_first,
+          story_success_score: strategyScores.story_first,
+          exam_first_success_score: strategyScores.exam_first,
+          calculation_support_needed: repeatedCalculationIssues,
+          visual_support_needed: repeatedDiagramIssues,
+          confidence_support_needed: repeatedLowConfidence,
+          last_profile_update_at: new Date(),
+          last_active: new Date(),
+        },
+      });
+
+      console.log('student_learning_profile_update_completed', {
+        userId,
+        courseCode,
+        materialId,
+        preferredTeachingStrategy,
+        preferredPace,
+      });
+    } catch (error) {
+      console.error('student_learning_profile_update_failed', {
+        userId,
+        courseCode,
+        materialId,
+        message: error instanceof Error ? error.message : 'Unknown learning profile update error',
+      });
+    }
+  }
+
   private async getOrCreateLessonPlan(args: {
     sessionId: string;
     companionStateId: string;
@@ -3534,8 +3766,9 @@ export class StudyCompanionService {
       state.course_code,
       state.current_section_index,
     );
+    const studentLearningProfileContext = await this.loadStudentLearningProfileContext(state.user_id);
 
-    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext };
+    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext };
   }
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
@@ -3658,7 +3891,7 @@ export class StudyCompanionService {
   }
 
   async start(sessionId: string, mode: CompanionStartMode, sectionTitle?: string) {
-    const { session, material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext } = await this.loadSessionContext(sessionId);
+    const { session, material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
       throw new Error('This material does not have a usable roadmap yet.');
     }
@@ -3741,6 +3974,7 @@ export class StudyCompanionService {
       diagramContext: sectionDiagramContext,
       relevantMaterialContext,
       learningIntelligenceContext,
+      studentLearningProfileContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -4433,7 +4667,7 @@ export class StudyCompanionService {
   }
 
   async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
-    const { state, roadmap, material, teacherBrain, studentMemoryContext, learningIntelligenceContext } = await this.loadSessionContext(sessionId);
+    const { state, roadmap, material, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
     const teacherBrainSectionContext = getTeacherBrainSectionContext(
@@ -4481,6 +4715,7 @@ export class StudyCompanionService {
       diagramContext: sectionDiagramContext,
       relevantMaterialContext,
       learningIntelligenceContext,
+      studentLearningProfileContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -5094,6 +5329,21 @@ export class StudyCompanionService {
         });
       }
 
+      try {
+        await this.updateStudentLearningProfileAfterReflection(
+          state.user_id,
+          state.course_code,
+          state.material_id,
+        );
+      } catch (profileError) {
+        console.error('student_learning_profile_update_failed', {
+          userId: state.user_id,
+          courseCode: state.course_code,
+          materialId: state.material_id,
+          message: profileError instanceof Error ? profileError.message : 'Unknown profile update failure',
+        });
+      }
+
       if (passed) {
         roadmap[state.current_section_index] = {
           ...section,
@@ -5207,6 +5457,7 @@ export class StudyCompanionService {
           diagramContext: nextSectionDiagramContext,
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
+          studentLearningProfileContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
@@ -5289,6 +5540,7 @@ export class StudyCompanionService {
           diagramContext: nextSectionDiagramContext,
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
+          studentLearningProfileContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });

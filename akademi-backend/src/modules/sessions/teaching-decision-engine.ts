@@ -49,6 +49,12 @@ export type TeachingDecisionInput = {
   confidence?: number | null;
   hiddenConfusionRisk?: number | null;
   retentionRisk?: number | null;
+  preferredTeachingStrategy?: TeachingStrategy | null;
+  preferredPace?: TeachingPace | null;
+  strategySuccessScores?: Partial<Record<TeachingStrategy, number>>;
+  calculationSupportNeeded?: boolean;
+  visualSupportNeeded?: boolean;
+  confidenceSupportNeeded?: boolean;
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
 };
@@ -170,6 +176,32 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   let shouldRepairPrerequisite = false;
   const reasons: string[] = [];
   const promptDirectives: string[] = [];
+  const profilePreferredStrategy = input.preferredTeachingStrategy || null;
+  const profilePreferredPace = input.preferredPace || null;
+
+  if (profilePreferredStrategy && profilePreferredStrategy !== 'hybrid') {
+    strategy = profilePreferredStrategy;
+    reasons.push(`student profile prefers ${profilePreferredStrategy}`);
+  }
+  if (profilePreferredPace) {
+    pace = profilePreferredPace;
+    reasons.push(`student profile prefers ${profilePreferredPace} pace`);
+  }
+
+  if (input.visualSupportNeeded) {
+    shouldUseVisualExplanation = true;
+    reasons.push('student profile indicates visual support is needed');
+  }
+  if (input.calculationSupportNeeded) {
+    shouldUseWorkedExample = true;
+    shouldUseCalculationSteps = true;
+    reasons.push('student profile indicates calculation support is needed');
+  }
+  if (input.confidenceSupportNeeded) {
+    shouldSlowDown = true;
+    shouldChallengeStudent = false;
+    reasons.push('student profile indicates confidence support is needed');
+  }
 
   if (input.isCalculationHeavy) {
     strategy = 'worked_example_first';
@@ -289,6 +321,27 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     pace = 'fast';
   }
 
+  if (profilePreferredStrategy === 'analogy_first' && strategy === 'worked_example_first') {
+    shouldUseAnalogy = true;
+  }
+  if (profilePreferredStrategy === 'visual_first' && strategy === 'worked_example_first') {
+    shouldUseVisualExplanation = true;
+  }
+  if (profilePreferredStrategy === 'worked_example_first' && strategy === 'visual_first') {
+    shouldUseWorkedExample = true;
+  }
+
+  const strongAcrossDimensions =
+    signal.conceptUnderstanding >= 85 &&
+    signal.proceduralAccuracy >= 85 &&
+    signal.reasoningQuality >= 85 &&
+    signal.confidence >= 80 &&
+    signal.hiddenConfusionRisk <= 30 &&
+    signal.retentionRisk <= 35;
+  if (input.confidenceSupportNeeded && !strongAcrossDimensions) {
+    shouldChallengeStudent = false;
+  }
+
   if (signal.calculationWeakness >= 35) {
     shouldUseWorkedExample = true;
     shouldUseCalculationSteps = true;
@@ -367,6 +420,8 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       diagram_issue_count: diagramIssues.length,
       prerequisite_issue_count: prerequisiteIssues.length,
       retention_risk: signal.retentionRisk,
+      preferred_teaching_strategy: profilePreferredStrategy,
+      preferred_pace: profilePreferredPace,
       lecturer_constraints_reserved: null,
     },
   };
