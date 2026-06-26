@@ -96,6 +96,15 @@ export class SessionsController {
     }
   }
 
+  async synthesizeTutorSpeech(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.synthesizeTutorSpeech(req.body?.text || '');
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error, 503)).json({ message: error.message });
+    }
+  }
+
   async getSummary(req: Request, res: Response) {
     try {
       const summary = await sessionsService.getSessionSummary(req.params.id);

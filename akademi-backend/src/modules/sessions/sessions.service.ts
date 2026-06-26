@@ -32,6 +32,17 @@ function normalizeExtractedText(text: string) {
   return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function sanitizeSpeechText(content: string) {
+  return content
+    .replace(/\\\[(.*?)\\\]/gs, '$1')
+    .replace(/\\\((.*?)\\\)/gs, '$1')
+    .replace(/\$\$(.*?)\$\$/gs, '$1')
+    .replace(/\$(.*?)\$/gs, '$1')
+    .replace(/[`*_#>-]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 async function extractTextFromImage(buffer: Buffer) {
   const content = buffer.toString('base64');
 
@@ -311,6 +322,60 @@ export class SessionsService {
           key_points: ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
           next_steps: ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
+  }
+
+  async synthesizeTutorSpeech(text: string) {
+    const sanitized = sanitizeSpeechText(text || '');
+    if (!sanitized) {
+      throw new Error('Text is required for speech synthesis.');
+    }
+
+    if (!config.elevenLabsApiKey) {
+      throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
+    }
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenLabsVoiceId}?output_format=mp3_44100_128`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': config.elevenLabsApiKey,
+        },
+        body: JSON.stringify({
+          text: sanitized,
+          model_id: config.elevenLabsModelId,
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            style: 0.15,
+            use_speaker_boost: true,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      let detail = '';
+      try {
+        detail = await response.text();
+      } catch {
+        detail = '';
+      }
+      throw new Error(`ElevenLabs speech synthesis failed (${response.status}). ${detail}`.trim());
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    if (!audioBuffer.length) {
+      throw new Error('ElevenLabs returned empty audio.');
+    }
+
+    return {
+      audioBase64: audioBuffer.toString('base64'),
+      mimeType: 'audio/mpeg',
+      provider: 'elevenlabs',
+    };
   }
 
   async getCompanionState(sessionId: string) {

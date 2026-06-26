@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system";
 import * as Speech from "expo-speech";
 import api from "./api";
 
@@ -28,6 +29,9 @@ let speechRecognitionBridgeCache:
       isAvailable: boolean;
     }
   | null = null;
+let activeAiSound: Audio.Sound | null = null;
+let activeAiAudioUri: string | null = null;
+let activeAiPlaybackResolver: (() => void) | null = null;
 
 export const appendTranscript = (existing: string, transcript: string, multiline = false) => {
   const trimmed = transcript.trim();
@@ -116,6 +120,19 @@ export const setAiVoiceEnabled = async (enabled: boolean) => {
 
 export const stopAiSpeech = async () => {
   await Speech.stop();
+  activeAiPlaybackResolver?.();
+  activeAiPlaybackResolver = null;
+  if (activeAiSound) {
+    const sound = activeAiSound;
+    activeAiSound = null;
+    await sound.stopAsync().catch(() => undefined);
+    await sound.unloadAsync().catch(() => undefined);
+  }
+  if (activeAiAudioUri) {
+    const uri = activeAiAudioUri;
+    activeAiAudioUri = null;
+    await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+  }
 };
 
 const sanitizeSpeechText = (content: string) =>
@@ -216,7 +233,7 @@ export const estimateSpeechDurationMs = (content: string) => {
 
 export const sanitizeAiSpeechText = (content: string) => sanitizeSpeechText(content);
 
-export const speakAiText = async (content: string) => {
+const speakWithDeviceVoice = async (content: string) => {
   const sanitized = sanitizeSpeechText(content);
   if (!sanitized) return;
 
@@ -238,4 +255,71 @@ export const speakAiText = async (content: string) => {
       onError: finish,
     });
   });
+};
+
+export const speakAiText = async (content: string) => {
+  const sanitized = sanitizeSpeechText(content);
+  if (!sanitized) return;
+
+  await stopAiSpeech();
+
+  try {
+    const { data } = await api.post<{
+      audioBase64: string;
+      mimeType: string;
+      provider: string;
+    }>("/sessions/voice/tts", { text: sanitized }, { timeout: 90000 });
+
+    if (!data?.audioBase64) {
+      throw new Error("No AI voice audio was returned.");
+    }
+
+    const cacheRoot = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+    if (!cacheRoot) {
+      throw new Error("No writable cache directory is available for AI voice.");
+    }
+
+    const uri = `${cacheRoot}ai-tutor-${Date.now()}.mp3`;
+    await FileSystem.writeAsStringAsync(uri, data.audioBase64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    activeAiAudioUri = uri;
+    const { sound } = await Audio.Sound.createAsync(
+      { uri },
+      {
+        shouldPlay: true,
+        volume: 1,
+      },
+    );
+    activeAiSound = sound;
+
+    await new Promise<void>((resolve) => {
+      activeAiPlaybackResolver = resolve;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) {
+          resolve();
+          return;
+        }
+        if (status.didJustFinish) {
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.warn("ElevenLabs AI voice failed, falling back to device voice.", error);
+    await speakWithDeviceVoice(sanitized);
+  } finally {
+    activeAiPlaybackResolver = null;
+    if (activeAiSound) {
+      const sound = activeAiSound;
+      activeAiSound = null;
+      await sound.unloadAsync().catch(() => undefined);
+    }
+    if (activeAiAudioUri) {
+      const uri = activeAiAudioUri;
+      activeAiAudioUri = null;
+      await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+    }
+  }
 };
