@@ -320,6 +320,52 @@ type StudySectionLessonPlanRow = {
   fallback_plan: unknown;
 };
 
+type TeachingReflectionRow = {
+  id: string;
+  session_id: string;
+  companion_state_id: string;
+  user_id: string;
+  material_id: string;
+  course_code: string;
+  section_index: number;
+  section_title: string;
+  strategy_used: string | null;
+  pace_used: string | null;
+  repair_mode_used: string | null;
+  analogy_used: boolean;
+  worked_example_used: boolean;
+  visual_explanation_used: boolean;
+  calculation_steps_used: boolean;
+  exam_framing_used: boolean;
+  challenge_used: boolean;
+  mastery_score: number | null;
+  concept_understanding: number | null;
+  procedural_accuracy: number | null;
+  reasoning_quality: number | null;
+  confidence: number | null;
+  hidden_confusion_risk: number | null;
+  what_worked: unknown;
+  what_failed: unknown;
+  recommended_next_strategy: string | null;
+  recommended_next_pace: string | null;
+  recommended_interventions: unknown;
+  compressed_reflection: string | null;
+};
+
+type TeachingReflectionRecord = {
+  conceptUnderstanding: number;
+  proceduralAccuracy: number;
+  reasoningQuality: number;
+  confidence: number;
+  hiddenConfusionRisk: number;
+  whatWorked: string[];
+  whatFailed: string[];
+  recommendedNextStrategy: string | null;
+  recommendedNextPace: string | null;
+  recommendedInterventions: string[];
+  compressedReflection: string | null;
+};
+
 type MaterialEmbeddingRow = {
   chunk_index: number;
   chunk_text: string;
