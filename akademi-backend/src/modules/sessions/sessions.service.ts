@@ -1,4 +1,5 @@
 import prisma from '../../config/db';
+import { Response } from 'express';
 import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest, CompanionTurnRequest } from './sessions.types';
 import { SessionType, MessageRole, Feature, Prisma, ReplyMode } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
@@ -9,6 +10,7 @@ import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
 import { aiProvider } from '../ai/ai.provider';
 import { studyCompanionService } from './study-companion.service';
+import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -387,6 +389,24 @@ export class SessionsService {
       mimeType: 'audio/mpeg',
       provider: 'elevenlabs',
     };
+  }
+
+  async createTutorSpeechStream(userId: string, sessionId: string, text: string) {
+    const session = await this.getSession(sessionId);
+    if (session.user_id !== userId) {
+      throw new Error('You do not have access to this session.');
+    }
+
+    return elevenLabsStreamService.createPendingStream(sessionId, userId, text);
+  }
+
+  async streamTutorSpeech(userId: string, sessionId: string, streamId: string, res: Response) {
+    const session = await this.getSession(sessionId);
+    if (session.user_id !== userId) {
+      throw new Error('You do not have access to this session.');
+    }
+
+    return elevenLabsStreamService.streamPendingAudio(sessionId, userId, streamId, res);
   }
 
   async getCompanionState(sessionId: string) {

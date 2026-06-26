@@ -35,7 +35,7 @@ import {
   estimateSpeechDurationMs,
   prepareAudioRecording,
   requestMicrophonePermission,
-  speakAiText,
+  speakAiTextStream,
   stopAiSpeech,
   stopRecording,
   transcribeAudioUri,
@@ -382,7 +382,7 @@ export const StudyCompanionScreen: React.FC = () => {
     }
 
     beginAutoContinuePrefetch(message);
-    await speakAiText(fullContent);
+    await speakAiTextStream(sessionId, fullContent);
     if (playbackTokenRef.current !== token) {
       return null;
     }

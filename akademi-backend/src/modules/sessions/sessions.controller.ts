@@ -105,6 +105,34 @@ export class SessionsController {
     }
   }
 
+  async createTutorSpeechStream(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.createTutorSpeechStream(
+        req.user!.userId,
+        req.params.id,
+        req.body?.text || '',
+      );
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error, 503)).json({ message: error.message });
+    }
+  }
+
+  async streamTutorSpeech(req: Request, res: Response) {
+    try {
+      await sessionsService.streamTutorSpeech(
+        req.user!.userId,
+        req.params.id,
+        req.params.streamId,
+        res,
+      );
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(statusForError(error, 503)).json({ message: error.message });
+      }
+    }
+  }
+
   async getSummary(req: Request, res: Response) {
     try {
       const summary = await sessionsService.getSessionSummary(req.params.id);

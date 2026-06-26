@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as Speech from "expo-speech";
-import api from "./api";
+import api, { currentApiBaseUrl } from "./api";
 
 const AI_VOICE_ENABLED_KEY = "ai-voice-enabled";
 
@@ -320,6 +320,120 @@ export const speakAiText = async (content: string) => {
       const uri = activeAiAudioUri;
       activeAiAudioUri = null;
       await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+    }
+  }
+};
+
+const getAccessToken = async () => {
+  let token = await AsyncStorage.getItem("accessToken");
+  if (!token) {
+    const authStorage = await AsyncStorage.getItem("auth-storage");
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        token = parsed.state?.accessToken || null;
+      } catch {
+        token = null;
+      }
+    }
+  }
+
+  return token;
+};
+
+export const speakAiTextStream = async (sessionId: string, content: string) => {
+  const sanitized = sanitizeSpeechText(content);
+  if (!sanitized) return;
+
+  console.log("ai_message_received", {
+    sessionId,
+    contentLength: sanitized.length,
+    timestamp: new Date().toISOString(),
+  });
+
+  await stopAiSpeech();
+
+  try {
+    console.log("tts_ws_connect_start", {
+      sessionId,
+      timestamp: new Date().toISOString(),
+    });
+
+    const { data } = await api.post<{
+      streamId: string;
+      path: string;
+      mimeType: string;
+      provider: string;
+    }>(`/sessions/${sessionId}/voice/stream`, { text: sanitized }, { timeout: 30000 });
+
+    const token = await getAccessToken();
+    if (!data?.path || !token) {
+      throw new Error("Streaming voice setup failed.");
+    }
+
+    const streamUrl = `${currentApiBaseUrl}${data.path}`;
+    let firstChunkLogged = false;
+    let playbackStartedLogged = false;
+
+    const { sound } = await Audio.Sound.createAsync(
+      {
+        uri: streamUrl,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+      {
+        shouldPlay: true,
+        volume: 1,
+      },
+    );
+    activeAiSound = sound;
+
+    await new Promise<void>((resolve) => {
+      activeAiPlaybackResolver = resolve;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) {
+          if ((status as any).error) {
+            console.warn("tts_stream_failed", (status as any).error);
+          }
+          resolve();
+          return;
+        }
+
+        if (!firstChunkLogged && status.isPlaying) {
+          firstChunkLogged = true;
+          console.log("tts_first_audio_chunk", {
+            sessionId,
+            positionMillis: status.positionMillis,
+          });
+        }
+
+        if (!playbackStartedLogged && status.isPlaying) {
+          playbackStartedLogged = true;
+          console.log("tts_playback_started", {
+            sessionId,
+            positionMillis: status.positionMillis,
+          });
+        }
+
+        if (status.didJustFinish) {
+          console.log("tts_playback_finished", {
+            sessionId,
+            durationMillis: status.durationMillis ?? null,
+          });
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.warn("tts_stream_failed", error);
+    await speakWithDeviceVoice(sanitized);
+  } finally {
+    activeAiPlaybackResolver = null;
+    if (activeAiSound) {
+      const sound = activeAiSound;
+      activeAiSound = null;
+      await sound.unloadAsync().catch(() => undefined);
     }
   }
 };

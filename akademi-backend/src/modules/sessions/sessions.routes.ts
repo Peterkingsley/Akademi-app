@@ -73,6 +73,8 @@ router.post('/', sessionInteractionRateLimiter, sessionsController.start);
 router.post('/ingest/document', sessionInteractionRateLimiter, documentUpload.single('document'), sessionsController.extractDocument);
 router.post('/ingest/audio', sessionInteractionRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
 router.post('/voice/tts', sessionInteractionRateLimiter, sessionsController.synthesizeTutorSpeech);
+router.post('/:id/voice/stream', sessionInteractionRateLimiter, sessionsController.createTutorSpeechStream);
+router.get('/:id/voice/stream-audio/:streamId', sessionInteractionRateLimiter, sessionsController.streamTutorSpeech);
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
 router.get('/:id/companion', sessionsController.getCompanionState);
