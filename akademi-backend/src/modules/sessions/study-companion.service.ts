@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import prisma from '../../config/db';
 import { aiProvider } from '../ai/ai.provider';
+import { decideTeachingStrategy, TeachingDecision } from './teaching-decision-engine';
 
 type ReaderPageShape = {
   id: string;
@@ -208,6 +209,12 @@ type StudySectionLessonPlanRecord = {
   checkpointFocus: string[];
   examFocus: string[];
   fallbackPlan: string[];
+  promptContext: string;
+};
+
+type StudentMemoryContext = {
+  previousSectionMemory: StudentMemoryRecord | null;
+  priorMemories: StudentMemoryRecord[];
   promptContext: string;
 };
 
@@ -1731,7 +1738,7 @@ export class StudyCompanionService {
         previousSectionMemory: null,
         priorMemories: [] as StudentMemoryRecord[],
         promptContext: '',
-      };
+      } satisfies StudentMemoryContext;
     }
 
     const parsed = memories.map((memory: StudentMaterialMemoryRow) => parseStudentMemoryRecord(memory));
@@ -1746,7 +1753,83 @@ export class StudyCompanionService {
       previousSectionMemory: parsed[parsed.length - 1] || null,
       priorMemories: parsed,
       promptContext: buildStudentMemoryPromptContext(parsed[parsed.length - 1] || null, parsed),
-    };
+    } satisfies StudentMemoryContext;
+  }
+
+  private createTeachingDecision(args: {
+    phase: string;
+    section: RoadmapSection;
+    teacherBrainSectionContext: TeacherBrainSectionContext;
+    teacherBrainContext: string;
+    studentMemoryContext: StudentMemoryContext;
+    lessonPlan: StudySectionLessonPlanRecord;
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    relevantMaterialContext: RelevantMaterialContext;
+    currentMasteryScore?: number | null;
+    lastMasteryScore?: number | null;
+  }): TeachingDecision {
+    const previousMemory = args.studentMemoryContext.previousSectionMemory;
+    const weakPoints = [
+      ...(previousMemory?.weakPoints || []),
+      ...args.studentMemoryContext.priorMemories.flatMap((item) => item.weakPoints).slice(0, 6),
+    ];
+    const misconceptions = [
+      ...(previousMemory?.misconceptions || []),
+      ...args.studentMemoryContext.priorMemories.flatMap((item) => item.misconceptions).slice(0, 6),
+    ];
+    const calculationIssues = args.studentMemoryContext.priorMemories
+      .flatMap((item) => item.calculationIssues)
+      .slice(0, 6);
+    const diagramIssues = args.studentMemoryContext.priorMemories
+      .flatMap((item) => item.diagramIssues)
+      .slice(0, 6);
+    const prerequisiteIssues = [
+      ...args.teacherBrainSectionContext.prerequisites
+        .map((item) => String(item.concept || '').trim())
+        .filter(Boolean),
+      ...args.lessonPlan.prerequisiteRefresh,
+    ].slice(0, 6);
+
+    const decision = decideTeachingStrategy({
+      phase: args.phase,
+      sectionTitle: args.section.title,
+      sectionContent: args.section.content,
+      subjectFamily: args.teacherBrainSectionContext.subjectFamily || undefined,
+      teacherBrainContext: args.teacherBrainContext,
+      studentMemoryContext: args.studentMemoryContext.promptContext,
+      lessonPlanContext: args.lessonPlan.promptContext,
+      calculationContext: args.calculationContext.summary,
+      diagramContext: args.diagramContext.summary,
+      relevantMaterialContext: args.relevantMaterialContext.promptContext,
+      currentMasteryScore: args.currentMasteryScore ?? null,
+      lastMasteryScore: args.lastMasteryScore ?? null,
+      weakPoints,
+      misconceptions,
+      calculationIssues,
+      diagramIssues,
+      prerequisiteIssues,
+      isCalculationHeavy: args.calculationContext.detected,
+      isDiagramHeavy: args.diagramContext.detected,
+    });
+
+    console.log('teaching_decision_created', {
+      phase: args.phase,
+      sectionTitle: args.section.title,
+      strategy: decision.strategy,
+      pace: decision.pace,
+      prerequisiteRepairMode: decision.prerequisiteRepairMode,
+      shouldUseAnalogy: decision.shouldUseAnalogy,
+      shouldUseWorkedExample: decision.shouldUseWorkedExample,
+      shouldUseVisualExplanation: decision.shouldUseVisualExplanation,
+      shouldUseCalculationSteps: decision.shouldUseCalculationSteps,
+      shouldUseExamFraming: decision.shouldUseExamFraming,
+      shouldChallengeStudent: decision.shouldChallengeStudent,
+      shouldSlowDown: decision.shouldSlowDown,
+      shouldRepairPrerequisite: decision.shouldRepairPrerequisite,
+    });
+
+    return decision;
   }
 
   private async compressStudentSectionMemory(args: {
@@ -2782,6 +2865,19 @@ export class StudyCompanionService {
       teacherBrainSectionContext,
       { sessionId, sectionIndex: nextIndex },
     );
+    const teachingDecision = this.createTeachingDecision({
+      phase: PASS_1,
+      section,
+      teacherBrainSectionContext,
+      teacherBrainContext,
+      studentMemoryContext,
+      lessonPlan,
+      calculationContext: sectionCalculationContext,
+      diagramContext: sectionDiagramContext,
+      relevantMaterialContext,
+      currentMasteryScore: state.last_mastery_score,
+      lastMasteryScore: state.last_mastery_score,
+    });
     roadmap.forEach((item, index) => {
       if (index === nextIndex && item.status === StudyRoadmapStatus.NOT_STARTED) {
         item.status = StudyRoadmapStatus.IN_PROGRESS;
@@ -2835,6 +2931,10 @@ export class StudyCompanionService {
         formula_count: teacherBrainSectionContext.formulas.length,
         diagram_count: teacherBrainSectionContext.diagrams.length,
         weak_point_count: studentMemoryContext.priorMemories?.flatMap((item) => item.weakPoints).length || 0,
+        teaching_decision: teachingDecision.traceMetadata,
+        teaching_strategy: teachingDecision.strategy,
+        teaching_pace: teachingDecision.pace,
+        prerequisite_repair_mode: teachingDecision.prerequisiteRepairMode,
       },
     });
 
@@ -3438,6 +3538,19 @@ export class StudyCompanionService {
       { sessionId, sectionIndex: state.current_section_index },
     );
     const sectionContext = readSectionContext(state.section_context);
+    const teachingDecision = this.createTeachingDecision({
+      phase: state.current_phase,
+      section,
+      teacherBrainSectionContext,
+      teacherBrainContext,
+      studentMemoryContext,
+      lessonPlan,
+      calculationContext: sectionCalculationContext,
+      diagramContext: sectionDiagramContext,
+      relevantMaterialContext,
+      currentMasteryScore: state.last_mastery_score,
+      lastMasteryScore: state.last_mastery_score,
+    });
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
     const isInterrupt = options?.interrupted === true;
@@ -3470,6 +3583,10 @@ export class StudyCompanionService {
         weak_point_count: studentMemoryContext.priorMemories?.flatMap((item) => item.weakPoints).length || 0,
         interrupted: isInterrupt,
         auto_continue: isAutoContinue,
+        teaching_decision: teachingDecision.traceMetadata,
+        teaching_strategy: teachingDecision.strategy,
+        teaching_pace: teachingDecision.pace,
+        prerequisite_repair_mode: teachingDecision.prerequisiteRepairMode,
       },
     });
 
