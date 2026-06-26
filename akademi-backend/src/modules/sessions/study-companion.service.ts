@@ -135,6 +135,21 @@ type TeacherBrainSectionContext = {
   misconceptions: TeacherBrainMisconception[];
   examAngles: TeacherBrainExamAngle[];
   teacherNotes: TeacherBrainNotes;
+  subjectFamily?: string | null;
+  confidence?: number;
+};
+
+type CalculationTeachingContext = {
+  detected: boolean;
+  formulas: TeacherBrainFormula[];
+  calculationMethods: TeacherBrainCalculationMethod[];
+  prerequisites: TeacherBrainPrerequisite[];
+  likelyEquations: string[];
+  commonMistakes: string[];
+  unitFormats: string[];
+  workedExamples: string[];
+  subjectFamily: string | null;
+  summary: string;
 };
 
 type CompanionMetadata = {
@@ -459,7 +474,146 @@ function getTeacherBrainSectionContext(
     misconceptions,
     examAngles,
     teacherNotes: teacherBrain.teacherNotes,
+    subjectFamily: teacherBrain.subjectFamily,
+    confidence: teacherBrain.confidence,
   };
+}
+
+function hasMathNotation(text: string) {
+  return /[=+\-*/^%<>]|\\\(|\\\[|\\frac|\\sum|\\int|≤|≥|≈|π|σ|μ|Δ|∑|√/.test(text);
+}
+
+function extractLikelyEquations(text: string) {
+  const matches = text.match(/(?:\\\([^)]+\\\)|\\\[[^\]]+\\\]|[A-Za-z][A-Za-z0-9_\s]{0,12}=\s*[^,.;\n]{2,80}|\b\d+(?:\.\d+)?\s*(?:%|kg|g|mg|m|cm|mm|km|s|min|hr|hours|naira|n|pa|j|w|v|a|mol|l)\b)/g) || [];
+  return truncateList(matches.map((item) => item.replace(/\s+/g, ' ').trim()), 5, 100);
+}
+
+function isCalculationHeavySection(section: RoadmapSection, teacherBrainContext: TeacherBrainSectionContext) {
+  const subjectFamily = teacherBrainContext.subjectFamily || '';
+  const calculationFamilies = new Set([
+    'mathematics',
+    'statistics',
+    'engineering',
+    'economics',
+    'finance',
+    'physics',
+    'chemistry',
+    'computer_science',
+    'cybersecurity',
+    'agriculture',
+  ]);
+
+  if (teacherBrainContext.formulas.length || teacherBrainContext.calculationMethods.length) {
+    return true;
+  }
+
+  if (calculationFamilies.has(subjectFamily)) {
+    return true;
+  }
+
+  const content = `${section.title}\n${section.content}`.toLowerCase();
+  const quantitativePatterns = [
+    /\bmean\b|\bmedian\b|\bmode\b|\bvariance\b|\bstandard deviation\b|\bprobability\b/,
+    /\binterest\b|\bdiscount\b|\bpresent value\b|\bfuture value\b|\belasticity\b|\bcost\b|\brevenue\b/,
+    /\bforce\b|\bvelocity\b|\bacceleration\b|\bdensity\b|\bmolar\b|\bconcentration\b|\bpressure\b/,
+    /\balgorithmic complexity\b|\bbig o\b|\bhash\b|\bencryption\b|\bthroughput\b/,
+    /\bpercentage\b|\bratio\b|\brate\b|\bunit\b|\bsolve\b|\bcalculate\b|\bsubstitute\b/,
+    /\bkg\b|\bg\b|\bmg\b|\bmol\b|\blitre\b|\bl\b|\bcm\b|\bmm\b|\bkm\b|\bnaira\b|\bseconds?\b|\bminutes?\b/,
+  ];
+
+  return hasMathNotation(content) || quantitativePatterns.some((pattern) => pattern.test(content));
+}
+
+function buildCalculationTeachingContext(section: RoadmapSection, teacherBrainContext: TeacherBrainSectionContext): CalculationTeachingContext {
+  const likelyEquations = extractLikelyEquations(section.content);
+  const commonMistakes = truncateList(
+    teacherBrainContext.calculationMethods.flatMap((item) => item.common_mistakes || []),
+    5,
+    100,
+  );
+  const unitFormats = truncateList(
+    teacherBrainContext.calculationMethods
+      .map((item) => item.unit_or_answer_format || '')
+      .filter(Boolean),
+    4,
+    100,
+  );
+  const workedExamples = truncateList(
+    teacherBrainContext.calculationMethods
+      .map((item) => item.worked_example_summary || '')
+      .filter(Boolean),
+    4,
+    140,
+  );
+
+  const lines: string[] = [];
+  if (teacherBrainContext.formulas.length) {
+    lines.push(`Formulas: ${truncateList(teacherBrainContext.formulas.map((item) => `${item.name}: ${item.formula_latex}; variables: ${(item.variables || []).join(', ')}; use: ${item.when_to_use}`), 4, 180).join(' | ')}`);
+  }
+  if (teacherBrainContext.calculationMethods.length) {
+    lines.push(`Methods: ${truncateList(teacherBrainContext.calculationMethods.map((item) => `${item.topic}; steps: ${(item.method_steps || []).slice(0, 5).join(' -> ')}`), 4, 180).join(' | ')}`);
+  }
+  if (workedExamples.length) {
+    lines.push(`Worked examples: ${workedExamples.join(' | ')}`);
+  }
+  if (commonMistakes.length) {
+    lines.push(`Common mistakes: ${commonMistakes.join(' | ')}`);
+  }
+  if (unitFormats.length) {
+    lines.push(`Unit or answer format: ${unitFormats.join(' | ')}`);
+  }
+  if (likelyEquations.length) {
+    lines.push(`Likely equations from section: ${likelyEquations.join(' | ')}`);
+  }
+  if (teacherBrainContext.prerequisites.length) {
+    lines.push(`Prerequisites before solving: ${truncateList(teacherBrainContext.prerequisites.map((item) => `${item.concept}: ${item.student_should_know}`), 4, 120).join(' | ')}`);
+  }
+
+  return {
+    detected: isCalculationHeavySection(section, teacherBrainContext),
+    formulas: teacherBrainContext.formulas,
+    calculationMethods: teacherBrainContext.calculationMethods,
+    prerequisites: teacherBrainContext.prerequisites,
+    likelyEquations,
+    commonMistakes,
+    unitFormats,
+    workedExamples,
+    subjectFamily: teacherBrainContext.subjectFamily || null,
+    summary: lines.join('\n'),
+  };
+}
+
+function buildCalculationInstructions(pass: 1 | 2 | 3, calculationContext: CalculationTeachingContext) {
+  if (!calculationContext.detected) return '';
+
+  if (pass === 1) {
+    return [
+      'Calculation teaching mode: Pass 1.',
+      'Explain the big idea behind the calculation.',
+      'Explain what problem type the formula or method solves.',
+      'Do not solve a full problem unless the section itself clearly requires it.',
+      'Avoid asking questions.',
+    ].join(' ');
+  }
+
+  if (pass === 2) {
+    return [
+      'Calculation teaching mode: Pass 2.',
+      'Teach the formula or method step by step.',
+      'Define each variable before substitution.',
+      'Show the solving order clearly.',
+      'Include one short worked example if possible.',
+      'Preserve formulas using LaTeX delimiters.',
+    ].join(' ');
+  }
+
+  return [
+    'Calculation teaching mode: Pass 3.',
+    'Connect the calculation to exam use.',
+    'Explain common traps and how to recognize when to apply the method.',
+    'Mention units, final answer format, or interpretation where relevant.',
+    'Avoid asking questions.',
+  ].join(' ');
 }
 
 function buildTeacherBrainPromptContext(
@@ -896,6 +1050,14 @@ export class StudyCompanionService {
       'If Teacher Brain conflicts with section content, trust section content.',
       'Teach like a tertiary institution tutor.',
       'For calculation-heavy topics, identify the formula, explain variables, show when to use it, solve step by step, warn about common mistakes, and keep units or answer format clear.',
+      'For calculation-heavy topics, never handwave.',
+      'Show formulas clearly.',
+      'Explain variables before substituting numbers.',
+      'Solve step by step.',
+      'Keep arithmetic readable.',
+      'Use LaTeX delimiters for math.',
+      'If the material does not provide enough numbers for a worked example, create a tiny illustrative example and label it as "simple example".',
+      'Do not overcomplicate explanations.',
       'For diagram-heavy topics, explain what visual would help naturally, but do not generate images yet.',
       'Always be structured, clear, patient, and slightly demanding about recall.',
       'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
@@ -1014,9 +1176,27 @@ export class StudyCompanionService {
     return this.handleStudentReply(sessionId, '__AUTO_CONTINUE__');
   }
 
-  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+    const calculationContext = buildCalculationTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
+    if (calculationContext.detected) {
+      console.log('calculation_context_detected', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+        subjectFamily: calculationContext.subjectFamily,
+      });
+    } else {
+      console.log('calculation_context_missing', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
     const instructions =
-      pass === 1
+      calculationContext.detected
+        ? buildCalculationInstructions(pass, calculationContext)
+        : pass === 1
         ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
         : pass === 2
           ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
@@ -1025,6 +1205,7 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
@@ -1036,21 +1217,40 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
+    if (calculationContext.detected && contextMeta) {
+      console.log('calculation_context_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
     const content = await generateText(prompt, this.companionSystemPrompt(), 900);
     return removeAccidentalTeachingQuestions(content);
   }
 
-  private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async evaluateTeachBack(section: RoadmapSection, studentResponse: string, attemptNumber: number, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
     const heuristicScore = computeCoverageScore(section, studentResponse);
+    const calculationContext = buildCalculationTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student teach-back attempt ${attemptNumber}:\n${studentResponse}`,
-      'Task: Evaluate the teach-back. State what the student got right, what is missing, and what exact idea must be corrected next. Keep it concise and exam-focused.',
+      calculationContext.detected
+        ? 'Task: Evaluate the teach-back. Check whether the student identified the correct formula or method, explained variables, explained solving order, mentioned units or interpretation, avoided common mistakes, and understood when to apply the method. State what was right, what is missing, and what exact idea must be corrected next.'
+        : 'Task: Evaluate the teach-back. State what the student got right, what is missing, and what exact idea must be corrected next. Keep it concise and exam-focused.',
     ].join('\n\n');
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: `evaluate_teachback_${attemptNumber}`,
+      });
+    }
+    if (calculationContext.detected && contextMeta) {
+      console.log('calculation_context_applied', {
         ...contextMeta,
         prompt: `evaluate_teachback_${attemptNumber}`,
       });
@@ -1063,17 +1263,30 @@ export class StudyCompanionService {
     };
   }
 
-  private async evaluateMemoryDump(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async evaluateMemoryDump(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
     const heuristicScore = Math.max(20, computeCoverageScore(section, studentResponse) - 5);
+    const calculationContext = buildCalculationTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Student memory dump:\n${studentResponse}`,
-      'Task: Compare the memory dump to the expected knowledge for this section. Briefly identify what was remembered well and what is still missing.',
+      calculationContext.detected
+        ? 'Task: Compare the memory dump to the expected knowledge for this section. Check recall of the formula, variables, steps, common mistakes, when to use it, and final answer format. Briefly identify what was remembered well and what is still missing.'
+        : 'Task: Compare the memory dump to the expected knowledge for this section. Briefly identify what was remembered well and what is still missing.',
     ].join('\n\n');
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'evaluate_memory_dump',
+      });
+    }
+    if (calculationContext.detected && contextMeta) {
+      console.log('calculation_context_applied', {
         ...contextMeta,
         prompt: 'evaluate_memory_dump',
       });
@@ -1126,9 +1339,19 @@ export class StudyCompanionService {
     return sanitizeSingleQuestionTurn(content);
   }
 
-  private async buildGapReteach(section: RoadmapSection, failedConcepts: string[], teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async buildGapReteach(section: RoadmapSection, failedConcepts: string[], teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+    const calculationContext = buildCalculationTeachingContext(
+      section,
+      teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
+    );
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+      });
+    }
+    if (calculationContext.detected && contextMeta) {
+      console.log('calculation_context_applied', {
         ...contextMeta,
         prompt: 'gap_reteach',
       });
@@ -1137,9 +1360,12 @@ export class StudyCompanionService {
       [
         `Section title: ${section.title}`,
         teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+        calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
         `Section content:\n${truncate(section.content, 3000)}`,
         `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
-        'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
+        calculationContext.detected
+          ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
+          : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
       ].join('\n\n'),
       this.companionSystemPrompt(),
       650,
@@ -1186,6 +1412,11 @@ export class StudyCompanionService {
     const { state, roadmap, material, teacherBrain } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
+    const teacherBrainSectionContext = getTeacherBrainSectionContext(
+      teacherBrain,
+      state.current_section_index,
+      section.title,
+    );
     const contextMeta = {
       sessionId,
       materialId: material.id,
@@ -1216,7 +1447,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta);
+      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
@@ -1247,7 +1478,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta);
+      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
@@ -1279,7 +1510,7 @@ export class StudyCompanionService {
         };
       }
       if (!sectionContext.pass3QuestionPending) {
-        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta);
+        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
           pending_prompt: content,
@@ -1313,7 +1544,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your explanation before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -1353,7 +1584,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your second teach-back before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta);
+      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -1405,7 +1636,7 @@ export class StudyCompanionService {
       }
 
       if (!sectionContext.reteachDelivered) {
-        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta);
+        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: GAP_RETEACH,
           pending_prompt: content,
@@ -1466,7 +1697,7 @@ export class StudyCompanionService {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your memory dump before continuing.');
       }
-      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta);
+      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta, teacherBrainSectionContext);
       await prisma.memoryDumpAttempt.create({
         data: {
           session_id: sessionId,
@@ -1569,11 +1800,16 @@ export class StudyCompanionService {
           status: StudyRoadmapStatus.IN_PROGRESS,
         };
         const nextTeacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
+        const nextTeacherBrainSectionContext = getTeacherBrainSectionContext(
+          teacherBrain,
+          nextIndex,
+          nextSection.title,
+        );
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        });
+        }, nextTeacherBrainSectionContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -1597,11 +1833,16 @@ export class StudyCompanionService {
           status: StudyRoadmapStatus.IN_PROGRESS,
         };
         const nextTeacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
+        const nextTeacherBrainSectionContext = getTeacherBrainSectionContext(
+          teacherBrain,
+          nextIndex,
+          nextSection.title,
+        );
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        });
+        }, nextTeacherBrainSectionContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
