@@ -43,6 +43,17 @@ function sanitizeSpeechText(content: string) {
     .trim();
 }
 
+function parseElevenLabsError(status: number, detail: string) {
+  if (status === 402 && detail.includes('paid_plan_required')) {
+    return [
+      'ElevenLabs voice is not available on this plan.',
+      'Set ELEVENLABS_VOICE_ID to a default voice available in your ElevenLabs account, or upgrade the ElevenLabs plan for library voices.',
+    ].join(' ');
+  }
+
+  return `ElevenLabs speech synthesis failed (${status}). ${detail}`.trim();
+}
+
 async function extractTextFromImage(buffer: Buffer) {
   const content = buffer.toString('base64');
 
@@ -363,7 +374,7 @@ export class SessionsService {
       } catch {
         detail = '';
       }
-      throw new Error(`ElevenLabs speech synthesis failed (${response.status}). ${detail}`.trim());
+      throw new Error(parseElevenLabsError(response.status, detail));
     }
 
     const audioBuffer = Buffer.from(await response.arrayBuffer());

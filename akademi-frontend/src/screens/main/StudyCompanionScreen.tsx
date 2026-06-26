@@ -118,6 +118,17 @@ function extractTranscript(event: any) {
   return "";
 }
 
+function normalizeTranscriptMatch(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+
+function isLikelyAiSpeechEcho(transcript: string, aiText: string) {
+  const spoken = normalizeTranscriptMatch(transcript);
+  const ai = normalizeTranscriptMatch(aiText);
+  if (!spoken || !ai) return false;
+  return ai.includes(spoken);
+}
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -145,6 +156,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const runtimeStateRef = useRef<TutorRuntimeState>("idle");
   const micMutedRef = useRef(false);
   const currentAiMessageIdRef = useRef<string | null>(null);
+  const currentAiSpeechTextRef = useRef("");
   const playbackTokenRef = useRef(0);
   const revealTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognitionActiveRef = useRef(false);
@@ -381,6 +393,7 @@ export const StudyCompanionScreen: React.FC = () => {
     setTutorState("ai_speaking");
 
     const fullContent = message.content || "";
+    currentAiSpeechTextRef.current = fullContent;
     const words = fullContent.split(/\s+/).filter(Boolean);
     if (words.length) {
       const durationMs = estimateSpeechDurationMs(fullContent);
@@ -411,6 +424,7 @@ export const StudyCompanionScreen: React.FC = () => {
     cancelRevealTimer();
     finalizeAiMessage(message.id, fullContent);
     currentAiMessageIdRef.current = null;
+    currentAiSpeechTextRef.current = "";
     const nextMessage = await resolveAutoContinueAfterSpeech(message);
     if (nextMessage) {
       setMessages((prev) => [...prev, { ...toUiMessage(nextMessage), displayContent: "" }]);
@@ -469,18 +483,15 @@ export const StudyCompanionScreen: React.FC = () => {
     if (!liveRecognitionAvailable) return;
 
     const resultListener = addLiveRecognitionListener("result", (event?: any) => {
-      try {
-        console.log("speech result event", JSON.stringify(event));
-      } catch {
-        console.log("speech result event", event);
-      }
-
       const transcript = extractTranscript(event);
       if (!transcript) return;
 
       latestTranscriptRef.current = transcript;
       setRecognitionTranscript(transcript);
       if (runtimeStateRef.current === "ai_speaking" && !micMutedRef.current) {
+        if (isLikelyAiSpeechEcho(transcript, currentAiSpeechTextRef.current)) {
+          return;
+        }
         setTutorState("student_speaking");
         void handleBargeIn(transcript);
         return;

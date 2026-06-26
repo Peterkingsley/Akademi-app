@@ -14,7 +14,7 @@ export const config = {
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
   googleTtsApiKey: process.env.GOOGLE_TTS_API_KEY || '',
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY || '',
-  elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb',
+  elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
   elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5',
   googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
   googleOauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || 'dummy_client_id',
