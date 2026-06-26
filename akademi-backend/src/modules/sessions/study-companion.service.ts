@@ -160,6 +160,36 @@ type DiagramTeachingContext = {
   summary: string;
 };
 
+type StudentMemoryRecord = {
+  understood: string[];
+  weakPoints: string[];
+  misconceptions: string[];
+  calculationIssues: string[];
+  diagramIssues: string[];
+  preferredExplanationStyle: string | null;
+  revisitLater: string[];
+  compressedSummary: string | null;
+};
+
+type StudentMaterialMemoryRow = {
+  id: string;
+  user_id: string;
+  material_id: string;
+  course_code: string;
+  section_index: number;
+  section_title: string;
+  mastered: boolean;
+  mastery_score: number | null;
+  understood: unknown;
+  weak_points: unknown;
+  misconceptions: unknown;
+  calculation_issues: unknown;
+  diagram_issues: unknown;
+  preferred_explanation_style: string | null;
+  revisit_later: unknown;
+  compressed_summary: string | null;
+};
+
 type CompanionMetadata = {
   mode?: string;
   materialTitle?: string;
@@ -796,6 +826,92 @@ function buildTeacherBrainPromptContext(
   return lines.join('\n');
 }
 
+function parseStudentMemoryRecord(value: {
+  understood?: unknown;
+  weak_points?: unknown;
+  misconceptions?: unknown;
+  calculation_issues?: unknown;
+  diagram_issues?: unknown;
+  preferred_explanation_style?: string | null;
+  revisit_later?: unknown;
+  compressed_summary?: string | null;
+}): StudentMemoryRecord {
+  return {
+    understood: safeStringArray(value.understood),
+    weakPoints: safeStringArray(value.weak_points),
+    misconceptions: safeStringArray(value.misconceptions),
+    calculationIssues: safeStringArray(value.calculation_issues),
+    diagramIssues: safeStringArray(value.diagram_issues),
+    preferredExplanationStyle: value.preferred_explanation_style || null,
+    revisitLater: safeStringArray(value.revisit_later),
+    compressedSummary: value.compressed_summary || null,
+  };
+}
+
+function buildStudentMemoryPromptContext(
+  previousSectionMemory: StudentMemoryRecord | null,
+  priorMemories: StudentMemoryRecord[],
+) {
+  const aggregateWeakPoints = truncateList(priorMemories.flatMap((item) => item.weakPoints), 6, 100);
+  const aggregateCalculationIssues = truncateList(priorMemories.flatMap((item) => item.calculationIssues), 5, 100);
+  const aggregateDiagramIssues = truncateList(priorMemories.flatMap((item) => item.diagramIssues), 5, 100);
+  const aggregateRevisit = truncateList(priorMemories.flatMap((item) => item.revisitLater), 6, 100);
+  const preferredStyles = truncateList(
+    priorMemories.map((item) => item.preferredExplanationStyle || '').filter(Boolean),
+    3,
+    80,
+  );
+
+  const lines: string[] = [];
+  if (previousSectionMemory?.compressedSummary) {
+    lines.push(`Previous section memory: ${truncate(previousSectionMemory.compressedSummary, 180)}`);
+  }
+  if (aggregateWeakPoints.length) {
+    lines.push(`Earlier weak points to watch: ${aggregateWeakPoints.join(' | ')}`);
+  }
+  if (aggregateCalculationIssues.length) {
+    lines.push(`Earlier calculation issues: ${aggregateCalculationIssues.join(' | ')}`);
+  }
+  if (aggregateDiagramIssues.length) {
+    lines.push(`Earlier diagram issues: ${aggregateDiagramIssues.join(' | ')}`);
+  }
+  if (aggregateRevisit.length) {
+    lines.push(`Revisit later list: ${aggregateRevisit.join(' | ')}`);
+  }
+  if (preferredStyles.length) {
+    lines.push(`Preferred explanation style cues: ${preferredStyles.join(' | ')}`);
+  }
+  return lines.join('\n');
+}
+
+function buildDeterministicStudentMemoryFallback(args: {
+  score: number;
+  passed: boolean;
+  failedConcepts: string[];
+  calculationContext: CalculationTeachingContext;
+  diagramContext: DiagramTeachingContext;
+  sectionTitle: string;
+}) {
+  return {
+    understood: args.passed ? [`Core ideas from ${args.sectionTitle} were recalled well.`] : [],
+    weak_points: truncateList(args.failedConcepts, 5, 120),
+    misconceptions: [],
+    calculation_issues: args.calculationContext.detected ? truncateList(args.calculationContext.commonMistakes, 4, 100) : [],
+    diagram_issues: args.diagramContext.detected
+      ? truncateList(args.diagramContext.diagrams.flatMap((item) => item.student_should_notice || []), 4, 100)
+      : [],
+    preferred_explanation_style: args.calculationContext.detected
+      ? 'Step-by-step formula explanation with careful substitution.'
+      : args.diagramContext.detected
+        ? 'Clear verbal visualization using simple spatial language.'
+        : 'Short, structured explanation with one idea at a time.',
+    revisit_later: args.passed ? [] : truncateList(args.failedConcepts, 4, 100),
+    compressed_summary: args.passed
+      ? `${args.sectionTitle} is mostly understood, but keep reinforcing application in later sections.`
+      : `${args.sectionTitle} still needs support around ${truncateList(args.failedConcepts, 3, 80).join(', ') || 'core ideas'}.`,
+  };
+}
+
 function countKeywordHits(source: string, target: string) {
   const sourceTokens = new Set(
     source
@@ -1079,6 +1195,249 @@ export class StudyCompanionService {
     });
   }
 
+  private async buildStudentMemoryContext(userId: string, materialId: string, courseCode: string, currentSectionIndex: number) {
+    const studentMaterialMemory = (prisma as typeof prisma & {
+      studentMaterialMemory: {
+        findMany: (args: unknown) => Promise<StudentMaterialMemoryRow[]>;
+        findFirst: (args: unknown) => Promise<{ id: string } | null>;
+        upsert: (args: unknown) => Promise<unknown>;
+      };
+    }).studentMaterialMemory;
+
+    const memories = await studentMaterialMemory.findMany({
+      where: {
+        user_id: userId,
+        material_id: materialId,
+        course_code: courseCode,
+        section_index: {
+          lt: currentSectionIndex,
+        },
+      },
+      orderBy: {
+        section_index: 'asc',
+      },
+      take: 8,
+    });
+
+    if (!memories.length) {
+      console.log('student_memory_context_missing', {
+        userId,
+        materialId,
+        courseCode,
+        currentSectionIndex,
+      });
+      return {
+        previousSectionMemory: null,
+        priorMemories: [] as StudentMemoryRecord[],
+        promptContext: '',
+      };
+    }
+
+    const parsed = memories.map((memory: StudentMaterialMemoryRow) => parseStudentMemoryRecord(memory));
+    console.log('student_memory_context_loaded', {
+      userId,
+      materialId,
+      courseCode,
+      currentSectionIndex,
+      memoryCount: parsed.length,
+    });
+    return {
+      previousSectionMemory: parsed[parsed.length - 1] || null,
+      priorMemories: parsed,
+      promptContext: buildStudentMemoryPromptContext(parsed[parsed.length - 1] || null, parsed),
+    };
+  }
+
+  private async compressStudentSectionMemory(args: {
+    userId: string;
+    materialId: string;
+    courseCode: string;
+    sectionIndex: number;
+    sectionTitle: string;
+    sectionContent: string;
+    passed: boolean;
+    score: number;
+    failedConcepts: string[];
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    teachBackAttempts: Array<{ student_response: string; evaluation: string; score: number }>;
+    memoryDumpEvaluation: { studentResponse: string; evaluation: string; score: number };
+  }) {
+    console.log('student_memory_compression_started', {
+      userId: args.userId,
+      materialId: args.materialId,
+      sectionIndex: args.sectionIndex,
+    });
+
+    const fallback = buildDeterministicStudentMemoryFallback({
+      score: args.score,
+      passed: args.passed,
+      failedConcepts: args.failedConcepts,
+      calculationContext: args.calculationContext,
+      diagramContext: args.diagramContext,
+      sectionTitle: args.sectionTitle,
+    });
+
+    const studentMaterialMemory = (prisma as typeof prisma & {
+      studentMaterialMemory: {
+        findFirst: (args: unknown) => Promise<{ id: string } | null>;
+        upsert: (args: unknown) => Promise<unknown>;
+      };
+    }).studentMaterialMemory;
+
+    const existing = await studentMaterialMemory.findFirst({
+      where: {
+        user_id: args.userId,
+        material_id: args.materialId,
+        course_code: args.courseCode,
+        section_index: args.sectionIndex,
+      },
+      select: { id: true },
+    });
+
+    try {
+      const prompt = [
+        'Return JSON only.',
+        'No markdown.',
+        `Section title: ${args.sectionTitle}`,
+        `Mastered: ${args.passed ? 'yes' : 'no'}`,
+        `Mastery score: ${args.score}`,
+        args.calculationContext.detected ? `Calculation context:\n${args.calculationContext.summary}` : '',
+        args.diagramContext.detected ? `Diagram context:\n${args.diagramContext.summary}` : '',
+        `Section content:\n${truncate(args.sectionContent, 2500)}`,
+        `Teach-back attempts:\n${args.teachBackAttempts.map((attempt, index) => `Attempt ${index + 1} score ${attempt.score}\nStudent: ${truncate(attempt.student_response, 400)}\nEvaluation: ${truncate(attempt.evaluation, 300)}`).join('\n\n')}`,
+        `Memory dump:\nStudent: ${truncate(args.memoryDumpEvaluation.studentResponse, 500)}\nEvaluation: ${truncate(args.memoryDumpEvaluation.evaluation, 320)}\nScore: ${args.memoryDumpEvaluation.score}`,
+        `Failed concepts:\n${args.failedConcepts.join('\n') || 'None listed'}`,
+        'Create compact student learning memory JSON with keys: understood, weak_points, misconceptions, calculation_issues, diagram_issues, preferred_explanation_style, revisit_later, compressed_summary.',
+      ].filter(Boolean).join('\n\n');
+
+      const raw = await generateText(
+        prompt,
+        'You compress student learning memory for future adaptive tutoring. Return valid JSON only. Be concise, encouraging, and grounded in the evidence provided.',
+        900,
+      );
+
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const start = raw.indexOf('{');
+        const end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          try {
+            parsed = JSON.parse(raw.slice(start, end + 1));
+          } catch {
+            parsed = null;
+          }
+        }
+      }
+
+      if (!parsed) {
+        throw new Error('Student memory JSON parse failed.');
+      }
+
+      const normalized = parseStudentMemoryRecord({
+        understood: parsed.understood,
+        weak_points: parsed.weak_points,
+        misconceptions: parsed.misconceptions,
+        calculation_issues: parsed.calculation_issues,
+        diagram_issues: parsed.diagram_issues,
+        preferred_explanation_style: typeof parsed.preferred_explanation_style === 'string' ? parsed.preferred_explanation_style : null,
+        revisit_later: parsed.revisit_later,
+        compressed_summary: typeof parsed.compressed_summary === 'string' ? parsed.compressed_summary : null,
+      });
+
+      const record = await studentMaterialMemory.upsert({
+        where: { id: existing?.id || `missing-${args.userId}-${args.materialId}-${args.sectionIndex}` },
+        create: {
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          mastered: args.passed,
+          mastery_score: args.score,
+          understood: normalized.understood as unknown as Prisma.InputJsonValue,
+          weak_points: normalized.weakPoints as unknown as Prisma.InputJsonValue,
+          misconceptions: normalized.misconceptions as unknown as Prisma.InputJsonValue,
+          calculation_issues: normalized.calculationIssues as unknown as Prisma.InputJsonValue,
+          diagram_issues: normalized.diagramIssues as unknown as Prisma.InputJsonValue,
+          preferred_explanation_style: normalized.preferredExplanationStyle,
+          revisit_later: normalized.revisitLater as unknown as Prisma.InputJsonValue,
+          compressed_summary: normalized.compressedSummary,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          mastered: args.passed,
+          mastery_score: args.score,
+          understood: normalized.understood as unknown as Prisma.InputJsonValue,
+          weak_points: normalized.weakPoints as unknown as Prisma.InputJsonValue,
+          misconceptions: normalized.misconceptions as unknown as Prisma.InputJsonValue,
+          calculation_issues: normalized.calculationIssues as unknown as Prisma.InputJsonValue,
+          diagram_issues: normalized.diagramIssues as unknown as Prisma.InputJsonValue,
+          preferred_explanation_style: normalized.preferredExplanationStyle,
+          revisit_later: normalized.revisitLater as unknown as Prisma.InputJsonValue,
+          compressed_summary: normalized.compressedSummary,
+        },
+      });
+
+      console.log('student_memory_compression_completed', {
+        userId: args.userId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    } catch (error) {
+      console.error('student_memory_compression_failed', {
+        userId: args.userId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        message: error instanceof Error ? error.message : 'Unknown student memory error',
+      });
+
+      const record = await studentMaterialMemory.upsert({
+        where: { id: existing?.id || `missing-${args.userId}-${args.materialId}-${args.sectionIndex}` },
+        create: {
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          mastered: args.passed,
+          mastery_score: args.score,
+          understood: fallback.understood as unknown as Prisma.InputJsonValue,
+          weak_points: fallback.weak_points as unknown as Prisma.InputJsonValue,
+          misconceptions: fallback.misconceptions as unknown as Prisma.InputJsonValue,
+          calculation_issues: fallback.calculation_issues as unknown as Prisma.InputJsonValue,
+          diagram_issues: fallback.diagram_issues as unknown as Prisma.InputJsonValue,
+          preferred_explanation_style: fallback.preferred_explanation_style,
+          revisit_later: fallback.revisit_later as unknown as Prisma.InputJsonValue,
+          compressed_summary: fallback.compressed_summary,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          mastered: args.passed,
+          mastery_score: args.score,
+          understood: fallback.understood as unknown as Prisma.InputJsonValue,
+          weak_points: fallback.weak_points as unknown as Prisma.InputJsonValue,
+          misconceptions: fallback.misconceptions as unknown as Prisma.InputJsonValue,
+          calculation_issues: fallback.calculation_issues as unknown as Prisma.InputJsonValue,
+          diagram_issues: fallback.diagram_issues as unknown as Prisma.InputJsonValue,
+          preferred_explanation_style: fallback.preferred_explanation_style,
+          revisit_later: fallback.revisit_later as unknown as Prisma.InputJsonValue,
+          compressed_summary: fallback.compressed_summary,
+        },
+      });
+
+      console.log('student_memory_fallback_created', {
+        userId: args.userId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    }
+  }
+
   private async loadSessionContext(sessionId: string) {
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
@@ -1133,7 +1492,14 @@ export class StudyCompanionService {
         materialId: session.material.id,
       });
     }
-    return { session, material: session.material, state, roadmap, teacherBrain };
+    const studentMemoryContext = await this.buildStudentMemoryContext(
+      state.user_id,
+      state.material_id,
+      state.course_code,
+      state.current_section_index,
+    );
+
+    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext };
   }
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
@@ -1195,7 +1561,7 @@ export class StudyCompanionService {
   }
 
   async start(sessionId: string, mode: CompanionStartMode, sectionTitle?: string) {
-    const { session, material, state, roadmap, teacherBrain } = await this.loadSessionContext(sessionId);
+    const { session, material, state, roadmap, teacherBrain, studentMemoryContext } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
       throw new Error('This material does not have a usable roadmap yet.');
     }
@@ -1250,9 +1616,10 @@ export class StudyCompanionService {
       `Course code: ${session.course_code || material.course_code || 'GENERAL'}`,
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      studentMemoryContext.promptContext ? `Student memory context:\n${studentMemoryContext.promptContext}` : '',
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
-      'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
+      'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
 
     if (teacherBrainContext) {
@@ -1286,7 +1653,7 @@ export class StudyCompanionService {
     return this.handleStudentReply(sessionId, '__AUTO_CONTINUE__');
   }
 
-  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext) {
+  private async buildTeachingPass(section: RoadmapSection, pass: 1 | 2 | 3, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, teacherBrainSectionContext?: TeacherBrainSectionContext, studentMemoryPromptContext = '') {
     const calculationContext = buildCalculationTeachingContext(
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
@@ -1333,10 +1700,12 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
       instructions,
+      'Use student memory to adapt explanation. If the student previously struggled with a prerequisite, briefly refresh it. If calculation issues exist, slow down formula substitution. If diagram issues exist, use clearer mental visualization. Be encouraging, not judgmental.',
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
     ].join('\n\n');
 
@@ -1561,10 +1930,11 @@ export class StudyCompanionService {
     );
   }
 
-  private async buildInterruptResponse(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }) {
+  private async buildInterruptResponse(section: RoadmapSection, studentResponse: string, teacherBrainContext = '', contextMeta?: { sessionId: string; materialId: string; sectionIndex: number }, studentMemoryPromptContext = '') {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
@@ -1598,7 +1968,7 @@ export class StudyCompanionService {
   }
 
   async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
-    const { state, roadmap, material, teacherBrain } = await this.loadSessionContext(sessionId);
+    const { state, roadmap, material, teacherBrain, studentMemoryContext } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
     const teacherBrainSectionContext = getTeacherBrainSectionContext(
@@ -1622,7 +1992,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_1) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -1636,7 +2006,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_2,
         pending_prompt: content,
@@ -1653,7 +2023,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_2) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -1667,7 +2037,7 @@ export class StudyCompanionService {
           }),
         };
       }
-      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: PASS_3,
         pending_prompt: content,
@@ -1684,7 +2054,7 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_3) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta);
+        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -1699,7 +2069,7 @@ export class StudyCompanionService {
         };
       }
       if (!sectionContext.pass3QuestionPending) {
-        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext);
+        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
           pending_prompt: content,
@@ -1915,6 +2285,8 @@ export class StudyCompanionService {
       const finalScore = Math.round((averageTeachBack * 0.65) + (evaluation.score * 0.35));
       const passed = finalScore >= state.mastery_threshold;
       const failedConcepts = deriveFailedConcepts(section, trimmed);
+      const sectionCalculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
+      const sectionDiagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
 
       await prisma.masteryRecord.create({
         data: {
@@ -1928,6 +2300,39 @@ export class StudyCompanionService {
           score: finalScore,
           status: passed ? MasteryStatus.PASSED : MasteryStatus.FAILED,
           failed_concepts: failedConcepts as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      const latestTeachBackAttempts = await prisma.teachBackAttempt.findMany({
+        where: {
+          companion_state_id: state.id,
+          section_index: state.current_section_index,
+        },
+        orderBy: { created_at: 'asc' },
+        select: {
+          student_response: true,
+          evaluation: true,
+          score: true,
+        },
+      });
+
+      await this.compressStudentSectionMemory({
+        userId: state.user_id,
+        materialId: state.material_id,
+        courseCode: state.course_code,
+        sectionIndex: state.current_section_index,
+        sectionTitle: section.title,
+        sectionContent: section.content,
+        passed,
+        score: finalScore,
+        failedConcepts,
+        calculationContext: sectionCalculationContext,
+        diagramContext: sectionDiagramContext,
+        teachBackAttempts: latestTeachBackAttempts,
+        memoryDumpEvaluation: {
+          studentResponse: trimmed,
+          evaluation: evaluation.evaluation,
+          score: evaluation.score,
         },
       });
 
@@ -1994,11 +2399,17 @@ export class StudyCompanionService {
           nextIndex,
           nextSection.title,
         );
+        const nextStudentMemoryContext = await this.buildStudentMemoryContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          nextIndex,
+        );
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -2027,11 +2438,17 @@ export class StudyCompanionService {
           nextIndex,
           nextSection.title,
         );
+        const nextStudentMemoryContext = await this.buildStudentMemoryContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          nextIndex,
+        );
         const content = await this.buildTeachingPass(nextSection, 1, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
