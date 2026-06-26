@@ -106,4 +106,61 @@ export class MaterialsController {
       res.status(500).json({ message: error.message });
     }
   }
+
+  async getTeacherBrain(req: Request, res: Response) {
+    try {
+      const result = await materialsService.getTeacherBrain(req.params.id, {
+        userId: req.user!.userId,
+        email: req.user!.email,
+      });
+      res.status(200).json(result);
+    } catch (error: any) {
+      const status =
+        error.message === 'Material not found' || error.message === 'Teacher Brain not found for this material.'
+          ? 404
+          : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
+  async regenerateTeacherBrain(req: Request, res: Response) {
+    try {
+      const result = await materialsService.regenerateMaterialTeacherBrain(
+        req.params.id,
+        {
+          userId: req.user!.userId,
+          email: req.user!.email,
+        },
+        {
+          force: req.body?.force === true,
+        },
+      );
+      res.status(200).json(result);
+    } catch (error: any) {
+      const status = error.message === 'Material not found' ? 404 : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
+  async backfillTeacherBrains(req: Request, res: Response) {
+    try {
+      const result = await materialsService.backfillMaterialTeacherBrains(
+        {
+          userId: req.user!.userId,
+          email: req.user!.email,
+        },
+        {
+          limit: req.body?.limit,
+          courseCode: req.body?.courseCode,
+          department: req.body?.department,
+          subjectFamily: req.body?.subjectFamily,
+          missingOnly: req.body?.missingOnly,
+          force: req.body?.force,
+        },
+      );
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(403).json({ message: error.message });
+    }
+  }
 }

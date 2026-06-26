@@ -10,6 +10,7 @@ import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
 import { queueMaterialIngestion } from './material-processing';
+import { backfillTeacherBrains, regenerateTeacherBrain } from './teacher-brain.service';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -21,6 +22,15 @@ const s3Client = new S3Client({
 });
 
 export class MaterialsService {
+  private async getAdminRoleByEmail(email?: string | null) {
+    if (!email) return null;
+    const admin = await prisma.admin.findFirst({
+      where: { email, status: 'active' as any },
+      select: { role: true },
+    });
+    return admin?.role || null;
+  }
+
   private mapStorageError(error: unknown, fallbackMessage: string) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`${fallbackMessage} Please try again shortly. (${detail})`);
@@ -368,6 +378,87 @@ export class MaterialsService {
       ...material,
       diagnostics,
     };
+  }
+
+  async getTeacherBrain(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    const material = await this.getMaterial(materialId, {
+      requestingUserId: requester.userId,
+      requestingAdminRole: adminRole,
+    });
+
+    const teacherBrain = await prisma.materialTeacherBrain.findUnique({
+      where: { material_id: materialId },
+      select: {
+        id: true,
+        material_id: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        summary: true,
+        chapter_summaries: true,
+        concept_graph: true,
+        prerequisites: true,
+        formulas: true,
+        calculation_methods: true,
+        diagrams: true,
+        misconceptions: true,
+        exam_angles: true,
+        teacher_notes: true,
+        subject_family: true,
+        confidence: true,
+        generated_at: true,
+        updated_at: true,
+      },
+    });
+
+    if (!teacherBrain) {
+      throw new Error('Teacher Brain not found for this material.');
+    }
+
+    return {
+      materialId: material.id,
+      title: material.title,
+      teacherBrain,
+    };
+  }
+
+  async regenerateMaterialTeacherBrain(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+    options?: { force?: boolean },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    await this.getMaterial(materialId, {
+      requestingUserId: requester.userId,
+      requestingAdminRole: adminRole,
+    });
+
+    return regenerateTeacherBrain(materialId, options);
+  }
+
+  async backfillMaterialTeacherBrains(
+    requester: { userId: string; email?: string | null },
+    options?: {
+      limit?: number;
+      courseCode?: string;
+      department?: string;
+      subjectFamily?: string;
+      missingOnly?: boolean;
+      force?: boolean;
+    },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    if (!adminRole) {
+      throw new Error('Only admins can backfill teacher brains.');
+    }
+
+    return backfillTeacherBrains(options);
   }
 
   async createUpload(userId: string, data: UploadMaterialRequest) {

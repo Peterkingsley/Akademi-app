@@ -14,7 +14,10 @@ router.use(generalAuthenticatedApiLimiter);
 
 router.get('/', materialsController.list);
 router.get('/pending', materialsController.getPending);
+router.post('/teacher-brain/backfill', materialsController.backfillTeacherBrains);
 router.get('/:id', materialsController.getOne);
+router.get('/:id/teacher-brain', materialsController.getTeacherBrain);
+router.post('/:id/teacher-brain/regenerate', materialsController.regenerateTeacherBrain);
 router.post('/upload', materialUploadRateLimiter, materialsController.upload);
 router.post('/:id/confirm', materialsController.confirm);
 router.get('/:id/download', materialsController.getDownloadUrl);

@@ -260,6 +260,42 @@ async function saveTeacherBrain(
   });
 }
 
+async function loadMaterialForTeacherBrain(materialId: string) {
+  return prisma.material.findUnique({
+    where: { id: materialId },
+    select: {
+      id: true,
+      title: true,
+      course_code: true,
+      university: true,
+      faculty: true,
+      department: true,
+      level: true,
+      content: true,
+      reader_structure: true,
+      teacher_brain: {
+        select: {
+          id: true,
+          summary: true,
+          chapter_summaries: true,
+          concept_graph: true,
+          prerequisites: true,
+          formulas: true,
+          calculation_methods: true,
+          diagrams: true,
+          misconceptions: true,
+          exam_angles: true,
+          teacher_notes: true,
+          subject_family: true,
+          confidence: true,
+          generated_at: true,
+          updated_at: true,
+        },
+      },
+    },
+  });
+}
+
 export async function createFallbackTeacherBrain(materialId: string) {
   const material = await prisma.material.findUnique({
     where: { id: materialId },
@@ -389,4 +425,132 @@ export async function generateMaterialTeacherBrain(materialId: string) {
     fallback: false,
   });
   return record;
+}
+
+export async function regenerateTeacherBrain(materialId: string, options?: { force?: boolean }) {
+  console.log('teacher_brain_regeneration_requested', {
+    materialId,
+    force: options?.force === true,
+  });
+
+  const material = await loadMaterialForTeacherBrain(materialId);
+  if (!material) {
+    throw new Error('Material not found.');
+  }
+
+  if (!material.content || !material.reader_structure) {
+    throw new Error('Material content and reader structure are required.');
+  }
+
+  if (material.teacher_brain && !options?.force) {
+    return material.teacher_brain;
+  }
+
+  const record = await generateMaterialTeacherBrain(materialId).catch(async (error) => {
+    console.error('teacher_brain_generation_failed', {
+      materialId,
+      message: error instanceof Error ? error.message : 'Unknown regeneration error',
+      stage: 'regeneration',
+    });
+    return createFallbackTeacherBrain(materialId);
+  });
+
+  console.log('teacher_brain_regeneration_completed', {
+    materialId,
+    force: options?.force === true,
+  });
+  return record;
+}
+
+export async function backfillTeacherBrains(options?: {
+  limit?: number;
+  courseCode?: string;
+  department?: string;
+  subjectFamily?: string;
+  missingOnly?: boolean;
+  force?: boolean;
+}) {
+  const limit = Math.min(Math.max(Number(options?.limit) || 20, 1), 100);
+  const missingOnly = options?.missingOnly !== false;
+  const force = options?.force === true;
+
+  console.log('teacher_brain_backfill_started', {
+    limit,
+    courseCode: options?.courseCode || null,
+    department: options?.department || null,
+    subjectFamily: options?.subjectFamily || null,
+    missingOnly,
+    force,
+  });
+
+  const materials = await prisma.material.findMany({
+    where: {
+      processing_status: 'EXTRACTED' as any,
+      content: { not: null },
+      reader_structure: { not: Prisma.DbNull },
+      ...(options?.courseCode ? { course_code: options.courseCode } : {}),
+      ...(options?.department ? { department: options.department } : {}),
+      ...(options?.subjectFamily
+        ? {
+            teacher_brain: {
+              is: {
+                subject_family: options.subjectFamily,
+              },
+            },
+          }
+        : {}),
+      ...(missingOnly
+        ? {
+            teacher_brain: {
+              is: null,
+            },
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      teacher_brain: {
+        select: { id: true },
+      },
+    },
+    take: limit,
+    orderBy: { created_at: 'desc' },
+  });
+
+  const result = {
+    scanned: materials.length,
+    generated: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [] as Array<{ materialId: string; message: string }>,
+  };
+
+  for (const material of materials) {
+    if (material.teacher_brain && !force) {
+      result.skipped += 1;
+      continue;
+    }
+
+    try {
+      await regenerateTeacherBrain(material.id, { force });
+      result.generated += 1;
+    } catch (error) {
+      result.failed += 1;
+      const message = error instanceof Error ? error.message : 'Unknown backfill error';
+      result.errors.push({ materialId: material.id, message });
+      console.error('teacher_brain_backfill_failed_item', {
+        materialId: material.id,
+        message,
+      });
+    }
+  }
+
+  console.log('teacher_brain_backfill_completed', {
+    scanned: result.scanned,
+    generated: result.generated,
+    skipped: result.skipped,
+    failed: result.failed,
+  });
+
+  return result;
 }
