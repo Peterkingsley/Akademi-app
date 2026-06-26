@@ -366,6 +366,47 @@ type TeachingReflectionRecord = {
   compressedReflection: string | null;
 };
 
+type LearningIntelligenceRecordRow = {
+  id: string;
+  session_id: string;
+  companion_state_id: string;
+  user_id: string;
+  material_id: string;
+  course_code: string;
+  section_index: number;
+  section_title: string;
+  mastery_score: number | null;
+  concept_understanding: number;
+  procedural_accuracy: number;
+  reasoning_quality: number;
+  confidence: number;
+  hidden_confusion_risk: number;
+  retention_risk: number;
+  calculation_weakness: boolean;
+  diagram_weakness: boolean;
+  prerequisite_weakness: boolean;
+  evidence: unknown;
+  recommended_action: string | null;
+};
+
+type LearningIntelligenceContext = {
+  masteryScore: number | null;
+  conceptUnderstanding: number;
+  proceduralAccuracy: number;
+  reasoningQuality: number;
+  confidence: number;
+  hiddenConfusionRisk: number;
+  retentionRisk: number;
+  calculationWeakness: boolean;
+  diagramWeakness: boolean;
+  prerequisiteWeakness: boolean;
+  recommendedAction: string | null;
+  evidence: {
+    mainReason: string | null;
+    signals: string[];
+  };
+};
+
 type MaterialEmbeddingRow = {
   chunk_index: number;
   chunk_text: string;
@@ -1315,6 +1356,31 @@ function buildDeterministicTeachingReflectionFallback(args: {
   };
 }
 
+function parseLearningIntelligenceContext(value: LearningIntelligenceRecordRow): LearningIntelligenceContext {
+  const evidence = safeJsonObject<{ main_reason?: string; signals?: unknown }>(value.evidence, {});
+  return {
+    masteryScore: value.mastery_score ?? null,
+    conceptUnderstanding: clampReflectionScore(value.concept_understanding),
+    proceduralAccuracy: clampReflectionScore(value.procedural_accuracy),
+    reasoningQuality: clampReflectionScore(value.reasoning_quality),
+    confidence: clampReflectionScore(value.confidence),
+    hiddenConfusionRisk: clampReflectionScore(value.hidden_confusion_risk),
+    retentionRisk: clampReflectionScore(value.retention_risk),
+    calculationWeakness: Boolean(value.calculation_weakness),
+    diagramWeakness: Boolean(value.diagram_weakness),
+    prerequisiteWeakness: Boolean(value.prerequisite_weakness),
+    recommendedAction: value.recommended_action || null,
+    evidence: {
+      mainReason: evidence.main_reason ? String(evidence.main_reason) : null,
+      signals: safeStringArray(evidence.signals),
+    },
+  };
+}
+
+function inferPrerequisiteWeaknessFromFailedConcepts(failedConcepts: string[]) {
+  return failedConcepts.some((item) => /\bprerequisite\b|\bbasic\b|\bfoundation\b|\bprior\b|\bbackground\b/i.test(item));
+}
+
 function cosineSimilarity(a: number[], b: number[]) {
   if (!a.length || !b.length) return 0;
   const length = Math.min(a.length, b.length);
@@ -2000,6 +2066,50 @@ export class StudyCompanionService {
     } satisfies StudentMemoryContext;
   }
 
+  private async loadLatestLearningIntelligenceContext(userId: string, materialId: string, courseCode: string, currentSectionIndex: number) {
+    const learningIntelligenceRecord = (prisma as typeof prisma & {
+      learningIntelligenceRecord: {
+        findFirst: (query: unknown) => Promise<LearningIntelligenceRecordRow | null>;
+      };
+    }).learningIntelligenceRecord;
+
+    const record = await learningIntelligenceRecord.findFirst({
+      where: {
+        user_id: userId,
+        material_id: materialId,
+        course_code: courseCode,
+        section_index: {
+          lt: currentSectionIndex,
+        },
+      },
+      orderBy: {
+        section_index: 'desc',
+      },
+    });
+
+    if (!record) {
+      console.log('learning_intelligence_context_missing', {
+        userId,
+        materialId,
+        courseCode,
+        currentSectionIndex,
+      });
+      return null;
+    }
+
+    const parsed = parseLearningIntelligenceContext(record);
+    console.log('learning_intelligence_context_loaded', {
+      userId,
+      materialId,
+      courseCode,
+      currentSectionIndex,
+      sectionIndex: record.section_index,
+      hiddenConfusionRisk: parsed.hiddenConfusionRisk,
+      retentionRisk: parsed.retentionRisk,
+    });
+    return parsed;
+  }
+
   private createTeachingDecision(args: {
     phase: string;
     section: RoadmapSection;
@@ -2010,6 +2120,7 @@ export class StudyCompanionService {
     calculationContext: CalculationTeachingContext;
     diagramContext: DiagramTeachingContext;
     relevantMaterialContext: RelevantMaterialContext;
+    learningIntelligenceContext?: LearningIntelligenceContext | null;
     currentMasteryScore?: number | null;
     lastMasteryScore?: number | null;
   }): TeachingDecision {
@@ -2053,6 +2164,12 @@ export class StudyCompanionService {
       calculationIssues,
       diagramIssues,
       prerequisiteIssues,
+      conceptUnderstanding: args.learningIntelligenceContext?.conceptUnderstanding ?? null,
+      proceduralAccuracy: args.learningIntelligenceContext?.proceduralAccuracy ?? null,
+      reasoningQuality: args.learningIntelligenceContext?.reasoningQuality ?? null,
+      confidence: args.learningIntelligenceContext?.confidence ?? null,
+      hiddenConfusionRisk: args.learningIntelligenceContext?.hiddenConfusionRisk ?? null,
+      retentionRisk: args.learningIntelligenceContext?.retentionRisk ?? null,
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
     });
@@ -2526,6 +2643,236 @@ export class StudyCompanionService {
       });
 
       console.log('teaching_reflection_fallback_created', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    }
+  }
+
+  private async createLearningIntelligenceRecordAfterSection(args: {
+    sessionId: string;
+    companionStateId: string;
+    userId: string;
+    materialId: string;
+    courseCode: string;
+    sectionIndex: number;
+    sectionTitle: string;
+    sectionContent: string;
+    score: number;
+    passed: boolean;
+    failedConcepts: string[];
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    studentMemoryContext: StudentMemoryContext;
+    latestStudentMemory?: StudentMaterialMemoryRow | null;
+    latestTeachingReflection?: TeachingReflectionRow | null;
+    teachBackAttempts: Array<{ student_response: string; evaluation: string; score: number }>;
+    memoryDumpEvaluation: { studentResponse: string; evaluation: string; score: number };
+  }) {
+    console.log('learning_intelligence_started', {
+      sessionId: args.sessionId,
+      materialId: args.materialId,
+      sectionIndex: args.sectionIndex,
+    });
+
+    const learningIntelligenceRecord = (prisma as typeof prisma & {
+      learningIntelligenceRecord: {
+        findFirst: (query: unknown) => Promise<LearningIntelligenceRecordRow | null>;
+        upsert: (query: unknown) => Promise<LearningIntelligenceRecordRow>;
+      };
+    }).learningIntelligenceRecord;
+
+    const existing = await learningIntelligenceRecord.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+      select: { id: true },
+    });
+
+    const memoryRecord = args.latestStudentMemory ? parseStudentMemoryRecord(args.latestStudentMemory) : null;
+    const reflection = args.latestTeachingReflection ? parseTeachingReflectionRecord(args.latestTeachingReflection) : null;
+    const averageTeachBack =
+      args.teachBackAttempts.length > 0
+        ? Math.round(args.teachBackAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / args.teachBackAttempts.length)
+        : args.score;
+    const shortAnswerRisk = args.teachBackAttempts.some((attempt) => attempt.student_response.trim().split(/\s+/).filter(Boolean).length < 18);
+    const calculationIssues = memoryRecord?.calculationIssues || [];
+    const diagramIssues = memoryRecord?.diagramIssues || [];
+    const prerequisiteWeakness = inferPrerequisiteWeaknessFromFailedConcepts(args.failedConcepts);
+
+    const fallback = {
+      concept_understanding: clampReflectionScore(args.score),
+      procedural_accuracy: clampReflectionScore(args.score - (calculationIssues.length ? 15 : 0)),
+      reasoning_quality: clampReflectionScore(averageTeachBack - Math.max(0, 70 - averageTeachBack) * 0.4),
+      confidence: clampReflectionScore(args.score - Math.max(0, averageTeachBack - args.memoryDumpEvaluation.score) - (args.failedConcepts.length * 4)),
+      hidden_confusion_risk: clampReflectionScore((args.passed ? 30 : 60) + args.failedConcepts.length * 8 + (shortAnswerRisk ? 10 : 0) + (args.score <= 84 ? 8 : 0)),
+      retention_risk: clampReflectionScore((100 - args.memoryDumpEvaluation.score) * 0.7 + (args.memoryDumpEvaluation.score < averageTeachBack ? 10 : 0)),
+      calculation_weakness: calculationIssues.length > 0 || (args.calculationContext.detected && args.score < 75),
+      diagram_weakness: diagramIssues.length > 0 || (args.diagramContext.detected && args.score < 75),
+      prerequisite_weakness: prerequisiteWeakness,
+      recommended_action: args.score < 80
+        ? 'Reteach with slower pacing, prerequisite refresh, and one targeted worked example.'
+        : 'Reinforce retention with a short recap and one retrieval prompt in the next related section.',
+      evidence: {
+        main_reason: args.failedConcepts[0] || 'Assessment pattern suggests uneven mastery across dimensions.',
+        signals: truncateList([
+          `Teach-back average: ${averageTeachBack}`,
+          `Memory dump score: ${args.memoryDumpEvaluation.score}`,
+          shortAnswerRisk ? 'Student answers were unusually short.' : '',
+          calculationIssues.length ? `Calculation issues: ${calculationIssues.slice(0, 2).join(', ')}` : '',
+          diagramIssues.length ? `Diagram issues: ${diagramIssues.slice(0, 2).join(', ')}` : '',
+        ].filter(Boolean), 5, 140),
+      },
+    };
+
+    try {
+      const prompt = [
+        'Return JSON only.',
+        'No markdown.',
+        `Section title: ${args.sectionTitle}`,
+        `Mastery score: ${args.score}`,
+        `Passed: ${args.passed ? 'yes' : 'no'}`,
+        args.calculationContext.detected ? `Calculation context:\n${args.calculationContext.summary}` : '',
+        args.diagramContext.detected ? `Diagram context:\n${args.diagramContext.summary}` : '',
+        memoryRecord?.compressedSummary ? `Student memory:\n${memoryRecord.compressedSummary}` : '',
+        reflection?.compressedReflection ? `Teaching reflection:\n${reflection.compressedReflection}` : '',
+        `Teach-back evidence:\n${args.teachBackAttempts.map((attempt, index) => `Attempt ${index + 1} score ${attempt.score}\nStudent: ${truncate(attempt.student_response, 220)}\nEvaluation: ${truncate(attempt.evaluation, 180)}`).join('\n\n')}`,
+        `Memory dump evidence:\nStudent: ${truncate(args.memoryDumpEvaluation.studentResponse, 260)}\nEvaluation: ${truncate(args.memoryDumpEvaluation.evaluation, 180)}\nScore: ${args.memoryDumpEvaluation.score}`,
+        `Failed concepts:\n${args.failedConcepts.join('\n') || 'None listed'}`,
+        `Section content:\n${truncate(args.sectionContent, 1800)}`,
+        'Create learning intelligence JSON with keys: concept_understanding, procedural_accuracy, reasoning_quality, confidence, hidden_confusion_risk, retention_risk, calculation_weakness, diagram_weakness, prerequisite_weakness, recommended_action, evidence.',
+      ].filter(Boolean).join('\n\n');
+
+      const raw = await generateText(
+        prompt,
+        'You analyze student learning quality across multiple dimensions. Return valid JSON only. Be concise, evidence-based, and practical.',
+        650,
+      );
+
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const start = raw.indexOf('{');
+        const end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          try {
+            parsed = JSON.parse(raw.slice(start, end + 1));
+          } catch {
+            parsed = null;
+          }
+        }
+      }
+
+      if (!parsed) {
+        throw new Error('Learning intelligence JSON parse failed.');
+      }
+
+      const evidence = safeJsonObject<{ main_reason?: string; signals?: unknown }>(parsed.evidence, {});
+      const record = await learningIntelligenceRecord.upsert({
+        where: { id: existing?.id || `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          mastery_score: args.score,
+          concept_understanding: clampReflectionScore(Number(parsed.concept_understanding ?? 50)),
+          procedural_accuracy: clampReflectionScore(Number(parsed.procedural_accuracy ?? 50)),
+          reasoning_quality: clampReflectionScore(Number(parsed.reasoning_quality ?? 50)),
+          confidence: clampReflectionScore(Number(parsed.confidence ?? 50)),
+          hidden_confusion_risk: clampReflectionScore(Number(parsed.hidden_confusion_risk ?? 50)),
+          retention_risk: clampReflectionScore(Number(parsed.retention_risk ?? 50)),
+          calculation_weakness: Boolean(parsed.calculation_weakness),
+          diagram_weakness: Boolean(parsed.diagram_weakness),
+          prerequisite_weakness: Boolean(parsed.prerequisite_weakness),
+          recommended_action: typeof parsed.recommended_action === 'string' ? parsed.recommended_action : null,
+          evidence: {
+            main_reason: evidence.main_reason ? String(evidence.main_reason) : '',
+            signals: safeStringArray(evidence.signals),
+          } as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          mastery_score: args.score,
+          concept_understanding: clampReflectionScore(Number(parsed.concept_understanding ?? 50)),
+          procedural_accuracy: clampReflectionScore(Number(parsed.procedural_accuracy ?? 50)),
+          reasoning_quality: clampReflectionScore(Number(parsed.reasoning_quality ?? 50)),
+          confidence: clampReflectionScore(Number(parsed.confidence ?? 50)),
+          hidden_confusion_risk: clampReflectionScore(Number(parsed.hidden_confusion_risk ?? 50)),
+          retention_risk: clampReflectionScore(Number(parsed.retention_risk ?? 50)),
+          calculation_weakness: Boolean(parsed.calculation_weakness),
+          diagram_weakness: Boolean(parsed.diagram_weakness),
+          prerequisite_weakness: Boolean(parsed.prerequisite_weakness),
+          recommended_action: typeof parsed.recommended_action === 'string' ? parsed.recommended_action : null,
+          evidence: {
+            main_reason: evidence.main_reason ? String(evidence.main_reason) : '',
+            signals: safeStringArray(evidence.signals),
+          } as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      console.log('learning_intelligence_completed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    } catch (error) {
+      console.error('learning_intelligence_failed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        message: error instanceof Error ? error.message : 'Unknown learning intelligence error',
+      });
+
+      const record = await learningIntelligenceRecord.upsert({
+        where: { id: existing?.id || `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          mastery_score: args.score,
+          concept_understanding: fallback.concept_understanding,
+          procedural_accuracy: fallback.procedural_accuracy,
+          reasoning_quality: fallback.reasoning_quality,
+          confidence: fallback.confidence,
+          hidden_confusion_risk: fallback.hidden_confusion_risk,
+          retention_risk: fallback.retention_risk,
+          calculation_weakness: fallback.calculation_weakness,
+          diagram_weakness: fallback.diagram_weakness,
+          prerequisite_weakness: fallback.prerequisite_weakness,
+          recommended_action: fallback.recommended_action,
+          evidence: fallback.evidence as unknown as Prisma.InputJsonValue,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          mastery_score: args.score,
+          concept_understanding: fallback.concept_understanding,
+          procedural_accuracy: fallback.procedural_accuracy,
+          reasoning_quality: fallback.reasoning_quality,
+          confidence: fallback.confidence,
+          hidden_confusion_risk: fallback.hidden_confusion_risk,
+          retention_risk: fallback.retention_risk,
+          calculation_weakness: fallback.calculation_weakness,
+          diagram_weakness: fallback.diagram_weakness,
+          prerequisite_weakness: fallback.prerequisite_weakness,
+          recommended_action: fallback.recommended_action,
+          evidence: fallback.evidence as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      console.log('learning_intelligence_fallback_created', {
         sessionId: args.sessionId,
         materialId: args.materialId,
         sectionIndex: args.sectionIndex,
@@ -3181,8 +3528,14 @@ export class StudyCompanionService {
       state.course_code,
       state.current_section_index,
     );
+    const learningIntelligenceContext = await this.loadLatestLearningIntelligenceContext(
+      state.user_id,
+      state.material_id,
+      state.course_code,
+      state.current_section_index,
+    );
 
-    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext };
+    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext };
   }
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
@@ -3305,7 +3658,7 @@ export class StudyCompanionService {
   }
 
   async start(sessionId: string, mode: CompanionStartMode, sectionTitle?: string) {
-    const { session, material, state, roadmap, teacherBrain, studentMemoryContext } = await this.loadSessionContext(sessionId);
+    const { session, material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
       throw new Error('This material does not have a usable roadmap yet.');
     }
@@ -3387,6 +3740,7 @@ export class StudyCompanionService {
       calculationContext: sectionCalculationContext,
       diagramContext: sectionDiagramContext,
       relevantMaterialContext,
+      learningIntelligenceContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -4079,7 +4433,7 @@ export class StudyCompanionService {
   }
 
   async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
-    const { state, roadmap, material, teacherBrain, studentMemoryContext } = await this.loadSessionContext(sessionId);
+    const { state, roadmap, material, teacherBrain, studentMemoryContext, learningIntelligenceContext } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
     const teacherBrainSectionContext = getTeacherBrainSectionContext(
@@ -4126,6 +4480,7 @@ export class StudyCompanionService {
       calculationContext: sectionCalculationContext,
       diagramContext: sectionDiagramContext,
       relevantMaterialContext,
+      learningIntelligenceContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -4672,8 +5027,9 @@ export class StudyCompanionService {
         },
       });
 
+      let latestTeachingReflection: TeachingReflectionRow | null = null;
       try {
-        await this.createTeachingReflectionAfterSection({
+        latestTeachingReflection = await this.createTeachingReflectionAfterSection({
           sessionId,
           companionStateId: state.id,
           userId: state.user_id,
@@ -4702,6 +5058,39 @@ export class StudyCompanionService {
           sessionId,
           sectionIndex: state.current_section_index,
           message: reflectionError instanceof Error ? reflectionError.message : 'Unknown reflection failure',
+        });
+      }
+
+      try {
+        await this.createLearningIntelligenceRecordAfterSection({
+          sessionId,
+          companionStateId: state.id,
+          userId: state.user_id,
+          materialId: state.material_id,
+          courseCode: state.course_code,
+          sectionIndex: state.current_section_index,
+          sectionTitle: section.title,
+          sectionContent: section.content,
+          score: finalScore,
+          passed,
+          failedConcepts,
+          calculationContext: sectionCalculationContext,
+          diagramContext: sectionDiagramContext,
+          studentMemoryContext,
+          latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
+          latestTeachingReflection,
+          teachBackAttempts: latestTeachBackAttempts,
+          memoryDumpEvaluation: {
+            studentResponse: trimmed,
+            evaluation: evaluation.evaluation,
+            score: evaluation.score,
+          },
+        });
+      } catch (learningIntelligenceError) {
+        console.error('learning_intelligence_failed', {
+          sessionId,
+          sectionIndex: state.current_section_index,
+          message: learningIntelligenceError instanceof Error ? learningIntelligenceError.message : 'Unknown learning intelligence failure',
         });
       }
 
@@ -4780,6 +5169,12 @@ export class StudyCompanionService {
           state.course_code,
           nextIndex,
         );
+        const nextLearningIntelligenceContext = await this.loadLatestLearningIntelligenceContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          nextIndex,
+        );
         const nextLessonPlan = await this.getOrCreateLessonPlan({
           sessionId,
           companionStateId: state.id,
@@ -4811,6 +5206,7 @@ export class StudyCompanionService {
           calculationContext: nextSectionCalculationContext,
           diagramContext: nextSectionDiagramContext,
           relevantMaterialContext: nextRelevantMaterialContext,
+          learningIntelligenceContext: nextLearningIntelligenceContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
@@ -4855,6 +5251,12 @@ export class StudyCompanionService {
           state.course_code,
           nextIndex,
         );
+        const nextLearningIntelligenceContext = await this.loadLatestLearningIntelligenceContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          nextIndex,
+        );
         const nextLessonPlan = await this.getOrCreateLessonPlan({
           sessionId,
           companionStateId: state.id,
@@ -4886,6 +5288,7 @@ export class StudyCompanionService {
           calculationContext: nextSectionCalculationContext,
           diagramContext: nextSectionDiagramContext,
           relevantMaterialContext: nextRelevantMaterialContext,
+          learningIntelligenceContext: nextLearningIntelligenceContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });

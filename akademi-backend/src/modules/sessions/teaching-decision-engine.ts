@@ -19,6 +19,7 @@ export type LearningSignal = {
   reasoningQuality: number;
   confidence: number;
   hiddenConfusionRisk: number;
+  retentionRisk: number;
   calculationWeakness: number;
   diagramWeakness: number;
   prerequisiteWeakness: number;
@@ -42,6 +43,12 @@ export type TeachingDecisionInput = {
   calculationIssues?: string[];
   diagramIssues?: string[];
   prerequisiteIssues?: string[];
+  conceptUnderstanding?: number | null;
+  proceduralAccuracy?: number | null;
+  reasoningQuality?: number | null;
+  confidence?: number | null;
+  hiddenConfusionRisk?: number | null;
+  retentionRisk?: number | null;
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
 };
@@ -115,20 +122,26 @@ function inferLearningSignal(input: TeachingDecisionInput): LearningSignal {
   const calculationWeakness = clampScore(calculationIssues.length * 20 + (input.isCalculationHeavy ? 10 : 0));
   const diagramWeakness = clampScore(diagramIssues.length * 20 + (input.isDiagramHeavy ? 10 : 0));
   const hiddenConfusionRisk = clampScore(
+    input.hiddenConfusionRisk ??
     issueWeight +
       (input.studentMemoryContext ? 10 : 0) +
       (input.isCalculationHeavy ? 8 : 0) +
       (input.isDiagramHeavy ? 8 : 0) -
       Math.max(0, baseline - 60),
   );
+  const retentionRisk = clampScore(
+    input.retentionRisk ??
+    ((100 - baseline) * 0.6 + weakPoints.length * 8 + misconceptions.length * 6),
+  );
 
   return {
     masteryScore,
-    conceptUnderstanding: clampScore(baseline - weakPoints.length * 10 - misconceptions.length * 12),
-    proceduralAccuracy: clampScore(baseline - calculationIssues.length * 15 - prerequisiteIssues.length * 10),
-    reasoningQuality: clampScore(baseline - misconceptions.length * 10 - weakPoints.length * 8),
-    confidence: clampScore(baseline - hiddenConfusionRisk * 0.2),
+    conceptUnderstanding: clampScore(input.conceptUnderstanding ?? (baseline - weakPoints.length * 10 - misconceptions.length * 12)),
+    proceduralAccuracy: clampScore(input.proceduralAccuracy ?? (baseline - calculationIssues.length * 15 - prerequisiteIssues.length * 10)),
+    reasoningQuality: clampScore(input.reasoningQuality ?? (baseline - misconceptions.length * 10 - weakPoints.length * 8)),
+    confidence: clampScore(input.confidence ?? (baseline - hiddenConfusionRisk * 0.2)),
     hiddenConfusionRisk,
+    retentionRisk,
     calculationWeakness,
     diagramWeakness,
     prerequisiteWeakness,
@@ -209,6 +222,51 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     reasons.push('hidden confusion risk is high');
   }
 
+  if (signal.conceptUnderstanding <= 45) {
+    shouldSlowDown = true;
+    shouldUseAnalogy = true;
+    shouldChallengeStudent = false;
+    if (input.isDiagramHeavy || input.diagramContext) {
+      shouldUseVisualExplanation = true;
+    }
+    reasons.push('low concept understanding');
+  }
+
+  if (signal.proceduralAccuracy <= 45) {
+    strategy = 'worked_example_first';
+    shouldUseWorkedExample = true;
+    shouldUseCalculationSteps = true;
+    shouldChallengeStudent = false;
+    reasons.push('low procedural accuracy');
+  }
+
+  if (signal.reasoningQuality <= 45) {
+    shouldSlowDown = true;
+    promptDirectives.push('In future responses, ask for reasoning and explain why each step makes sense.');
+    shouldChallengeStudent = false;
+    reasons.push('low reasoning quality');
+  }
+
+  if (signal.confidence <= 45) {
+    shouldSlowDown = true;
+    shouldUseWorkedExample = true;
+    shouldChallengeStudent = false;
+    promptDirectives.push('Use simpler examples and reassuring structure to rebuild confidence.');
+    reasons.push('low confidence');
+  }
+
+  if (signal.hiddenConfusionRisk >= 70 && prerequisiteIssues.length) {
+    prerequisiteRepairMode = 'medium_repair';
+    shouldRepairPrerequisite = true;
+    reasons.push('very high hidden confusion risk');
+  }
+
+  if (signal.retentionRisk >= 60) {
+    shouldUseExamFraming = true;
+    promptDirectives.push('Add recap and memory reinforcement because retention risk is high.');
+    reasons.push('high retention risk');
+  }
+
   if (signal.masteryScore !== null && signal.masteryScore >= 85 && weakPoints.length <= 1 && misconceptions.length === 0) {
     pace = signal.masteryScore >= 92 ? 'fast' : 'normal';
     shouldChallengeStudent = true;
@@ -218,7 +276,16 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
 
   if (shouldSlowDown) {
     pace = 'slow';
-  } else if (signal.masteryScore !== null && signal.masteryScore >= 90) {
+  } else if (
+    signal.masteryScore !== null &&
+    signal.masteryScore >= 90 &&
+    signal.conceptUnderstanding >= 80 &&
+    signal.proceduralAccuracy >= 80 &&
+    signal.reasoningQuality >= 80 &&
+    signal.confidence >= 75 &&
+    signal.hiddenConfusionRisk <= 35 &&
+    signal.retentionRisk <= 40
+  ) {
     pace = 'fast';
   }
 
@@ -299,6 +366,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       calculation_issue_count: calculationIssues.length,
       diagram_issue_count: diagramIssues.length,
       prerequisite_issue_count: prerequisiteIssues.length,
+      retention_risk: signal.retentionRisk,
       lecturer_constraints_reserved: null,
     },
   };

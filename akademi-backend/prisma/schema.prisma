@@ -236,20 +236,21 @@ model User {
   push_token                    String?
   courses                       String[]     @default([])
 
-  learning_profile     LearningProfile?
-  sessions             Session[]
-  messages             Message[]
-  companion_states     StudyCompanionState[]
-  teachback_attempts   TeachBackAttempt[]
-  memory_dump_attempts MemoryDumpAttempt[]
-  mastery_records      MasteryRecord[]
-  material_memories    StudentMaterialMemory[]
-  lesson_plans         StudySectionLessonPlan[]
-  teaching_reflections TeachingReflection[]
-  tutor_turn_traces    TutorTurnTrace[]
-  feature_access       FeatureAccess[]
-  refresh_tokens       RefreshToken[]
-  materials            Material[]               @relation("UploadedBy")
+  learning_profile              LearningProfile?
+  sessions                      Session[]
+  messages                      Message[]
+  companion_states              StudyCompanionState[]
+  teachback_attempts            TeachBackAttempt[]
+  memory_dump_attempts          MemoryDumpAttempt[]
+  mastery_records               MasteryRecord[]
+  material_memories             StudentMaterialMemory[]
+  lesson_plans                  StudySectionLessonPlan[]
+  teaching_reflections          TeachingReflection[]
+  learning_intelligence_records LearningIntelligenceRecord[]
+  tutor_turn_traces             TutorTurnTrace[]
+  feature_access                FeatureAccess[]
+  refresh_tokens                RefreshToken[]
+  materials                     Material[]                   @relation("UploadedBy")
 
   // Relations to additional models used in codebase
   question_attempts             QuestionAttempt[]
@@ -338,20 +339,21 @@ model Material {
   content                 String?                  @db.Text
   reader_structure        Json?
 
-  user                 User                     @relation("UploadedBy", fields: [uploaded_by], references: [id])
-  questions            Question[]
-  embeddings           MaterialEmbedding[]
-  teacher_brain        MaterialTeacherBrain?
-  upload_chunks        UploadChunk[] // Named upload_chunks to match codebase
-  sessions             Session[]
-  companion_states     StudyCompanionState[]
-  teachback_attempts   TeachBackAttempt[]
-  memory_dump_attempts MemoryDumpAttempt[]
-  mastery_records      MasteryRecord[]
-  material_memories    StudentMaterialMemory[]
-  lesson_plans         StudySectionLessonPlan[]
-  teaching_reflections TeachingReflection[]
-  tutor_turn_traces    TutorTurnTrace[]
+  user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
+  questions                     Question[]
+  embeddings                    MaterialEmbedding[]
+  teacher_brain                 MaterialTeacherBrain?
+  upload_chunks                 UploadChunk[] // Named upload_chunks to match codebase
+  sessions                      Session[]
+  companion_states              StudyCompanionState[]
+  teachback_attempts            TeachBackAttempt[]
+  memory_dump_attempts          MemoryDumpAttempt[]
+  mastery_records               MasteryRecord[]
+  material_memories             StudentMaterialMemory[]
+  lesson_plans                  StudySectionLessonPlan[]
+  teaching_reflections          TeachingReflection[]
+  learning_intelligence_records LearningIntelligenceRecord[]
+  tutor_turn_traces             TutorTurnTrace[]
 
   @@index([course_code])
   @@index([university])
@@ -437,16 +439,17 @@ model Session {
   ended_at     DateTime?
   created_at   DateTime    @default(now())
 
-  user                 User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material             Material?                @relation(fields: [material_id], references: [id], onDelete: SetNull)
-  messages             Message[]
-  companion_state      StudyCompanionState?
-  teachbacks           TeachBackAttempt[]
-  memory_dumps         MemoryDumpAttempt[]
-  mastery_records      MasteryRecord[]
-  lesson_plans         StudySectionLessonPlan[]
-  teaching_reflections TeachingReflection[]
-  tutor_turn_traces    TutorTurnTrace[]
+  user                          User                         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material                      Material?                    @relation(fields: [material_id], references: [id], onDelete: SetNull)
+  messages                      Message[]
+  companion_state               StudyCompanionState?
+  teachbacks                    TeachBackAttempt[]
+  memory_dumps                  MemoryDumpAttempt[]
+  mastery_records               MasteryRecord[]
+  lesson_plans                  StudySectionLessonPlan[]
+  teaching_reflections          TeachingReflection[]
+  learning_intelligence_records LearningIntelligenceRecord[]
+  tutor_turn_traces             TutorTurnTrace[]
 
   @@index([user_id])
   @@index([material_id])
@@ -495,14 +498,15 @@ model StudyCompanionState {
   created_at            DateTime            @default(now())
   updated_at            DateTime            @updatedAt
 
-  session              Session                  @relation(fields: [session_id], references: [id], onDelete: Cascade)
-  user                 User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material             Material                 @relation(fields: [material_id], references: [id], onDelete: Cascade)
-  teachbacks           TeachBackAttempt[]
-  memory_dumps         MemoryDumpAttempt[]
-  mastery_records      MasteryRecord[]
-  lesson_plans         StudySectionLessonPlan[]
-  teaching_reflections TeachingReflection[]
+  session                       Session                      @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user                          User                         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material                      Material                     @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  teachbacks                    TeachBackAttempt[]
+  memory_dumps                  MemoryDumpAttempt[]
+  mastery_records               MasteryRecord[]
+  lesson_plans                  StudySectionLessonPlan[]
+  teaching_reflections          TeachingReflection[]
+  learning_intelligence_records LearningIntelligenceRecord[]
 
   @@index([user_id, material_id, course_code])
   @@index([current_phase])
@@ -683,6 +687,42 @@ model TeachingReflection {
   @@index([session_id, section_index])
   @@index([strategy_used])
   @@map("teaching_reflections")
+}
+
+model LearningIntelligenceRecord {
+  id                    String   @id @default(uuid())
+  session_id            String
+  companion_state_id    String
+  user_id               String
+  material_id           String
+  course_code           String
+  section_index         Int
+  section_title         String
+  mastery_score         Int?
+  concept_understanding Int      @default(50)
+  procedural_accuracy   Int      @default(50)
+  reasoning_quality     Int      @default(50)
+  confidence            Int      @default(50)
+  hidden_confusion_risk Int      @default(50)
+  retention_risk        Int      @default(50)
+  calculation_weakness  Boolean  @default(false)
+  diagram_weakness      Boolean  @default(false)
+  prerequisite_weakness Boolean  @default(false)
+  evidence              Json     @default("{}")
+  recommended_action    String?
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material        Material            @relation(fields: [material_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, material_id, course_code])
+  @@index([session_id, section_index])
+  @@index([hidden_confusion_risk])
+  @@index([retention_risk])
+  @@map("learning_intelligence_records")
 }
 
 model TutorTurnTrace {
