@@ -444,6 +444,21 @@ type SectionContext = {
   reteachDelivered?: boolean;
   nextPromptKind?: 'teachback_2' | 'memory_dump';
   failedConcepts?: string[];
+  repairMode?: 'medium_prerequisite_repair' | 'full_section_reteach';
+  repairConcepts?: string[];
+  repairReason?: string;
+  repairAttemptCount?: number;
+  repairCheckpointAsked?: boolean;
+  remediationRequired?: boolean;
+};
+
+type HybridMasteryResult = {
+  passedMastery: boolean;
+  prerequisiteHealthy: boolean;
+  shouldAdvance: boolean;
+  shouldRunRepair: boolean;
+  repairConcepts: string[];
+  repairReason: string;
 };
 
 type CompanionStartMode = 'continue' | 'specific' | 'beginning' | 'roadmap';
@@ -1390,6 +1405,176 @@ function inferPrerequisiteWeaknessFromFailedConcepts(failedConcepts: string[]) {
   return failedConcepts.some((item) => /\bprerequisite\b|\bbasic\b|\bfoundation\b|\bprior\b|\bbackground\b/i.test(item));
 }
 
+function normalizeConceptKey(value: string) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function conceptMatches(a: string, b: string) {
+  const left = normalizeConceptKey(a);
+  const right = normalizeConceptKey(b);
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+
+function uniqueConcepts(items: string[]) {
+  return Array.from(new Set(items.map((item) => normalizeConceptKey(item)).filter(Boolean)));
+}
+
+function hasRelevantConceptMatch(targets: string[], candidates: string[]) {
+  return targets.some((target) => candidates.some((candidate) => conceptMatches(target, candidate)));
+}
+
+function buildCriticalPrerequisiteConcepts(args: {
+  nextTeacherBrainSectionContext: TeacherBrainSectionContext | null;
+  nextLessonPlan: StudySectionLessonPlanRecord | null;
+}) {
+  const concepts = [
+    ...(args.nextTeacherBrainSectionContext?.prerequisites || []).map((item) => String(item.concept || '').trim()),
+    ...(args.nextLessonPlan?.prerequisiteRefresh || []),
+  ];
+  return uniqueConcepts(concepts).slice(0, 6);
+}
+
+function isRepairRiskAcceptable(args: {
+  repairConcepts: string[];
+  learningIntelligenceContext?: LearningIntelligenceContext | null;
+}) {
+  const hiddenConfusionRisk = args.learningIntelligenceContext?.hiddenConfusionRisk ?? 50;
+  const conceptUnderstanding = args.learningIntelligenceContext?.conceptUnderstanding ?? 50;
+  return args.repairConcepts.length <= 1 && hiddenConfusionRisk <= 70 && conceptUnderstanding >= 45;
+}
+
+function evaluateHybridMastery(args: {
+  masteryScore: number;
+  masteryThreshold: number;
+  failedConcepts: string[];
+  currentSection: RoadmapSection;
+  nextSection: RoadmapSection | null;
+  nextTeacherBrainSectionContext: TeacherBrainSectionContext | null;
+  nextLessonPlan: StudySectionLessonPlanRecord | null;
+  teacherBrainSectionContext: TeacherBrainSectionContext;
+  studentMemoryContext: StudentMemoryContext;
+  learningIntelligenceContext?: LearningIntelligenceContext | null;
+}): HybridMasteryResult {
+  console.log('hybrid_mastery_started', {
+    sectionTitle: args.currentSection.title,
+    nextSectionTitle: args.nextSection?.title || null,
+    masteryScore: args.masteryScore,
+    masteryThreshold: args.masteryThreshold,
+  });
+
+  const passedMastery = args.masteryScore >= args.masteryThreshold;
+  if (!passedMastery) {
+    console.log('hybrid_mastery_failed', {
+      sectionTitle: args.currentSection.title,
+      masteryScore: args.masteryScore,
+      masteryThreshold: args.masteryThreshold,
+    });
+    return {
+      passedMastery: false,
+      prerequisiteHealthy: false,
+      shouldAdvance: false,
+      shouldRunRepair: false,
+      repairConcepts: [],
+      repairReason: 'Overall mastery is below the required threshold.',
+    };
+  }
+
+  const criticalPrerequisites = buildCriticalPrerequisiteConcepts({
+    nextTeacherBrainSectionContext: args.nextTeacherBrainSectionContext,
+    nextLessonPlan: args.nextLessonPlan,
+  });
+
+  if (!args.nextSection || !criticalPrerequisites.length) {
+    console.log('hybrid_mastery_passed', {
+      sectionTitle: args.currentSection.title,
+      masteryScore: args.masteryScore,
+      prerequisiteHealthy: true,
+      reason: 'No critical prerequisites detected for the next section.',
+    });
+    return {
+      passedMastery: true,
+      prerequisiteHealthy: true,
+      shouldAdvance: true,
+      shouldRunRepair: false,
+      repairConcepts: [],
+      repairReason: '',
+    };
+  }
+
+  const priorWeakPoints = [
+    ...(args.studentMemoryContext.previousSectionMemory?.weakPoints || []),
+    ...(args.studentMemoryContext.previousSectionMemory?.misconceptions || []),
+    ...args.studentMemoryContext.priorMemories.flatMap((item) => item.weakPoints),
+    ...args.studentMemoryContext.priorMemories.flatMap((item) => item.misconceptions),
+  ];
+  const currentPrerequisiteSignals = args.teacherBrainSectionContext.prerequisites
+    .map((item) => String(item.concept || '').trim())
+    .filter(Boolean);
+  const repairConcepts = criticalPrerequisites.filter((concept) =>
+    hasRelevantConceptMatch(
+      [concept],
+      [
+        ...args.failedConcepts,
+        ...priorWeakPoints,
+        ...currentPrerequisiteSignals,
+      ],
+    ),
+  );
+
+  const prerequisiteWeaknessFlag = Boolean(args.learningIntelligenceContext?.prerequisiteWeakness);
+  const hiddenConfusionHigh = (args.learningIntelligenceContext?.hiddenConfusionRisk ?? 0) >= 70;
+  const conceptUnderstandingLow = (args.learningIntelligenceContext?.conceptUnderstanding ?? 100) < 50;
+  const prerequisiteHealthy =
+    repairConcepts.length === 0 &&
+    !prerequisiteWeaknessFlag &&
+    !hiddenConfusionHigh &&
+    !conceptUnderstandingLow;
+
+  if (prerequisiteHealthy) {
+    console.log('hybrid_mastery_passed', {
+      sectionTitle: args.currentSection.title,
+      masteryScore: args.masteryScore,
+      prerequisiteHealthy: true,
+      criticalPrerequisiteCount: criticalPrerequisites.length,
+    });
+    return {
+      passedMastery: true,
+      prerequisiteHealthy: true,
+      shouldAdvance: true,
+      shouldRunRepair: false,
+      repairConcepts: [],
+      repairReason: '',
+    };
+  }
+
+  const narrowedRepairConcepts = repairConcepts.length
+    ? repairConcepts
+    : criticalPrerequisites.slice(0, Math.min(2, criticalPrerequisites.length));
+  const repairReason = `Mastery passed, but the next section depends on ${narrowedRepairConcepts.join(', ')} and those prerequisites still look weak.`;
+  console.log('hybrid_mastery_repair_required', {
+    sectionTitle: args.currentSection.title,
+    nextSectionTitle: args.nextSection.title,
+    masteryScore: args.masteryScore,
+    repairConcepts: narrowedRepairConcepts,
+    prerequisiteWeaknessFlag,
+    hiddenConfusionHigh,
+    conceptUnderstandingLow,
+  });
+  return {
+    passedMastery: true,
+    prerequisiteHealthy: false,
+    shouldAdvance: false,
+    shouldRunRepair: true,
+    repairConcepts: narrowedRepairConcepts,
+    repairReason,
+  };
+}
+
 function isTeachingStrategy(value: string | null | undefined): value is TeachingStrategy {
   return [
     'definition_first',
@@ -2191,6 +2376,7 @@ export class StudyCompanionService {
     relevantMaterialContext: RelevantMaterialContext;
     learningIntelligenceContext?: LearningIntelligenceContext | null;
     studentLearningProfileContext?: StudentLearningProfileContext | null;
+    hybridMasteryResult?: HybridMasteryResult | null;
     currentMasteryScore?: number | null;
     lastMasteryScore?: number | null;
   }): TeachingDecision {
@@ -2248,6 +2434,7 @@ export class StudyCompanionService {
       confidenceSupportNeeded: args.studentLearningProfileContext?.confidenceSupportNeeded ?? false,
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
+      hybridMasteryResult: args.hybridMasteryResult ?? null,
     });
 
     console.log('teaching_decision_created', {
@@ -2264,6 +2451,7 @@ export class StudyCompanionService {
       shouldChallengeStudent: decision.shouldChallengeStudent,
       shouldSlowDown: decision.shouldSlowDown,
       shouldRepairPrerequisite: decision.shouldRepairPrerequisite,
+      hybridMasteryResult: args.hybridMasteryResult ?? null,
     });
 
     return decision;
@@ -4382,6 +4570,83 @@ export class StudyCompanionService {
     };
   }
 
+  private async evaluatePrerequisiteRepair(
+    section: RoadmapSection,
+    studentResponse: string,
+    repairConcepts: string[],
+    repairReason: string,
+    teacherBrainContext = '',
+  ) {
+    const conceptMatchesCount = repairConcepts.filter((concept) => conceptMatches(concept, studentResponse)).length;
+    const heuristicScore = Math.max(
+      25,
+      Math.min(
+        100,
+        Math.round(
+          (studentResponse.trim().length >= 60 ? 45 : 25) +
+          (conceptMatchesCount * 25),
+        ),
+      ),
+    );
+    const prompt = [
+      `Section title: ${section.title}`,
+      teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      `Section content:\n${truncate(section.content, 2200)}`,
+      `Prerequisite repair concepts:\n${repairConcepts.join('\n')}`,
+      repairReason ? `Repair reason:\n${repairReason}` : '',
+      `Student repair answer:\n${truncate(studentResponse, 900)}`,
+      'Task: Evaluate only whether the student now understands the repaired prerequisite concepts strongly enough to continue.',
+      'Return strict JSON with keys: score, passed, evaluation, remainingWeaknesses.',
+      'Score must be 0 to 100.',
+      'Passed must be true only if the repaired prerequisites are now sufficiently understood for the next section.',
+      'evaluation should be 2 to 4 short sentences and mention exactly what is clear or still weak.',
+      'remainingWeaknesses must be a short array.',
+    ].join('\n\n');
+    const raw = await generateText(prompt, this.companionSystemPrompt(), 220);
+    let parsedJson: Record<string, unknown> | null = null;
+    try {
+      parsedJson = JSON.parse(raw);
+    } catch {
+      const start = raw.indexOf('{');
+      const end = raw.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          parsedJson = JSON.parse(raw.slice(start, end + 1));
+        } catch {
+          parsedJson = null;
+        }
+      }
+    }
+    const parsed = safeJsonObject<{
+      score?: number;
+      passed?: boolean;
+      evaluation?: string;
+      remainingWeaknesses?: unknown;
+    }>(parsedJson, {});
+    const remainingWeaknesses = safeStringArray(parsed.remainingWeaknesses);
+    const score = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(Number.isFinite(Number(parsed.score)) ? Number(parsed.score) : heuristicScore),
+      ),
+    );
+    const passed = typeof parsed.passed === 'boolean'
+      ? parsed.passed
+      : score >= 70 && remainingWeaknesses.length === 0;
+
+    return {
+      score,
+      passed,
+      evaluation: normalizeText(
+        String(parsed.evaluation || '').trim() || (passed
+          ? 'That prerequisite looks strong enough now, so we can continue.'
+          : 'That prerequisite still needs one more short repair before we continue.'),
+      ),
+      remainingWeaknesses,
+    };
+  }
+
   private async buildTeachBackPrompt(
     section: RoadmapSection,
     attemptNumber: 1 | 2,
@@ -4511,6 +4776,11 @@ export class StudyCompanionService {
     teacherBrainSectionContext?: TeacherBrainSectionContext,
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
+    options?: {
+      repairMode?: 'medium_prerequisite_repair' | 'full_section_reteach';
+      repairReason?: string;
+      repairAttemptCount?: number;
+    },
     qualityTrace?: TutorQualityTraceCapture,
   ) {
     const calculationContext = buildCalculationTeachingContext(
@@ -4554,13 +4824,23 @@ export class StudyCompanionService {
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
       `Missing or weak ideas:\n${failedConcepts.join('\n') || 'The explanation was too thin.'}`,
+      options?.repairReason ? `Repair reason:\n${options.repairReason}` : '',
       lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeReteach: true }).join('\n')}`,
-      calculationContext.detected
-        ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
-        : diagramContext.detected
-          ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
-          : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
+      options?.repairMode === 'medium_prerequisite_repair'
+        ? [
+          'Task: We need a short prerequisite repair before continuing.',
+          'Give a short explanation focused only on the blocking prerequisite ideas.',
+          'Include one practical example.',
+          'End with exactly one checkpoint question that checks only the repaired prerequisite.',
+          'Do not reteach the whole section.',
+          `This is repair attempt ${(options?.repairAttemptCount || 0) + 1}.`,
+        ].join(' ')
+        : calculationContext.detected
+          ? 'Task: reteach this section more simply. Use one small numeric example labelled simple example, explain the method step by step, and warn about one common calculation mistake. Then tell the student they will try the teach-back again.'
+          : diagramContext.detected
+            ? 'Task: reteach this section using a simple verbal visualization. Say things like imagine this as, start from the left or top or center, the arrow means, and this part connects to. Then tell the student they will try the teach-back again.'
+            : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
     ].join('\n\n');
     if (contextMeta) {
       console.log('teaching_decision_applied', {
@@ -4581,11 +4861,11 @@ export class StudyCompanionService {
       prompt,
       maxTokens: 650,
       phase: 'RETEACH',
-      turnType: 'reteach',
+      turnType: options?.repairMode === 'medium_prerequisite_repair' ? 'checkpoint_question' : 'reteach',
       section,
       isCalculationHeavy: calculationContext.detected,
       isDiagramHeavy: diagramContext.detected,
-      questionAllowed: false,
+      questionAllowed: options?.repairMode === 'medium_prerequisite_repair',
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
       qualityTrace,
     });
@@ -4716,6 +4996,16 @@ export class StudyCompanionService {
       relevantMaterialContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      hybridMasteryResult: sectionContext.repairMode === 'medium_prerequisite_repair'
+        ? {
+          passedMastery: true,
+          prerequisiteHealthy: false,
+          shouldAdvance: false,
+          shouldRunRepair: true,
+          repairConcepts: sectionContext.repairConcepts || [],
+          repairReason: sectionContext.repairReason || '',
+        }
+        : null,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -5055,6 +5345,80 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === GAP_RETEACH) {
+      if (sectionContext.repairMode === 'medium_prerequisite_repair' && !isAutoContinue) {
+        const trace = await this.startTutorTrace(buildTraceSeed(GAP_RETEACH, 'evaluation', 'evaluate_prerequisite_repair', false));
+        let repairEvaluation;
+        try {
+          const aiStartedAt = Date.now();
+          repairEvaluation = await this.evaluatePrerequisiteRepair(
+            section,
+            trimmed,
+            sectionContext.repairConcepts || [],
+            sectionContext.repairReason || '',
+            teacherBrainContext,
+          );
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
+
+        const repairAttemptCount = sectionContext.repairAttemptCount || 0;
+        if (repairEvaluation.passed || repairAttemptCount >= 1 || isRepairRiskAcceptable({
+          repairConcepts: sectionContext.repairConcepts || [],
+          learningIntelligenceContext,
+        })) {
+          console.log('hybrid_mastery_repair_completed', {
+            sessionId,
+            sectionIndex: state.current_section_index,
+            passed: repairEvaluation.passed,
+            repairAttemptCount,
+            repairConcepts: sectionContext.repairConcepts || [],
+          });
+          const hasNextSection = state.current_section_index < roadmap.length - 1;
+          const content = repairEvaluation.passed
+            ? `${repairEvaluation.evaluation} We can continue to the next section.`
+            : `${repairEvaluation.evaluation} I will mark this prerequisite for remediation, and we will continue carefully.`;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: hasNextSection ? NEXT_SECTION : SESSION_DONE,
+            last_completed_index: state.current_section_index,
+            pending_prompt: content,
+            section_context: {
+              remediationRequired: !repairEvaluation.passed,
+            } as Prisma.InputJsonValue,
+          });
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: false });
+          return {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+              autoContinue: false,
+              waitForStudent: true,
+              nextAction: 'move_next',
+              questionCount: questionCountForContent(content),
+            }),
+          };
+        }
+
+        const retryContent = `${repairEvaluation.evaluation} We need one more short prerequisite repair before continuing.`;
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: GAP_RETEACH,
+          pending_prompt: retryContent,
+          section_context: {
+            ...sectionContext,
+            reteachDelivered: false,
+            repairAttemptCount: repairAttemptCount + 1,
+          } as Prisma.InputJsonValue,
+        });
+        await this.finishTutorTrace(trace, { content: retryContent, qualityGuardrailUsed: false });
+        return {
+          content: retryContent,
+          metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+            nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(retryContent),
+          }),
+        };
+      }
+
       if (isInterrupt || !isAutoContinue) {
         const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', relevantMaterialContext);
         await this.persistRoadmap(state.id, roadmap, {
@@ -5076,10 +5440,27 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(GAP_RETEACH, 'reteach', 'gap_reteach', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          const content = await this.buildGapReteach(
+            section,
+            sectionContext.repairMode === 'medium_prerequisite_repair'
+              ? (sectionContext.repairConcepts || [])
+              : (sectionContext.failedConcepts || []),
+            teachingDecision,
+            teacherBrainContext,
+            contextMeta,
+            teacherBrainSectionContext,
+            lessonPlan,
+            relevantMaterialContext,
+            {
+              repairMode: sectionContext.repairMode || 'full_section_reteach',
+              repairReason: sectionContext.repairReason,
+              repairAttemptCount: sectionContext.repairAttemptCount,
+            },
+            qualityTrace,
+          );
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
-            current_phase: GAP_RETEACH,
+            current_phase: sectionContext.repairMode === 'medium_prerequisite_repair' ? GAP_RETEACH : GAP_RETEACH,
             pending_prompt: content,
             section_context: {
               ...sectionContext,
@@ -5088,10 +5469,16 @@ export class StudyCompanionService {
           });
           const response = {
             content,
-            metadata: await this.buildTurnMetadata(sessionId, 'reteach', {
-              nextAction: 'continue_teaching',
+            metadata: await this.buildTurnMetadata(
+              sessionId,
+              sectionContext.repairMode === 'medium_prerequisite_repair' ? 'checkpoint_question' : 'reteach',
+              {
+                autoContinue: sectionContext.repairMode === 'medium_prerequisite_repair' ? false : undefined,
+                waitForStudent: sectionContext.repairMode === 'medium_prerequisite_repair' ? true : undefined,
+                nextAction: sectionContext.repairMode === 'medium_prerequisite_repair' ? 'evaluate_answer' : 'continue_teaching',
               questionCount: questionCountForContent(content),
-            }),
+              },
+            ),
           };
           trace.quality = qualityTrace;
           await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
@@ -5100,6 +5487,10 @@ export class StudyCompanionService {
           await this.failTutorTrace(trace, error);
           throw error;
         }
+      }
+
+      if (sectionContext.repairMode === 'medium_prerequisite_repair') {
+        throw new Error('Akademi is waiting for your prerequisite repair answer before continuing.');
       }
 
       const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
@@ -5296,6 +5687,7 @@ export class StudyCompanionService {
         });
       }
 
+      let postAssessmentLearningIntelligenceContext = learningIntelligenceContext;
       try {
         await this.createLearningIntelligenceRecordAfterSection({
           sessionId,
@@ -5321,6 +5713,12 @@ export class StudyCompanionService {
             score: evaluation.score,
           },
         });
+        postAssessmentLearningIntelligenceContext = await this.loadLatestLearningIntelligenceContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          state.current_section_index,
+        );
       } catch (learningIntelligenceError) {
         console.error('learning_intelligence_failed', {
           sessionId,
@@ -5328,6 +5726,56 @@ export class StudyCompanionService {
           message: learningIntelligenceError instanceof Error ? learningIntelligenceError.message : 'Unknown learning intelligence failure',
         });
       }
+
+      const hasNextSection = state.current_section_index < roadmap.length - 1;
+      const nextSection = hasNextSection ? this.sectionAt(roadmap, state.current_section_index + 1) : null;
+      const nextTeacherBrainSectionContext = nextSection
+        ? getTeacherBrainSectionContext(teacherBrain, state.current_section_index + 1, nextSection.title)
+        : null;
+      const nextTeacherBrainContext = nextSection
+        ? buildTeacherBrainPromptContext(teacherBrain, state.current_section_index + 1, roadmap)
+        : '';
+      const nextSectionCalculationContext = nextSection && nextTeacherBrainSectionContext
+        ? buildCalculationTeachingContext(nextSection, nextTeacherBrainSectionContext)
+        : null;
+      const nextSectionDiagramContext = nextSection && nextTeacherBrainSectionContext
+        ? buildDiagramTeachingContext(nextSection, nextTeacherBrainSectionContext)
+        : null;
+      const nextStudentMemoryContext = nextSection
+        ? await this.buildStudentMemoryContext(
+          state.user_id,
+          state.material_id,
+          state.course_code,
+          state.current_section_index + 1,
+        )
+        : null;
+      const nextLessonPlan = nextSection && nextTeacherBrainSectionContext && nextSectionCalculationContext && nextSectionDiagramContext && nextStudentMemoryContext
+        ? await this.getOrCreateLessonPlan({
+          sessionId,
+          companionStateId: state.id,
+          userId: state.user_id,
+          materialId: material.id,
+          courseCode: state.course_code,
+          section: nextSection,
+          sectionIndex: state.current_section_index + 1,
+          teacherBrainContext: nextTeacherBrainContext,
+          calculationContext: nextSectionCalculationContext,
+          diagramContext: nextSectionDiagramContext,
+          studentMemoryPromptContext: nextStudentMemoryContext.promptContext,
+        })
+        : null;
+      const hybridMasteryResult = evaluateHybridMastery({
+        masteryScore: finalScore,
+        masteryThreshold: state.mastery_threshold,
+        failedConcepts,
+        currentSection: section,
+        nextSection,
+        nextTeacherBrainSectionContext,
+        nextLessonPlan,
+        teacherBrainSectionContext,
+        studentMemoryContext,
+        learningIntelligenceContext: postAssessmentLearningIntelligenceContext,
+      });
 
       try {
         await this.updateStudentLearningProfileAfterReflection(
@@ -5344,12 +5792,11 @@ export class StudyCompanionService {
         });
       }
 
-      if (passed) {
+      if (hybridMasteryResult.shouldAdvance) {
         roadmap[state.current_section_index] = {
           ...section,
           status: StudyRoadmapStatus.MASTERED,
         };
-        const hasNextSection = state.current_section_index < roadmap.length - 1;
         const content = await this.buildMasteryOutcome(section, finalScore, true, failedConcepts);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: hasNextSection ? NEXT_SECTION : SESSION_DONE,
@@ -5371,6 +5818,36 @@ export class StudyCompanionService {
         return response;
       }
 
+      if (hybridMasteryResult.shouldRunRepair) {
+        roadmap[state.current_section_index] = {
+          ...section,
+          status: StudyRoadmapStatus.MASTERED,
+        };
+        const outcome = `${await this.buildMasteryOutcome(section, finalScore, true, failedConcepts)} ${hybridMasteryResult.repairReason}`;
+        await this.persistRoadmap(state.id, roadmap, {
+          current_phase: GAP_RETEACH,
+          last_completed_index: state.current_section_index,
+          last_mastery_score: finalScore,
+          pending_prompt: outcome,
+          section_context: {
+            reteachDelivered: false,
+            repairMode: 'medium_prerequisite_repair',
+            repairConcepts: hybridMasteryResult.repairConcepts,
+            repairReason: hybridMasteryResult.repairReason,
+            repairAttemptCount: 0,
+          } as Prisma.InputJsonValue,
+        });
+        const response = {
+          content: outcome,
+          metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
+            nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(outcome),
+          }),
+        };
+        await this.finishTutorTrace(trace, { content: outcome, qualityGuardrailUsed: false });
+        return response;
+      }
+
       roadmap[state.current_section_index] = {
         ...section,
         status: StudyRoadmapStatus.NEEDS_REVIEW,
@@ -5382,6 +5859,7 @@ export class StudyCompanionService {
         pending_prompt: outcome,
         section_context: {
           reteachDelivered: false,
+          repairMode: 'full_section_reteach',
           nextPromptKind: 'teachback_2',
           failedConcepts,
         } as Prisma.InputJsonValue,

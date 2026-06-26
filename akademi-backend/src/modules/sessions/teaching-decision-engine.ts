@@ -57,6 +57,14 @@ export type TeachingDecisionInput = {
   confidenceSupportNeeded?: boolean;
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
+  hybridMasteryResult?: {
+    passedMastery: boolean;
+    prerequisiteHealthy: boolean;
+    shouldAdvance: boolean;
+    shouldRunRepair: boolean;
+    repairConcepts: string[];
+    repairReason: string;
+  } | null;
 };
 
 export type TeachingDecision = {
@@ -178,6 +186,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const promptDirectives: string[] = [];
   const profilePreferredStrategy = input.preferredTeachingStrategy || null;
   const profilePreferredPace = input.preferredPace || null;
+  const hybridMasteryResult = input.hybridMasteryResult || null;
 
   if (profilePreferredStrategy && profilePreferredStrategy !== 'hybrid') {
     strategy = profilePreferredStrategy;
@@ -293,6 +302,18 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     reasons.push('very high hidden confusion risk');
   }
 
+  if (hybridMasteryResult?.shouldRunRepair) {
+    prerequisiteRepairMode = 'medium_repair';
+    shouldRepairPrerequisite = true;
+    shouldSlowDown = true;
+    shouldChallengeStudent = false;
+    promptDirectives.push('We need a short prerequisite repair before continuing.');
+    if (hybridMasteryResult.repairReason) {
+      promptDirectives.push(`Repair reason: ${hybridMasteryResult.repairReason}`);
+    }
+    reasons.push('hybrid mastery requires prerequisite repair');
+  }
+
   if (signal.retentionRisk >= 60) {
     shouldUseExamFraming = true;
     promptDirectives.push('Add recap and memory reinforcement because retention risk is high.');
@@ -391,8 +412,12 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   if (shouldChallengeStudent) {
     promptDirectives.push('Slightly raise the challenge level because the student appears ready.');
   }
-  if (shouldRepairPrerequisite && prerequisiteIssues.length) {
-    promptDirectives.push(`Briefly repair these prerequisites first: ${prerequisiteIssues.join(', ')}.`);
+  const repairConcepts = hybridMasteryResult?.repairConcepts?.length
+    ? uniqueItems(hybridMasteryResult.repairConcepts)
+    : prerequisiteIssues;
+
+  if (shouldRepairPrerequisite && repairConcepts.length) {
+    promptDirectives.push(`Briefly repair these prerequisites first: ${repairConcepts.join(', ')}.`);
   }
 
   return {
@@ -407,8 +432,8 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     shouldChallengeStudent,
     shouldSlowDown,
     shouldRepairPrerequisite,
-    repairConcepts: prerequisiteIssues,
-    reason: reasons.join('; ') || 'default hybrid strategy',
+    repairConcepts,
+    reason: [reasons.join('; '), hybridMasteryResult?.repairReason || ''].filter(Boolean).join('; ') || 'default hybrid strategy',
     promptDirectives,
     traceMetadata: {
       phase: input.phase,
@@ -419,6 +444,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       calculation_issue_count: calculationIssues.length,
       diagram_issue_count: diagramIssues.length,
       prerequisite_issue_count: prerequisiteIssues.length,
+      hybrid_mastery_result: hybridMasteryResult,
       retention_risk: signal.retentionRisk,
       preferred_teaching_strategy: profilePreferredStrategy,
       preferred_pace: profilePreferredPace,
