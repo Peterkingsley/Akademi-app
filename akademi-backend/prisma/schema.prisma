@@ -437,16 +437,16 @@ model Session {
   ended_at     DateTime?
   created_at   DateTime    @default(now())
 
-  user            User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material        Material?                @relation(fields: [material_id], references: [id], onDelete: SetNull)
-  messages        Message[]
-  companion_state StudyCompanionState?
-  teachbacks      TeachBackAttempt[]
-  memory_dumps    MemoryDumpAttempt[]
-  mastery_records MasteryRecord[]
-  lesson_plans    StudySectionLessonPlan[]
+  user                 User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material             Material?                @relation(fields: [material_id], references: [id], onDelete: SetNull)
+  messages             Message[]
+  companion_state      StudyCompanionState?
+  teachbacks           TeachBackAttempt[]
+  memory_dumps         MemoryDumpAttempt[]
+  mastery_records      MasteryRecord[]
+  lesson_plans         StudySectionLessonPlan[]
   teaching_reflections TeachingReflection[]
-  tutor_turn_traces TutorTurnTrace[]
+  tutor_turn_traces    TutorTurnTrace[]
 
   @@index([user_id])
   @@index([material_id])
@@ -495,13 +495,13 @@ model StudyCompanionState {
   created_at            DateTime            @default(now())
   updated_at            DateTime            @updatedAt
 
-  session         Session                  @relation(fields: [session_id], references: [id], onDelete: Cascade)
-  user            User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  material        Material                 @relation(fields: [material_id], references: [id], onDelete: Cascade)
-  teachbacks      TeachBackAttempt[]
-  memory_dumps    MemoryDumpAttempt[]
-  mastery_records MasteryRecord[]
-  lesson_plans    StudySectionLessonPlan[]
+  session              Session                  @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user                 User                     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material             Material                 @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  teachbacks           TeachBackAttempt[]
+  memory_dumps         MemoryDumpAttempt[]
+  mastery_records      MasteryRecord[]
+  lesson_plans         StudySectionLessonPlan[]
   teaching_reflections TeachingReflection[]
 
   @@index([user_id, material_id, course_code])
@@ -642,37 +642,37 @@ model StudySectionLessonPlan {
 }
 
 model TeachingReflection {
-  id                       String   @id @default(uuid())
-  session_id               String
-  companion_state_id       String
-  user_id                  String
-  material_id              String
-  course_code              String
-  section_index            Int
-  section_title            String
-  strategy_used            String?
-  pace_used                String?
-  repair_mode_used         String?
-  analogy_used             Boolean  @default(false)
-  worked_example_used      Boolean  @default(false)
-  visual_explanation_used  Boolean  @default(false)
-  calculation_steps_used   Boolean  @default(false)
-  exam_framing_used        Boolean  @default(false)
-  challenge_used           Boolean  @default(false)
-  mastery_score            Int?
-  concept_understanding    Int?
-  procedural_accuracy      Int?
-  reasoning_quality        Int?
-  confidence               Int?
-  hidden_confusion_risk    Int?
-  what_worked              Json     @default("[]")
-  what_failed              Json     @default("[]")
+  id                        String   @id @default(uuid())
+  session_id                String
+  companion_state_id        String
+  user_id                   String
+  material_id               String
+  course_code               String
+  section_index             Int
+  section_title             String
+  strategy_used             String?
+  pace_used                 String?
+  repair_mode_used          String?
+  analogy_used              Boolean  @default(false)
+  worked_example_used       Boolean  @default(false)
+  visual_explanation_used   Boolean  @default(false)
+  calculation_steps_used    Boolean  @default(false)
+  exam_framing_used         Boolean  @default(false)
+  challenge_used            Boolean  @default(false)
+  mastery_score             Int?
+  concept_understanding     Int?
+  procedural_accuracy       Int?
+  reasoning_quality         Int?
+  confidence                Int?
+  hidden_confusion_risk     Int?
+  what_worked               Json     @default("[]")
+  what_failed               Json     @default("[]")
   recommended_next_strategy String?
-  recommended_next_pace    String?
-  recommended_interventions Json    @default("[]")
-  compressed_reflection    String?  @db.Text
-  created_at               DateTime @default(now())
-  updated_at               DateTime @updatedAt
+  recommended_next_pace     String?
+  recommended_interventions Json     @default("[]")
+  compressed_reflection     String?  @db.Text
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
 
   session         Session             @relation(fields: [session_id], references: [id], onDelete: Cascade)
   companion_state StudyCompanionState @relation(fields: [companion_state_id], references: [id], onDelete: Cascade)

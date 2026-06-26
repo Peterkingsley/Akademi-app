@@ -1225,6 +1225,96 @@ function buildDeterministicStudentMemoryFallback(args: {
   };
 }
 
+function clampReflectionScore(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function parseTeachingReflectionRecord(value: {
+  concept_understanding?: number | null;
+  procedural_accuracy?: number | null;
+  reasoning_quality?: number | null;
+  confidence?: number | null;
+  hidden_confusion_risk?: number | null;
+  what_worked?: unknown;
+  what_failed?: unknown;
+  recommended_next_strategy?: string | null;
+  recommended_next_pace?: string | null;
+  recommended_interventions?: unknown;
+  compressed_reflection?: string | null;
+}): TeachingReflectionRecord {
+  return {
+    conceptUnderstanding: clampReflectionScore(Number(value.concept_understanding ?? 0)),
+    proceduralAccuracy: clampReflectionScore(Number(value.procedural_accuracy ?? 0)),
+    reasoningQuality: clampReflectionScore(Number(value.reasoning_quality ?? 0)),
+    confidence: clampReflectionScore(Number(value.confidence ?? 0)),
+    hiddenConfusionRisk: clampReflectionScore(Number(value.hidden_confusion_risk ?? 0)),
+    whatWorked: safeStringArray(value.what_worked),
+    whatFailed: safeStringArray(value.what_failed),
+    recommendedNextStrategy: value.recommended_next_strategy ? String(value.recommended_next_strategy) : null,
+    recommendedNextPace: value.recommended_next_pace ? String(value.recommended_next_pace) : null,
+    recommendedInterventions: safeStringArray(value.recommended_interventions),
+    compressedReflection: value.compressed_reflection ? String(value.compressed_reflection) : null,
+  };
+}
+
+function buildDeterministicTeachingReflectionFallback(args: {
+  score: number;
+  passed: boolean;
+  failedConcepts: string[];
+  decision: TeachingDecision;
+  calculationContext: CalculationTeachingContext;
+  diagramContext: DiagramTeachingContext;
+  studentMemoryContext: StudentMemoryContext;
+  sectionTitle: string;
+}) {
+  const confidencePenalty = args.failedConcepts.length * 8 + (args.passed ? 0 : 10);
+  const proceduralPenalty = args.calculationContext.detected ? Math.max(8, args.studentMemoryContext.priorMemories.flatMap((item) => item.calculationIssues).length * 6) : 0;
+  const conceptUnderstanding = clampReflectionScore(args.score);
+  const proceduralAccuracy = clampReflectionScore(args.score - proceduralPenalty);
+  const reasoningQuality = clampReflectionScore(args.score - args.failedConcepts.length * 6);
+  const confidence = clampReflectionScore(args.score - confidencePenalty);
+  const hiddenConfusionRisk = clampReflectionScore(
+    (args.passed ? 25 : 55) +
+    args.failedConcepts.length * 8 +
+    (args.score < 85 ? 10 : 0) +
+    (args.studentMemoryContext.priorMemories.flatMap((item) => item.weakPoints).length > 0 ? 8 : 0),
+  );
+
+  const whatWorked = [
+    args.decision.shouldUseWorkedExample ? 'Worked example structure supported understanding.' : '',
+    args.decision.shouldUseVisualExplanation ? 'Visual-style explanation helped with mental organization.' : '',
+    args.decision.shouldUseAnalogy ? 'Analogy-based framing improved initial grasp.' : '',
+    args.passed ? `The section ${args.sectionTitle} reached a usable mastery level.` : '',
+  ].filter(Boolean);
+
+  const whatFailed = [
+    ...truncateList(args.failedConcepts, 4, 100),
+    args.calculationContext.detected && proceduralAccuracy < conceptUnderstanding ? 'Procedural calculation accuracy remained weaker than concept recall.' : '',
+    args.diagramContext.detected && hiddenConfusionRisk >= 55 ? 'Visual relationships likely still need reinforcement.' : '',
+  ].filter(Boolean);
+
+  return {
+    concept_understanding: conceptUnderstanding,
+    procedural_accuracy: proceduralAccuracy,
+    reasoning_quality: reasoningQuality,
+    confidence,
+    hidden_confusion_risk: hiddenConfusionRisk,
+    what_worked: truncateList(whatWorked, 5, 120),
+    what_failed: truncateList(whatFailed, 5, 120),
+    recommended_next_strategy: args.failedConcepts.length ? 'worked_example_first' : args.decision.strategy,
+    recommended_next_pace: hiddenConfusionRisk >= 55 ? 'slow' : args.decision.pace,
+    recommended_interventions: truncateList([
+      args.decision.shouldRepairPrerequisite ? 'Add a short prerequisite refresh before the next related section.' : '',
+      args.calculationContext.detected ? 'Reinforce calculation steps with one compact example.' : '',
+      args.diagramContext.detected ? 'Use clearer verbal visualization for the next related topic.' : '',
+    ].filter(Boolean), 4, 120),
+    compressed_reflection: args.passed
+      ? `${args.sectionTitle} responded reasonably well to ${args.decision.strategy} at ${args.decision.pace} pace, but keep watching ${truncateList(args.failedConcepts, 2, 80).join(', ') || 'application depth'}.`
+      : `${args.sectionTitle} did not respond strongly enough to ${args.decision.strategy}; the next attempt should slow down and target ${truncateList(args.failedConcepts, 3, 80).join(', ') || 'the missing ideas'}.`,
+  };
+}
+
 function cosineSimilarity(a: number[], b: number[]) {
   if (!a.length || !b.length) return 0;
   const length = Math.min(a.length, b.length);
@@ -2169,6 +2259,274 @@ export class StudyCompanionService {
 
       console.log('student_memory_fallback_created', {
         userId: args.userId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    }
+  }
+
+  private async createTeachingReflectionAfterSection(args: {
+    sessionId: string;
+    companionStateId: string;
+    userId: string;
+    materialId: string;
+    courseCode: string;
+    sectionIndex: number;
+    sectionTitle: string;
+    sectionContent: string;
+    decision: TeachingDecision;
+    score: number;
+    passed: boolean;
+    failedConcepts: string[];
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    studentMemoryContext: StudentMemoryContext;
+    latestStudentMemory?: StudentMaterialMemoryRow | null;
+    teachBackAttempts: Array<{ student_response: string; evaluation: string; score: number }>;
+    memoryDumpEvaluation: { studentResponse: string; evaluation: string; score: number };
+  }) {
+    console.log('teaching_reflection_started', {
+      sessionId: args.sessionId,
+      materialId: args.materialId,
+      sectionIndex: args.sectionIndex,
+      strategy: args.decision.strategy,
+    });
+
+    const teachingReflection = (prisma as typeof prisma & {
+      teachingReflection: {
+        findFirst: (query: unknown) => Promise<TeachingReflectionRow | null>;
+        upsert: (query: unknown) => Promise<TeachingReflectionRow>;
+      };
+    }).teachingReflection;
+
+    const existing = await teachingReflection.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+      select: { id: true },
+    });
+
+    const memoryRecord = args.latestStudentMemory
+      ? parseStudentMemoryRecord(args.latestStudentMemory)
+      : null;
+    const recentTrace = await prisma.tutorTurnTrace.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        quality_issues: true,
+        metadata: true,
+      },
+    });
+
+    const fallback = buildDeterministicTeachingReflectionFallback({
+      score: args.score,
+      passed: args.passed,
+      failedConcepts: args.failedConcepts,
+      decision: args.decision,
+      calculationContext: args.calculationContext,
+      diagramContext: args.diagramContext,
+      studentMemoryContext: args.studentMemoryContext,
+      sectionTitle: args.sectionTitle,
+    });
+
+    try {
+      const prompt = [
+        'Return JSON only.',
+        'No markdown.',
+        `Section title: ${args.sectionTitle}`,
+        `Mastery score: ${args.score}`,
+        `Passed: ${args.passed ? 'yes' : 'no'}`,
+        `Teaching decision used: strategy=${args.decision.strategy}; pace=${args.decision.pace}; repair=${args.decision.prerequisiteRepairMode}; analogy=${args.decision.shouldUseAnalogy}; worked_example=${args.decision.shouldUseWorkedExample}; visual=${args.decision.shouldUseVisualExplanation}; calculation_steps=${args.decision.shouldUseCalculationSteps}; exam_framing=${args.decision.shouldUseExamFraming}; challenge=${args.decision.shouldChallengeStudent}.`,
+        args.calculationContext.detected ? `Calculation context:\n${args.calculationContext.summary}` : '',
+        args.diagramContext.detected ? `Diagram context:\n${args.diagramContext.summary}` : '',
+        args.studentMemoryContext.promptContext ? `Prior student memory context:\n${args.studentMemoryContext.promptContext}` : '',
+        memoryRecord?.compressedSummary ? `Current student memory summary:\n${memoryRecord.compressedSummary}` : '',
+        `Section content:\n${truncate(args.sectionContent, 2200)}`,
+        `Teach-back evidence:\n${args.teachBackAttempts.map((attempt, index) => `Attempt ${index + 1} score ${attempt.score}\nStudent: ${truncate(attempt.student_response, 240)}\nEvaluation: ${truncate(attempt.evaluation, 220)}`).join('\n\n')}`,
+        `Memory dump evidence:\nStudent: ${truncate(args.memoryDumpEvaluation.studentResponse, 320)}\nEvaluation: ${truncate(args.memoryDumpEvaluation.evaluation, 220)}\nScore: ${args.memoryDumpEvaluation.score}`,
+        `Failed concepts:\n${args.failedConcepts.join('\n') || 'None listed'}`,
+        recentTrace?.quality_issues ? `Quality issues:\n${safeStringArray(recentTrace.quality_issues).join(' | ') || 'None recorded'}` : '',
+        recentTrace?.metadata ? `Trace metadata:\n${truncate(JSON.stringify(recentTrace.metadata), 900)}` : '',
+        'Create compact teaching reflection JSON with keys: concept_understanding, procedural_accuracy, reasoning_quality, confidence, hidden_confusion_risk, what_worked, what_failed, recommended_next_strategy, recommended_next_pace, recommended_interventions, compressed_reflection.',
+      ].filter(Boolean).join('\n\n');
+
+      const raw = await generateText(
+        prompt,
+        'You evaluate teaching effectiveness for adaptive tutoring. Return valid JSON only. Be concise, evidence-grounded, and focused on what teaching strategy helped or failed.',
+        700,
+      );
+
+      let parsed: Record<string, unknown> | null = null;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        const start = raw.indexOf('{');
+        const end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+          try {
+            parsed = JSON.parse(raw.slice(start, end + 1));
+          } catch {
+            parsed = null;
+          }
+        }
+      }
+
+      if (!parsed) {
+        throw new Error('Teaching reflection JSON parse failed.');
+      }
+
+      const normalized = parseTeachingReflectionRecord({
+        concept_understanding: Number(parsed.concept_understanding ?? 0),
+        procedural_accuracy: Number(parsed.procedural_accuracy ?? 0),
+        reasoning_quality: Number(parsed.reasoning_quality ?? 0),
+        confidence: Number(parsed.confidence ?? 0),
+        hidden_confusion_risk: Number(parsed.hidden_confusion_risk ?? 0),
+        what_worked: parsed.what_worked,
+        what_failed: parsed.what_failed,
+        recommended_next_strategy: typeof parsed.recommended_next_strategy === 'string' ? parsed.recommended_next_strategy : null,
+        recommended_next_pace: typeof parsed.recommended_next_pace === 'string' ? parsed.recommended_next_pace : null,
+        recommended_interventions: parsed.recommended_interventions,
+        compressed_reflection: typeof parsed.compressed_reflection === 'string' ? parsed.compressed_reflection : null,
+      });
+
+      const record = await teachingReflection.upsert({
+        where: { id: existing?.id || `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          strategy_used: args.decision.strategy,
+          pace_used: args.decision.pace,
+          repair_mode_used: args.decision.prerequisiteRepairMode,
+          analogy_used: args.decision.shouldUseAnalogy,
+          worked_example_used: args.decision.shouldUseWorkedExample,
+          visual_explanation_used: args.decision.shouldUseVisualExplanation,
+          calculation_steps_used: args.decision.shouldUseCalculationSteps,
+          exam_framing_used: args.decision.shouldUseExamFraming,
+          challenge_used: args.decision.shouldChallengeStudent,
+          mastery_score: args.score,
+          concept_understanding: normalized.conceptUnderstanding,
+          procedural_accuracy: normalized.proceduralAccuracy,
+          reasoning_quality: normalized.reasoningQuality,
+          confidence: normalized.confidence,
+          hidden_confusion_risk: normalized.hiddenConfusionRisk,
+          what_worked: normalized.whatWorked as unknown as Prisma.InputJsonValue,
+          what_failed: normalized.whatFailed as unknown as Prisma.InputJsonValue,
+          recommended_next_strategy: normalized.recommendedNextStrategy,
+          recommended_next_pace: normalized.recommendedNextPace,
+          recommended_interventions: normalized.recommendedInterventions as unknown as Prisma.InputJsonValue,
+          compressed_reflection: normalized.compressedReflection,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          strategy_used: args.decision.strategy,
+          pace_used: args.decision.pace,
+          repair_mode_used: args.decision.prerequisiteRepairMode,
+          analogy_used: args.decision.shouldUseAnalogy,
+          worked_example_used: args.decision.shouldUseWorkedExample,
+          visual_explanation_used: args.decision.shouldUseVisualExplanation,
+          calculation_steps_used: args.decision.shouldUseCalculationSteps,
+          exam_framing_used: args.decision.shouldUseExamFraming,
+          challenge_used: args.decision.shouldChallengeStudent,
+          mastery_score: args.score,
+          concept_understanding: normalized.conceptUnderstanding,
+          procedural_accuracy: normalized.proceduralAccuracy,
+          reasoning_quality: normalized.reasoningQuality,
+          confidence: normalized.confidence,
+          hidden_confusion_risk: normalized.hiddenConfusionRisk,
+          what_worked: normalized.whatWorked as unknown as Prisma.InputJsonValue,
+          what_failed: normalized.whatFailed as unknown as Prisma.InputJsonValue,
+          recommended_next_strategy: normalized.recommendedNextStrategy,
+          recommended_next_pace: normalized.recommendedNextPace,
+          recommended_interventions: normalized.recommendedInterventions as unknown as Prisma.InputJsonValue,
+          compressed_reflection: normalized.compressedReflection,
+        },
+      });
+
+      console.log('teaching_reflection_completed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+      });
+      return record;
+    } catch (error) {
+      console.error('teaching_reflection_failed', {
+        sessionId: args.sessionId,
+        materialId: args.materialId,
+        sectionIndex: args.sectionIndex,
+        message: error instanceof Error ? error.message : 'Unknown reflection error',
+      });
+
+      const normalized = parseTeachingReflectionRecord(fallback);
+      const record = await teachingReflection.upsert({
+        where: { id: existing?.id || `missing-${args.sessionId}-${args.sectionIndex}` },
+        create: {
+          session_id: args.sessionId,
+          companion_state_id: args.companionStateId,
+          user_id: args.userId,
+          material_id: args.materialId,
+          course_code: args.courseCode,
+          section_index: args.sectionIndex,
+          section_title: args.sectionTitle,
+          strategy_used: args.decision.strategy,
+          pace_used: args.decision.pace,
+          repair_mode_used: args.decision.prerequisiteRepairMode,
+          analogy_used: args.decision.shouldUseAnalogy,
+          worked_example_used: args.decision.shouldUseWorkedExample,
+          visual_explanation_used: args.decision.shouldUseVisualExplanation,
+          calculation_steps_used: args.decision.shouldUseCalculationSteps,
+          exam_framing_used: args.decision.shouldUseExamFraming,
+          challenge_used: args.decision.shouldChallengeStudent,
+          mastery_score: args.score,
+          concept_understanding: normalized.conceptUnderstanding,
+          procedural_accuracy: normalized.proceduralAccuracy,
+          reasoning_quality: normalized.reasoningQuality,
+          confidence: normalized.confidence,
+          hidden_confusion_risk: normalized.hiddenConfusionRisk,
+          what_worked: normalized.whatWorked as unknown as Prisma.InputJsonValue,
+          what_failed: normalized.whatFailed as unknown as Prisma.InputJsonValue,
+          recommended_next_strategy: normalized.recommendedNextStrategy,
+          recommended_next_pace: normalized.recommendedNextPace,
+          recommended_interventions: normalized.recommendedInterventions as unknown as Prisma.InputJsonValue,
+          compressed_reflection: normalized.compressedReflection,
+        },
+        update: {
+          section_title: args.sectionTitle,
+          strategy_used: args.decision.strategy,
+          pace_used: args.decision.pace,
+          repair_mode_used: args.decision.prerequisiteRepairMode,
+          analogy_used: args.decision.shouldUseAnalogy,
+          worked_example_used: args.decision.shouldUseWorkedExample,
+          visual_explanation_used: args.decision.shouldUseVisualExplanation,
+          calculation_steps_used: args.decision.shouldUseCalculationSteps,
+          exam_framing_used: args.decision.shouldUseExamFraming,
+          challenge_used: args.decision.shouldChallengeStudent,
+          mastery_score: args.score,
+          concept_understanding: normalized.conceptUnderstanding,
+          procedural_accuracy: normalized.proceduralAccuracy,
+          reasoning_quality: normalized.reasoningQuality,
+          confidence: normalized.confidence,
+          hidden_confusion_risk: normalized.hiddenConfusionRisk,
+          what_worked: normalized.whatWorked as unknown as Prisma.InputJsonValue,
+          what_failed: normalized.whatFailed as unknown as Prisma.InputJsonValue,
+          recommended_next_strategy: normalized.recommendedNextStrategy,
+          recommended_next_pace: normalized.recommendedNextPace,
+          recommended_interventions: normalized.recommendedInterventions as unknown as Prisma.InputJsonValue,
+          compressed_reflection: normalized.compressedReflection,
+        },
+      });
+
+      console.log('teaching_reflection_fallback_created', {
+        sessionId: args.sessionId,
         materialId: args.materialId,
         sectionIndex: args.sectionIndex,
       });
@@ -4294,7 +4652,7 @@ export class StudyCompanionService {
         },
       });
 
-      await this.compressStudentSectionMemory({
+      const latestStudentMemory = await this.compressStudentSectionMemory({
         userId: state.user_id,
         materialId: state.material_id,
         courseCode: state.course_code,
@@ -4313,6 +4671,39 @@ export class StudyCompanionService {
           score: evaluation.score,
         },
       });
+
+      try {
+        await this.createTeachingReflectionAfterSection({
+          sessionId,
+          companionStateId: state.id,
+          userId: state.user_id,
+          materialId: state.material_id,
+          courseCode: state.course_code,
+          sectionIndex: state.current_section_index,
+          sectionTitle: section.title,
+          sectionContent: section.content,
+          decision: teachingDecision,
+          score: finalScore,
+          passed,
+          failedConcepts,
+          calculationContext: sectionCalculationContext,
+          diagramContext: sectionDiagramContext,
+          studentMemoryContext,
+          latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
+          teachBackAttempts: latestTeachBackAttempts,
+          memoryDumpEvaluation: {
+            studentResponse: trimmed,
+            evaluation: evaluation.evaluation,
+            score: evaluation.score,
+          },
+        });
+      } catch (reflectionError) {
+        console.error('teaching_reflection_failed', {
+          sessionId,
+          sectionIndex: state.current_section_index,
+          message: reflectionError instanceof Error ? reflectionError.message : 'Unknown reflection failure',
+        });
+      }
 
       if (passed) {
         roadmap[state.current_section_index] = {
