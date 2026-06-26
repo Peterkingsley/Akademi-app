@@ -212,6 +212,41 @@ type TutorMessageQualityArgs = {
   questionAllowed: boolean;
 };
 
+type TutorQualityTraceCapture = {
+  issues: string[];
+  regenerated: boolean;
+  fallbackUsed: boolean;
+  correctionApplied: boolean;
+};
+
+type TutorTraceRuntime = {
+  id: string | null;
+  startedAt: number;
+  aiLatencyMs: number;
+  quality: TutorQualityTraceCapture;
+};
+
+type TutorTraceSeed = {
+  sessionId: string;
+  userId: string;
+  materialId?: string | null;
+  courseCode?: string | null;
+  sectionIndex?: number | null;
+  sectionTitle?: string | null;
+  phase: string;
+  turnType?: string | null;
+  action?: string | null;
+  teacherBrainUsed: boolean;
+  studentMemoryUsed: boolean;
+  lessonPlanUsed: boolean;
+  relevantMaterialUsed: boolean;
+  calculationContextUsed: boolean;
+  diagramContextUsed: boolean;
+  qualityGuardrailUsed: boolean;
+  promptTokensEstimate?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
 type StudentMaterialMemoryRow = {
   id: string;
   user_id: string;
@@ -1159,6 +1194,10 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
     issues,
     correctedContent,
   };
+}
+
+function estimatePromptTokens(value: string) {
+  return Math.max(1, Math.round(normalizeText(value).length / 4));
 }
 
 function parseStudySectionLessonPlanRecord(value: {
@@ -2160,11 +2199,156 @@ export class StudyCompanionService {
     };
   }
 
+  private async startTutorTrace(seed: TutorTraceSeed): Promise<TutorTraceRuntime> {
+    const runtime: TutorTraceRuntime = {
+      id: null,
+      startedAt: Date.now(),
+      aiLatencyMs: 0,
+      quality: {
+        issues: [],
+        regenerated: false,
+        fallbackUsed: false,
+        correctionApplied: false,
+      },
+    };
+
+    try {
+      const trace = await (prisma as typeof prisma & {
+        tutorTurnTrace: {
+          create: (query: unknown) => Promise<{ id: string }>;
+        };
+      }).tutorTurnTrace.create({
+        data: {
+          session_id: seed.sessionId,
+          user_id: seed.userId,
+          material_id: seed.materialId || null,
+          course_code: seed.courseCode || null,
+          section_index: seed.sectionIndex ?? null,
+          section_title: seed.sectionTitle || null,
+          phase: seed.phase,
+          turn_type: seed.turnType || null,
+          action: seed.action || null,
+          teacher_brain_used: seed.teacherBrainUsed,
+          student_memory_used: seed.studentMemoryUsed,
+          lesson_plan_used: seed.lessonPlanUsed,
+          relevant_material_used: seed.relevantMaterialUsed,
+          calculation_context_used: seed.calculationContextUsed,
+          diagram_context_used: seed.diagramContextUsed,
+          quality_guardrail_used: seed.qualityGuardrailUsed,
+          prompt_tokens_estimate: seed.promptTokensEstimate ?? null,
+          metadata: (seed.metadata || {}) as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+      runtime.id = trace.id;
+      console.log('tutor_trace_started', {
+        traceId: runtime.id,
+        sessionId: seed.sessionId,
+        phase: seed.phase,
+        turnType: seed.turnType,
+        action: seed.action,
+      });
+    } catch (error) {
+      console.error('tutor_trace_failed', {
+        sessionId: seed.sessionId,
+        phase: seed.phase,
+        stage: 'start',
+        message: error instanceof Error ? error.message : 'Unknown trace start error',
+      });
+    }
+
+    return runtime;
+  }
+
+  private async finishTutorTrace(
+    trace: TutorTraceRuntime,
+    args: {
+      content: string;
+      qualityGuardrailUsed?: boolean;
+      extraMetadata?: Record<string, unknown>;
+    },
+  ) {
+    if (!trace.id) return;
+
+    try {
+      const latencyMs = Date.now() - trace.startedAt;
+      await (prisma as typeof prisma & {
+        tutorTurnTrace: {
+          update: (query: unknown) => Promise<unknown>;
+        };
+      }).tutorTurnTrace.update({
+        where: { id: trace.id },
+        data: {
+          quality_guardrail_used: args.qualityGuardrailUsed ?? false,
+          quality_issues: trace.quality.issues as unknown as Prisma.InputJsonValue,
+          response_chars: args.content.length,
+          latency_ms: latencyMs,
+          ai_latency_ms: trace.aiLatencyMs || null,
+          metadata: {
+            regenerated: trace.quality.regenerated,
+            fallback_used: trace.quality.fallbackUsed,
+            correction_applied: trace.quality.correctionApplied,
+            ...(args.extraMetadata || {}),
+          } as Prisma.InputJsonValue,
+        },
+      });
+      console.log('tutor_trace_finished', {
+        traceId: trace.id,
+        latencyMs,
+        aiLatencyMs: trace.aiLatencyMs,
+        responseChars: args.content.length,
+      });
+    } catch (error) {
+      console.error('tutor_trace_failed', {
+        traceId: trace.id,
+        stage: 'finish',
+        message: error instanceof Error ? error.message : 'Unknown trace finish error',
+      });
+    }
+  }
+
+  private async failTutorTrace(trace: TutorTraceRuntime, error: unknown) {
+    if (!trace.id) return;
+
+    try {
+      await (prisma as typeof prisma & {
+        tutorTurnTrace: {
+          update: (query: unknown) => Promise<unknown>;
+        };
+      }).tutorTurnTrace.update({
+        where: { id: trace.id },
+        data: {
+          latency_ms: Date.now() - trace.startedAt,
+          ai_latency_ms: trace.aiLatencyMs || null,
+          quality_issues: trace.quality.issues as unknown as Prisma.InputJsonValue,
+          error_message: error instanceof Error ? error.message : 'Unknown tutor trace error',
+          metadata: {
+            regenerated: trace.quality.regenerated,
+            fallback_used: trace.quality.fallbackUsed,
+            correction_applied: trace.quality.correctionApplied,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      console.error('tutor_trace_failed', {
+        traceId: trace.id,
+        stage: 'turn',
+        message: error instanceof Error ? error.message : 'Unknown tutor turn error',
+      });
+    } catch (traceError) {
+      console.error('tutor_trace_failed', {
+        traceId: trace.id,
+        stage: 'fail',
+        message: traceError instanceof Error ? traceError.message : 'Unknown trace fail error',
+      });
+    }
+  }
+
   private async enforceTutorMessageQuality(
     args: TutorMessageQualityArgs & {
       prompt: string;
       maxTokens?: number;
       contextMeta?: { sessionId: string; materialId: string; sectionIndex: number; prompt: string };
+      qualityTrace?: TutorQualityTraceCapture;
     },
   ) {
     console.log('tutor_quality_check_started', {
@@ -2176,6 +2360,9 @@ export class StudyCompanionService {
 
     const validation = validateTutorMessageQuality(args);
     if (validation.passed) {
+      if (args.qualityTrace) {
+        args.qualityTrace.issues = [];
+      }
       console.log('tutor_quality_check_passed', {
         phase: args.phase,
         turnType: args.turnType,
@@ -2192,12 +2379,18 @@ export class StudyCompanionService {
     });
 
     const corrected = normalizeText(validation.correctedContent || '');
+    if (args.qualityTrace) {
+      args.qualityTrace.issues = [...validation.issues];
+    }
     const regenerationNeeded =
       validation.issues.includes('empty_content') ||
       validation.issues.includes('missing_calculation_steps') ||
       validation.issues.includes('missing_visual_language');
 
     if (!regenerationNeeded && corrected) {
+      if (args.qualityTrace) {
+        args.qualityTrace.correctionApplied = true;
+      }
       console.log('tutor_quality_correction_applied', {
         phase: args.phase,
         turnType: args.turnType,
@@ -2213,6 +2406,9 @@ export class StudyCompanionService {
       prompt: args.contextMeta?.prompt,
       issues: validation.issues,
     });
+    if (args.qualityTrace) {
+      args.qualityTrace.regenerated = true;
+    }
 
     try {
       const regenerationPrompt = [
@@ -2244,6 +2440,10 @@ export class StudyCompanionService {
         return normalizeText(regenerated);
       }
       if (secondPass.correctedContent) {
+        if (args.qualityTrace) {
+          args.qualityTrace.correctionApplied = true;
+          args.qualityTrace.issues = [...secondPass.issues];
+        }
         console.log('tutor_quality_correction_applied', {
           phase: args.phase,
           turnType: args.turnType,
@@ -2262,6 +2462,10 @@ export class StudyCompanionService {
     }
 
     const fallback = buildDeterministicTutorFallback(args);
+    if (args.qualityTrace) {
+      args.qualityTrace.fallbackUsed = true;
+      args.qualityTrace.correctionApplied = true;
+    }
     console.log('tutor_quality_correction_applied', {
       phase: args.phase,
       turnType: args.turnType,
@@ -2491,6 +2695,41 @@ export class StudyCompanionService {
       lessonPlan.teachingSequence.length ? `Start with these opening sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
+    const introQualityTrace: TutorQualityTraceCapture = {
+      issues: [],
+      regenerated: false,
+      fallbackUsed: false,
+      correctionApplied: false,
+    };
+    const introTrace = await this.startTutorTrace({
+      sessionId,
+      userId: state.user_id,
+      materialId: material.id,
+      courseCode: state.course_code,
+      sectionIndex: nextIndex,
+      sectionTitle: section.title,
+      phase: PASS_1,
+      turnType: 'transition',
+      action: 'start_intro',
+      teacherBrainUsed: !!teacherBrainContext,
+      studentMemoryUsed: !!studentMemoryContext.promptContext,
+      lessonPlanUsed: !!lessonPlan.promptContext,
+      relevantMaterialUsed: !!relevantMaterialContext.promptContext,
+      calculationContextUsed: sectionCalculationContext.detected,
+      diagramContextUsed: sectionDiagramContext.detected,
+      qualityGuardrailUsed: true,
+      promptTokensEstimate: estimatePromptTokens(introPrompt),
+      metadata: {
+        teacher_brain_chars: teacherBrainContext.length,
+        student_memory_chars: studentMemoryContext.promptContext.length,
+        lesson_plan_chars: lessonPlan.promptContext.length,
+        relevant_material_chars: relevantMaterialContext.promptContext.length,
+        retrieved_chunk_count: relevantMaterialContext.chunks.length,
+        formula_count: teacherBrainSectionContext.formulas.length,
+        diagram_count: teacherBrainSectionContext.diagrams.length,
+        weak_point_count: studentMemoryContext.priorMemories?.flatMap((item) => item.weakPoints).length || 0,
+      },
+    });
 
     if (teacherBrainContext) {
       console.log('teacher_brain_context_applied', {
@@ -2508,40 +2747,58 @@ export class StudyCompanionService {
         prompt: 'start_intro',
       });
     }
-    const rawContent = await generateText(introPrompt, this.companionSystemPrompt());
-    const content = await this.enforceTutorMessageQuality({
-      content: rawContent,
-      prompt: introPrompt,
-      maxTokens: 260,
-      phase: 'INTRO',
-      turnType: 'transition',
-      section,
-      isCalculationHeavy: sectionCalculationContext.detected,
-      isDiagramHeavy: sectionDiagramContext.detected,
-      questionAllowed: false,
-      contextMeta: {
-        sessionId,
-        materialId: material.id,
-        sectionIndex: nextIndex,
-        prompt: 'start_intro',
-      },
-    });
-    await this.persistRoadmap(state.id, roadmap, {
-      current_phase: PASS_1,
-      current_section_index: nextIndex,
-      pending_prompt: content,
-      refresh_question: refreshQuestion,
-      refresh_answer: null,
-      section_context: {} as Prisma.InputJsonValue,
-    });
+    try {
+      const aiStartedAt = Date.now();
+      const rawContent = await generateText(introPrompt, this.companionSystemPrompt());
+      introTrace.aiLatencyMs += Date.now() - aiStartedAt;
+      const content = await this.enforceTutorMessageQuality({
+        content: rawContent,
+        prompt: introPrompt,
+        maxTokens: 260,
+        phase: 'INTRO',
+        turnType: 'transition',
+        section,
+        isCalculationHeavy: sectionCalculationContext.detected,
+        isDiagramHeavy: sectionDiagramContext.detected,
+        questionAllowed: false,
+        contextMeta: {
+          sessionId,
+          materialId: material.id,
+          sectionIndex: nextIndex,
+          prompt: 'start_intro',
+        },
+        qualityTrace: introQualityTrace,
+      });
+      await this.persistRoadmap(state.id, roadmap, {
+        current_phase: PASS_1,
+        current_section_index: nextIndex,
+        pending_prompt: content,
+        refresh_question: refreshQuestion,
+        refresh_answer: null,
+        section_context: {} as Prisma.InputJsonValue,
+      });
 
-    return {
-      content,
-      metadata: await this.buildTurnMetadata(sessionId, 'transition', {
-        nextAction: 'continue_teaching',
-        questionCount: questionCountForContent(content),
-      }),
-    };
+      const response = {
+        content,
+        metadata: await this.buildTurnMetadata(sessionId, 'transition', {
+          nextAction: 'continue_teaching',
+          questionCount: questionCountForContent(content),
+        }),
+      };
+      await this.finishTutorTrace(introTrace, {
+        content,
+        qualityGuardrailUsed: true,
+        extraMetadata: {
+          regenerated: introQualityTrace.regenerated,
+          fallback_used: introQualityTrace.fallbackUsed,
+          correction_applied: introQualityTrace.correctionApplied,
+        },
+      });
+      return response;
+    } catch (error) {
+      await this.failTutorTrace(introTrace, error);
+      throw error;
+    }
   }
 
   async handleTutorContinue(sessionId: string) {
@@ -2557,6 +2814,7 @@ export class StudyCompanionService {
     studentMemoryPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
+    qualityTrace?: TutorQualityTraceCapture,
   ) {
     const calculationContext = buildCalculationTeachingContext(
       section,
@@ -2658,6 +2916,7 @@ export class StudyCompanionService {
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: false,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
+      qualityTrace,
     });
   }
 
@@ -2801,6 +3060,7 @@ export class StudyCompanionService {
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
     lessonPlan?: StudySectionLessonPlanRecord,
+    qualityTrace?: TutorQualityTraceCapture,
   ) {
     const diagramContext = buildDiagramTeachingContext(
       section,
@@ -2846,6 +3106,7 @@ export class StudyCompanionService {
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: true,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
+      qualityTrace,
     });
   }
 
@@ -2854,6 +3115,7 @@ export class StudyCompanionService {
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     lessonPlan?: StudySectionLessonPlanRecord,
+    qualityTrace?: TutorQualityTraceCapture,
   ) {
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
@@ -2885,6 +3147,7 @@ export class StudyCompanionService {
       isDiagramHeavy: false,
       questionAllowed: true,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
+      qualityTrace,
     });
   }
 
@@ -2896,6 +3159,7 @@ export class StudyCompanionService {
     teacherBrainSectionContext?: TeacherBrainSectionContext,
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
+    qualityTrace?: TutorQualityTraceCapture,
   ) {
     const calculationContext = buildCalculationTeachingContext(
       section,
@@ -2961,6 +3225,7 @@ export class StudyCompanionService {
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: false,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
+      qualityTrace,
     });
   }
 
@@ -2971,6 +3236,7 @@ export class StudyCompanionService {
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     studentMemoryPromptContext = '',
     relevantMaterialContext?: RelevantMaterialContext,
+    qualityTrace?: TutorQualityTraceCapture,
   ) {
     const prompt = [
       `Section title: ${section.title}`,
@@ -3006,6 +3272,7 @@ export class StudyCompanionService {
       isDiagramHeavy: false,
       questionAllowed: true,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'interrupt_response' } : undefined,
+      qualityTrace,
     });
   }
 
@@ -3067,6 +3334,37 @@ export class StudyCompanionService {
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
     const isInterrupt = options?.interrupted === true;
+    const buildTraceSeed = (phase: string, turnType: string, action: string, qualityGuardrailUsed: boolean, promptEstimate = 0): TutorTraceSeed => ({
+      sessionId,
+      userId: state.user_id,
+      materialId: material.id,
+      courseCode: state.course_code,
+      sectionIndex: state.current_section_index,
+      sectionTitle: section.title,
+      phase,
+      turnType,
+      action,
+      teacherBrainUsed: !!teacherBrainContext,
+      studentMemoryUsed: !!studentMemoryContext.promptContext,
+      lessonPlanUsed: !!lessonPlan.promptContext,
+      relevantMaterialUsed: !!relevantMaterialContext.promptContext,
+      calculationContextUsed: sectionCalculationContext.detected,
+      diagramContextUsed: sectionDiagramContext.detected,
+      qualityGuardrailUsed,
+      promptTokensEstimate: promptEstimate || null,
+      metadata: {
+        teacher_brain_chars: teacherBrainContext.length,
+        student_memory_chars: studentMemoryContext.promptContext.length,
+        lesson_plan_chars: lessonPlan.promptContext.length,
+        relevant_material_chars: relevantMaterialContext.promptContext.length,
+        retrieved_chunk_count: relevantMaterialContext.chunks.length,
+        formula_count: teacherBrainSectionContext.formulas.length,
+        diagram_count: teacherBrainSectionContext.diagrams.length,
+        weak_point_count: studentMemoryContext.priorMemories?.flatMap((item) => item.weakPoints).length || 0,
+        interrupted: isInterrupt,
+        auto_continue: isAutoContinue,
+      },
+    });
 
     if (!trimmed) {
       throw new Error('Please send a response so Akademi can continue the study flow.');
@@ -3074,118 +3372,210 @@ export class StudyCompanionService {
 
     if (state.current_phase === PASS_1) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext);
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'checkpoint_question', 'interrupt_response', true));
+        try {
+          const aiStartedAt = Date.now();
+          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: TEACHBACK_1,
+            pending_prompt: content,
+            section_context: {} as Prisma.InputJsonValue,
+          });
+          const response = {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+              nextAction: 'evaluate_answer',
+              questionCount: 1,
+            }),
+          };
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+          return response;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
+      }
+      const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
+      try {
+        const aiStartedAt = Date.now();
+        const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
-          current_phase: TEACHBACK_1,
+          current_phase: PASS_2,
           pending_prompt: content,
           section_context: {} as Prisma.InputJsonValue,
         });
-        return {
+        const response = {
           content,
-          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
-            nextAction: 'evaluate_answer',
-            questionCount: 1,
+          metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
+            nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(content),
           }),
         };
+        trace.quality = qualityTrace;
+        await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+        return response;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
       }
-      const content = await this.buildTeachingPass(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext);
-      await this.persistRoadmap(state.id, roadmap, {
-        current_phase: PASS_2,
-        pending_prompt: content,
-        section_context: {} as Prisma.InputJsonValue,
-      });
-      return {
-        content,
-        metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
-          nextAction: 'continue_teaching',
-          questionCount: questionCountForContent(content),
-        }),
-      };
     }
 
     if (state.current_phase === PASS_2) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext);
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'checkpoint_question', 'interrupt_response', true));
+        try {
+          const aiStartedAt = Date.now();
+          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: TEACHBACK_1,
+            pending_prompt: content,
+            section_context: {} as Prisma.InputJsonValue,
+          });
+          const response = {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+              nextAction: 'evaluate_answer',
+              questionCount: 1,
+            }),
+          };
+          trace.quality = qualityTrace;
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+          return response;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
+      }
+      const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'teaching', 'teaching_pass_2', true));
+      try {
+        const aiStartedAt = Date.now();
+        const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
-          current_phase: TEACHBACK_1,
+          current_phase: PASS_3,
           pending_prompt: content,
           section_context: {} as Prisma.InputJsonValue,
         });
-        return {
+        const response = {
           content,
-          metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
-            nextAction: 'evaluate_answer',
-            questionCount: 1,
+          metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
+            nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(content),
           }),
         };
+        trace.quality = qualityTrace;
+        await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+        return response;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
       }
-      const content = await this.buildTeachingPass(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext);
-      await this.persistRoadmap(state.id, roadmap, {
-        current_phase: PASS_3,
-        pending_prompt: content,
-        section_context: {} as Prisma.InputJsonValue,
-      });
-      return {
-        content,
-        metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
-          nextAction: 'continue_teaching',
-          questionCount: questionCountForContent(content),
-        }),
-      };
     }
 
     if (state.current_phase === PASS_3) {
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext);
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'checkpoint_question', 'interrupt_response', true));
+        try {
+          const aiStartedAt = Date.now();
+          const content = await this.buildInterruptResponse(section, trimmed, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: TEACHBACK_1,
+            pending_prompt: content,
+            section_context: {} as Prisma.InputJsonValue,
+          });
+          const response = {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
+              nextAction: 'evaluate_answer',
+              questionCount: 1,
+            }),
+          };
+          trace.quality = qualityTrace;
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+          return response;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
+      }
+      if (!sectionContext.pass3QuestionPending) {
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'teaching', 'teaching_pass_3', true));
+        try {
+          const aiStartedAt = Date.now();
+          const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: PASS_3,
+            pending_prompt: content,
+            section_context: { pass3QuestionPending: true } as Prisma.InputJsonValue,
+          });
+          const response = {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
+              nextAction: 'ask_followup',
+              questionCount: questionCountForContent(content),
+            }),
+          };
+          trace.quality = qualityTrace;
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+          return response;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
+      }
+
+      const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const trace = await this.startTutorTrace(buildTraceSeed(TEACHBACK_1, 'checkpoint_question', 'teachback_prompt_1', true));
+      try {
+        const aiStartedAt = Date.now();
+        const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
           section_context: {} as Prisma.InputJsonValue,
         });
-        return {
+        const response = {
           content,
           metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
             nextAction: 'evaluate_answer',
             questionCount: 1,
           }),
         };
+        trace.quality = qualityTrace;
+        await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+        return response;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
       }
-      if (!sectionContext.pass3QuestionPending) {
-        const content = await this.buildTeachingPass(section, 3, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext);
-        await this.persistRoadmap(state.id, roadmap, {
-          current_phase: PASS_3,
-          pending_prompt: content,
-          section_context: { pass3QuestionPending: true } as Prisma.InputJsonValue,
-        });
-        return {
-          content,
-          metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
-            nextAction: 'ask_followup',
-            questionCount: questionCountForContent(content),
-          }),
-        };
-      }
-
-      const content = await this.buildTeachBackPrompt(section, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
-      await this.persistRoadmap(state.id, roadmap, {
-        current_phase: TEACHBACK_1,
-        pending_prompt: content,
-        section_context: {} as Prisma.InputJsonValue,
-      });
-      return {
-        content,
-        metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
-          nextAction: 'evaluate_answer',
-          questionCount: 1,
-        }),
-      };
     }
 
     if (state.current_phase === TEACHBACK_1) {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your explanation before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+      const trace = await this.startTutorTrace(buildTraceSeed(StudyCompanionPhase.TEACHBACK_1_EVALUATION, 'evaluation', 'evaluate_teachback_1', false));
+      let evaluation;
+      try {
+        const aiStartedAt = Date.now();
+        evaluation = await this.evaluateTeachBack(section, trimmed, 1, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
+      }
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -3212,20 +3602,31 @@ export class StudyCompanionService {
           failedConcepts: evaluation.failedConcepts,
         } as Prisma.InputJsonValue,
       });
-      return {
+      const response = {
         content: evaluation.evaluation,
         metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
           nextAction: 'continue_teaching',
           questionCount: questionCountForContent(evaluation.evaluation),
         }),
       };
+      await this.finishTutorTrace(trace, { content: evaluation.evaluation, qualityGuardrailUsed: false });
+      return response;
     }
 
     if (state.current_phase === TEACHBACK_2) {
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your second teach-back before continuing.');
       }
-      const evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+      const trace = await this.startTutorTrace(buildTraceSeed(StudyCompanionPhase.TEACHBACK_2_EVALUATION, 'evaluation', 'evaluate_teachback_2', false));
+      let evaluation;
+      try {
+        const aiStartedAt = Date.now();
+        evaluation = await this.evaluateTeachBack(section, trimmed, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
+      }
       await prisma.teachBackAttempt.create({
         data: {
           session_id: sessionId,
@@ -3250,13 +3651,15 @@ export class StudyCompanionService {
           nextPromptKind: 'memory_dump',
         } as Prisma.InputJsonValue,
       });
-      return {
+      const response = {
         content: evaluation.evaluation,
         metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
           nextAction: 'continue_teaching',
           questionCount: questionCountForContent(evaluation.evaluation),
         }),
       };
+      await this.finishTutorTrace(trace, { content: evaluation.evaluation, qualityGuardrailUsed: false });
+      return response;
     }
 
     if (state.current_phase === GAP_RETEACH) {
@@ -3277,41 +3680,71 @@ export class StudyCompanionService {
       }
 
       if (!sectionContext.reteachDelivered) {
-        const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
-        await this.persistRoadmap(state.id, roadmap, {
-          current_phase: GAP_RETEACH,
-          pending_prompt: content,
-          section_context: {
-            ...sectionContext,
-            reteachDelivered: true,
-          } as Prisma.InputJsonValue,
-        });
-        return {
-          content,
-          metadata: await this.buildTurnMetadata(sessionId, 'reteach', {
-            nextAction: 'continue_teaching',
-            questionCount: questionCountForContent(content),
-          }),
-        };
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(GAP_RETEACH, 'reteach', 'gap_reteach', true));
+        try {
+          const aiStartedAt = Date.now();
+          const content = await this.buildGapReteach(section, sectionContext.failedConcepts || [], teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+          await this.persistRoadmap(state.id, roadmap, {
+            current_phase: GAP_RETEACH,
+            pending_prompt: content,
+            section_context: {
+              ...sectionContext,
+              reteachDelivered: true,
+            } as Prisma.InputJsonValue,
+          });
+          const response = {
+            content,
+            metadata: await this.buildTurnMetadata(sessionId, 'reteach', {
+              nextAction: 'continue_teaching',
+              questionCount: questionCountForContent(content),
+            }),
+          };
+          trace.quality = qualityTrace;
+          await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+          return response;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
       }
 
-      const content =
-        sectionContext.nextPromptKind === 'teachback_2'
-          ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan)
-          : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan);
+      const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const trace = await this.startTutorTrace(buildTraceSeed(
+        sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP,
+        'checkpoint_question',
+        sectionContext.nextPromptKind === 'teachback_2' ? 'teachback_prompt_2' : 'memory_dump_prompt',
+        true,
+      ));
+      let content;
+      try {
+        const aiStartedAt = Date.now();
+        content =
+          sectionContext.nextPromptKind === 'teachback_2'
+            ? await this.buildTeachBackPrompt(section, 2, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace)
+            : await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
+      }
 
       await this.persistRoadmap(state.id, roadmap, {
         current_phase: sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP,
         pending_prompt: content,
         section_context: {} as Prisma.InputJsonValue,
       });
-      return {
+      const response = {
         content,
         metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
           nextAction: 'evaluate_answer',
           questionCount: 1,
         }),
       };
+      trace.quality = qualityTrace;
+      await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+      return response;
     }
 
     if (state.current_phase === MEMORY_DUMP) {
@@ -3320,25 +3753,47 @@ export class StudyCompanionService {
           throw new Error('Akademi is preparing the next checkpoint. Wait one moment.');
         }
 
-        const content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan);
+        const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+        const trace = await this.startTutorTrace(buildTraceSeed(MEMORY_DUMP, 'checkpoint_question', 'memory_dump_prompt', true));
+        let content;
+        try {
+          const aiStartedAt = Date.now();
+          content = await this.buildMemoryDumpPrompt(section, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+          trace.aiLatencyMs += Date.now() - aiStartedAt;
+        } catch (error) {
+          await this.failTutorTrace(trace, error);
+          throw error;
+        }
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: MEMORY_DUMP,
           pending_prompt: content,
           section_context: {} as Prisma.InputJsonValue,
         });
-        return {
+        const response = {
           content,
           metadata: await this.buildTurnMetadata(sessionId, 'checkpoint_question', {
             nextAction: 'evaluate_answer',
             questionCount: 1,
           }),
         };
+        trace.quality = qualityTrace;
+        await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+        return response;
       }
 
       if (isAutoContinue) {
         throw new Error('Akademi is waiting for your memory dump before continuing.');
       }
-      const evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+      const trace = await this.startTutorTrace(buildTraceSeed('MEMORY_DUMP_EVALUATION', 'evaluation', 'evaluate_memory_dump', false));
+      let evaluation;
+      try {
+        const aiStartedAt = Date.now();
+        evaluation = await this.evaluateMemoryDump(section, trimmed, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, relevantMaterialContext);
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
+      } catch (error) {
+        await this.failTutorTrace(trace, error);
+        throw error;
+      }
       await prisma.memoryDumpAttempt.create({
         data: {
           session_id: sessionId,
@@ -3430,7 +3885,7 @@ export class StudyCompanionService {
           session_summary: hasNextSection ? null : `Completed all ${roadmap.length} sections.`,
           section_context: {} as Prisma.InputJsonValue,
         });
-        return {
+        const response = {
           content,
           metadata: await this.buildTurnMetadata(sessionId, 'transition', {
             autoContinue: false,
@@ -3438,6 +3893,8 @@ export class StudyCompanionService {
             nextAction: 'move_next',
           }),
         };
+        await this.finishTutorTrace(trace, { content, qualityGuardrailUsed: false });
+        return response;
       }
 
       roadmap[state.current_section_index] = {
@@ -3455,13 +3912,15 @@ export class StudyCompanionService {
           failedConcepts,
         } as Prisma.InputJsonValue,
       });
-      return {
+      const response = {
         content: outcome,
         metadata: await this.buildTurnMetadata(sessionId, 'evaluation', {
           nextAction: 'continue_teaching',
           questionCount: questionCountForContent(outcome),
         }),
       };
+      await this.finishTutorTrace(trace, { content: outcome, qualityGuardrailUsed: false });
+      return response;
     }
 
     if (state.current_phase === NEXT_SECTION) {

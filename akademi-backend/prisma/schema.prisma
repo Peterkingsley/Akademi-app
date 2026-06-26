@@ -245,6 +245,7 @@ model User {
   mastery_records      MasteryRecord[]
   material_memories    StudentMaterialMemory[]
   lesson_plans         StudySectionLessonPlan[]
+  tutor_turn_traces    TutorTurnTrace[]
   feature_access       FeatureAccess[]
   refresh_tokens       RefreshToken[]
   materials            Material[]               @relation("UploadedBy")
@@ -348,6 +349,7 @@ model Material {
   mastery_records      MasteryRecord[]
   material_memories    StudentMaterialMemory[]
   lesson_plans         StudySectionLessonPlan[]
+  tutor_turn_traces    TutorTurnTrace[]
 
   @@index([course_code])
   @@index([university])
@@ -441,6 +443,7 @@ model Session {
   memory_dumps    MemoryDumpAttempt[]
   mastery_records MasteryRecord[]
   lesson_plans    StudySectionLessonPlan[]
+  tutor_turn_traces TutorTurnTrace[]
 
   @@index([user_id])
   @@index([material_id])
@@ -632,6 +635,44 @@ model StudySectionLessonPlan {
   @@index([session_id, section_index])
   @@index([user_id, material_id, course_code])
   @@map("study_section_lesson_plans")
+}
+
+model TutorTurnTrace {
+  id                       String   @id @default(uuid())
+  session_id               String
+  user_id                  String
+  material_id              String?
+  course_code              String?
+  section_index            Int?
+  section_title            String?
+  phase                    String
+  turn_type                String?
+  action                   String?
+  teacher_brain_used       Boolean  @default(false)
+  student_memory_used      Boolean  @default(false)
+  lesson_plan_used         Boolean  @default(false)
+  relevant_material_used   Boolean  @default(false)
+  calculation_context_used Boolean  @default(false)
+  diagram_context_used     Boolean  @default(false)
+  quality_guardrail_used   Boolean  @default(false)
+  quality_issues           Json     @default("[]")
+  prompt_tokens_estimate   Int?
+  response_chars           Int?
+  latency_ms               Int?
+  ai_latency_ms            Int?
+  error_message            String?
+  metadata                 Json     @default("{}")
+  created_at               DateTime @default(now())
+
+  session  Session   @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [material_id], references: [id], onDelete: SetNull)
+
+  @@index([session_id])
+  @@index([user_id, material_id])
+  @@index([phase])
+  @@index([created_at])
+  @@map("tutor_turn_traces")
 }
 
 model Question {
