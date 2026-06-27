@@ -61,7 +61,13 @@ const buildAlerts = (records: RateLimitEventRecord[]): RateLimitAlert[] => {
   const window5 = filterWindow(records, 5);
 
   const authNamespaces = new Set(['auth-login', 'auth-register', 'auth-forgot-password', 'admin-login']);
-  const aiNamespaces = new Set(['session-interaction']);
+  const aiNamespaces = new Set([
+    'session-creation',
+    'companion-turn',
+    'voice-session',
+    'session-message',
+    'session-ingest',
+  ]);
 
   const authRecords = window15.filter((record) => authNamespaces.has(record.namespaceOrEvent));
   if (authRecords.length >= 20) {

@@ -4,7 +4,11 @@ import { authenticate } from '../auth/auth.middleware';
 import multer from 'multer';
 import {
   createRateLimiter,
-  sessionInteractionRateLimiter,
+  companionTurnRateLimiter,
+  sessionCreationRateLimiter,
+  sessionIngestRateLimiter,
+  sessionMessageRateLimiter,
+  voiceSessionRateLimiter,
 } from '../../shared/middleware/rate-limit';
 
 const router = Router();
@@ -69,25 +73,25 @@ const sessionsGeneralRateLimiter = createRateLimiter({
 router.use(authenticate);
 router.use(sessionsGeneralRateLimiter);
 
-router.post('/', sessionInteractionRateLimiter, sessionsController.start);
-router.post('/ingest/document', sessionInteractionRateLimiter, documentUpload.single('document'), sessionsController.extractDocument);
-router.post('/ingest/audio', sessionInteractionRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
-router.post('/voice/tts', sessionInteractionRateLimiter, sessionsController.synthesizeTutorSpeech);
-router.post('/:id/voice/stream', sessionInteractionRateLimiter, sessionsController.createTutorSpeechStream);
-router.get('/:id/voice/stream-audio/:streamId', sessionInteractionRateLimiter, sessionsController.streamTutorSpeech);
+router.post('/', sessionCreationRateLimiter, sessionsController.start);
+router.post('/ingest/document', sessionIngestRateLimiter, documentUpload.single('document'), sessionsController.extractDocument);
+router.post('/ingest/audio', sessionIngestRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
+router.post('/voice/tts', voiceSessionRateLimiter, sessionsController.synthesizeTutorSpeech);
+router.post('/:id/voice/stream', voiceSessionRateLimiter, sessionsController.createTutorSpeechStream);
+router.get('/:id/voice/stream-audio/:streamId', voiceSessionRateLimiter, sessionsController.streamTutorSpeech);
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
 router.get('/:id/companion', sessionsController.getCompanionState);
 router.get('/:id/visual-plan', sessionsController.getVisualPlan);
 router.get('/:id/tutor-traces', sessionsController.listTutorTraces);
 router.get('/:id/tutor-traces/summary', sessionsController.getTutorTraceSummary);
-router.post('/:id/companion/start', sessionInteractionRateLimiter, sessionsController.startCompanion);
-router.post('/:id/companion/message', sessionInteractionRateLimiter, sessionsController.sendCompanionMessage);
-router.post('/:id/companion/turn', sessionInteractionRateLimiter, sessionsController.handleCompanionTurn);
+router.post('/:id/companion/start', companionTurnRateLimiter, sessionsController.startCompanion);
+router.post('/:id/companion/message', companionTurnRateLimiter, sessionsController.sendCompanionMessage);
+router.post('/:id/companion/turn', companionTurnRateLimiter, sessionsController.handleCompanionTurn);
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/messages', sessionsController.getMessages);
-router.post('/:id/messages', sessionInteractionRateLimiter, sessionsController.sendMessage);
-router.post('/:id/messages/photo', sessionInteractionRateLimiter, photoUpload.single('photo'), sessionsController.sendPhotoMessage);
+router.post('/:id/messages', sessionMessageRateLimiter, sessionsController.sendMessage);
+router.post('/:id/messages/photo', sessionMessageRateLimiter, photoUpload.single('photo'), sessionsController.sendPhotoMessage);
 router.get('/:id/summary', sessionsController.getSummary);
 
 export default router;

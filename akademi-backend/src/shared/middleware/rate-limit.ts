@@ -166,12 +166,47 @@ export const authRefreshRateLimiter = createRateLimiter({
   message: 'Too many token refresh requests. Please try again later.',
 });
 
-export const sessionInteractionRateLimiter = createRateLimiter({
-  namespace: 'session-interaction',
+export const sessionCreationRateLimiter = createRateLimiter({
+  namespace: 'session-creation',
   windowMs: 10 * 60 * 1000,
-  max: 25,
+  max: 20,
   strategy: 'hybrid',
-  message: 'Too many session requests. Please slow down and try again shortly.',
+  message: 'Too many session creation requests. Please slow down and try again shortly.',
+});
+
+export const companionTurnRateLimiter = createRateLimiter({
+  namespace: 'companion-turn',
+  windowMs: 10 * 60 * 1000,
+  max: 120,
+  strategy: 'hybrid',
+  message: 'Too many tutor requests. Please slow down and try again shortly.',
+});
+
+// Normal tutor use can generate several requests per spoken turn, especially when
+// voice playback, streaming, and tutor turns happen together. Keep voice traffic
+// separate so audio requests do not consume the same bucket as teaching turns.
+export const voiceSessionRateLimiter = createRateLimiter({
+  namespace: 'voice-session',
+  windowMs: 10 * 60 * 1000,
+  max: 180,
+  strategy: 'hybrid',
+  message: 'Too many voice requests. Please slow down and try again shortly.',
+});
+
+export const sessionMessageRateLimiter = createRateLimiter({
+  namespace: 'session-message',
+  windowMs: 10 * 60 * 1000,
+  max: 80,
+  strategy: 'hybrid',
+  message: 'Too many message requests. Please slow down and try again shortly.',
+});
+
+export const sessionIngestRateLimiter = createRateLimiter({
+  namespace: 'session-ingest',
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  strategy: 'hybrid',
+  message: 'Too many document or audio ingestion requests. Please slow down and try again shortly.',
 });
 
 export const materialUploadRateLimiter = createRateLimiter({
