@@ -77,6 +77,9 @@ export type TeachingDecisionInput = {
   inScopeConcepts?: string[];
   previewOnlyConcepts?: string[];
   outOfScopeConcepts?: string[];
+  teachingDepthPlan?: Record<string, unknown>;
+  targetDepth?: 'basic' | 'standard' | 'deep';
+  deferredDepthConcepts?: string[];
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
   hybridMasteryResult?: {
@@ -217,6 +220,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const inScopeConcepts = uniqueItems(input.inScopeConcepts);
   const previewOnlyConcepts = uniqueItems(input.previewOnlyConcepts);
   const outOfScopeConcepts = uniqueItems(input.outOfScopeConcepts);
+  const deferredDepthConcepts = uniqueItems(input.deferredDepthConcepts);
   const lecturerStrictness = input.lecturerStrictness || 'medium';
   const selfImprovement = input.tutorSelfImprovementContext;
 
@@ -492,6 +496,12 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   if (outOfScopeConcepts.length) {
     promptDirectives.push(`Do not expand into these out-of-scope concepts: ${outOfScopeConcepts.join(', ')}.`);
   }
+  if (input.targetDepth) {
+    promptDirectives.push(`Keep this turn at ${input.targetDepth} depth.`);
+  }
+  if (deferredDepthConcepts.length) {
+    promptDirectives.push(`Do not explain these deferred-depth concepts yet: ${deferredDepthConcepts.join(', ')}.`);
+  }
 
   if (signal.masteryScore !== null && signal.masteryScore >= 85 && weakPoints.length <= 1 && misconceptions.length === 0) {
     pace = signal.masteryScore >= 92 ? 'fast' : 'normal';
@@ -644,6 +654,8 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       preview_only_count: previewOnlyConcepts.length,
       out_of_scope_count: outOfScopeConcepts.length,
       primary_objective: input.primaryObjective || null,
+      target_depth: input.targetDepth || null,
+      deferred_depth_count: deferredDepthConcepts.length,
       lecturer_constraints_reserved: null,
     },
   };

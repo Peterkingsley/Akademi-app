@@ -250,6 +250,27 @@ type ScopeViolation = {
   previewConceptsOverExplained: string[];
 };
 
+type TeachingDepthPlan = {
+  targetDepth: 'basic' | 'standard' | 'deep';
+  minimumUnderstanding: string[];
+  allowedDepthConcepts: string[];
+  deferredDepthConcepts: string[];
+  forbiddenDepthExpansions: string[];
+  allowedExampleTypes: string[];
+  maxReasoningLayers: number;
+  maxExamples: number;
+  depthDirectives: string[];
+};
+
+type DepthViolation = {
+  violated: boolean;
+  violations: string[];
+  deferredConceptsExplained: string[];
+  tooManyReasoningLayers: boolean;
+  tooManyExamples: boolean;
+  tooAdvancedForPass: boolean;
+};
+
 type TutorMessageQualityResult = {
   passed: boolean;
   issues: string[];
@@ -268,6 +289,7 @@ type TutorMessageQualityArgs = {
   isFirstIntro?: boolean;
   targetWordRange?: { min: number; max: number };
   lessonScope?: LessonScope | null;
+  teachingDepthPlan?: TeachingDepthPlan | null;
 };
 
 type TutorQualityTraceCapture = {
@@ -1103,6 +1125,202 @@ function detectScopeViolation(content: string, lessonScope: LessonScope): ScopeV
     violations,
     forbiddenConceptsFound,
     previewConceptsOverExplained,
+  };
+}
+
+function formatTeachingDepthPlan(plan: TeachingDepthPlan) {
+  return [
+    `Target depth: ${plan.targetDepth}`,
+    plan.minimumUnderstanding.length ? `Minimum understanding: ${truncateList(plan.minimumUnderstanding, 5, 60).join(' | ')}` : '',
+    plan.allowedDepthConcepts.length ? `Allowed depth concepts: ${truncateList(plan.allowedDepthConcepts, 6, 60).join(' | ')}` : '',
+    plan.deferredDepthConcepts.length ? `Deferred concepts: ${truncateList(plan.deferredDepthConcepts, 6, 55).join(' | ')}` : '',
+    plan.allowedExampleTypes.length ? `Allowed example types: ${plan.allowedExampleTypes.join(' | ')}` : '',
+    `Maximum reasoning layers: ${plan.maxReasoningLayers}`,
+    `Maximum examples: ${plan.maxExamples}`,
+    ...plan.depthDirectives,
+  ].filter(Boolean).join('\n');
+}
+
+function buildTeachingDepthPlan(args: {
+  phase: StudyCompanionPhase | 'INTRO' | 'CHECKPOINT' | 'RETEACH';
+  turnType: 'teaching' | 'checkpoint_question' | 'reteach' | 'transition';
+  passNumber?: 1 | 2 | 3;
+  sectionTitle: string;
+  sectionContent: string;
+  lessonScope: LessonScope;
+  teachingDecision: TeachingDecision;
+  lessonPlan?: StudySectionLessonPlanRecord;
+  learningIntelligence?: LearningIntelligenceContext | null;
+  studentMemoryContext?: StudentMemoryContext | null;
+  isCalculationHeavy: boolean;
+  isDiagramHeavy: boolean;
+  prerequisiteRepairActive: boolean;
+}) {
+  const minimumUnderstanding = args.lessonScope.inScopeConcepts.slice(0, args.phase === 'INTRO' ? 1 : args.passNumber === 1 ? 3 : 5);
+  const deferredMap = new Map<string, string>();
+  const forbiddenMap = new Map<string, string>();
+  [...args.lessonScope.previewOnlyConcepts, ...args.lessonScope.outOfScopeConcepts].forEach((item) => {
+    addConceptLabel(deferredMap, item);
+    addConceptLabel(forbiddenMap, item);
+  });
+
+  [
+    'experimental verification',
+    'validity of laws',
+    'derive physical laws',
+    'engineering applications',
+    'applied physics',
+    'atomic structure',
+    'scientific method',
+    'theoretical foundations',
+    'advanced implication',
+    'measurement philosophy',
+  ].forEach((item) => {
+    if (!args.lessonScope.inScopeConcepts.some((concept) => sentenceContainsConcept(concept, item))) {
+      addConceptLabel(deferredMap, item);
+      addConceptLabel(forbiddenMap, item);
+    }
+  });
+
+  let targetDepth: TeachingDepthPlan['targetDepth'] = 'standard';
+  let maxReasoningLayers = 2;
+  let maxExamples = 1;
+  let allowedExampleTypes = ['simple everyday example'];
+
+  if (args.phase === 'INTRO' || args.passNumber === 1) {
+    targetDepth = 'basic';
+    maxReasoningLayers = 1;
+    maxExamples = 1;
+    allowedExampleTypes = args.isCalculationHeavy ? ['one tiny intuitive setup only'] : ['one simple everyday example'];
+  } else if (args.phase === 'CHECKPOINT') {
+    targetDepth = 'basic';
+    maxReasoningLayers = 1;
+    maxExamples = 0;
+    allowedExampleTypes = ['no new example'];
+  } else if (args.phase === PASS_2 || args.passNumber === 2) {
+    targetDepth = 'standard';
+    maxReasoningLayers = args.isCalculationHeavy || args.isDiagramHeavy ? 3 : 2;
+    maxExamples = 1;
+    allowedExampleTypes = args.isCalculationHeavy
+      ? ['one simple worked example']
+      : args.isDiagramHeavy
+        ? ['one simple process or visual walkthrough']
+        : ['one direct academic example'];
+  } else if (args.phase === PASS_3 || args.passNumber === 3) {
+    targetDepth = args.teachingDecision.shouldUseExamFraming ? 'standard' : 'basic';
+    maxReasoningLayers = 2;
+    maxExamples = 1;
+    allowedExampleTypes = ['one short exam framing example at most'];
+  } else if (args.phase === 'RETEACH') {
+    targetDepth = args.prerequisiteRepairActive ? 'basic' : 'standard';
+    maxReasoningLayers = args.prerequisiteRepairActive ? 1 : 2;
+    maxExamples = 1;
+    allowedExampleTypes = args.isCalculationHeavy ? ['one tiny simple example'] : ['one clarifying example'];
+  }
+
+  if (args.teachingDecision.promptDirectives.some((line) => /challenge level|worked example|exam use/i.test(line)) && targetDepth === 'standard' && args.passNumber === 3) {
+    targetDepth = 'deep';
+  }
+
+  if (args.learningIntelligence?.hiddenConfusionRisk && args.learningIntelligence.hiddenConfusionRisk >= 60) {
+    targetDepth = 'basic';
+    maxReasoningLayers = 1;
+  }
+
+  const allowedDepthConcepts = args.lessonScope.inScopeConcepts.slice(0, targetDepth === 'basic' ? 3 : 6);
+  const deferredDepthConcepts = Array.from(deferredMap.values()).slice(0, 10);
+  const forbiddenDepthExpansions = Array.from(forbiddenMap.values()).slice(0, 12);
+  const depthDirectives = [
+    `Target depth for this turn is ${targetDepth}.`,
+    'Stop after the target depth is reached. Do not keep adding related explanations just because they are true.',
+    args.phase === 'INTRO'
+      ? 'Intro depth: topic, learning goal, and one anchor idea only. No formulas, no worked examples, no philosophy.'
+      : args.passNumber === 1
+        ? 'Pass 1 depth: simplest meaning, one intuitive example, and why it matters only.'
+        : args.passNumber === 2
+          ? 'Pass 2 depth: formal definition, key terms, and one direct example only.'
+          : args.passNumber === 3
+            ? 'Pass 3 depth: exam framing, common mistake, concise summary, and bridge only.'
+            : args.phase === 'CHECKPOINT'
+              ? 'Checkpoint depth: ask only for recall or explanation of what has already been taught.'
+              : 'Repair depth: focus only on the missing idea and stop once it is clear.',
+    deferredDepthConcepts.length ? `Do not explain these deferred concepts in this turn: ${truncateList(deferredDepthConcepts, 6, 55).join(' | ')}.` : '',
+    `Allowed example types: ${allowedExampleTypes.join(' | ')}.`,
+    `Maximum reasoning layers: ${maxReasoningLayers}.`,
+    `Maximum examples: ${maxExamples}.`,
+  ].filter(Boolean);
+
+  const plan = {
+    targetDepth,
+    minimumUnderstanding,
+    allowedDepthConcepts,
+    deferredDepthConcepts,
+    forbiddenDepthExpansions,
+    allowedExampleTypes,
+    maxReasoningLayers,
+    maxExamples,
+    depthDirectives,
+  };
+
+  console.log('teaching_depth_plan_built', {
+    phase: args.phase,
+    turnType: args.turnType,
+    passNumber: args.passNumber || null,
+    sectionTitle: args.sectionTitle,
+    targetDepth,
+    minimumUnderstandingCount: minimumUnderstanding.length,
+    deferredDepthCount: deferredDepthConcepts.length,
+    maxReasoningLayers,
+    maxExamples,
+  });
+
+  return plan;
+}
+
+function detectDepthViolation(content: string, teachingDepthPlan: TeachingDepthPlan) {
+  const normalized = normalizeText(content);
+  const lower = normalized.toLowerCase();
+  const deferredConceptsExplained = teachingDepthPlan.forbiddenDepthExpansions
+    .filter((concept) => sentenceContainsConcept(normalized, concept))
+    .slice(0, 8);
+  const reasoningLayerCount = (lower.match(/\btherefore\b|\bso that\b|\bwhich means\b|\bas a result\b/g) || []).length;
+  const exampleCount = (lower.match(/\bfor example\b|\bfor instance\b|\bimagine\b|\bsimple example\b/g) || []).length;
+  const advancedPhrases = [
+    'validity of laws',
+    'derive physical laws',
+    'engineering applications',
+    'experimental verification',
+    'theoretical foundations',
+    'advanced implication',
+  ].filter((phrase) => lower.includes(phrase));
+  const formulaMentioned = /[=+\-/*^]|\\\(|\\\[|\bformula\b/i.test(normalized);
+  const tooManyReasoningLayers = reasoningLayerCount > teachingDepthPlan.maxReasoningLayers;
+  const tooManyExamples = exampleCount > teachingDepthPlan.maxExamples;
+  const tooAdvancedForPass =
+    advancedPhrases.length > 0 ||
+    (teachingDepthPlan.targetDepth === 'basic' && formulaMentioned && !teachingDepthPlan.allowedExampleTypes.some((item) => /worked|calculation/i.test(item)));
+  const violations: string[] = [];
+
+  if (deferredConceptsExplained.length) {
+    violations.push('deferred_concepts_explained');
+  }
+  if (tooManyReasoningLayers) {
+    violations.push('too_many_reasoning_layers');
+  }
+  if (tooManyExamples) {
+    violations.push('too_many_examples');
+  }
+  if (tooAdvancedForPass) {
+    violations.push('too_advanced_for_pass');
+  }
+
+  return {
+    violated: violations.length > 0,
+    violations,
+    deferredConceptsExplained,
+    tooManyReasoningLayers,
+    tooManyExamples,
+    tooAdvancedForPass,
   };
 }
 
@@ -2489,6 +2707,7 @@ function hasVisualLanguage(text: string) {
 function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
   const scopedPrimary = args.lessonScope?.primaryObjective || args.section.title;
   const scopedConcepts = truncateList(args.lessonScope?.inScopeConcepts || [], 3, 40);
+  const depthTarget = args.teachingDepthPlan?.targetDepth || 'standard';
   const firstSentence = normalizeText(args.section.content || '')
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
@@ -2508,7 +2727,7 @@ function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
   }
 
   if (args.lessonScope?.inScopeConcepts.length) {
-    return `Focus on ${scopedPrimary}. Keep the explanation on ${scopedConcepts.join(', ')} and stop after the main idea is clear.`;
+    return `Focus on ${scopedPrimary}. Keep the explanation on ${scopedConcepts.join(', ')} at a ${depthTarget} depth and stop after the main idea is clear.`;
   }
 
   return firstSentence
@@ -2571,6 +2790,42 @@ function applyTutorMessageCorrections(
           turnType: context.turnType,
           forbiddenConceptsFound: violation.forbiddenConceptsFound,
           previewConceptsOverExplained: violation.previewConceptsOverExplained,
+        });
+      }
+    }
+  }
+
+  if (context.teachingDepthPlan && (
+    issues.includes('depth_deferred_explained') ||
+    issues.includes('depth_too_many_reasoning_layers') ||
+    issues.includes('depth_too_many_examples') ||
+    issues.includes('depth_too_advanced_for_pass')
+  )) {
+    const violation = detectDepthViolation(corrected, context.teachingDepthPlan);
+    if (violation.violated) {
+      corrected = corrected
+        .split(/(?<=[.!?])\s+/)
+        .filter(Boolean)
+        .filter((sentence) => !violation.deferredConceptsExplained.some((concept) => sentenceContainsConcept(sentence, concept)))
+        .slice(0, Math.max(1, context.teachingDepthPlan.maxExamples + context.teachingDepthPlan.maxReasoningLayers + 1))
+        .join(' ')
+        .trim();
+      if (!corrected) {
+        corrected = buildDeterministicTutorFallback(context);
+        console.log('depth_safe_fallback_used', {
+          phase: context.phase,
+          turnType: context.turnType,
+          targetDepth: context.teachingDepthPlan.targetDepth,
+        });
+      } else {
+        console.log('depth_trim_applied', {
+          phase: context.phase,
+          turnType: context.turnType,
+          targetDepth: context.teachingDepthPlan.targetDepth,
+          deferredConceptsExplained: violation.deferredConceptsExplained,
+          tooManyReasoningLayers: violation.tooManyReasoningLayers,
+          tooManyExamples: violation.tooManyExamples,
+          tooAdvancedForPass: violation.tooAdvancedForPass,
         });
       }
     }
@@ -2730,6 +2985,34 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
       if (checkpointOffScope) {
         issues.push('teachback_scope_violation');
       }
+    }
+  }
+
+  if (args.teachingDepthPlan) {
+    const depthViolation = detectDepthViolation(normalized, args.teachingDepthPlan);
+    if (depthViolation.violated) {
+      console.log('depth_violation_detected', {
+        phase: args.phase,
+        turnType: args.turnType,
+        targetDepth: args.teachingDepthPlan.targetDepth,
+        violations: depthViolation.violations,
+        deferredConceptsExplained: depthViolation.deferredConceptsExplained,
+        tooManyReasoningLayers: depthViolation.tooManyReasoningLayers,
+        tooManyExamples: depthViolation.tooManyExamples,
+        tooAdvancedForPass: depthViolation.tooAdvancedForPass,
+      });
+    }
+    if (depthViolation.deferredConceptsExplained.length) {
+      issues.push('depth_deferred_explained');
+    }
+    if (depthViolation.tooManyReasoningLayers) {
+      issues.push('depth_too_many_reasoning_layers');
+    }
+    if (depthViolation.tooManyExamples) {
+      issues.push('depth_too_many_examples');
+    }
+    if (depthViolation.tooAdvancedForPass) {
+      issues.push('depth_too_advanced_for_pass');
     }
   }
 
@@ -3584,6 +3867,7 @@ export class StudyCompanionService {
     phase: string;
     section: RoadmapSection;
     lessonScope?: LessonScope | null;
+    teachingDepthPlan?: TeachingDepthPlan | null;
     teacherBrainSectionContext: TeacherBrainSectionContext;
     teacherBrainContext: string;
     studentMemoryContext: StudentMemoryContext;
@@ -3664,6 +3948,9 @@ export class StudyCompanionService {
       inScopeConcepts: args.lessonScope?.inScopeConcepts || [],
       previewOnlyConcepts: args.lessonScope?.previewOnlyConcepts || [],
       outOfScopeConcepts: args.lessonScope?.outOfScopeConcepts || [],
+      teachingDepthPlan: args.teachingDepthPlan || undefined,
+      targetDepth: args.teachingDepthPlan?.targetDepth,
+      deferredDepthConcepts: args.teachingDepthPlan?.deferredDepthConcepts || [],
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
       hybridMasteryResult: args.hybridMasteryResult ?? null,
@@ -5325,6 +5612,8 @@ export class StudyCompanionService {
             correction_applied: trace.quality.correctionApplied,
             scope_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
             scope_violations: trace.quality.issues.filter((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
+            depth_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('depth_')),
+            depth_violations: trace.quality.issues.filter((issue) => issue.startsWith('depth_')),
             ...(args.extraMetadata || {}),
           } as Prisma.InputJsonValue,
         },
@@ -5366,6 +5655,8 @@ export class StudyCompanionService {
             correction_applied: trace.quality.correctionApplied,
             scope_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
             scope_violations: trace.quality.issues.filter((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
+            depth_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('depth_')),
+            depth_violations: trace.quality.issues.filter((issue) => issue.startsWith('depth_')),
           } as Prisma.InputJsonValue,
         },
       });
@@ -5431,7 +5722,9 @@ export class StudyCompanionService {
       validation.issues.includes('pass1_too_dense') ||
       validation.issues.includes('scope_out_of_scope_expansion') ||
       validation.issues.includes('scope_preview_overexplained') ||
-      validation.issues.includes('teachback_scope_violation');
+      validation.issues.includes('teachback_scope_violation') ||
+      validation.issues.includes('depth_deferred_explained') ||
+      validation.issues.includes('depth_too_advanced_for_pass');
 
     if (!regenerationNeeded && corrected) {
       if (args.qualityTrace) {
@@ -5466,6 +5759,14 @@ export class StudyCompanionService {
         issues: validation.issues,
       });
     }
+    if (validation.issues.some((issue) => issue.startsWith('depth_'))) {
+      console.log('depth_regeneration_used', {
+        phase: args.phase,
+        turnType: args.turnType,
+        prompt: args.contextMeta?.prompt,
+        issues: validation.issues,
+      });
+    }
     if (args.qualityTrace) {
       args.qualityTrace.regenerated = true;
     }
@@ -5484,6 +5785,7 @@ export class StudyCompanionService {
           ? 'Use clear visual language such as imagine, picture, parts, arrows, stages, flow, graph, axis, or labels.'
           : '',
         args.lessonScope ? `Strict scope reminder:\n${formatLessonScopePrompt(args.lessonScope)}` : '',
+        args.teachingDepthPlan ? `Strict depth reminder:\n${formatTeachingDepthPlan(args.teachingDepthPlan)}` : '',
         'Stay grounded in the current section.',
         'Keep the reply concise.',
       ].filter(Boolean).join('\n\n');
@@ -5918,6 +6220,21 @@ export class StudyCompanionService {
       isCheckpointQuestion: false,
       prerequisiteRepairActive: false,
     });
+    const introDepthPlan = buildTeachingDepthPlan({
+      phase: 'INTRO',
+      turnType: 'transition',
+      passNumber: 1,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope: introLessonScope,
+      teachingDecision,
+      lessonPlan,
+      learningIntelligence: learningIntelligenceContext,
+      studentMemoryContext,
+      isCalculationHeavy: sectionCalculationContext.detected,
+      isDiagramHeavy: sectionDiagramContext.detected,
+      prerequisiteRepairActive: false,
+    });
 
     const introPrompt = [
       `Material title: ${material.title}`,
@@ -5929,6 +6246,7 @@ export class StudyCompanionService {
       lessonPlan.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(introLessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(introDepthPlan)}`,
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
@@ -5991,6 +6309,10 @@ export class StudyCompanionService {
         supporting_count: introLessonScope.supportingConcepts.length,
         preview_only_count: introLessonScope.previewOnlyConcepts.length,
         out_of_scope_count: introLessonScope.outOfScopeConcepts.length,
+        depth_plan_applied: true,
+        target_depth: introDepthPlan.targetDepth,
+        minimum_understanding_count: introDepthPlan.minimumUnderstanding.length,
+        deferred_depth_count: introDepthPlan.deferredDepthConcepts.length,
       },
     });
     console.log('lesson_scope_applied', {
@@ -6002,6 +6324,15 @@ export class StudyCompanionService {
       inScopeCount: introLessonScope.inScopeConcepts.length,
       previewOnlyCount: introLessonScope.previewOnlyConcepts.length,
       outOfScopeCount: introLessonScope.outOfScopeConcepts.length,
+    });
+    console.log('teaching_depth_applied', {
+      sessionId,
+      materialId: material.id,
+      sectionIndex: nextIndex,
+      prompt: 'start_intro',
+      targetDepth: introDepthPlan.targetDepth,
+      minimumUnderstandingCount: introDepthPlan.minimumUnderstanding.length,
+      deferredDepthCount: introDepthPlan.deferredDepthConcepts.length,
     });
 
     if (teacherBrainContext) {
@@ -6047,6 +6378,7 @@ export class StudyCompanionService {
         isFirstIntro: true,
         targetWordRange: introPacing.targetWordRange,
         lessonScope: introLessonScope,
+        teachingDepthPlan: introDepthPlan,
         contextMeta: {
           sessionId,
           materialId: material.id,
@@ -6179,6 +6511,19 @@ export class StudyCompanionService {
       phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
       passNumber: pass,
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
+      turnType: 'teaching',
+      passNumber: pass,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: decision,
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      prerequisiteRepairActive: false,
+    });
     const modeInstructions = [
       calculationContext.detected ? buildCalculationInstructions(pass, calculationContext) : '',
       diagramContext.detected ? buildDiagramInstructions(pass, diagramContext) : '',
@@ -6211,6 +6556,7 @@ export class StudyCompanionService {
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
@@ -6266,6 +6612,13 @@ export class StudyCompanionService {
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
+      });
     }
     if (contextMeta) {
       console.log('teaching_decision_applied', {
@@ -6291,6 +6644,7 @@ export class StudyCompanionService {
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
       lessonScope,
+      teachingDepthPlan: depthPlan,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
       qualityTrace,
     });
@@ -6329,12 +6683,41 @@ export class StudyCompanionService {
       relevantMaterialContext,
       phase: 'CHECKPOINT',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: {
+        strategy: 'hybrid',
+        pace: 'normal',
+        prerequisiteRepairMode: 'none',
+        shouldUseAnalogy: false,
+        shouldUseWorkedExample: calculationContext.detected,
+        shouldUseVisualExplanation: diagramContext.detected,
+        shouldUseCalculationSteps: calculationContext.detected,
+        shouldUseExamFraming: true,
+        shouldChallengeStudent: false,
+        shouldSlowDown: false,
+        shouldRepairPrerequisite: false,
+        repairConcepts: [],
+        reason: 'evaluation depth plan',
+        promptDirectives: [],
+        traceMetadata: {},
+      },
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -6379,6 +6762,13 @@ export class StudyCompanionService {
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: `evaluate_teachback_${attemptNumber}`,
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
+      });
     }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 500);
     return {
@@ -6416,12 +6806,41 @@ export class StudyCompanionService {
       relevantMaterialContext,
       phase: 'CHECKPOINT',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: {
+        strategy: 'hybrid',
+        pace: 'normal',
+        prerequisiteRepairMode: 'none',
+        shouldUseAnalogy: false,
+        shouldUseWorkedExample: calculationContext.detected,
+        shouldUseVisualExplanation: diagramContext.detected,
+        shouldUseCalculationSteps: calculationContext.detected,
+        shouldUseExamFraming: true,
+        shouldChallengeStudent: false,
+        shouldSlowDown: false,
+        shouldRepairPrerequisite: false,
+        repairConcepts: [],
+        reason: 'evaluation depth plan',
+        promptDirectives: [],
+        traceMetadata: {},
+      },
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -6465,6 +6884,13 @@ export class StudyCompanionService {
         inScopeCount: lessonScope.inScopeConcepts.length,
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: 'evaluate_memory_dump',
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
       });
     }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 450);
@@ -6590,12 +7016,25 @@ export class StudyCompanionService {
       teachingDecision: decision,
       phase: 'CHECKPOINT',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: decision,
+      lessonPlan,
+      isCalculationHeavy: false,
+      isDiagramHeavy: diagramContext.detected,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
       lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
@@ -6641,6 +7080,13 @@ export class StudyCompanionService {
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: `teachback_prompt_${attemptNumber}`,
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: `teachback_prompt_${attemptNumber}`,
@@ -6664,6 +7110,7 @@ export class StudyCompanionService {
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
       lessonScope,
+      teachingDepthPlan: depthPlan,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
       qualityTrace,
     });
@@ -6716,6 +7163,18 @@ export class StudyCompanionService {
       teachingDecision: decision,
       phase: 'CHECKPOINT',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: decision,
+      lessonPlan,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      prerequisiteRepairActive: false,
+    });
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
         ...contextMeta,
@@ -6728,6 +7187,7 @@ export class StudyCompanionService {
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       `Section content:\n${truncate(section.content, 2600)}`,
       lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
@@ -6752,6 +7212,13 @@ export class StudyCompanionService {
         inScopeCount: lessonScope.inScopeConcepts.length,
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: 'memory_dump_prompt',
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
       });
       console.log('teaching_decision_applied', {
         ...contextMeta,
@@ -6780,6 +7247,7 @@ export class StudyCompanionService {
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
       lessonScope,
+      teachingDepthPlan: depthPlan,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
       qualityTrace,
     });
@@ -6873,6 +7341,18 @@ export class StudyCompanionService {
       teachingDecision: decision,
       phase: 'RETEACH',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'RETEACH',
+      turnType: options?.repairMode === 'medium_prerequisite_repair' ? 'checkpoint_question' : 'reteach',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: decision,
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      prerequisiteRepairActive: options?.repairMode === 'medium_prerequisite_repair',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -6880,6 +7360,7 @@ export class StudyCompanionService {
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -6922,6 +7403,13 @@ export class StudyCompanionService {
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: 'gap_reteach',
@@ -6947,6 +7435,7 @@ export class StudyCompanionService {
       questionAllowed: options?.repairMode === 'medium_prerequisite_repair',
       targetWordRange: pacing.targetWordRange,
       lessonScope,
+      teachingDepthPlan: depthPlan,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
       qualityTrace,
     });
@@ -6983,6 +7472,17 @@ export class StudyCompanionService {
       teachingDecision: decision,
       phase: 'CHECKPOINT',
     });
+    const depthPlan = buildTeachingDepthPlan({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope,
+      teachingDecision: decision,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -6990,6 +7490,7 @@ export class StudyCompanionService {
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
+      `Teaching depth plan:\n${formatTeachingDepthPlan(depthPlan)}`,
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeInterrupt: true, includeCheckpoint: true }).join('\n')}`,
@@ -7028,6 +7529,13 @@ export class StudyCompanionService {
         previewOnlyCount: lessonScope.previewOnlyConcepts.length,
         outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
+      console.log('teaching_depth_applied', {
+        ...contextMeta,
+        prompt: 'interrupt_response',
+        targetDepth: depthPlan.targetDepth,
+        minimumUnderstandingCount: depthPlan.minimumUnderstanding.length,
+        deferredDepthCount: depthPlan.deferredDepthConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: 'interrupt_response',
@@ -7049,6 +7557,7 @@ export class StudyCompanionService {
       questionAllowed: true,
       targetWordRange: interruptPacing.targetWordRange,
       lessonScope,
+      teachingDepthPlan: depthPlan,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'interrupt_response' } : undefined,
       qualityTrace,
     });
@@ -7161,6 +7670,21 @@ export class StudyCompanionService {
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
+    const baseDepthPlan = buildTeachingDepthPlan({
+      phase: state.current_phase,
+      turnType: state.current_phase === PASS_1 || state.current_phase === PASS_2 || state.current_phase === PASS_3 ? 'teaching' : 'checkpoint_question',
+      passNumber: state.current_phase === PASS_1 ? 1 : state.current_phase === PASS_2 ? 2 : state.current_phase === PASS_3 ? 3 : undefined,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonScope: baseLessonScope,
+      teachingDecision,
+      lessonPlan,
+      learningIntelligence: learningIntelligenceContext,
+      studentMemoryContext,
+      isCalculationHeavy: sectionCalculationContext.detected,
+      isDiagramHeavy: sectionDiagramContext.detected,
+      prerequisiteRepairActive: sectionContext.repairMode === 'medium_prerequisite_repair',
+    });
     const trimmed = studentResponse.trim();
     const isAutoContinue = trimmed === '__AUTO_CONTINUE__';
     const isInterrupt = options?.interrupted === true;
@@ -7207,6 +7731,10 @@ export class StudyCompanionService {
         supporting_count: baseLessonScope.supportingConcepts.length,
         preview_only_count: baseLessonScope.previewOnlyConcepts.length,
         out_of_scope_count: baseLessonScope.outOfScopeConcepts.length,
+        depth_plan_applied: true,
+        target_depth: baseDepthPlan.targetDepth,
+        minimum_understanding_count: baseDepthPlan.minimumUnderstanding.length,
+        deferred_depth_count: baseDepthPlan.deferredDepthConcepts.length,
       },
     });
 
