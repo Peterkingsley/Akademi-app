@@ -247,6 +247,7 @@ type TutorMessageQualityArgs = {
   questionAllowed: boolean;
   coveredConcepts?: string[];
   isFirstIntro?: boolean;
+  targetWordRange?: { min: number; max: number };
 };
 
 type TutorQualityTraceCapture = {
@@ -708,6 +709,112 @@ function buildDeterministicTeachbackPrompt(section: RoadmapSection, attemptNumbe
   }
 
   return `Teach-Back 2: Explain ${section.title} again, this time correcting the missing ideas${keyConcepts.length ? ` around ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Respond clearly in your own words.`;
+}
+
+function estimateConceptLoad(content: string) {
+  const normalized = normalizeText(content);
+  const lower = normalized.toLowerCase();
+  const commaGroups = (normalized.match(/,/g) || []).length;
+  const additiveMarkers = ['also', 'in addition', 'furthermore', 'another aspect', 'on the other hand', 'moreover']
+    .reduce((sum, marker) => sum + (lower.match(new RegExp(`\\b${marker.replace(/\s+/g, '\\s+') }\\b`, 'g')) || []).length, 0);
+  const transitionMarkers = ['now', 'next', 'finally', 'for exams', 'keep this in mind', 'this matters because']
+    .reduce((sum, marker) => sum + (lower.match(new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length, 0);
+  const listSignals = ['heat', 'light', 'sound', 'electricity', 'magnetism', 'atoms', 'scientific method', 'measurement', 'applied physics']
+    .filter((marker) => lower.includes(marker));
+  const paragraphCount = normalized.split(/\n{2,}/).filter(Boolean).length;
+  const estimatedConceptCount = Math.max(1, Math.min(8, 1 + Math.floor(commaGroups / 3) + additiveMarkers + Math.max(0, transitionMarkers - 1) + Math.floor(listSignals.length / 2)));
+  const signals = [
+    commaGroups >= 4 ? 'long_comma_list' : '',
+    additiveMarkers >= 2 ? 'many_additive_markers' : '',
+    paragraphCount >= 3 ? 'many_paragraphs' : '',
+    listSignals.length >= 4 ? 'many_topic_keywords' : '',
+    transitionMarkers >= 3 ? 'many_transitions' : '',
+  ].filter(Boolean);
+  const tooDense = estimatedConceptCount >= 4 || signals.length >= 2;
+
+  console.log('pacing_concept_load_estimated', {
+    estimatedConceptCount,
+    tooDense,
+    signals,
+  });
+
+  return {
+    estimatedConceptCount,
+    tooDense,
+    signals,
+  };
+}
+
+function buildPacingDirectives(args: {
+  phase: StudyCompanionPhase | 'INTRO' | 'CHECKPOINT' | 'RETEACH';
+  turnType: 'teaching' | 'checkpoint_question' | 'reteach' | 'transition';
+  passNumber?: 1 | 2 | 3;
+  teachingDecision: TeachingDecision;
+  sectionTitle: string;
+  sectionContent: string;
+  lessonPlan?: StudySectionLessonPlanRecord;
+  isCalculationHeavy: boolean;
+  isDiagramHeavy: boolean;
+  isCheckpointQuestion: boolean;
+  prerequisiteRepairActive: boolean;
+}) {
+  let targetWordRange = { min: 90, max: 180 };
+  let conceptBudget = 1;
+  const lines = [
+    'Do not try to cover the entire section in this turn. Stop after the allowed scope for this pass. Later passes will continue the lesson.',
+  ];
+
+  if (args.phase === 'INTRO') {
+    targetWordRange = { min: 40, max: 90 };
+    conceptBudget = 1;
+    lines.push('Intro pacing: 2 to 4 short sentences, one concept only, no long lists, no checkpoint content.');
+  } else if (args.passNumber === 1) {
+    targetWordRange = { min: 120, max: args.isCalculationHeavy || args.isDiagramHeavy ? 210 : 180 };
+    conceptBudget = 1;
+    lines.push('Pass 1 pacing: one main idea, one simple supporting example at most, no long subtopic list.');
+    if (args.isCalculationHeavy) lines.push('Do not place the full formula walkthrough in Pass 1.');
+    if (args.isDiagramHeavy) lines.push('Do not fully describe the entire diagram in Pass 1.');
+  } else if (args.passNumber === 2) {
+    targetWordRange = { min: 180, max: 260 };
+    conceptBudget = 3;
+    lines.push('Pass 2 pacing: 2 to 3 closely related ideas only. Carry details, definition, process, or one worked example.');
+    lines.push('Do not repeat Pass 1.');
+  } else if (args.passNumber === 3) {
+    targetWordRange = { min: 120, max: 200 };
+    conceptBudget = 2;
+    lines.push('Pass 3 pacing: concise connection, exam relevance, common mistake, and bridge forward. Do not introduce a large new subtopic.');
+  } else if (args.isCheckpointQuestion) {
+    targetWordRange = { min: 18, max: 70 };
+    conceptBudget = 0;
+    lines.push('Checkpoint pacing: maximum 2 sentences, no teaching paragraph, no new concepts.');
+  } else if (args.phase === 'RETEACH') {
+    targetWordRange = { min: 80, max: 170 };
+    conceptBudget = args.prerequisiteRepairActive ? 1 : 2;
+    lines.push(args.prerequisiteRepairActive
+      ? 'Prerequisite repair pacing: one blocking idea, one practical example, then stop.'
+      : 'Reteach pacing: simplify and cover only the missing idea or two.');
+  }
+
+  console.log('pacing_directives_applied', {
+    phase: args.phase,
+    turnType: args.turnType,
+    passNumber: args.passNumber || null,
+    sectionTitle: args.sectionTitle,
+    targetWordRange,
+    conceptBudget,
+    isCalculationHeavy: args.isCalculationHeavy,
+    isDiagramHeavy: args.isDiagramHeavy,
+    prerequisiteRepairActive: args.prerequisiteRepairActive,
+  });
+
+  lines.push(`Concept budget for this turn: maximum ${conceptBudget} new concept${conceptBudget === 1 ? '' : 's'}.`);
+  lines.push(`Target word range: ${targetWordRange.min} to ${targetWordRange.max} words.`);
+
+  return {
+    lines,
+    targetWordRange,
+    conceptBudget,
+  };
 }
 
 function buildTeachingDecisionPromptLines(
@@ -2128,6 +2235,23 @@ function applyTutorMessageCorrections(
     corrected = truncate(corrected, context.turnType === 'checkpoint_question' ? 260 : 900);
   }
 
+  if (issues.includes('pacing_too_long') || issues.includes('intro_too_dense') || issues.includes('pass1_too_dense')) {
+    const limit = context.targetWordRange?.max || (context.turnType === 'checkpoint_question' ? 70 : 180);
+    corrected = corrected
+      .split(/(?<=[.!?])\s+/)
+      .filter(Boolean)
+      .reduce((acc, sentence) => {
+        const next = `${acc} ${sentence}`.trim();
+        return next.split(/\s+/).filter(Boolean).length <= limit ? next : acc;
+      }, '');
+    corrected = corrected || buildDeterministicTutorFallback(context);
+    console.log('pacing_trim_applied', {
+      phase: context.phase,
+      turnType: context.turnType,
+      targetWordRange: context.targetWordRange || null,
+    });
+  }
+
   if (issues.includes('repeated_welcome')) {
     corrected = corrected.replace(/^\s*welcome[^.?!]*[.?!]?\s*/i, '').trim();
   }
@@ -2150,6 +2274,15 @@ function applyTutorMessageCorrections(
   }
 
   if (issues.includes('checkpoint_too_long') || issues.includes('checkpoint_missing_instruction')) {
+    corrected = buildDeterministicTeachbackPrompt(
+      context.section,
+      context.turnType === 'checkpoint_question' && /Teach-Back 2|teach-back 2/i.test(context.content) ? 2 : 1,
+      [],
+      /memory dump/i.test(context.content) ? 'memory_dump' : 'teachback',
+    );
+  }
+
+  if (issues.includes('checkpoint_teaching_content')) {
     corrected = buildDeterministicTeachbackPrompt(
       context.section,
       context.turnType === 'checkpoint_question' && /Teach-Back 2|teach-back 2/i.test(context.content) ? 2 : 1,
@@ -2222,6 +2355,31 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
     if (!/\b(explain|respond|say|write|teach-back|memory dump)\b/i.test(normalized)) {
       issues.push('checkpoint_missing_instruction');
     }
+  }
+
+  const conceptLoad = estimateConceptLoad(normalized);
+  if (conceptLoad.tooDense) {
+    console.log('pacing_density_warning', {
+      phase: args.phase,
+      turnType: args.turnType,
+      estimatedConceptCount: conceptLoad.estimatedConceptCount,
+      signals: conceptLoad.signals,
+    });
+  }
+  if (args.targetWordRange) {
+    const wordCount = normalized ? normalized.split(/\s+/).filter(Boolean).length : 0;
+    if (wordCount > args.targetWordRange.max) {
+      issues.push('pacing_too_long');
+    }
+  }
+  if (args.phase === 'INTRO' && conceptLoad.estimatedConceptCount > 1) {
+    issues.push('intro_too_dense');
+  }
+  if (args.phase === PASS_1 && conceptLoad.estimatedConceptCount > 2) {
+    issues.push('pass1_too_dense');
+  }
+  if ((args.turnType === 'checkpoint_question') && conceptLoad.estimatedConceptCount > 1) {
+    issues.push('checkpoint_teaching_content');
   }
 
   const correctedContent = issues.length ? applyTutorMessageCorrections(normalized, issues, args) : undefined;
@@ -4906,7 +5064,10 @@ export class StudyCompanionService {
     const regenerationNeeded =
       validation.issues.includes('empty_content') ||
       validation.issues.includes('missing_calculation_steps') ||
-      validation.issues.includes('missing_visual_language');
+      validation.issues.includes('missing_visual_language') ||
+      validation.issues.includes('pacing_too_long') ||
+      validation.issues.includes('intro_too_dense') ||
+      validation.issues.includes('pass1_too_dense');
 
     if (!regenerationNeeded && corrected) {
       if (args.qualityTrace) {
@@ -4922,6 +5083,12 @@ export class StudyCompanionService {
     }
 
     console.log('tutor_quality_regeneration_used', {
+      phase: args.phase,
+      turnType: args.turnType,
+      prompt: args.contextMeta?.prompt,
+      issues: validation.issues,
+    });
+    console.log('pacing_regeneration_used', {
       phase: args.phase,
       turnType: args.turnType,
       prompt: args.contextMeta?.prompt,
@@ -5331,6 +5498,20 @@ export class StudyCompanionService {
       lessonPlan,
     });
 
+    const introPacing = buildPacingDirectives({
+      phase: 'INTRO',
+      turnType: 'transition',
+      passNumber: 1,
+      teachingDecision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonPlan,
+      isCalculationHeavy: sectionCalculationContext.detected,
+      isDiagramHeavy: sectionDiagramContext.detected,
+      isCheckpointQuestion: false,
+      prerequisiteRepairActive: false,
+    });
+
     const introPrompt = [
       `Material title: ${material.title}`,
       `Course code: ${session.course_code || material.course_code || 'GENERAL'}`,
@@ -5354,6 +5535,7 @@ export class StudyCompanionService {
         prerequisiteRepairActive: false,
         isCheckpointQuestion: false,
       }).join('\n'),
+      introPacing.lines.join('\n'),
       ...introRefreshPlan.lines,
       lecturerConstraintContext?.promptContext ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.' : '',
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences maximum. Name the topic, state the learning goal, and use at most one light hook or concrete anchor. Do not dump multiple prerequisites in the intro. Do not ask for permission to begin. Do not say Ready or Let us begin. Do not ask the student a question yet.',
@@ -5439,6 +5621,7 @@ export class StudyCompanionService {
         questionAllowed: false,
         coveredConcepts: [],
         isFirstIntro: true,
+        targetWordRange: introPacing.targetWordRange,
         contextMeta: {
           sessionId,
           materialId: material.id,
@@ -5545,6 +5728,19 @@ export class StudyCompanionService {
       teacherBrainSectionContext,
       lessonPlan,
     });
+    const pacing = buildPacingDirectives({
+      phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
+      turnType: 'teaching',
+      passNumber: pass,
+      teachingDecision: decision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      isCheckpointQuestion: false,
+      prerequisiteRepairActive: false,
+    });
     const modeInstructions = [
       calculationContext.detected ? buildCalculationInstructions(pass, calculationContext) : '',
       diagramContext.detected ? buildDiagramInstructions(pass, diagramContext) : '',
@@ -5558,6 +5754,7 @@ export class StudyCompanionService {
         prerequisiteRepairActive: false,
         isCheckpointQuestion: false,
       }),
+      ...pacing.lines,
       ...refreshPlan.lines,
       pass === 1
         ? 'Give Pass 1 only. Start from the current lesson point, not from the beginning again. Focus on the big idea, the main intuition, and why it matters. Avoid long prerequisite chains. Do not ask any question. Do not include a question mark. End with a statement.'
@@ -5643,6 +5840,7 @@ export class StudyCompanionService {
       questionAllowed: false,
       coveredConcepts: safeStringArray(sectionContext?.coveredConcepts),
       isFirstIntro: false,
+      targetWordRange: pacing.targetWordRange,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
       qualityTrace,
     });
@@ -5877,6 +6075,18 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const pacing = buildPacingDirectives({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      teachingDecision: decision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonPlan,
+      isCalculationHeavy: false,
+      isDiagramHeavy: diagramContext.detected,
+      isCheckpointQuestion: true,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -5895,6 +6105,7 @@ export class StudyCompanionService {
         prerequisiteRepairActive: false,
         isCheckpointQuestion: true,
       }).join('\n'),
+      pacing.lines.join('\n'),
       lecturerConstraintPromptContext ? 'Respect lecturer constraints while asking for the teach-back.' : '',
       diagramContext.detected
         ? attemptNumber === 1
@@ -5939,6 +6150,7 @@ export class StudyCompanionService {
       questionAllowed: true,
       coveredConcepts: [],
       isFirstIntro: false,
+      targetWordRange: pacing.targetWordRange,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
       qualityTrace,
     });
@@ -5969,6 +6181,18 @@ export class StudyCompanionService {
     lessonPlan?: StudySectionLessonPlanRecord,
     qualityTrace?: TutorQualityTraceCapture,
   ) {
+    const pacing = buildPacingDirectives({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      teachingDecision: decision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonPlan,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      isCheckpointQuestion: true,
+      prerequisiteRepairActive: false,
+    });
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
         ...contextMeta,
@@ -5992,6 +6216,7 @@ export class StudyCompanionService {
         prerequisiteRepairActive: false,
         isCheckpointQuestion: true,
       }).join('\n'),
+      pacing.lines.join('\n'),
       lecturerConstraintPromptContext ? 'Respect lecturer constraints while deciding what the student should recall.' : '',
       'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
     ].join('\n\n');
@@ -6021,6 +6246,7 @@ export class StudyCompanionService {
       questionAllowed: true,
       coveredConcepts: [],
       isFirstIntro: false,
+      targetWordRange: pacing.targetWordRange,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
       qualityTrace,
     });
@@ -6090,6 +6316,18 @@ export class StudyCompanionService {
         prompt: 'gap_reteach',
       });
     }
+    const pacing = buildPacingDirectives({
+      phase: 'RETEACH',
+      turnType: options?.repairMode === 'medium_prerequisite_repair' ? 'checkpoint_question' : 'reteach',
+      teachingDecision: decision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      lessonPlan,
+      isCalculationHeavy: calculationContext.detected,
+      isDiagramHeavy: diagramContext.detected,
+      isCheckpointQuestion: options?.repairMode === 'medium_prerequisite_repair',
+      prerequisiteRepairActive: options?.repairMode === 'medium_prerequisite_repair',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -6103,6 +6341,16 @@ export class StudyCompanionService {
       options?.repairReason ? `Repair reason:\n${options.repairReason}` : '',
       lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeReteach: true }).join('\n')}`,
+      ...buildLecturerStyleDirectives({
+        phase: 'RETEACH',
+        turnType: options?.repairMode === 'medium_prerequisite_repair' ? 'checkpoint_question' : 'reteach',
+        teachingDecision: decision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: [],
+        prerequisiteRepairActive: options?.repairMode === 'medium_prerequisite_repair',
+        isCheckpointQuestion: options?.repairMode === 'medium_prerequisite_repair',
+      }),
+      ...pacing.lines,
       lecturerConstraintPromptContext ? 'Respect lecturer constraints during this repair or reteach.' : '',
       options?.repairMode === 'medium_prerequisite_repair'
         ? [
@@ -6143,6 +6391,7 @@ export class StudyCompanionService {
       isCalculationHeavy: calculationContext.detected,
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: options?.repairMode === 'medium_prerequisite_repair',
+      targetWordRange: pacing.targetWordRange,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
       qualityTrace,
     });
@@ -6159,6 +6408,17 @@ export class StudyCompanionService {
     relevantMaterialContext?: RelevantMaterialContext,
     qualityTrace?: TutorQualityTraceCapture,
   ) {
+    const interruptPacing = buildPacingDirectives({
+      phase: 'CHECKPOINT',
+      turnType: 'checkpoint_question',
+      teachingDecision: decision,
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      isCalculationHeavy: false,
+      isDiagramHeavy: false,
+      isCheckpointQuestion: true,
+      prerequisiteRepairActive: false,
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -6168,6 +6428,16 @@ export class StudyCompanionService {
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeInterrupt: true, includeCheckpoint: true }).join('\n')}`,
+      ...buildLecturerStyleDirectives({
+        phase: 'CHECKPOINT',
+        turnType: 'checkpoint_question',
+        teachingDecision: decision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: [],
+        prerequisiteRepairActive: false,
+        isCheckpointQuestion: true,
+      }),
+      ...interruptPacing.lines,
       lecturerConstraintPromptContext ? 'Respect lecturer constraints while answering the interruption.' : '',
       'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
     ].join('\n\n');
@@ -6204,6 +6474,7 @@ export class StudyCompanionService {
       isCalculationHeavy: false,
       isDiagramHeavy: false,
       questionAllowed: true,
+      targetWordRange: interruptPacing.targetWordRange,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'interrupt_response' } : undefined,
       qualityTrace,
     });
