@@ -57,6 +57,16 @@ export type TeachingDecisionInput = {
   calculationSupportNeeded?: boolean;
   visualSupportNeeded?: boolean;
   confidenceSupportNeeded?: boolean;
+  tutorSelfImprovementContext?: {
+    bestStrategies: string[];
+    weakStrategies: string[];
+    effectiveInterventions: string[];
+    ineffectiveInterventions: string[];
+    recommendedStrategy?: string;
+    recommendedPace?: string;
+    avoidPatterns: string[];
+    reason: string;
+  };
   lecturerConstraintContext?: string;
   lecturerStrictness?: 'low' | 'medium' | 'high';
   requiredMethods?: string[];
@@ -125,6 +135,19 @@ function hasMethod(items: string[] | undefined, pattern: RegExp) {
   return uniqueItems(items).some((item) => pattern.test(item));
 }
 
+function isTeachingStrategyValue(value: string | null | undefined): value is TeachingStrategy {
+  return [
+    'definition_first',
+    'analogy_first',
+    'visual_first',
+    'worked_example_first',
+    'problem_first',
+    'story_first',
+    'exam_first',
+    'hybrid',
+  ].includes(String(value || ''));
+}
+
 function inferLearningSignal(input: TeachingDecisionInput): LearningSignal {
   const weakPoints = uniqueItems(input.weakPoints);
   const misconceptions = uniqueItems(input.misconceptions);
@@ -188,6 +211,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const assessmentFocus = uniqueItems(input.assessmentFocus);
   const mustCoverTopics = uniqueItems(input.mustCoverTopics);
   const lecturerStrictness = input.lecturerStrictness || 'medium';
+  const selfImprovement = input.tutorSelfImprovementContext;
 
   let strategy: TeachingStrategy = 'hybrid';
   let pace: TeachingPace = 'normal';
@@ -205,30 +229,6 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const profilePreferredStrategy = input.preferredTeachingStrategy || null;
   const profilePreferredPace = input.preferredPace || null;
   const hybridMasteryResult = input.hybridMasteryResult || null;
-
-  if (profilePreferredStrategy && profilePreferredStrategy !== 'hybrid') {
-    strategy = profilePreferredStrategy;
-    reasons.push(`student profile prefers ${profilePreferredStrategy}`);
-  }
-  if (profilePreferredPace) {
-    pace = profilePreferredPace;
-    reasons.push(`student profile prefers ${profilePreferredPace} pace`);
-  }
-
-  if (input.visualSupportNeeded) {
-    shouldUseVisualExplanation = true;
-    reasons.push('student profile indicates visual support is needed');
-  }
-  if (input.calculationSupportNeeded) {
-    shouldUseWorkedExample = true;
-    shouldUseCalculationSteps = true;
-    reasons.push('student profile indicates calculation support is needed');
-  }
-  if (input.confidenceSupportNeeded) {
-    shouldSlowDown = true;
-    shouldChallengeStudent = false;
-    reasons.push('student profile indicates confidence support is needed');
-  }
 
   if (lecturerStrictness === 'high') {
     strategy = 'definition_first';
@@ -282,14 +282,14 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
 
   if (hasMethod(forbiddenMethods, /\banalogy\b/)) {
     shouldUseAnalogy = false;
-    if (strategy === 'analogy_first') {
+    if (String(strategy) === 'analogy_first') {
       strategy = shouldUseWorkedExample ? 'worked_example_first' : 'definition_first';
     }
     reasons.push('lecturer forbids analogy-led teaching');
   }
 
   if (hasMethod(forbiddenMethods, /\bproblem first\b/)) {
-    if (strategy === 'problem_first') {
+    if (String(strategy) === 'problem_first') {
       strategy = 'definition_first';
     }
     reasons.push('lecturer forbids problem-first ordering');
@@ -408,6 +408,53 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       promptDirectives.push(`Repair reason: ${hybridMasteryResult.repairReason}`);
     }
     reasons.push('hybrid mastery requires prerequisite repair');
+  }
+
+  if (selfImprovement?.recommendedStrategy && isTeachingStrategyValue(selfImprovement.recommendedStrategy)) {
+    const strategyLockedByHigherPriority =
+      lecturerStrictness === 'high' ||
+      Boolean(hybridMasteryResult?.shouldRunRepair) ||
+      input.isCalculationHeavy ||
+      input.isDiagramHeavy;
+    if (!strategyLockedByHigherPriority) {
+      strategy = selfImprovement.recommendedStrategy;
+      reasons.push(`self-improvement context recommends ${selfImprovement.recommendedStrategy}`);
+    }
+    promptDirectives.push(`Based on prior outcomes, this student responds better to ${selfImprovement.recommendedStrategy}. Use it where appropriate.`);
+  }
+  if (selfImprovement?.recommendedPace) {
+    const paceLockedByHigherPriority = shouldSlowDown || lecturerStrictness === 'high';
+    if (!paceLockedByHigherPriority && ['slow', 'normal', 'fast'].includes(selfImprovement.recommendedPace)) {
+      pace = selfImprovement.recommendedPace as TeachingPace;
+      reasons.push(`self-improvement context recommends ${selfImprovement.recommendedPace} pace`);
+    }
+  }
+  if (selfImprovement?.avoidPatterns.length) {
+    promptDirectives.push(`Avoid these patterns: ${selfImprovement.avoidPatterns.join(' | ')}.`);
+  }
+
+  if (profilePreferredStrategy && profilePreferredStrategy !== 'hybrid') {
+    strategy = strategy === 'hybrid' ? profilePreferredStrategy : strategy;
+    reasons.push(`student profile prefers ${profilePreferredStrategy}`);
+  }
+  if (profilePreferredPace && pace === 'normal') {
+    pace = profilePreferredPace;
+    reasons.push(`student profile prefers ${profilePreferredPace} pace`);
+  }
+
+  if (input.visualSupportNeeded) {
+    shouldUseVisualExplanation = true;
+    reasons.push('student profile indicates visual support is needed');
+  }
+  if (input.calculationSupportNeeded) {
+    shouldUseWorkedExample = true;
+    shouldUseCalculationSteps = true;
+    reasons.push('student profile indicates calculation support is needed');
+  }
+  if (input.confidenceSupportNeeded) {
+    shouldSlowDown = true;
+    shouldChallengeStudent = false;
+    reasons.push('student profile indicates confidence support is needed');
   }
 
   if (signal.retentionRisk >= 60) {
@@ -565,6 +612,11 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       preferred_teaching_strategy: profilePreferredStrategy,
       preferred_pace: profilePreferredPace,
       lecturer_strictness: lecturerStrictness,
+      self_improvement_used: Boolean(selfImprovement),
+      self_improvement_recommended_strategy: selfImprovement?.recommendedStrategy || null,
+      self_improvement_recommended_pace: selfImprovement?.recommendedPace || null,
+      avoid_patterns_count: selfImprovement?.avoidPatterns.length || 0,
+      effective_interventions_count: selfImprovement?.effectiveInterventions.length || 0,
       required_method_count: requiredMethods.length,
       forbidden_method_count: forbiddenMethods.length,
       assessment_focus_count: assessmentFocus.length,

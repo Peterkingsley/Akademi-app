@@ -420,6 +420,17 @@ type StudentLearningProfileContext = {
   confidenceSupportNeeded: boolean;
 };
 
+type TutorSelfImprovementContext = {
+  bestStrategies: string[];
+  weakStrategies: string[];
+  effectiveInterventions: string[];
+  ineffectiveInterventions: string[];
+  recommendedStrategy?: string;
+  recommendedPace?: string;
+  avoidPatterns: string[];
+  reason: string;
+};
+
 type LecturerConstraintRecord = {
   id: string;
   material_id: string | null;
@@ -2617,6 +2628,133 @@ export class StudyCompanionService {
     return context;
   }
 
+  private async buildTutorSelfImprovementContext(userId: string, materialId: string, courseCode: string): Promise<TutorSelfImprovementContext | null> {
+    try {
+      const [reflections, intelligenceRecords, memories, profile] = await Promise.all([
+        (prisma as typeof prisma & {
+          teachingReflection: { findMany: (query: unknown) => Promise<TeachingReflectionRow[]> };
+        }).teachingReflection.findMany({
+          where: { user_id: userId, material_id: materialId, course_code: courseCode },
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        }),
+        (prisma as typeof prisma & {
+          learningIntelligenceRecord: { findMany: (query: unknown) => Promise<LearningIntelligenceRecordRow[]> };
+        }).learningIntelligenceRecord.findMany({
+          where: { user_id: userId, material_id: materialId, course_code: courseCode },
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        }),
+        (prisma as typeof prisma & {
+          studentMaterialMemory: { findMany: (query: unknown) => Promise<StudentMaterialMemoryRow[]> };
+        }).studentMaterialMemory.findMany({
+          where: { user_id: userId, material_id: materialId, course_code: courseCode },
+          orderBy: { updated_at: 'desc' },
+          take: 10,
+        }),
+        prisma.learningProfile.findUnique({
+          where: { user_id: userId },
+          select: {
+            preferred_teaching_strategy: true,
+            preferred_pace: true,
+            teaching_strategy_success: true,
+          },
+        }),
+      ]);
+
+      if (!reflections.length && !intelligenceRecords.length && !memories.length && !profile) {
+        console.log('tutor_self_improvement_context_missing', { userId, materialId, courseCode });
+        return null;
+      }
+
+      const strategySuccessScores = safeJsonObject<Record<string, unknown>>(profile?.teaching_strategy_success, {});
+      const rankedStrategies = Object.entries(strategySuccessScores)
+        .filter(([key]) => isTeachingStrategy(key))
+        .map(([key, value]) => [key, clampReflectionScore(Number(value))] as const)
+        .sort((a, b) => b[1] - a[1]);
+
+      const bestStrategies = rankedStrategies.filter(([, score]) => score >= 60).slice(0, 3).map(([key]) => key);
+      const weakStrategies = rankedStrategies.filter(([, score]) => score <= 45).slice(0, 3).map(([key]) => key);
+
+      const interventionScores = new Map<string, { good: number; bad: number }>();
+      for (const reflection of reflections) {
+        const interventions = safeStringArray(reflection.recommended_interventions);
+        for (const intervention of interventions) {
+          const current = interventionScores.get(intervention) || { good: 0, bad: 0 };
+          if ((reflection.mastery_score ?? 0) >= 80 && (reflection.hidden_confusion_risk ?? 100) <= 45) {
+            current.good += 1;
+          } else {
+            current.bad += 1;
+          }
+          interventionScores.set(intervention, current);
+        }
+      }
+
+      const effectiveInterventions = Array.from(interventionScores.entries())
+        .filter(([, value]) => value.good > value.bad)
+        .sort((a, b) => b[1].good - a[1].good)
+        .slice(0, 4)
+        .map(([key]) => key);
+      const ineffectiveInterventions = Array.from(interventionScores.entries())
+        .filter(([, value]) => value.bad >= value.good && value.bad > 0)
+        .sort((a, b) => b[1].bad - a[1].bad)
+        .slice(0, 4)
+        .map(([key]) => key);
+
+      const repeatedWeakPoints = truncateList(
+        memories.flatMap((memory) => [
+          ...safeStringArray(memory.weak_points),
+          ...safeStringArray(memory.misconceptions),
+        ]),
+        6,
+        100,
+      );
+      const avoidPatterns = truncateList([
+        ...weakStrategies.map((item) => `Avoid leading with ${item.replace(/_/g, ' ')} when possible.`),
+        ...ineffectiveInterventions.map((item) => `Avoid overusing: ${item}.`),
+        ...repeatedWeakPoints.map((item) => `Do not assume mastery of ${item}.`),
+      ], 6, 120);
+
+      const avgConfidence = intelligenceRecords.length
+        ? intelligenceRecords.reduce((sum, item) => sum + item.confidence, 0) / intelligenceRecords.length
+        : 50;
+      const avgHiddenConfusion = intelligenceRecords.length
+        ? intelligenceRecords.reduce((sum, item) => sum + item.hidden_confusion_risk, 0) / intelligenceRecords.length
+        : 50;
+
+      const context: TutorSelfImprovementContext = {
+        bestStrategies,
+        weakStrategies,
+        effectiveInterventions,
+        ineffectiveInterventions,
+        recommendedStrategy: bestStrategies[0] || (profile?.preferred_teaching_strategy || undefined),
+        recommendedPace: avgConfidence < 55 || avgHiddenConfusion > 55 ? 'slow' : (profile?.preferred_pace || 'normal'),
+        avoidPatterns,
+        reason: bestStrategies.length
+          ? `Recent outcomes suggest ${bestStrategies[0]} works better for this student in this material.`
+          : 'Recent outcomes do not yet show a dominant teaching strategy, so stay adaptive.',
+      };
+
+      console.log('tutor_self_improvement_context_loaded', {
+        userId,
+        materialId,
+        courseCode,
+        recommendedStrategy: context.recommendedStrategy || null,
+        recommendedPace: context.recommendedPace || null,
+        bestStrategies: context.bestStrategies,
+      });
+      return context;
+    } catch (error) {
+      console.error('tutor_self_improvement_context_missing', {
+        userId,
+        materialId,
+        courseCode,
+        message: error instanceof Error ? error.message : 'Unknown tutor self-improvement error',
+      });
+      return null;
+    }
+  }
+
   private async loadLecturerConstraintsForSession(session: {
     id: string;
     course_code?: string | null;
@@ -2731,6 +2869,7 @@ export class StudyCompanionService {
     relevantMaterialContext: RelevantMaterialContext;
     learningIntelligenceContext?: LearningIntelligenceContext | null;
     studentLearningProfileContext?: StudentLearningProfileContext | null;
+    tutorSelfImprovementContext?: TutorSelfImprovementContext | null;
     lecturerConstraintContext?: LecturerConstraintContext | null;
     hybridMasteryResult?: HybridMasteryResult | null;
     currentMasteryScore?: number | null;
@@ -2790,6 +2929,7 @@ export class StudyCompanionService {
       calculationSupportNeeded: args.studentLearningProfileContext?.calculationSupportNeeded ?? false,
       visualSupportNeeded: args.studentLearningProfileContext?.visualSupportNeeded ?? false,
       confidenceSupportNeeded: args.studentLearningProfileContext?.confidenceSupportNeeded ?? false,
+      tutorSelfImprovementContext: args.tutorSelfImprovementContext || undefined,
       lecturerConstraintContext: args.lecturerConstraintContext?.promptContext || undefined,
       lecturerStrictness: args.lecturerConstraintContext?.strictness || 'medium',
       requiredMethods: args.lecturerConstraintContext?.requiredMethods || [],
@@ -2816,8 +2956,18 @@ export class StudyCompanionService {
       shouldSlowDown: decision.shouldSlowDown,
       shouldRepairPrerequisite: decision.shouldRepairPrerequisite,
       lecturerConstraintStrictness: args.lecturerConstraintContext?.strictness || 'medium',
+      tutorSelfImprovement: args.tutorSelfImprovementContext || null,
       hybridMasteryResult: args.hybridMasteryResult ?? null,
     });
+    if (args.tutorSelfImprovementContext?.recommendedStrategy || args.tutorSelfImprovementContext?.recommendedPace) {
+      console.log('tutor_self_improvement_applied', {
+        phase: args.phase,
+        sectionTitle: args.section.title,
+        recommendedStrategy: args.tutorSelfImprovementContext.recommendedStrategy || null,
+        recommendedPace: args.tutorSelfImprovementContext.recommendedPace || null,
+        avoidPatterns: args.tutorSelfImprovementContext.avoidPatterns,
+      });
+    }
     if (args.learningIntelligenceContext?.recommendedConfusionIntervention && args.learningIntelligenceContext.recommendedConfusionIntervention !== 'none') {
       console.log('hidden_confusion_intervention_applied', {
         phase: args.phase,
@@ -4386,6 +4536,11 @@ export class StudyCompanionService {
       state.current_section_index,
     );
     const studentLearningProfileContext = await this.loadStudentLearningProfileContext(state.user_id);
+    const tutorSelfImprovementContext = await this.buildTutorSelfImprovementContext(
+      state.user_id,
+      state.material_id,
+      state.course_code,
+    );
     const lecturerConstraintContext = await this.loadLecturerConstraintsForSession(session);
 
     return {
@@ -4397,6 +4552,7 @@ export class StudyCompanionService {
       studentMemoryContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      tutorSelfImprovementContext,
       lecturerConstraintContext,
     };
   }
@@ -4532,6 +4688,7 @@ export class StudyCompanionService {
       studentMemoryContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      tutorSelfImprovementContext,
       lecturerConstraintContext,
     } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
@@ -4617,6 +4774,7 @@ export class StudyCompanionService {
       relevantMaterialContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      tutorSelfImprovementContext,
       lecturerConstraintContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
@@ -5439,6 +5597,7 @@ export class StudyCompanionService {
       studentMemoryContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      tutorSelfImprovementContext,
       lecturerConstraintContext,
     } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
@@ -5489,6 +5648,7 @@ export class StudyCompanionService {
       relevantMaterialContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      tutorSelfImprovementContext,
       lecturerConstraintContext,
       hybridMasteryResult: sectionContext.repairMode === 'medium_prerequisite_repair'
         ? {
@@ -6435,6 +6595,7 @@ export class StudyCompanionService {
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
           studentLearningProfileContext,
+          tutorSelfImprovementContext,
           lecturerConstraintContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
@@ -6519,6 +6680,7 @@ export class StudyCompanionService {
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
           studentLearningProfileContext,
+          tutorSelfImprovementContext,
           lecturerConstraintContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
