@@ -22,6 +22,9 @@ import { Screen } from "../../components/layout/Screen";
 import { BottomSheet } from "../../components/ui/BottomSheet";
 import { Button } from "../../components/ui/Button";
 import { RichMathText } from "../../components/ui/RichMathText";
+import { WhiteboardRenderer } from "../../components/whiteboard/WhiteboardRenderer";
+import { sampleLimitWhiteboardPlan } from "../../components/whiteboard/samplePlans";
+import { WhiteboardRendererMode } from "../../components/whiteboard/types";
 import { MainStackParamList } from "../../navigation/types";
 import {
   Message,
@@ -159,6 +162,8 @@ export const StudyCompanionScreen: React.FC = () => {
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
   const [visualPlan, setVisualPlan] = useState<StudyVisualPlan | null>(null);
+  const [whiteboardVisible, setWhiteboardVisible] = useState(false);
+  const [whiteboardMode, setWhiteboardMode] = useState<WhiteboardRendererMode>("static");
   const [loading, setLoading] = useState(true);
   const [runtimeState, setRuntimeState] = useState<TutorRuntimeState>("idle");
   const [input, setInput] = useState("");
@@ -168,6 +173,8 @@ export const StudyCompanionScreen: React.FC = () => {
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
+  const whiteboardExperimentsEnabled =
+    __DEV__ || process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
 
   const listRef = useRef<FlatList<UiMessage>>(null);
   const runtimeStateRef = useRef<TutorRuntimeState>("idle");
@@ -659,6 +666,27 @@ export const StudyCompanionScreen: React.FC = () => {
           <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
         </View>
 
+        {whiteboardExperimentsEnabled ? (
+          <View style={styles.whiteboardDevRow}>
+            <Pressable
+              onPress={() => setWhiteboardVisible((current) => !current)}
+              style={[
+                styles.whiteboardDevChip,
+                whiteboardVisible ? styles.whiteboardDevChipActive : null,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.whiteboardDevChipText,
+                  whiteboardVisible ? styles.whiteboardDevChipTextActive : null,
+                ]}
+              >
+                Whiteboard Test
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {visualPlan?.visuals?.length ? (
           <View style={styles.visualPlanBanner}>
             <Text style={styles.visualPlanText}>Visual aid available</Text>
@@ -672,6 +700,22 @@ export const StudyCompanionScreen: React.FC = () => {
           renderItem={renderMessage}
           contentContainerStyle={styles.chatContent}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            whiteboardExperimentsEnabled && whiteboardVisible ? (
+              <View style={styles.whiteboardPanel}>
+                <Text style={styles.whiteboardPanelTitle}>Experimental Whiteboard</Text>
+                <Text style={styles.whiteboardPanelText}>
+                  This is a dev/test renderer comparison panel using a sample whiteboard plan only.
+                </Text>
+                <WhiteboardRenderer
+                  plan={sampleLimitWhiteboardPlan}
+                  mode={whiteboardMode}
+                  onModeChange={setWhiteboardMode}
+                  showModeSwitcher
+                />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>Ready to begin</Text>
@@ -920,6 +964,54 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontWeight: "700",
       textTransform: "uppercase",
       letterSpacing: 0.4,
+    },
+    whiteboardDevRow: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      alignItems: "flex-start",
+    },
+    whiteboardDevChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    whiteboardDevChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
+    },
+    whiteboardDevChipText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    whiteboardDevChipTextActive: {
+      color: "#08130C",
+    },
+    whiteboardPanel: {
+      marginBottom: 16,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 14,
+      gap: 10,
+    },
+    whiteboardPanelTitle: {
+      ...typography.h4,
+      color: colors.textPrimary,
+      fontSize: 16,
+    },
+    whiteboardPanelText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 18,
     },
     chatContent: {
       paddingHorizontal: 18,
