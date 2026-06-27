@@ -73,6 +73,10 @@ export type TeachingDecisionInput = {
   forbiddenMethods?: string[];
   assessmentFocus?: string[];
   mustCoverTopics?: string[];
+  primaryObjective?: string;
+  inScopeConcepts?: string[];
+  previewOnlyConcepts?: string[];
+  outOfScopeConcepts?: string[];
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
   hybridMasteryResult?: {
@@ -210,6 +214,9 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const forbiddenMethods = uniqueItems(input.forbiddenMethods);
   const assessmentFocus = uniqueItems(input.assessmentFocus);
   const mustCoverTopics = uniqueItems(input.mustCoverTopics);
+  const inScopeConcepts = uniqueItems(input.inScopeConcepts);
+  const previewOnlyConcepts = uniqueItems(input.previewOnlyConcepts);
+  const outOfScopeConcepts = uniqueItems(input.outOfScopeConcepts);
   const lecturerStrictness = input.lecturerStrictness || 'medium';
   const selfImprovement = input.tutorSelfImprovementContext;
 
@@ -473,6 +480,18 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     promptDirectives.push(`Must cover these topics before moving on: ${mustCoverTopics.join(', ')}.`);
     reasons.push('lecturer specified must-cover topics');
   }
+  if (input.primaryObjective) {
+    promptDirectives.push(`Primary lesson objective: ${input.primaryObjective}.`);
+  }
+  if (inScopeConcepts.length) {
+    promptDirectives.push(`Stay within these in-scope concepts: ${inScopeConcepts.join(', ')}.`);
+  }
+  if (previewOnlyConcepts.length) {
+    promptDirectives.push(`Preview-only concepts may be mentioned briefly but must not be explained: ${previewOnlyConcepts.join(', ')}.`);
+  }
+  if (outOfScopeConcepts.length) {
+    promptDirectives.push(`Do not expand into these out-of-scope concepts: ${outOfScopeConcepts.join(', ')}.`);
+  }
 
   if (signal.masteryScore !== null && signal.masteryScore >= 85 && weakPoints.length <= 1 && misconceptions.length === 0) {
     pace = signal.masteryScore >= 92 ? 'fast' : 'normal';
@@ -621,6 +640,10 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       forbidden_method_count: forbiddenMethods.length,
       assessment_focus_count: assessmentFocus.length,
       must_cover_topic_count: mustCoverTopics.length,
+      in_scope_count: inScopeConcepts.length,
+      preview_only_count: previewOnlyConcepts.length,
+      out_of_scope_count: outOfScopeConcepts.length,
+      primary_objective: input.primaryObjective || null,
       lecturer_constraints_reserved: null,
     },
   };

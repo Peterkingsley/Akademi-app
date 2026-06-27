@@ -231,6 +231,25 @@ type RelevantMaterialContext = {
   promptContext: string;
 };
 
+type LessonScope = {
+  primaryObjective: string;
+  inScopeConcepts: string[];
+  supportingConcepts: string[];
+  prerequisiteConcepts: string[];
+  previewOnlyConcepts: string[];
+  outOfScopeConcepts: string[];
+  allowedExamples: string[];
+  forbiddenExpansions: string[];
+  scopeDirectives: string[];
+};
+
+type ScopeViolation = {
+  violated: boolean;
+  violations: string[];
+  forbiddenConceptsFound: string[];
+  previewConceptsOverExplained: string[];
+};
+
 type TutorMessageQualityResult = {
   passed: boolean;
   issues: string[];
@@ -248,6 +267,7 @@ type TutorMessageQualityArgs = {
   coveredConcepts?: string[];
   isFirstIntro?: boolean;
   targetWordRange?: { min: number; max: number };
+  lessonScope?: LessonScope | null;
 };
 
 type TutorQualityTraceCapture = {
@@ -814,6 +834,275 @@ function buildPacingDirectives(args: {
     lines,
     targetWordRange,
     conceptBudget,
+  };
+}
+
+function splitConceptPhrases(text: string) {
+  return normalizeText(text)
+    .split(/[,;:()\/]/)
+    .flatMap((part) => part.split(/\band\b|&/i))
+    .map((part) => part.replace(/\b(definition|introduction|basics|overview|meaning|concept|principles|scope|nature|properties|applications?)\s+of\s+/gi, '').trim())
+    .map((part) => part.replace(/\bwhat is\b/gi, '').trim())
+    .filter((part) => part.length >= 3 && part.length <= 60);
+}
+
+function addConceptLabel(map: Map<string, string>, value: string) {
+  const label = String(value || '').trim();
+  const key = canonicalizeCoveredConcept(label);
+  if (!key || key.length < 3) return;
+  if (!map.has(key)) {
+    map.set(key, label);
+  }
+}
+
+function collectExampleConcepts(text: string) {
+  const matches = Array.from(text.matchAll(/\b(?:such as|including|includes|like)\s+([^.!?]+)/gi));
+  return matches
+    .flatMap((match) => splitConceptPhrases(match[1] || ''))
+    .filter(Boolean)
+    .slice(0, 10);
+}
+
+function sentenceContainsConcept(sentence: string, concept: string) {
+  const normalizedSentence = canonicalizeCoveredConcept(sentence);
+  const normalizedConcept = canonicalizeCoveredConcept(concept);
+  if (!normalizedSentence || !normalizedConcept) return false;
+  return normalizedSentence.includes(normalizedConcept);
+}
+
+function formatLessonScopePrompt(scope: LessonScope) {
+  return [
+    `Primary objective: ${truncate(scope.primaryObjective, 180)}`,
+    scope.inScopeConcepts.length ? `In-scope concepts: ${truncateList(scope.inScopeConcepts, 6, 50).join(' | ')}` : '',
+    scope.supportingConcepts.length ? `Supporting context only: ${truncateList(scope.supportingConcepts, 4, 50).join(' | ')}` : '',
+    scope.prerequisiteConcepts.length ? `Prerequisites: ${truncateList(scope.prerequisiteConcepts, 4, 50).join(' | ')}` : '',
+    scope.previewOnlyConcepts.length ? `Preview only: ${truncateList(scope.previewOnlyConcepts, 6, 50).join(' | ')}` : '',
+    scope.outOfScopeConcepts.length ? `Out of scope: ${truncateList(scope.outOfScopeConcepts, 6, 50).join(' | ')}` : '',
+    scope.allowedExamples.length ? `Allowed examples: ${truncateList(scope.allowedExamples, 3, 70).join(' | ')}` : '',
+    ...scope.scopeDirectives,
+  ].filter(Boolean).join('\n');
+}
+
+function buildLessonScope(args: {
+  sectionTitle: string;
+  sectionContent: string;
+  roadmap?: RoadmapSection[];
+  currentSectionIndex?: number;
+  teacherBrainContext?: string;
+  teacherBrainSectionContext?: TeacherBrainSectionContext;
+  lessonPlan?: StudySectionLessonPlanRecord;
+  lessonPlanContext?: string;
+  relevantMaterialContext?: RelevantMaterialContext;
+  lecturerConstraintContext?: string;
+  teachingDecision?: TeachingDecision;
+  passNumber?: 1 | 2 | 3;
+  phase: StudyCompanionPhase | 'INTRO' | 'CHECKPOINT' | 'RETEACH';
+}) {
+  const content = normalizeText(args.sectionContent || '');
+  const title = String(args.sectionTitle || '').trim();
+  const titleConceptMap = new Map<string, string>();
+  splitConceptPhrases(title).forEach((item) => addConceptLabel(titleConceptMap, item));
+  if (!titleConceptMap.size) addConceptLabel(titleConceptMap, title);
+
+  const inScopeMap = new Map<string, string>(titleConceptMap);
+  const supportingMap = new Map<string, string>();
+  const prerequisiteMap = new Map<string, string>();
+  const previewMap = new Map<string, string>();
+  const outOfScopeMap = new Map<string, string>();
+  const allowedExampleMap = new Map<string, string>();
+
+  const lessonPlan = args.lessonPlan;
+  const teacherBrainSectionContext = args.teacherBrainSectionContext;
+  const primaryObjective = truncate(
+    lessonPlan?.lessonObjective ||
+    teacherBrainSectionContext?.currentChapterSummary?.summary ||
+    title,
+    180,
+  );
+
+  const titleOrContent = `${title}\n${content}`.toLowerCase();
+  const prerequisiteCandidates = [
+    ...(teacherBrainSectionContext?.prerequisites || []).map((item) => item.concept || ''),
+    ...(lessonPlan?.prerequisiteRefresh || []),
+  ];
+  prerequisiteCandidates.forEach((item) => {
+    const concept = extractConceptLabel(String(item || ''));
+    if (!concept) return;
+    addConceptLabel(prerequisiteMap, concept);
+    if (titleOrContent.includes(concept)) {
+      addConceptLabel(supportingMap, concept);
+    }
+  });
+
+  const teacherBrainCandidates = [
+    ...(teacherBrainSectionContext?.concepts || []).map((item) => item.concept || ''),
+    ...(teacherBrainSectionContext?.formulas || []).map((item) => item.name || ''),
+    ...(teacherBrainSectionContext?.calculationMethods || []).map((item) => item.topic || ''),
+    ...(teacherBrainSectionContext?.diagrams || []).map((item) => item.title || ''),
+    ...(teacherBrainSectionContext?.currentChapterSummary?.key_points || []),
+    ...(lessonPlan?.checkpointFocus || []),
+  ]
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+
+  teacherBrainCandidates.forEach((candidate) => {
+    const label = candidate.replace(/^[-*]\s*/, '').trim();
+    const key = canonicalizeCoveredConcept(label);
+    if (!key) return;
+    if (titleOrContent.includes(key)) {
+      addConceptLabel(inScopeMap, label);
+    }
+  });
+
+  ['matter', 'energy', 'measurement', 'physical quantity', 'physical quantities', 'science', 'observation', 'experiment', 'unit', 'units', 'variable', 'variables']
+    .forEach((item) => {
+      if (titleOrContent.includes(item)) {
+        if (item === 'science' || item === 'observation' || item === 'experiment' || item === 'unit' || item === 'units' || item === 'variable' || item === 'variables') {
+          addConceptLabel(supportingMap, item);
+        } else {
+          addConceptLabel(inScopeMap, item);
+        }
+      }
+    });
+
+  const nextSection = args.roadmap && Number.isInteger(args.currentSectionIndex)
+    ? args.roadmap[Math.min((args.currentSectionIndex || 0) + 1, args.roadmap.length - 1)]
+    : null;
+  splitConceptPhrases(nextSection?.title || '').forEach((item) => addConceptLabel(previewMap, item));
+  (teacherBrainSectionContext?.concepts || []).forEach((concept) => {
+    safeStringArray(concept.leads_to).forEach((item) => addConceptLabel(previewMap, String(item || '')));
+  });
+
+  collectExampleConcepts(content).forEach((item) => {
+    const key = canonicalizeCoveredConcept(item);
+    if (!key) return;
+    if (!inScopeMap.has(key) && !supportingMap.has(key) && !prerequisiteMap.has(key)) {
+      addConceptLabel(previewMap, item);
+    } else {
+      addConceptLabel(allowedExampleMap, item);
+    }
+  });
+
+  (teacherBrainSectionContext?.concepts || []).forEach((concept) => {
+    const label = String(concept.concept || '').trim();
+    const key = canonicalizeCoveredConcept(label);
+    if (!key || inScopeMap.has(key) || supportingMap.has(key) || prerequisiteMap.has(key)) return;
+    if (titleOrContent.includes(key)) {
+      addConceptLabel(supportingMap, label);
+      return;
+    }
+    if (previewMap.has(key)) {
+      return;
+    }
+    addConceptLabel(outOfScopeMap, label);
+  });
+
+  args.relevantMaterialContext?.chunks.forEach((chunk) => {
+    splitConceptPhrases(chunk.whyRelevant || '').forEach((item) => {
+      const key = canonicalizeCoveredConcept(item);
+      if (!key || inScopeMap.has(key) || supportingMap.has(key) || prerequisiteMap.has(key) || previewMap.has(key)) return;
+      addConceptLabel(outOfScopeMap, item);
+    });
+  });
+
+  const inScopeConcepts = Array.from(inScopeMap.values()).slice(0, 8);
+  const supportingConcepts = Array.from(supportingMap.values())
+    .filter((item) => !inScopeMap.has(canonicalizeCoveredConcept(item)))
+    .slice(0, 6);
+  const prerequisiteConcepts = Array.from(prerequisiteMap.values())
+    .filter((item) => !inScopeMap.has(canonicalizeCoveredConcept(item)))
+    .slice(0, 6);
+  const previewOnlyConcepts = Array.from(previewMap.values())
+    .filter((item) => {
+      const key = canonicalizeCoveredConcept(item);
+      return !inScopeMap.has(key) && !supportingMap.has(key) && !prerequisiteMap.has(key);
+    })
+    .slice(0, 8);
+  const outOfScopeConcepts = Array.from(outOfScopeMap.values())
+    .filter((item) => {
+      const key = canonicalizeCoveredConcept(item);
+      return !inScopeMap.has(key) && !supportingMap.has(key) && !prerequisiteMap.has(key) && !previewMap.has(key);
+    })
+    .slice(0, 8);
+  const allowedExamples = Array.from(allowedExampleMap.values()).slice(0, 3);
+  const forbiddenExpansions = Array.from(new Set([...previewOnlyConcepts, ...outOfScopeConcepts])).slice(0, 12);
+
+  const scopeDirectives = [
+    'Stay inside the current section objective. Teacher Brain and retrieved material may support, but must not expand the lesson beyond this section.',
+    args.phase === 'INTRO'
+      ? 'Intro scope: topic, learning goal, and at most one simple hook only. No lists of subtopics. No detailed explanation.'
+      : args.phase === PASS_1 || args.passNumber === 1
+        ? 'Pass 1 scope: teach the main intuitive definition, why it matters, and one simple example only.'
+        : args.phase === PASS_2 || args.passNumber === 2
+          ? 'Pass 2 scope: teach the formal definition, key terms, and one example or method detail only.'
+          : args.phase === PASS_3 || args.passNumber === 3
+            ? 'Pass 3 scope: teach exam framing, common mistake, concise connection, and what to remember. Do not introduce a large new topic.'
+            : args.phase === 'CHECKPOINT'
+              ? 'Checkpoint scope: ask only about the in-scope concepts. Do not ask about preview-only or out-of-scope concepts.'
+              : 'Repair scope: focus only on the blocked prerequisite or missing idea.',
+    previewOnlyConcepts.length ? `Preview-only concepts may be mentioned in one short phrase only: ${truncateList(previewOnlyConcepts, 4, 45).join(' | ')}.` : '',
+    outOfScopeConcepts.length ? `Do not explain these out-of-scope concepts in this turn: ${truncateList(outOfScopeConcepts, 5, 45).join(' | ')}.` : '',
+    forbiddenExpansions.length ? `Forbidden expansions for this turn: ${truncateList(forbiddenExpansions, 6, 45).join(' | ')}.` : '',
+    args.teachingDecision?.promptDirectives?.length ? `Teaching decision must still stay inside this scope: ${truncateList(args.teachingDecision.promptDirectives, 4, 90).join(' | ')}` : '',
+  ].filter(Boolean);
+
+  const scope = {
+    primaryObjective,
+    inScopeConcepts,
+    supportingConcepts,
+    prerequisiteConcepts,
+    previewOnlyConcepts,
+    outOfScopeConcepts,
+    allowedExamples,
+    forbiddenExpansions,
+    scopeDirectives,
+  };
+
+  console.log('lesson_scope_built', {
+    phase: args.phase,
+    sectionTitle: title,
+    primaryObjective,
+    inScopeCount: inScopeConcepts.length,
+    supportingCount: supportingConcepts.length,
+    prerequisiteCount: prerequisiteConcepts.length,
+    previewOnlyCount: previewOnlyConcepts.length,
+    outOfScopeCount: outOfScopeConcepts.length,
+  });
+
+  return scope;
+}
+
+function detectScopeViolation(content: string, lessonScope: LessonScope): ScopeViolation {
+  const normalized = normalizeText(content);
+  const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const forbiddenConceptsFound = lessonScope.forbiddenExpansions
+    .filter((concept) => sentenceContainsConcept(normalized, concept))
+    .slice(0, 8);
+  const previewConceptsOverExplained = lessonScope.previewOnlyConcepts
+    .filter((concept) => sentences.some((sentence) => sentenceContainsConcept(sentence, concept) && sentence.split(/\s+/).filter(Boolean).length > 12))
+    .slice(0, 6);
+  const violations: string[] = [];
+
+  if (forbiddenConceptsFound.length) {
+    violations.push('out_of_scope_expansion');
+  }
+  if (previewConceptsOverExplained.length) {
+    violations.push('preview_explained_too_deeply');
+  }
+  const topicListHit = sentences.some((sentence) => {
+    const commaCount = (sentence.match(/,/g) || []).length;
+    const hits = lessonScope.forbiddenExpansions.filter((concept) => sentenceContainsConcept(sentence, concept)).length;
+    return commaCount >= 3 && hits >= 2;
+  });
+  if (topicListHit) {
+    violations.push('too_many_topic_lists');
+  }
+
+  return {
+    violated: violations.length > 0,
+    violations,
+    forbiddenConceptsFound,
+    previewConceptsOverExplained,
   };
 }
 
@@ -2198,13 +2487,16 @@ function hasVisualLanguage(text: string) {
 }
 
 function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
+  const scopedPrimary = args.lessonScope?.primaryObjective || args.section.title;
+  const scopedConcepts = truncateList(args.lessonScope?.inScopeConcepts || [], 3, 40);
   const firstSentence = normalizeText(args.section.content || '')
     .split(/(?<=[.!?])\s+/)
     .map((item) => item.trim())
     .filter(Boolean)[0];
 
   if (args.turnType === 'checkpoint_question') {
-    return `Explain ${args.section.title} in your own words using one clear point at a time.`;
+    const conceptPart = scopedConcepts.length ? ` focusing on ${scopedConcepts.join(', ')}` : '';
+    return `Explain ${args.section.title}${conceptPart} in your own words using one clear point at a time.`;
   }
 
   if (args.isCalculationHeavy && args.phase === PASS_2) {
@@ -2213,6 +2505,10 @@ function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
 
   if (args.isDiagramHeavy) {
     return `Picture ${args.section.title} as a clear process or diagram. Start with the main parts, then explain how each part or stage connects to the next.`;
+  }
+
+  if (args.lessonScope?.inScopeConcepts.length) {
+    return `Focus on ${scopedPrimary}. Keep the explanation on ${scopedConcepts.join(', ')} and stop after the main idea is clear.`;
   }
 
   return firstSentence
@@ -2250,6 +2546,34 @@ function applyTutorMessageCorrections(
       turnType: context.turnType,
       targetWordRange: context.targetWordRange || null,
     });
+  }
+
+  if (context.lessonScope && (issues.includes('scope_out_of_scope_expansion') || issues.includes('scope_preview_overexplained') || issues.includes('scope_forbidden_expansion') || issues.includes('teachback_scope_violation'))) {
+    const violation = detectScopeViolation(corrected, context.lessonScope);
+    if (violation.violated) {
+      corrected = corrected
+        .split(/(?<=[.!?])\s+/)
+        .filter(Boolean)
+        .filter((sentence) => !violation.forbiddenConceptsFound.some((concept) => sentenceContainsConcept(sentence, concept)))
+        .filter((sentence) => !violation.previewConceptsOverExplained.some((concept) => sentenceContainsConcept(sentence, concept)))
+        .join(' ')
+        .trim();
+      if (!corrected) {
+        corrected = buildDeterministicTutorFallback(context);
+        console.log('scoped_fallback_used', {
+          phase: context.phase,
+          turnType: context.turnType,
+          primaryObjective: context.lessonScope.primaryObjective,
+        });
+      } else {
+        console.log('scope_trim_applied', {
+          phase: context.phase,
+          turnType: context.turnType,
+          forbiddenConceptsFound: violation.forbiddenConceptsFound,
+          previewConceptsOverExplained: violation.previewConceptsOverExplained,
+        });
+      }
+    }
   }
 
   if (issues.includes('repeated_welcome')) {
@@ -2380,6 +2704,33 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
   }
   if ((args.turnType === 'checkpoint_question') && conceptLoad.estimatedConceptCount > 1) {
     issues.push('checkpoint_teaching_content');
+  }
+
+  if (args.lessonScope) {
+    const scopeViolation = detectScopeViolation(normalized, args.lessonScope);
+    if (scopeViolation.violated) {
+      console.log('scope_violation_detected', {
+        phase: args.phase,
+        turnType: args.turnType,
+        violations: scopeViolation.violations,
+        forbiddenConceptsFound: scopeViolation.forbiddenConceptsFound,
+        previewConceptsOverExplained: scopeViolation.previewConceptsOverExplained,
+      });
+    }
+    if (scopeViolation.forbiddenConceptsFound.length) {
+      issues.push('scope_out_of_scope_expansion');
+      issues.push('scope_forbidden_expansion');
+    }
+    if (scopeViolation.previewConceptsOverExplained.length) {
+      issues.push('scope_preview_overexplained');
+    }
+    if (args.turnType === 'checkpoint_question') {
+      const checkpointOffScope = [...(args.lessonScope.previewOnlyConcepts || []), ...(args.lessonScope.outOfScopeConcepts || [])]
+        .some((concept) => sentenceContainsConcept(normalized, concept));
+      if (checkpointOffScope) {
+        issues.push('teachback_scope_violation');
+      }
+    }
   }
 
   const correctedContent = issues.length ? applyTutorMessageCorrections(normalized, issues, args) : undefined;
@@ -3232,6 +3583,7 @@ export class StudyCompanionService {
   private createTeachingDecision(args: {
     phase: string;
     section: RoadmapSection;
+    lessonScope?: LessonScope | null;
     teacherBrainSectionContext: TeacherBrainSectionContext;
     teacherBrainContext: string;
     studentMemoryContext: StudentMemoryContext;
@@ -3308,6 +3660,10 @@ export class StudyCompanionService {
       forbiddenMethods: args.lecturerConstraintContext?.forbiddenMethods || [],
       assessmentFocus: args.lecturerConstraintContext?.assessmentFocus || [],
       mustCoverTopics: args.lecturerConstraintContext?.mustCoverTopics || [],
+      primaryObjective: args.lessonScope?.primaryObjective,
+      inScopeConcepts: args.lessonScope?.inScopeConcepts || [],
+      previewOnlyConcepts: args.lessonScope?.previewOnlyConcepts || [],
+      outOfScopeConcepts: args.lessonScope?.outOfScopeConcepts || [],
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
       hybridMasteryResult: args.hybridMasteryResult ?? null,
@@ -3327,6 +3683,7 @@ export class StudyCompanionService {
       shouldChallengeStudent: decision.shouldChallengeStudent,
       shouldSlowDown: decision.shouldSlowDown,
       shouldRepairPrerequisite: decision.shouldRepairPrerequisite,
+      lessonScope: args.lessonScope || null,
       lecturerConstraintStrictness: args.lecturerConstraintContext?.strictness || 'medium',
       tutorSelfImprovement: args.tutorSelfImprovementContext || null,
       hybridMasteryResult: args.hybridMasteryResult ?? null,
@@ -4966,6 +5323,8 @@ export class StudyCompanionService {
             regenerated: trace.quality.regenerated,
             fallback_used: trace.quality.fallbackUsed,
             correction_applied: trace.quality.correctionApplied,
+            scope_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
+            scope_violations: trace.quality.issues.filter((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
             ...(args.extraMetadata || {}),
           } as Prisma.InputJsonValue,
         },
@@ -5005,6 +5364,8 @@ export class StudyCompanionService {
             regenerated: trace.quality.regenerated,
             fallback_used: trace.quality.fallbackUsed,
             correction_applied: trace.quality.correctionApplied,
+            scope_violation_detected: trace.quality.issues.some((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
+            scope_violations: trace.quality.issues.filter((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation'),
           } as Prisma.InputJsonValue,
         },
       });
@@ -5067,7 +5428,10 @@ export class StudyCompanionService {
       validation.issues.includes('missing_visual_language') ||
       validation.issues.includes('pacing_too_long') ||
       validation.issues.includes('intro_too_dense') ||
-      validation.issues.includes('pass1_too_dense');
+      validation.issues.includes('pass1_too_dense') ||
+      validation.issues.includes('scope_out_of_scope_expansion') ||
+      validation.issues.includes('scope_preview_overexplained') ||
+      validation.issues.includes('teachback_scope_violation');
 
     if (!regenerationNeeded && corrected) {
       if (args.qualityTrace) {
@@ -5094,6 +5458,14 @@ export class StudyCompanionService {
       prompt: args.contextMeta?.prompt,
       issues: validation.issues,
     });
+    if (validation.issues.some((issue) => issue.startsWith('scope_') || issue === 'teachback_scope_violation')) {
+      console.log('scope_regeneration_used', {
+        phase: args.phase,
+        turnType: args.turnType,
+        prompt: args.contextMeta?.prompt,
+        issues: validation.issues,
+      });
+    }
     if (args.qualityTrace) {
       args.qualityTrace.regenerated = true;
     }
@@ -5111,6 +5483,7 @@ export class StudyCompanionService {
         args.isDiagramHeavy
           ? 'Use clear visual language such as imagine, picture, parts, arrows, stages, flow, graph, axis, or labels.'
           : '',
+        args.lessonScope ? `Strict scope reminder:\n${formatLessonScopePrompt(args.lessonScope)}` : '',
         'Stay grounded in the current section.',
         'Keep the reply concise.',
       ].filter(Boolean).join('\n\n');
@@ -5333,6 +5706,10 @@ export class StudyCompanionService {
       'Use retrieved material context only to support the current section.',
       'Do not let retrieved material override current section content.',
       'If retrieved context conflicts with the section, trust current section.',
+      'Stay inside the current lesson scope.',
+      'Do not teach future topics too early.',
+      'Preview-only ideas may be mentioned briefly, but must not be explained.',
+      'Out-of-scope concepts must not be explained unless lecturer constraints explicitly require them.',
       'Do not invent material content.',
       'If Teacher Brain conflicts with section content, trust section content.',
       'Teach like a tertiary institution tutor.',
@@ -5467,9 +5844,24 @@ export class StudyCompanionService {
       teacherBrainSectionContext,
       { sessionId, sectionIndex: nextIndex },
     );
+    const baseLessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      roadmap,
+      currentSectionIndex: nextIndex,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan.promptContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintContext?.promptContext || '',
+      phase: PASS_1,
+      passNumber: 1,
+    });
     const teachingDecision = this.createTeachingDecision({
       phase: PASS_1,
       section,
+      lessonScope: baseLessonScope,
       teacherBrainSectionContext,
       teacherBrainContext,
       studentMemoryContext,
@@ -5483,6 +5875,21 @@ export class StudyCompanionService {
       lecturerConstraintContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
+    });
+    const introLessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      roadmap,
+      currentSectionIndex: nextIndex,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan.promptContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintContext?.promptContext || '',
+      teachingDecision,
+      phase: 'INTRO',
+      passNumber: 1,
     });
     roadmap.forEach((item, index) => {
       if (index === nextIndex && item.status === StudyRoadmapStatus.NOT_STARTED) {
@@ -5521,6 +5928,7 @@ export class StudyCompanionService {
       lecturerConstraintContext?.promptContext ? `Lecturer constraint context:\n${lecturerConstraintContext.promptContext}` : '',
       lessonPlan.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(introLessonScope)}`,
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
@@ -5577,7 +5985,23 @@ export class StudyCompanionService {
         teaching_strategy: teachingDecision.strategy,
         teaching_pace: teachingDecision.pace,
         prerequisite_repair_mode: teachingDecision.prerequisiteRepairMode,
+        lesson_scope_applied: true,
+        primary_objective: introLessonScope.primaryObjective,
+        in_scope_count: introLessonScope.inScopeConcepts.length,
+        supporting_count: introLessonScope.supportingConcepts.length,
+        preview_only_count: introLessonScope.previewOnlyConcepts.length,
+        out_of_scope_count: introLessonScope.outOfScopeConcepts.length,
       },
+    });
+    console.log('lesson_scope_applied', {
+      sessionId,
+      materialId: material.id,
+      sectionIndex: nextIndex,
+      prompt: 'start_intro',
+      primaryObjective: introLessonScope.primaryObjective,
+      inScopeCount: introLessonScope.inScopeConcepts.length,
+      previewOnlyCount: introLessonScope.previewOnlyConcepts.length,
+      outOfScopeCount: introLessonScope.outOfScopeConcepts.length,
     });
 
     if (teacherBrainContext) {
@@ -5622,6 +6046,7 @@ export class StudyCompanionService {
         coveredConcepts: [],
         isFirstIntro: true,
         targetWordRange: introPacing.targetWordRange,
+        lessonScope: introLessonScope,
         contextMeta: {
           sessionId,
           materialId: material.id,
@@ -5741,6 +6166,19 @@ export class StudyCompanionService {
       isCheckpointQuestion: false,
       prerequisiteRepairActive: false,
     });
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintPromptContext,
+      teachingDecision: decision,
+      phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
+      passNumber: pass,
+    });
     const modeInstructions = [
       calculationContext.detected ? buildCalculationInstructions(pass, calculationContext) : '',
       diagramContext.detected ? buildDiagramInstructions(pass, diagramContext) : '',
@@ -5772,6 +6210,7 @@ export class StudyCompanionService {
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3800)}`,
@@ -5819,6 +6258,16 @@ export class StudyCompanionService {
       });
     }
     if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
+    }
+    if (contextMeta) {
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: `teaching_pass_${pass}`,
@@ -5841,6 +6290,7 @@ export class StudyCompanionService {
       coveredConcepts: safeStringArray(sectionContext?.coveredConcepts),
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
+      lessonScope,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
       qualityTrace,
     });
@@ -5869,11 +6319,22 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      relevantMaterialContext,
+      phase: 'CHECKPOINT',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -5909,6 +6370,16 @@ export class StudyCompanionService {
         prompt: `evaluate_teachback_${attemptNumber}`,
       });
     }
+    if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: `evaluate_teachback_${attemptNumber}`,
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
+    }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 500);
     return {
       evaluation,
@@ -5935,11 +6406,22 @@ export class StudyCompanionService {
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
     );
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      relevantMaterialContext,
+      phase: 'CHECKPOINT',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -5973,6 +6455,16 @@ export class StudyCompanionService {
       console.log('relevant_material_context_applied', {
         ...contextMeta,
         prompt: 'evaluate_memory_dump',
+      });
+    }
+    if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: 'evaluate_memory_dump',
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
       });
     }
     const evaluation = await generateText(prompt, this.companionSystemPrompt(), 450);
@@ -6087,11 +6579,23 @@ export class StudyCompanionService {
       isCheckpointQuestion: true,
       prerequisiteRepairActive: false,
     });
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      lecturerConstraintContext: lecturerConstraintPromptContext,
+      teachingDecision: decision,
+      phase: 'CHECKPOINT',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
       lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
@@ -6129,6 +6633,14 @@ export class StudyCompanionService {
       });
     }
     if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: `teachback_prompt_${attemptNumber}`,
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: `teachback_prompt_${attemptNumber}`,
@@ -6151,6 +6663,7 @@ export class StudyCompanionService {
       coveredConcepts: [],
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
+      lessonScope,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
       qualityTrace,
     });
@@ -6193,6 +6706,16 @@ export class StudyCompanionService {
       isCheckpointQuestion: true,
       prerequisiteRepairActive: false,
     });
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      lecturerConstraintContext: lecturerConstraintPromptContext,
+      teachingDecision: decision,
+      phase: 'CHECKPOINT',
+    });
     if (teacherBrainContext && contextMeta) {
       console.log('teacher_brain_context_applied', {
         ...contextMeta,
@@ -6204,6 +6727,7 @@ export class StudyCompanionService {
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       `Section content:\n${truncate(section.content, 2600)}`,
       lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
@@ -6221,6 +6745,14 @@ export class StudyCompanionService {
       'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
     ].join('\n\n');
     if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: 'memory_dump_prompt',
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: 'memory_dump_prompt',
@@ -6247,6 +6779,7 @@ export class StudyCompanionService {
       coveredConcepts: [],
       isFirstIntro: false,
       targetWordRange: pacing.targetWordRange,
+      lessonScope,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
       qualityTrace,
     });
@@ -6328,12 +6861,25 @@ export class StudyCompanionService {
       isCheckpointQuestion: options?.repairMode === 'medium_prerequisite_repair',
       prerequisiteRepairActive: options?.repairMode === 'medium_prerequisite_repair',
     });
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan?.promptContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintPromptContext,
+      teachingDecision: decision,
+      phase: 'RETEACH',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 3000)}`,
@@ -6368,6 +6914,14 @@ export class StudyCompanionService {
             : 'Task: reteach this section in a simpler way with one easy analogy, then tell the student they will try the teach-back again.',
     ].join('\n\n');
     if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: 'gap_reteach',
@@ -6392,6 +6946,7 @@ export class StudyCompanionService {
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: options?.repairMode === 'medium_prerequisite_repair',
       targetWordRange: pacing.targetWordRange,
+      lessonScope,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'gap_reteach' } : undefined,
       qualityTrace,
     });
@@ -6419,12 +6974,22 @@ export class StudyCompanionService {
       isCheckpointQuestion: true,
       prerequisiteRepairActive: false,
     });
+    const lessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      teacherBrainContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintPromptContext,
+      teachingDecision: decision,
+      phase: 'CHECKPOINT',
+    });
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
       lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
+      `Lesson scope:\n${formatLessonScopePrompt(lessonScope)}`,
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeInterrupt: true, includeCheckpoint: true }).join('\n')}`,
@@ -6455,6 +7020,14 @@ export class StudyCompanionService {
       });
     }
     if (contextMeta) {
+      console.log('lesson_scope_applied', {
+        ...contextMeta,
+        prompt: 'interrupt_response',
+        primaryObjective: lessonScope.primaryObjective,
+        inScopeCount: lessonScope.inScopeConcepts.length,
+        previewOnlyCount: lessonScope.previewOnlyConcepts.length,
+        outOfScopeCount: lessonScope.outOfScopeConcepts.length,
+      });
       console.log('teaching_decision_applied', {
         ...contextMeta,
         prompt: 'interrupt_response',
@@ -6475,6 +7048,7 @@ export class StudyCompanionService {
       isDiagramHeavy: false,
       questionAllowed: true,
       targetWordRange: interruptPacing.targetWordRange,
+      lessonScope,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'interrupt_response' } : undefined,
       qualityTrace,
     });
@@ -6545,9 +7119,24 @@ export class StudyCompanionService {
       { sessionId, sectionIndex: state.current_section_index },
     );
     const sectionContext = readSectionContext(state.section_context);
+    const baseLessonScope = buildLessonScope({
+      sectionTitle: section.title,
+      sectionContent: section.content,
+      roadmap,
+      currentSectionIndex: state.current_section_index,
+      teacherBrainContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+      lessonPlanContext: lessonPlan.promptContext,
+      relevantMaterialContext,
+      lecturerConstraintContext: lecturerConstraintContext?.promptContext || '',
+      phase: state.current_phase,
+      passNumber: state.current_phase === PASS_1 ? 1 : state.current_phase === PASS_2 ? 2 : state.current_phase === PASS_3 ? 3 : undefined,
+    });
     const teachingDecision = this.createTeachingDecision({
       phase: state.current_phase,
       section,
+      lessonScope: baseLessonScope,
       teacherBrainSectionContext,
       teacherBrainContext,
       studentMemoryContext,
@@ -6612,6 +7201,12 @@ export class StudyCompanionService {
         hidden_confusion_level: learningIntelligenceContext?.hiddenConfusionLevel ?? 'low',
         hidden_confusion_signals: learningIntelligenceContext?.hiddenConfusionSignals ?? [],
         recommended_confusion_intervention: learningIntelligenceContext?.recommendedConfusionIntervention ?? 'none',
+        lesson_scope_applied: true,
+        primary_objective: baseLessonScope.primaryObjective,
+        in_scope_count: baseLessonScope.inScopeConcepts.length,
+        supporting_count: baseLessonScope.supportingConcepts.length,
+        preview_only_count: baseLessonScope.previewOnlyConcepts.length,
+        out_of_scope_count: baseLessonScope.outOfScopeConcepts.length,
       },
     });
 
@@ -7480,9 +8075,24 @@ export class StudyCompanionService {
           nextTeacherBrainSectionContext,
           { sessionId, sectionIndex: nextIndex },
         );
+        const nextLessonScope = buildLessonScope({
+          sectionTitle: nextSection.title,
+          sectionContent: nextSection.content,
+          roadmap,
+          currentSectionIndex: nextIndex,
+          teacherBrainContext: nextTeacherBrainContext,
+          teacherBrainSectionContext: nextTeacherBrainSectionContext,
+          lessonPlan: nextLessonPlan,
+          lessonPlanContext: nextLessonPlan.promptContext,
+          relevantMaterialContext: nextRelevantMaterialContext,
+          lecturerConstraintContext: lecturerConstraintContext?.promptContext || '',
+          phase: PASS_1,
+          passNumber: 1,
+        });
         const nextTeachingDecision = this.createTeachingDecision({
           phase: PASS_1,
           section: nextSection,
+          lessonScope: nextLessonScope,
           teacherBrainSectionContext: nextTeacherBrainSectionContext,
           teacherBrainContext: nextTeacherBrainContext,
           studentMemoryContext: nextStudentMemoryContext,
@@ -7568,9 +8178,24 @@ export class StudyCompanionService {
           nextTeacherBrainSectionContext,
           { sessionId, sectionIndex: nextIndex },
         );
+        const nextLessonScope = buildLessonScope({
+          sectionTitle: nextSection.title,
+          sectionContent: nextSection.content,
+          roadmap,
+          currentSectionIndex: nextIndex,
+          teacherBrainContext: nextTeacherBrainContext,
+          teacherBrainSectionContext: nextTeacherBrainSectionContext,
+          lessonPlan: nextLessonPlan,
+          lessonPlanContext: nextLessonPlan.promptContext,
+          relevantMaterialContext: nextRelevantMaterialContext,
+          lecturerConstraintContext: lecturerConstraintContext?.promptContext || '',
+          phase: PASS_1,
+          passNumber: 1,
+        });
         const nextTeachingDecision = this.createTeachingDecision({
           phase: PASS_1,
           section: nextSection,
+          lessonScope: nextLessonScope,
           teacherBrainSectionContext: nextTeacherBrainSectionContext,
           teacherBrainContext: nextTeacherBrainContext,
           studentMemoryContext: nextStudentMemoryContext,
