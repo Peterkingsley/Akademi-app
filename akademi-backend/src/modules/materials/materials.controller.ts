@@ -163,4 +163,65 @@ export class MaterialsController {
       res.status(403).json({ message: error.message });
     }
   }
+
+  async listTeachingConstraints(req: Request, res: Response) {
+    try {
+      const result = await materialsService.listTeachingConstraints(req.params.id, {
+        userId: req.user!.userId,
+        email: req.user!.email,
+      });
+      res.status(200).json(result);
+    } catch (error: any) {
+      const status = error.message === 'Material not found' || error.message === 'Teaching constraint not found.' ? 404 : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
+  async createTeachingConstraint(req: Request, res: Response) {
+    try {
+      const result = await materialsService.createTeachingConstraint(req.params.id, {
+        userId: req.user!.userId,
+        email: req.user!.email,
+      }, req.body || {});
+      res.status(201).json(result);
+    } catch (error: any) {
+      const status = error.message === 'Material not found' ? 404 : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
+  async updateTeachingConstraint(req: Request, res: Response) {
+    try {
+      const result = await materialsService.updateTeachingConstraint(
+        req.params.id,
+        req.params.constraintId,
+        {
+          userId: req.user!.userId,
+          email: req.user!.email,
+        },
+        req.body || {},
+      );
+      res.status(200).json(result);
+    } catch (error: any) {
+      const status = error.message === 'Material not found' || error.message === 'Teaching constraint not found.' ? 404 : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
+  async disableTeachingConstraint(req: Request, res: Response) {
+    try {
+      const result = await materialsService.disableTeachingConstraint(
+        req.params.id,
+        req.params.constraintId,
+        {
+          userId: req.user!.userId,
+          email: req.user!.email,
+        },
+      );
+      res.status(200).json(result);
+    } catch (error: any) {
+      const status = error.message === 'Material not found' || error.message === 'Teaching constraint not found.' ? 404 : 403;
+      res.status(status).json({ message: error.message });
+    }
+  }
 }

@@ -416,6 +416,42 @@ type StudentLearningProfileContext = {
   confidenceSupportNeeded: boolean;
 };
 
+type LecturerConstraintRecord = {
+  id: string;
+  material_id: string | null;
+  course_code: string | null;
+  university: string | null;
+  faculty: string | null;
+  department: string | null;
+  level: number | null;
+  semester: number | null;
+  title: string;
+  description: string | null;
+  required_order: unknown;
+  must_cover_topics: unknown;
+  do_not_skip_topics: unknown;
+  preferred_terminology: unknown;
+  required_methods: unknown;
+  forbidden_methods: unknown;
+  assessment_focus: unknown;
+  unit_policy: string | null;
+  proof_policy: string | null;
+  calculation_policy: string | null;
+  diagram_policy: string | null;
+  strictness: string;
+  is_active: boolean;
+};
+
+type LecturerConstraintContext = {
+  constraints: LecturerConstraintRecord[];
+  promptContext: string;
+  strictness: 'low' | 'medium' | 'high';
+  requiredMethods: string[];
+  forbiddenMethods: string[];
+  assessmentFocus: string[];
+  mustCoverTopics: string[];
+};
+
 type MaterialEmbeddingRow = {
   chunk_index: number;
   chunk_text: string;
@@ -1615,6 +1651,67 @@ function parseEmbeddingVector(value: unknown) {
     : [];
 }
 
+function normalizeConstraintStrictness(value: string | null | undefined): 'low' | 'medium' | 'high' {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'low' || normalized === 'high') return normalized;
+  return 'medium';
+}
+
+function parseLecturerConstraintContext(constraints: LecturerConstraintRecord[]): LecturerConstraintContext {
+  const activeConstraints = constraints.filter((item) => item.is_active !== false);
+  const strictness = activeConstraints.reduce<'low' | 'medium' | 'high'>((current, item) => {
+    const next = normalizeConstraintStrictness(item.strictness);
+    if (next === 'high' || current === 'high') return 'high';
+    if (next === 'medium' || current === 'medium') return 'medium';
+    return 'low';
+  }, 'low');
+
+  const requiredOrder = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.required_order)), 6, 110);
+  const mustCoverTopics = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.must_cover_topics)), 8, 110);
+  const doNotSkipTopics = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.do_not_skip_topics)), 8, 110);
+  const requiredMethods = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.required_methods)), 6, 110);
+  const forbiddenMethods = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.forbidden_methods)), 6, 110);
+  const assessmentFocus = truncateList(activeConstraints.flatMap((item) => safeStringArray(item.assessment_focus)), 6, 110);
+  const terminology = activeConstraints.flatMap((item) => {
+    const source = safeJsonObject<Record<string, unknown>>(item.preferred_terminology, {});
+    return Object.entries(source)
+      .map(([key, value]) => `${key}: ${String(value || '').trim()}`.trim())
+      .filter((entry) => !entry.endsWith(':'));
+  }).slice(0, 6);
+  const policies = truncateList(
+    activeConstraints.flatMap((item) => [
+      item.unit_policy ? `Unit policy: ${item.unit_policy}` : '',
+      item.proof_policy ? `Proof policy: ${item.proof_policy}` : '',
+      item.calculation_policy ? `Calculation policy: ${item.calculation_policy}` : '',
+      item.diagram_policy ? `Diagram policy: ${item.diagram_policy}` : '',
+    ].filter(Boolean)),
+    6,
+    120,
+  );
+
+  const lines = [
+    requiredOrder.length ? `Required order: ${requiredOrder.join(' | ')}` : '',
+    mustCoverTopics.length ? `Must-cover topics: ${mustCoverTopics.join(' | ')}` : '',
+    doNotSkipTopics.length ? `Do-not-skip topics: ${doNotSkipTopics.join(' | ')}` : '',
+    terminology.length ? `Preferred terminology: ${terminology.join(' | ')}` : '',
+    requiredMethods.length ? `Required methods: ${requiredMethods.join(' | ')}` : '',
+    forbiddenMethods.length ? `Forbidden methods: ${forbiddenMethods.join(' | ')}` : '',
+    assessmentFocus.length ? `Assessment focus: ${assessmentFocus.join(' | ')}` : '',
+    policies.length ? `Policies: ${policies.join(' | ')}` : '',
+    activeConstraints.length ? `Lecturer strictness: ${strictness}` : '',
+  ].filter(Boolean);
+
+  return {
+    constraints: activeConstraints,
+    promptContext: lines.join('\n'),
+    strictness: activeConstraints.length ? strictness : 'medium',
+    requiredMethods,
+    forbiddenMethods,
+    assessmentFocus,
+    mustCoverTopics,
+  };
+}
+
 function tokenOverlapScore(a: string, b: string) {
   const sourceTokens = new Set(
     normalizeText(a)
@@ -2364,6 +2461,108 @@ export class StudyCompanionService {
     return context;
   }
 
+  private async loadLecturerConstraintsForSession(session: {
+    id: string;
+    course_code?: string | null;
+    material?: {
+      id: string;
+      course_code?: string | null;
+      university?: string | null;
+      faculty?: string | null;
+      department?: string | null;
+      level?: number | null;
+      semester?: number | null;
+    } | null;
+  }) {
+    const material = session.material;
+    if (!material) {
+      console.log('lecturer_constraints_missing', { sessionId: session.id, reason: 'no_material' });
+      return null;
+    }
+
+    const lecturerTeachingConstraint = (prisma as typeof prisma & {
+      lecturerTeachingConstraint?: {
+        findMany: (query: unknown) => Promise<LecturerConstraintRecord[]>;
+      };
+    }).lecturerTeachingConstraint;
+
+    if (!lecturerTeachingConstraint) {
+      console.log('lecturer_constraints_missing', {
+        sessionId: session.id,
+        materialId: material.id,
+        reason: 'model_unavailable',
+      });
+      return null;
+    }
+
+    const courseCode = material.course_code || session.course_code || null;
+    const matches = await lecturerTeachingConstraint.findMany({
+      where: {
+        is_active: true,
+        OR: [
+          { material_id: material.id },
+          {
+            material_id: null,
+            course_code: courseCode,
+            university: material.university,
+            department: material.department,
+            level: material.level ?? undefined,
+            semester: material.semester ?? undefined,
+          },
+          {
+            material_id: null,
+            course_code: courseCode,
+            department: material.department,
+          },
+          {
+            material_id: null,
+            course_code: courseCode,
+          },
+        ],
+      },
+      orderBy: [{ updated_at: 'desc' }],
+    });
+
+    const prioritized = matches
+      .map((constraint) => ({
+        constraint,
+        priority: constraint.material_id === material.id
+          ? 0
+          : constraint.course_code === courseCode &&
+              constraint.university === material.university &&
+              constraint.department === material.department &&
+              constraint.level === material.level &&
+              constraint.semester === material.semester
+            ? 1
+            : constraint.course_code === courseCode && constraint.department === material.department
+              ? 2
+              : constraint.course_code === courseCode
+                ? 3
+                : 4,
+      }))
+      .sort((left, right) => left.priority - right.priority)
+      .map((item) => item.constraint)
+      .slice(0, 4);
+
+    if (!prioritized.length) {
+      console.log('lecturer_constraints_missing', {
+        sessionId: session.id,
+        materialId: material.id,
+        courseCode,
+      });
+      return null;
+    }
+
+    const context = parseLecturerConstraintContext(prioritized);
+    console.log('lecturer_constraints_loaded', {
+      sessionId: session.id,
+      materialId: material.id,
+      count: prioritized.length,
+      strictness: context.strictness,
+    });
+    return context;
+  }
+
   private createTeachingDecision(args: {
     phase: string;
     section: RoadmapSection;
@@ -2376,6 +2575,7 @@ export class StudyCompanionService {
     relevantMaterialContext: RelevantMaterialContext;
     learningIntelligenceContext?: LearningIntelligenceContext | null;
     studentLearningProfileContext?: StudentLearningProfileContext | null;
+    lecturerConstraintContext?: LecturerConstraintContext | null;
     hybridMasteryResult?: HybridMasteryResult | null;
     currentMasteryScore?: number | null;
     lastMasteryScore?: number | null;
@@ -2432,6 +2632,12 @@ export class StudyCompanionService {
       calculationSupportNeeded: args.studentLearningProfileContext?.calculationSupportNeeded ?? false,
       visualSupportNeeded: args.studentLearningProfileContext?.visualSupportNeeded ?? false,
       confidenceSupportNeeded: args.studentLearningProfileContext?.confidenceSupportNeeded ?? false,
+      lecturerConstraintContext: args.lecturerConstraintContext?.promptContext || undefined,
+      lecturerStrictness: args.lecturerConstraintContext?.strictness || 'medium',
+      requiredMethods: args.lecturerConstraintContext?.requiredMethods || [],
+      forbiddenMethods: args.lecturerConstraintContext?.forbiddenMethods || [],
+      assessmentFocus: args.lecturerConstraintContext?.assessmentFocus || [],
+      mustCoverTopics: args.lecturerConstraintContext?.mustCoverTopics || [],
       isCalculationHeavy: args.calculationContext.detected,
       isDiagramHeavy: args.diagramContext.detected,
       hybridMasteryResult: args.hybridMasteryResult ?? null,
@@ -2451,6 +2657,7 @@ export class StudyCompanionService {
       shouldChallengeStudent: decision.shouldChallengeStudent,
       shouldSlowDown: decision.shouldSlowDown,
       shouldRepairPrerequisite: decision.shouldRepairPrerequisite,
+      lecturerConstraintStrictness: args.lecturerConstraintContext?.strictness || 'medium',
       hybridMasteryResult: args.hybridMasteryResult ?? null,
     });
 
@@ -3897,6 +4104,11 @@ export class StudyCompanionService {
             id: true,
             title: true,
             course_code: true,
+            university: true,
+            faculty: true,
+            department: true,
+            level: true,
+            semester: true,
             content: true,
             reader_structure: true,
             teacher_brain: {
@@ -3955,8 +4167,19 @@ export class StudyCompanionService {
       state.current_section_index,
     );
     const studentLearningProfileContext = await this.loadStudentLearningProfileContext(state.user_id);
+    const lecturerConstraintContext = await this.loadLecturerConstraintsForSession(session);
 
-    return { session, material: session.material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext };
+    return {
+      session,
+      material: session.material,
+      state,
+      roadmap,
+      teacherBrain,
+      studentMemoryContext,
+      learningIntelligenceContext,
+      studentLearningProfileContext,
+      lecturerConstraintContext,
+    };
   }
 
   private sectionAt(roadmap: RoadmapSection[], index: number) {
@@ -4030,6 +4253,8 @@ export class StudyCompanionService {
       'Use the current section content as the source of truth.',
       'Use Teacher Brain for continuity, prerequisite awareness, exam angles, misconceptions, calculations, and diagram planning.',
       'Use the internal lesson plan to keep the teaching objective, sequence, checkpoints, and fallback reteach aligned.',
+      'Respect lecturer constraints when they are provided.',
+      'Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.',
       'Use retrieved material context only to support the current section.',
       'Do not let retrieved material override current section content.',
       'If retrieved context conflicts with the section, trust current section.',
@@ -4079,7 +4304,17 @@ export class StudyCompanionService {
   }
 
   async start(sessionId: string, mode: CompanionStartMode, sectionTitle?: string) {
-    const { session, material, state, roadmap, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext } = await this.loadSessionContext(sessionId);
+    const {
+      session,
+      material,
+      state,
+      roadmap,
+      teacherBrain,
+      studentMemoryContext,
+      learningIntelligenceContext,
+      studentLearningProfileContext,
+      lecturerConstraintContext,
+    } = await this.loadSessionContext(sessionId);
     if (!roadmap.length) {
       throw new Error('This material does not have a usable roadmap yet.');
     }
@@ -4163,6 +4398,7 @@ export class StudyCompanionService {
       relevantMaterialContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      lecturerConstraintContext,
       currentMasteryScore: state.last_mastery_score,
       lastMasteryScore: state.last_mastery_score,
     });
@@ -4178,6 +4414,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryContext.promptContext ? `Student memory context:\n${studentMemoryContext.promptContext}` : '',
+      lecturerConstraintContext?.promptContext ? `Lecturer constraint context:\n${lecturerConstraintContext.promptContext}` : '',
       lessonPlan.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       refreshQuestion ? `Before we continue, ask this refresh question first: ${refreshQuestion}` : 'This is a fresh section start.',
@@ -4185,6 +4422,7 @@ export class StudyCompanionService {
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
       lessonPlan.teachingSequence.length ? `Start with these opening sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(teachingDecision, { includeIntro: true, pass: 1 }).join('\n')}`,
+      lecturerConstraintContext?.promptContext ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.' : '',
       'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
     const introQualityTrace: TutorQualityTraceCapture = {
@@ -4318,6 +4556,7 @@ export class StudyCompanionService {
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
     studentMemoryPromptContext = '',
+    lecturerConstraintPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
     qualityTrace?: TutorQualityTraceCapture,
@@ -4371,6 +4610,7 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
+      lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
@@ -4385,6 +4625,7 @@ export class StudyCompanionService {
       pass === 3 && lessonPlan?.checkpointFocus.length ? `Checkpoint focus for this pass: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       modeInstructions,
       'Use student memory to adapt explanation. If the student previously struggled with a prerequisite, briefly refresh it. If calculation issues exist, slow down formula substitution. If diagram issues exist, use clearer mental visualization. Be encouraging, not judgmental.',
+      lecturerConstraintPromptContext ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.' : '',
       'End naturally without asking for permission to continue. Do not ask "do you understand", "are you ready", or any similar check-in.',
     ].join('\n\n');
 
@@ -4408,6 +4649,12 @@ export class StudyCompanionService {
     }
     if (relevantMaterialContext?.promptContext && contextMeta) {
       console.log('relevant_material_context_applied', {
+        ...contextMeta,
+        prompt: `teaching_pass_${pass}`,
+      });
+    }
+    if (lecturerConstraintPromptContext && contextMeta) {
+      console.log('lecturer_constraints_applied', {
         ...contextMeta,
         prompt: `teaching_pass_${pass}`,
       });
@@ -4654,6 +4901,7 @@ export class StudyCompanionService {
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lecturerConstraintPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     qualityTrace?: TutorQualityTraceCapture,
   ) {
@@ -4664,11 +4912,13 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       diagramContext.detected ? `Diagram context:\n${diagramContext.summary}` : '',
       `Section content:\n${truncate(section.content, 2800)}`,
       lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
+      lecturerConstraintPromptContext ? 'Respect lecturer constraints while asking for the teach-back.' : '',
       diagramContext.detected
         ? attemptNumber === 1
           ? 'Ask the student for Teach-Back 1. Tell them to explain the diagram or process in their own words as if they are drawing it from memory.'
@@ -4720,6 +4970,7 @@ export class StudyCompanionService {
     decision: TeachingDecision,
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+    lecturerConstraintPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     qualityTrace?: TutorQualityTraceCapture,
   ) {
@@ -4732,10 +4983,12 @@ export class StudyCompanionService {
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
+      lecturerConstraintPromptContext ? 'Respect lecturer constraints while deciding what the student should recall.' : '',
       'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
     ].join('\n\n');
     if (contextMeta) {
@@ -4774,6 +5027,7 @@ export class StudyCompanionService {
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     teacherBrainSectionContext?: TeacherBrainSectionContext,
+    lecturerConstraintPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
     options?: {
@@ -4815,9 +5069,16 @@ export class StudyCompanionService {
         prompt: 'gap_reteach',
       });
     }
+    if (lecturerConstraintPromptContext && contextMeta) {
+      console.log('lecturer_constraints_applied', {
+        ...contextMeta,
+        prompt: 'gap_reteach',
+      });
+    }
     const prompt = [
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
+      lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       lessonPlan?.promptContext ? `Lesson plan context:\n${lessonPlan.promptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       calculationContext.detected ? `Calculation context:\n${calculationContext.summary}` : '',
@@ -4827,6 +5088,7 @@ export class StudyCompanionService {
       options?.repairReason ? `Repair reason:\n${options.repairReason}` : '',
       lessonPlan?.fallbackPlan.length ? `Use this fallback plan: ${truncateList(lessonPlan.fallbackPlan, 5, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeReteach: true }).join('\n')}`,
+      lecturerConstraintPromptContext ? 'Respect lecturer constraints during this repair or reteach.' : '',
       options?.repairMode === 'medium_prerequisite_repair'
         ? [
           'Task: We need a short prerequisite repair before continuing.',
@@ -4878,6 +5140,7 @@ export class StudyCompanionService {
     teacherBrainContext = '',
     contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
     studentMemoryPromptContext = '',
+    lecturerConstraintPromptContext = '',
     relevantMaterialContext?: RelevantMaterialContext,
     qualityTrace?: TutorQualityTraceCapture,
   ) {
@@ -4885,10 +5148,12 @@ export class StudyCompanionService {
       `Section title: ${section.title}`,
       teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
       studentMemoryPromptContext ? `Student memory context:\n${studentMemoryPromptContext}` : '',
+      lecturerConstraintPromptContext ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}` : '',
       relevantMaterialContext?.promptContext ? `Relevant material context:\n${relevantMaterialContext.promptContext}` : '',
       `Section content:\n${truncate(section.content, 2600)}`,
       `Student interruption:\n${truncate(studentResponse, 600)}`,
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeInterrupt: true, includeCheckpoint: true }).join('\n')}`,
+      lecturerConstraintPromptContext ? 'Respect lecturer constraints while answering the interruption.' : '',
       'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
     ].join('\n\n');
 
@@ -4947,7 +5212,16 @@ export class StudyCompanionService {
   }
 
   async handleStudentReply(sessionId: string, studentResponse: string, options?: { interrupted?: boolean }) {
-    const { state, roadmap, material, teacherBrain, studentMemoryContext, learningIntelligenceContext, studentLearningProfileContext } = await this.loadSessionContext(sessionId);
+    const {
+      state,
+      roadmap,
+      material,
+      teacherBrain,
+      studentMemoryContext,
+      learningIntelligenceContext,
+      studentLearningProfileContext,
+      lecturerConstraintContext,
+    } = await this.loadSessionContext(sessionId);
     const section = this.sectionAt(roadmap, state.current_section_index);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, state.current_section_index, roadmap);
     const teacherBrainSectionContext = getTeacherBrainSectionContext(
@@ -4996,6 +5270,7 @@ export class StudyCompanionService {
       relevantMaterialContext,
       learningIntelligenceContext,
       studentLearningProfileContext,
+      lecturerConstraintContext,
       hybridMasteryResult: sectionContext.repairMode === 'medium_prerequisite_repair'
         ? {
           passedMastery: true,
@@ -5058,7 +5333,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -5083,7 +5358,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        const content = await this.buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_2,
@@ -5112,7 +5387,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -5138,7 +5413,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'teaching', 'teaching_pass_2', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+        const content = await this.buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
@@ -5167,7 +5442,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, relevantMaterialContext, qualityTrace);
+          const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -5194,7 +5469,7 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'teaching', 'teaching_pass_3', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lessonPlan, relevantMaterialContext, qualityTrace);
+          const content = await this.buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: PASS_3,
@@ -5221,7 +5496,7 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(TEACHBACK_1, 'checkpoint_question', 'teachback_prompt_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace);
+        const content = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -5420,7 +5695,7 @@ export class StudyCompanionService {
       }
 
       if (isInterrupt || !isAutoContinue) {
-        const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', relevantMaterialContext);
+        const content = await this.buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', lecturerConstraintContext?.promptContext || '', relevantMaterialContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -5449,6 +5724,7 @@ export class StudyCompanionService {
             teacherBrainContext,
             contextMeta,
             teacherBrainSectionContext,
+            lecturerConstraintContext?.promptContext || '',
             lessonPlan,
             relevantMaterialContext,
             {
@@ -5505,8 +5781,8 @@ export class StudyCompanionService {
         const aiStartedAt = Date.now();
         content =
           sectionContext.nextPromptKind === 'teachback_2'
-            ? await this.buildTeachBackPrompt(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan, qualityTrace)
-            : await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+            ? await this.buildTeachBackPrompt(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace)
+            : await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
       } catch (error) {
         await this.failTutorTrace(trace, error);
@@ -5541,7 +5817,7 @@ export class StudyCompanionService {
         let content;
         try {
           const aiStartedAt = Date.now();
-          content = await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lessonPlan, qualityTrace);
+          content = await this.buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
         } catch (error) {
           await this.failTutorTrace(trace, error);
@@ -5936,6 +6212,7 @@ export class StudyCompanionService {
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
           studentLearningProfileContext,
+          lecturerConstraintContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
@@ -5943,7 +6220,7 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, nextLessonPlan, nextRelevantMaterialContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -6019,6 +6296,7 @@ export class StudyCompanionService {
           relevantMaterialContext: nextRelevantMaterialContext,
           learningIntelligenceContext: nextLearningIntelligenceContext,
           studentLearningProfileContext,
+          lecturerConstraintContext,
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
@@ -6026,7 +6304,7 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, nextLessonPlan, nextRelevantMaterialContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext);
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
@@ -6062,7 +6340,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lessonPlan);
+    const fallback = await this.buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan);
     await this.persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,

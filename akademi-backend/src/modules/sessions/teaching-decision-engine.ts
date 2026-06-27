@@ -55,6 +55,12 @@ export type TeachingDecisionInput = {
   calculationSupportNeeded?: boolean;
   visualSupportNeeded?: boolean;
   confidenceSupportNeeded?: boolean;
+  lecturerConstraintContext?: string;
+  lecturerStrictness?: 'low' | 'medium' | 'high';
+  requiredMethods?: string[];
+  forbiddenMethods?: string[];
+  assessmentFocus?: string[];
+  mustCoverTopics?: string[];
   isCalculationHeavy?: boolean;
   isDiagramHeavy?: boolean;
   hybridMasteryResult?: {
@@ -111,6 +117,10 @@ function clampScore(value: number) {
 
 function uniqueItems(items: string[] | undefined) {
   return Array.from(new Set((items || []).map((item) => String(item || '').trim()).filter(Boolean)));
+}
+
+function hasMethod(items: string[] | undefined, pattern: RegExp) {
+  return uniqueItems(items).some((item) => pattern.test(item));
 }
 
 function inferLearningSignal(input: TeachingDecisionInput): LearningSignal {
@@ -170,6 +180,11 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const prerequisiteIssues = uniqueItems(input.prerequisiteIssues);
   const subjectFamily = String(input.subjectFamily || '').trim().toLowerCase();
   const signal = inferLearningSignal(input);
+  const requiredMethods = uniqueItems(input.requiredMethods);
+  const forbiddenMethods = uniqueItems(input.forbiddenMethods);
+  const assessmentFocus = uniqueItems(input.assessmentFocus);
+  const mustCoverTopics = uniqueItems(input.mustCoverTopics);
+  const lecturerStrictness = input.lecturerStrictness || 'medium';
 
   let strategy: TeachingStrategy = 'hybrid';
   let pace: TeachingPace = 'normal';
@@ -212,6 +227,11 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     reasons.push('student profile indicates confidence support is needed');
   }
 
+  if (lecturerStrictness === 'high') {
+    strategy = 'definition_first';
+    reasons.push('lecturer strictness is high');
+  }
+
   if (input.isCalculationHeavy) {
     strategy = 'worked_example_first';
     shouldUseWorkedExample = true;
@@ -236,6 +256,40 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     strategy = strategy === 'worked_example_first' ? 'hybrid' : 'visual_first';
     shouldUseVisualExplanation = true;
     reasons.push('visual-oriented subject family');
+  }
+
+  if (hasMethod(requiredMethods, /\bproof\b/)) {
+    strategy = strategy === 'worked_example_first' ? 'hybrid' : 'definition_first';
+    reasons.push('lecturer requires proof-first or definition-led teaching');
+  }
+
+  if (hasMethod(requiredMethods, /\bworked example\b|\bexample\b|\bcalculation steps\b/)) {
+    shouldUseWorkedExample = true;
+    shouldUseCalculationSteps = true;
+    if (!forbiddenMethods.some((item) => /\bworked example\b|\bexample\b/.test(item.toLowerCase()))) {
+      strategy = strategy === 'visual_first' ? 'hybrid' : 'worked_example_first';
+    }
+    reasons.push('lecturer requires worked examples');
+  }
+
+  if (hasMethod(requiredMethods, /\bdiagram\b|\bvisual\b|\bflowchart\b|\bgraph\b/)) {
+    shouldUseVisualExplanation = true;
+    reasons.push('lecturer requires diagrams or visual explanation');
+  }
+
+  if (hasMethod(forbiddenMethods, /\banalogy\b/)) {
+    shouldUseAnalogy = false;
+    if (strategy === 'analogy_first') {
+      strategy = shouldUseWorkedExample ? 'worked_example_first' : 'definition_first';
+    }
+    reasons.push('lecturer forbids analogy-led teaching');
+  }
+
+  if (hasMethod(forbiddenMethods, /\bproblem first\b/)) {
+    if (strategy === 'problem_first') {
+      strategy = 'definition_first';
+    }
+    reasons.push('lecturer forbids problem-first ordering');
   }
 
   if (prerequisiteIssues.length) {
@@ -320,6 +374,17 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     reasons.push('high retention risk');
   }
 
+  if (assessmentFocus.length) {
+    shouldUseExamFraming = true;
+    promptDirectives.push(`Assessment focus to respect: ${assessmentFocus.join(', ')}.`);
+    reasons.push('lecturer specified assessment focus');
+  }
+
+  if (mustCoverTopics.length) {
+    promptDirectives.push(`Must cover these topics before moving on: ${mustCoverTopics.join(', ')}.`);
+    reasons.push('lecturer specified must-cover topics');
+  }
+
   if (signal.masteryScore !== null && signal.masteryScore >= 85 && weakPoints.length <= 1 && misconceptions.length === 0) {
     pace = signal.masteryScore >= 92 ? 'fast' : 'normal';
     shouldChallengeStudent = true;
@@ -340,6 +405,10 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     signal.retentionRisk <= 40
   ) {
     pace = 'fast';
+  }
+
+  if (lecturerStrictness === 'high' && pace === 'fast') {
+    pace = 'normal';
   }
 
   if (profilePreferredStrategy === 'analogy_first' && strategy === 'worked_example_first') {
@@ -419,6 +488,9 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   if (shouldRepairPrerequisite && repairConcepts.length) {
     promptDirectives.push(`Briefly repair these prerequisites first: ${repairConcepts.join(', ')}.`);
   }
+  if (input.lecturerConstraintContext) {
+    promptDirectives.push('Respect lecturer constraints above soft personalization preferences when they conflict.');
+  }
 
   return {
     strategy,
@@ -448,6 +520,11 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       retention_risk: signal.retentionRisk,
       preferred_teaching_strategy: profilePreferredStrategy,
       preferred_pace: profilePreferredPace,
+      lecturer_strictness: lecturerStrictness,
+      required_method_count: requiredMethods.length,
+      forbidden_method_count: forbiddenMethods.length,
+      assessment_focus_count: assessmentFocus.length,
+      must_cover_topic_count: mustCoverTopics.length,
       lecturer_constraints_reserved: null,
     },
   };

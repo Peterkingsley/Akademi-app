@@ -167,6 +167,35 @@ export class MaterialsService {
     return Boolean(requestingUserId && material.uploaded_by === requestingUserId);
   }
 
+  private async ensureCanManageMaterialTeachingConstraints(materialId: string, requester: { userId: string; email?: string | null }) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    const material = await prisma.material.findUnique({
+      where: { id: materialId },
+      select: {
+        id: true,
+        title: true,
+        uploaded_by: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        semester: true,
+      },
+    });
+
+    if (!material) {
+      throw new Error('Material not found');
+    }
+
+    const isOwner = material.uploaded_by === requester.userId;
+    if (!isOwner && !adminRole) {
+      throw new Error('You are not allowed to manage teaching constraints for this material.');
+    }
+
+    return { material, adminRole, isOwner };
+  }
+
   private async ensureCourseCodeExistsForUpload(
     userId: string,
     payload: {
@@ -459,6 +488,166 @@ export class MaterialsService {
     }
 
     return backfillTeacherBrains(options);
+  }
+
+  async listTeachingConstraints(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const constraints = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findMany: (query: unknown) => Promise<unknown[]>;
+      };
+    }).lecturerTeachingConstraint.findMany({
+      where: {
+        material_id: materialId,
+        is_active: true,
+      },
+      orderBy: [{ updated_at: 'desc' }],
+    });
+    return { materialId, constraints };
+  }
+
+  async createTeachingConstraint(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+    input: Record<string, unknown>,
+  ) {
+    const { material } = await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const title = String(input.title || '').trim();
+    if (!title) {
+      throw new Error('Constraint title is required.');
+    }
+
+    const created = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        create: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.create({
+      data: {
+        material_id: materialId,
+        course_code: material.course_code,
+        university: material.university,
+        faculty: material.faculty,
+        department: material.department,
+        level: material.level,
+        semester: material.semester,
+        created_by: requester.userId,
+        title,
+        description: input.description ? String(input.description).trim() : null,
+        required_order: Array.isArray(input.required_order) ? input.required_order : [],
+        must_cover_topics: Array.isArray(input.must_cover_topics) ? input.must_cover_topics : [],
+        do_not_skip_topics: Array.isArray(input.do_not_skip_topics) ? input.do_not_skip_topics : [],
+        preferred_terminology: input.preferred_terminology && typeof input.preferred_terminology === 'object' ? input.preferred_terminology : {},
+        required_methods: Array.isArray(input.required_methods) ? input.required_methods : [],
+        forbidden_methods: Array.isArray(input.forbidden_methods) ? input.forbidden_methods : [],
+        assessment_focus: Array.isArray(input.assessment_focus) ? input.assessment_focus : [],
+        unit_policy: input.unit_policy ? String(input.unit_policy).trim() : null,
+        proof_policy: input.proof_policy ? String(input.proof_policy).trim() : null,
+        calculation_policy: input.calculation_policy ? String(input.calculation_policy).trim() : null,
+        diagram_policy: input.diagram_policy ? String(input.diagram_policy).trim() : null,
+        strictness: input.strictness ? String(input.strictness).trim().toLowerCase() : 'medium',
+        is_active: true,
+      },
+    });
+
+    console.log('lecturer_constraint_created', {
+      materialId,
+      createdBy: requester.userId,
+      title,
+    });
+    return created;
+  }
+
+  async updateTeachingConstraint(
+    materialId: string,
+    constraintId: string,
+    requester: { userId: string; email?: string | null },
+    input: Record<string, unknown>,
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const existing = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findFirst: (query: unknown) => Promise<{ id: string; material_id: string | null } | null>;
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.findFirst({
+      where: { id: constraintId, material_id: materialId, is_active: true },
+      select: { id: true, material_id: true },
+    });
+
+    if (!existing) {
+      throw new Error('Teaching constraint not found.');
+    }
+
+    const updated = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.update({
+      where: { id: constraintId },
+      data: {
+        title: input.title !== undefined ? String(input.title || '').trim() : undefined,
+        description: input.description !== undefined ? (input.description ? String(input.description).trim() : null) : undefined,
+        required_order: Array.isArray(input.required_order) ? input.required_order : undefined,
+        must_cover_topics: Array.isArray(input.must_cover_topics) ? input.must_cover_topics : undefined,
+        do_not_skip_topics: Array.isArray(input.do_not_skip_topics) ? input.do_not_skip_topics : undefined,
+        preferred_terminology: input.preferred_terminology && typeof input.preferred_terminology === 'object' ? input.preferred_terminology : undefined,
+        required_methods: Array.isArray(input.required_methods) ? input.required_methods : undefined,
+        forbidden_methods: Array.isArray(input.forbidden_methods) ? input.forbidden_methods : undefined,
+        assessment_focus: Array.isArray(input.assessment_focus) ? input.assessment_focus : undefined,
+        unit_policy: input.unit_policy !== undefined ? (input.unit_policy ? String(input.unit_policy).trim() : null) : undefined,
+        proof_policy: input.proof_policy !== undefined ? (input.proof_policy ? String(input.proof_policy).trim() : null) : undefined,
+        calculation_policy: input.calculation_policy !== undefined ? (input.calculation_policy ? String(input.calculation_policy).trim() : null) : undefined,
+        diagram_policy: input.diagram_policy !== undefined ? (input.diagram_policy ? String(input.diagram_policy).trim() : null) : undefined,
+        strictness: input.strictness !== undefined ? String(input.strictness || 'medium').trim().toLowerCase() : undefined,
+      },
+    });
+
+    console.log('lecturer_constraint_updated', {
+      materialId,
+      constraintId,
+      updatedBy: requester.userId,
+    });
+    return updated;
+  }
+
+  async disableTeachingConstraint(
+    materialId: string,
+    constraintId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const existing = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findFirst: (query: unknown) => Promise<{ id: string } | null>;
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.findFirst({
+      where: { id: constraintId, material_id: materialId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new Error('Teaching constraint not found.');
+    }
+
+    const disabled = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.update({
+      where: { id: constraintId },
+      data: { is_active: false },
+    });
+
+    console.log('lecturer_constraint_disabled', {
+      materialId,
+      constraintId,
+      disabledBy: requester.userId,
+    });
+    return disabled;
   }
 
   async createUpload(userId: string, data: UploadMaterialRequest) {
