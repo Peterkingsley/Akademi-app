@@ -14,6 +14,7 @@ router.use(generalAuthenticatedApiLimiter);
 
 router.get('/', materialsController.list);
 router.get('/pending', materialsController.getPending);
+router.get('/intelligence/audit', materialsController.auditMaterialIntelligence);
 router.post('/teacher-brain/backfill', materialsController.backfillTeacherBrains);
 router.get('/:id', materialsController.getOne);
 router.get('/:id/teacher-brain', materialsController.getTeacherBrain);

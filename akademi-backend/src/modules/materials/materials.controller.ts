@@ -164,6 +164,27 @@ export class MaterialsController {
     }
   }
 
+  async auditMaterialIntelligence(req: Request, res: Response) {
+    try {
+      const result = await materialsService.auditMaterialIntelligenceReadiness(
+        {
+          userId: req.user!.userId,
+          email: req.user!.email,
+        },
+        {
+          limit: req.query.limit ? Number(req.query.limit) : undefined,
+          courseCode: req.query.courseCode ? String(req.query.courseCode) : undefined,
+          department: req.query.department ? String(req.query.department) : undefined,
+          status: req.query.status ? String(req.query.status) : undefined,
+          missingOnly: String(req.query.missingOnly || '').toLowerCase() === 'true',
+        },
+      );
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(403).json({ message: error.message });
+    }
+  }
+
   async listTeachingConstraints(req: Request, res: Response) {
     try {
       const result = await materialsService.listTeachingConstraints(req.params.id, {

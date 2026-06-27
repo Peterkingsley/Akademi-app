@@ -517,6 +517,112 @@ export class MaterialsService {
     return backfillTeacherBrains(options);
   }
 
+  async auditMaterialIntelligenceReadiness(
+    requester: { userId: string; email?: string | null },
+    options?: {
+      limit?: number;
+      courseCode?: string;
+      department?: string;
+      status?: string;
+      missingOnly?: boolean;
+    },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    if (!adminRole) {
+      throw new Error('Only admins can audit material intelligence readiness.');
+    }
+
+    const limit = Math.min(Math.max(Number(options?.limit) || 50, 1), 200);
+    const status = String(options?.status || '').trim().toUpperCase();
+
+    const materials = await prisma.material.findMany({
+      where: {
+        ...(options?.courseCode ? { course_code: options.courseCode } : {}),
+        ...(options?.department ? { department: options.department } : {}),
+        ...(status ? { processing_status: status as any } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        course_code: true,
+        department: true,
+        level: true,
+        file_type: true,
+        processing_status: true as any,
+        content: true,
+        reader_structure: true,
+        teacher_brain: {
+          select: {
+            generated_at: true,
+            subject_family: true,
+          },
+        },
+        _count: {
+          select: {
+            embeddings: true,
+          },
+        },
+      },
+    });
+
+    const audited = materials.map((material) => {
+      const contentText = String(material.content || '');
+      const pages = Array.isArray((material.reader_structure as { pages?: unknown[] } | null)?.pages)
+        ? ((material.reader_structure as { pages: unknown[] }).pages)
+        : [];
+      const hasContent = contentText.trim().length > 0;
+      const hasReaderStructure = pages.length > 0;
+      const embeddingCount = material._count.embeddings;
+      const hasTeacherBrain = Boolean(material.teacher_brain);
+      const hasExtractedStatus = material.processing_status === 'EXTRACTED';
+      const missingArtifacts = [
+        ...(hasContent ? [] : ['content']),
+        ...(hasReaderStructure ? [] : ['reader_structure']),
+        ...(embeddingCount > 0 ? [] : ['embeddings']),
+        ...(hasTeacherBrain ? [] : ['teacher_brain']),
+        ...(hasExtractedStatus ? [] : ['extracted_status']),
+      ];
+
+      const readinessStatus = material.processing_status === 'FAILED'
+        ? 'FAILED_PROCESSING'
+        : missingArtifacts.length === 0
+          ? 'READY'
+          : 'INCOMPLETE';
+
+      return {
+        id: material.id,
+        title: material.title,
+        course_code: material.course_code,
+        department: material.department,
+        level: material.level,
+        file_type: material.file_type,
+        processing_status: material.processing_status,
+        hasContent,
+        contentLength: contentText.length,
+        hasReaderStructure,
+        readerPageCount: pages.length,
+        embeddingCount,
+        hasTeacherBrain,
+        teacherBrainGeneratedAt: material.teacher_brain?.generated_at || null,
+        teacherBrainSubjectFamily: material.teacher_brain?.subject_family || null,
+        readinessStatus,
+        missingArtifacts,
+      };
+    }).filter((material) => {
+      if (options?.missingOnly !== true) return true;
+      return material.readinessStatus !== 'READY';
+    });
+
+    return {
+      totalChecked: audited.length,
+      readyCount: audited.filter((material) => material.readinessStatus === 'READY').length,
+      incompleteCount: audited.filter((material) => material.readinessStatus !== 'READY').length,
+      materials: audited,
+    };
+  }
+
   async listTeachingConstraints(
     materialId: string,
     requester: { userId: string; email?: string | null },
