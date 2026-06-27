@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../../config/db';
 import { aiProvider } from '../ai/ai.provider';
+import { buildReaderStructure, normalizeExtractedText } from './reader-structure';
 
 type ReaderStructurePage = {
   chapterTitle?: string;
@@ -24,6 +25,21 @@ type TeacherBrainRecord = {
   confidence: number;
 };
 
+type CompatibilityMaterialRecord = {
+  id: string;
+  title: string;
+  course_code: string | null;
+  university: string;
+  faculty: string;
+  department: string;
+  level: number;
+  file_ref: string;
+  file_type: string;
+  processing_status: 'UPLOADED' | 'QUEUED' | 'EXTRACTING' | 'EXTRACTED' | 'FAILED';
+  content: string | null;
+  reader_structure: unknown;
+};
+
 const SUBJECT_FAMILIES = [
   'mathematics',
   'statistics',
@@ -39,10 +55,20 @@ const SUBJECT_FAMILIES = [
   'general',
 ] as const;
 
+const EMBEDDING_BATCH_SIZE = Math.max(Number(process.env.MATERIAL_EMBEDDING_BATCH_SIZE || 5), 1);
+
 function clampConfidence(value: unknown) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return 50;
   return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function chunkText(text: string, size: number): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += size) {
+    chunks.push(text.substring(i, i + size));
+  }
+  return chunks;
 }
 
 function safeObject(value: unknown, fallback: Record<string, unknown> = {}) {
@@ -73,6 +99,22 @@ function summarizeSections(readerStructure: unknown) {
   });
 
   return sections.slice(0, 20);
+}
+
+function hasReaderImageBlocks(readerStructure: unknown) {
+  const pages = Array.isArray((readerStructure as { pages?: unknown[] })?.pages)
+    ? ((readerStructure as { pages: unknown[] }).pages as Array<{ blocks?: unknown[] }>)
+    : [];
+
+  return pages.some((page) =>
+    Array.isArray(page.blocks) && page.blocks.some((block) => {
+      const item = block as { type?: unknown; src?: unknown };
+      return item?.type === 'image' && typeof item?.src === 'string' && item.src.trim().length > 0;
+    }));
+}
+
+function contentSuggestsFigures(content: string) {
+  return /(figure\s*\d+|diagram|chart|graph|illustration|image)/i.test(content);
 }
 
 function inferSubjectFamily(material: {
@@ -296,6 +338,144 @@ async function loadMaterialForTeacherBrain(materialId: string) {
   });
 }
 
+async function rebuildMaterialEmbeddings(materialId: string, content: string) {
+  const normalizedContent = normalizeExtractedText(content);
+  if (!normalizedContent) return 0;
+
+  const chunks = chunkText(normalizedContent, 2000);
+  await prisma.materialEmbedding.deleteMany({
+    where: { material_id: materialId },
+  });
+
+  let created = 0;
+  for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
+    const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
+    const vectors = await Promise.all(batch.map((chunk) => aiProvider.generateEmbedding(chunk)));
+    await prisma.materialEmbedding.createMany({
+      data: batch.map((chunk, batchIndex) => ({
+        material_id: materialId,
+        chunk_index: i + batchIndex,
+        chunk_text: chunk,
+        embedding: vectors[batchIndex] as unknown as Prisma.InputJsonValue,
+      })),
+    });
+    created += batch.length;
+  }
+
+  return created;
+}
+
+async function ensureMaterialStudyCompanionCompatibility(materialId: string) {
+  const actions: string[] = [];
+
+  const loadMaterial = async () => prisma.material.findUnique({
+    where: { id: materialId },
+    select: {
+      id: true,
+      title: true,
+      course_code: true,
+      university: true,
+      faculty: true,
+      department: true,
+      level: true,
+      file_ref: true,
+      file_type: true,
+      processing_status: true as any,
+      content: true,
+      reader_structure: true,
+    } as any,
+  }) as Promise<CompatibilityMaterialRecord | null>;
+
+  let material = await loadMaterial();
+  if (!material) {
+    throw new Error('Material not found.');
+  }
+
+  const shouldReingestForContent = !material.content?.trim() && Boolean(material.file_ref);
+  const shouldReingestLegacyDoc =
+    material.file_type === 'DOC' &&
+    Boolean(material.content?.trim()) &&
+    contentSuggestsFigures(material.content || '') &&
+    !hasReaderImageBlocks(material.reader_structure);
+
+  if (shouldReingestForContent || shouldReingestLegacyDoc) {
+    const { ingestMaterialJob } = await import('../../jobs/ingestMaterial.job');
+    await ingestMaterialJob(materialId);
+    actions.push(shouldReingestForContent ? 'reingested_missing_content' : 'reingested_legacy_doc_reader_structure');
+    material = await loadMaterial();
+    if (!material) {
+      throw new Error('Material not found after compatibility re-ingest.');
+    }
+  }
+
+  if (!material.content?.trim()) {
+    throw new Error('Material content is required for compatibility backfill.');
+  }
+
+  const normalizedContent = normalizeExtractedText(material.content);
+  if (normalizedContent !== material.content) {
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        content: normalizedContent,
+      },
+    });
+    actions.push('normalized_content');
+    material = await loadMaterial();
+    if (!material) {
+      throw new Error('Material not found after content normalization.');
+    }
+  }
+
+  if (!material.reader_structure) {
+    const readerStructure = buildReaderStructure(normalizedContent);
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        reader_structure: readerStructure as unknown as Prisma.InputJsonValue,
+        processing_status: 'EXTRACTED' as any,
+      } as any,
+    });
+    actions.push('rebuilt_reader_structure');
+    material = await loadMaterial();
+    if (!material) {
+      throw new Error('Material not found after reader structure rebuild.');
+    }
+  }
+
+  const expectedChunks = chunkText(normalizedContent, 2000);
+  const currentEmbeddings = await prisma.materialEmbedding.findMany({
+    where: { material_id: materialId },
+    select: {
+      chunk_index: true,
+      chunk_text: true,
+    },
+    orderBy: { chunk_index: 'asc' },
+  });
+
+  const embeddingsMatch =
+    currentEmbeddings.length === expectedChunks.length &&
+    currentEmbeddings.every((embedding, index) => embedding.chunk_index === index && embedding.chunk_text === expectedChunks[index]);
+
+  if (!embeddingsMatch) {
+    await rebuildMaterialEmbeddings(materialId, normalizedContent);
+    actions.push(currentEmbeddings.length ? 'rebuilt_embeddings' : 'generated_embeddings');
+  }
+
+  if (material.processing_status !== 'EXTRACTED') {
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        processing_status: 'EXTRACTED' as any,
+        processing_error: null,
+      } as any,
+    });
+    actions.push('marked_extracted');
+  }
+
+  return { actions };
+}
+
 export async function createFallbackTeacherBrain(materialId: string) {
   const material = await prisma.material.findUnique({
     where: { id: materialId },
@@ -485,9 +665,11 @@ export async function backfillTeacherBrains(options?: {
 
   const materials = await prisma.material.findMany({
     where: {
-      processing_status: 'EXTRACTED' as any,
-      content: { not: null },
-      reader_structure: { not: Prisma.DbNull },
+      file_ref: { not: '' },
+      OR: [
+        { processing_status: 'EXTRACTED' as any },
+        { content: { not: null } },
+      ],
       ...(options?.courseCode ? { course_code: options.courseCode } : {}),
       ...(options?.department ? { department: options.department } : {}),
       ...(options?.subjectFamily
@@ -496,13 +678,6 @@ export async function backfillTeacherBrains(options?: {
               is: {
                 subject_family: options.subjectFamily,
               },
-            },
-          }
-        : {}),
-      ...(missingOnly
-        ? {
-            teacher_brain: {
-              is: null,
             },
           }
         : {}),
@@ -519,6 +694,7 @@ export async function backfillTeacherBrains(options?: {
 
   const result = {
     scanned: materials.length,
+    compatibilityRepaired: 0,
     generated: 0,
     skipped: 0,
     failed: 0,
@@ -526,12 +702,17 @@ export async function backfillTeacherBrains(options?: {
   };
 
   for (const material of materials) {
-    if (material.teacher_brain && !force) {
-      result.skipped += 1;
-      continue;
-    }
-
     try {
+      const compatibility = await ensureMaterialStudyCompanionCompatibility(material.id);
+      if (compatibility.actions.length) {
+        result.compatibilityRepaired += 1;
+      }
+
+      if (material.teacher_brain && !force) {
+        result.skipped += 1;
+        continue;
+      }
+
       await regenerateTeacherBrain(material.id, { force });
       result.generated += 1;
     } catch (error) {
@@ -547,6 +728,7 @@ export async function backfillTeacherBrains(options?: {
 
   console.log('teacher_brain_backfill_completed', {
     scanned: result.scanned,
+    compatibilityRepaired: result.compatibilityRepaired,
     generated: result.generated,
     skipped: result.skipped,
     failed: result.failed,
