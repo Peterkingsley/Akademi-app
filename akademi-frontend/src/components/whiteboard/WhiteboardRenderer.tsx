@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import { StaticWhiteboardRenderer } from "./StaticWhiteboardRenderer";
+import { WebViewWhiteboardRenderer } from "./WebViewWhiteboardRenderer";
 import { WhiteboardPlan, WhiteboardRendererMode } from "./types";
 
 type WhiteboardRendererProps = {
@@ -15,9 +16,8 @@ type WhiteboardRendererProps = {
 
 const modes: WhiteboardRendererMode[] = ["static", "svg", "webview", "skia"];
 
-const placeholderCopy: Record<Exclude<WhiteboardRendererMode, "static">, string> = {
+const placeholderCopy: Record<Exclude<WhiteboardRendererMode, "static" | "webview">, string> = {
   svg: "SVG renderer coming next",
-  webview: "WebView renderer coming next",
   skia: "Skia renderer coming next",
 };
 
@@ -51,6 +51,8 @@ export const WhiteboardRenderer: React.FC<WhiteboardRendererProps> = ({
 
       {mode === "static" ? (
         <StaticWhiteboardRenderer plan={plan} />
+      ) : mode === "webview" ? (
+        <WebViewWhiteboardRenderer plan={plan} autoPlay />
       ) : (
         <View style={styles.placeholderCard}>
           <Text style={styles.placeholderTitle}>{placeholderCopy[mode]}</Text>

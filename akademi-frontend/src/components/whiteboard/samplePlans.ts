@@ -40,6 +40,14 @@ export const sampleLimitWhiteboardPlan: WhiteboardPlan = {
           durationMs: 800,
         },
         {
+          id: "guide-arrow",
+          type: "draw_arrow",
+          from: { x: 320, y: 165 },
+          to: { x: 440, y: 165 },
+          color: "#60A5FA",
+          durationMs: 450,
+        },
+        {
           id: "write-conjugate",
           type: "write_math",
           latex: String.raw`\frac{\sqrt{x} - 2}{x - 4} \times \frac{\sqrt{x} + 2}{\sqrt{x} + 2}`,
@@ -76,6 +84,13 @@ export const sampleLimitWhiteboardPlan: WhiteboardPlan = {
           x: 48,
           y: 360,
           durationMs: 900,
+        },
+        {
+          id: "highlight-after-cancel",
+          type: "highlight",
+          targetId: "write-after-cancel",
+          color: "rgba(250, 204, 21, 0.35)",
+          durationMs: 350,
         },
       ],
     },
