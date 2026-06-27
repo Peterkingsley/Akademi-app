@@ -167,6 +167,33 @@ export class MaterialsService {
     return Boolean(requestingUserId && material.uploaded_by === requestingUserId);
   }
 
+  private sanitizeConstraintStringList(value: unknown, limit = 12) {
+    return Array.isArray(value)
+      ? value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, limit)
+      : [];
+  }
+
+  private sanitizeConstraintTerminology(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, item]) => [String(key || '').trim(), String(item || '').trim()] as const)
+        .filter(([key, item]) => key && item)
+        .slice(0, 12),
+    );
+  }
+
+  private normalizeConstraintStrictness(value: unknown) {
+    const normalized = String(value || 'medium').trim().toLowerCase();
+    return ['low', 'medium', 'high'].includes(normalized) ? normalized : 'medium';
+  }
+
   private async ensureCanManageMaterialTeachingConstraints(materialId: string, requester: { userId: string; email?: string | null }) {
     const adminRole = await this.getAdminRoleByEmail(requester.email);
     const material = await prisma.material.findUnique({
@@ -536,18 +563,18 @@ export class MaterialsService {
         created_by: requester.userId,
         title,
         description: input.description ? String(input.description).trim() : null,
-        required_order: Array.isArray(input.required_order) ? input.required_order : [],
-        must_cover_topics: Array.isArray(input.must_cover_topics) ? input.must_cover_topics : [],
-        do_not_skip_topics: Array.isArray(input.do_not_skip_topics) ? input.do_not_skip_topics : [],
-        preferred_terminology: input.preferred_terminology && typeof input.preferred_terminology === 'object' ? input.preferred_terminology : {},
-        required_methods: Array.isArray(input.required_methods) ? input.required_methods : [],
-        forbidden_methods: Array.isArray(input.forbidden_methods) ? input.forbidden_methods : [],
-        assessment_focus: Array.isArray(input.assessment_focus) ? input.assessment_focus : [],
+        required_order: this.sanitizeConstraintStringList(input.required_order),
+        must_cover_topics: this.sanitizeConstraintStringList(input.must_cover_topics),
+        do_not_skip_topics: this.sanitizeConstraintStringList(input.do_not_skip_topics),
+        preferred_terminology: this.sanitizeConstraintTerminology(input.preferred_terminology),
+        required_methods: this.sanitizeConstraintStringList(input.required_methods),
+        forbidden_methods: this.sanitizeConstraintStringList(input.forbidden_methods),
+        assessment_focus: this.sanitizeConstraintStringList(input.assessment_focus),
         unit_policy: input.unit_policy ? String(input.unit_policy).trim() : null,
         proof_policy: input.proof_policy ? String(input.proof_policy).trim() : null,
         calculation_policy: input.calculation_policy ? String(input.calculation_policy).trim() : null,
         diagram_policy: input.diagram_policy ? String(input.diagram_policy).trim() : null,
-        strictness: input.strictness ? String(input.strictness).trim().toLowerCase() : 'medium',
+        strictness: this.normalizeConstraintStrictness(input.strictness),
         is_active: true,
       },
     });
@@ -590,18 +617,18 @@ export class MaterialsService {
       data: {
         title: input.title !== undefined ? String(input.title || '').trim() : undefined,
         description: input.description !== undefined ? (input.description ? String(input.description).trim() : null) : undefined,
-        required_order: Array.isArray(input.required_order) ? input.required_order : undefined,
-        must_cover_topics: Array.isArray(input.must_cover_topics) ? input.must_cover_topics : undefined,
-        do_not_skip_topics: Array.isArray(input.do_not_skip_topics) ? input.do_not_skip_topics : undefined,
-        preferred_terminology: input.preferred_terminology && typeof input.preferred_terminology === 'object' ? input.preferred_terminology : undefined,
-        required_methods: Array.isArray(input.required_methods) ? input.required_methods : undefined,
-        forbidden_methods: Array.isArray(input.forbidden_methods) ? input.forbidden_methods : undefined,
-        assessment_focus: Array.isArray(input.assessment_focus) ? input.assessment_focus : undefined,
+        required_order: input.required_order !== undefined ? this.sanitizeConstraintStringList(input.required_order) : undefined,
+        must_cover_topics: input.must_cover_topics !== undefined ? this.sanitizeConstraintStringList(input.must_cover_topics) : undefined,
+        do_not_skip_topics: input.do_not_skip_topics !== undefined ? this.sanitizeConstraintStringList(input.do_not_skip_topics) : undefined,
+        preferred_terminology: input.preferred_terminology !== undefined ? this.sanitizeConstraintTerminology(input.preferred_terminology) : undefined,
+        required_methods: input.required_methods !== undefined ? this.sanitizeConstraintStringList(input.required_methods) : undefined,
+        forbidden_methods: input.forbidden_methods !== undefined ? this.sanitizeConstraintStringList(input.forbidden_methods) : undefined,
+        assessment_focus: input.assessment_focus !== undefined ? this.sanitizeConstraintStringList(input.assessment_focus) : undefined,
         unit_policy: input.unit_policy !== undefined ? (input.unit_policy ? String(input.unit_policy).trim() : null) : undefined,
         proof_policy: input.proof_policy !== undefined ? (input.proof_policy ? String(input.proof_policy).trim() : null) : undefined,
         calculation_policy: input.calculation_policy !== undefined ? (input.calculation_policy ? String(input.calculation_policy).trim() : null) : undefined,
         diagram_policy: input.diagram_policy !== undefined ? (input.diagram_policy ? String(input.diagram_policy).trim() : null) : undefined,
-        strictness: input.strictness !== undefined ? String(input.strictness || 'medium').trim().toLowerCase() : undefined,
+        strictness: input.strictness !== undefined ? this.normalizeConstraintStrictness(input.strictness) : undefined,
       },
     });
 

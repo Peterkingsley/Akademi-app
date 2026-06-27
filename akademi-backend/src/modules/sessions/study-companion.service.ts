@@ -2637,6 +2637,15 @@ export class StudyCompanionService {
           where: { user_id: userId, material_id: materialId, course_code: courseCode },
           orderBy: { created_at: 'desc' },
           take: 10,
+          select: {
+            strategy_used: true,
+            pace_used: true,
+            mastery_score: true,
+            hidden_confusion_risk: true,
+            confidence: true,
+            recommended_interventions: true,
+            created_at: true,
+          },
         }),
         (prisma as typeof prisma & {
           learningIntelligenceRecord: { findMany: (query: unknown) => Promise<LearningIntelligenceRecordRow[]> };
@@ -2644,6 +2653,12 @@ export class StudyCompanionService {
           where: { user_id: userId, material_id: materialId, course_code: courseCode },
           orderBy: { created_at: 'desc' },
           take: 10,
+          select: {
+            mastery_score: true,
+            confidence: true,
+            hidden_confusion_risk: true,
+            created_at: true,
+          },
         }),
         (prisma as typeof prisma & {
           studentMaterialMemory: { findMany: (query: unknown) => Promise<StudentMaterialMemoryRow[]> };
@@ -2651,6 +2666,11 @@ export class StudyCompanionService {
           where: { user_id: userId, material_id: materialId, course_code: courseCode },
           orderBy: { updated_at: 'desc' },
           take: 10,
+          select: {
+            weak_points: true,
+            misconceptions: true,
+            updated_at: true,
+          },
         }),
         prisma.learningProfile.findUnique({
           where: { user_id: userId },
