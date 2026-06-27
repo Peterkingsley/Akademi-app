@@ -10,6 +10,7 @@ export const JOB_NAMES = {
   GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
+  POST_ASSESSMENT_INTELLIGENCE: 'POST_ASSESSMENT_INTELLIGENCE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -17,6 +18,17 @@ type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 type JobPayload = {
   materialId?: string;
   sessionId?: string;
+  companionStateId?: string;
+  userId?: string;
+  courseCode?: string;
+  sectionIndex?: number;
+  sectionTitle?: string;
+  masteryScore?: number;
+  masteryStatus?: 'PASSED' | 'FAILED';
+  failedConcepts?: string[];
+  teachingDecisionSnapshot?: Record<string, unknown>;
+  calculationContextSnapshot?: string;
+  diagramContextSnapshot?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -67,6 +79,7 @@ const markQueueFailure = (error: unknown) => {
 const BACKGROUND_JOB_NAMES = new Set<JobName>([
   JOB_NAMES.INGEST_MATERIAL,
   JOB_NAMES.ASSEMBLE_CHUNKS,
+  JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE,
 ]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
@@ -132,6 +145,28 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {
       const { activateTournamentsJob } = await import('../jobs/activateTournaments.job');
       await activateTournamentsJob();
+      return;
+    }
+    case JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE: {
+      if (!payload.sessionId || !payload.companionStateId || !payload.userId || !payload.materialId || !payload.courseCode || payload.sectionIndex === undefined || !payload.sectionTitle) {
+        throw new Error('POST_ASSESSMENT_INTELLIGENCE requires session, companion, user, material, course, and section fields');
+      }
+      const { postAssessmentIntelligenceJob } = await import('../jobs/postAssessmentIntelligence.job');
+      await postAssessmentIntelligenceJob({
+        sessionId: payload.sessionId,
+        companionStateId: payload.companionStateId,
+        userId: payload.userId,
+        materialId: payload.materialId,
+        courseCode: payload.courseCode,
+        sectionIndex: payload.sectionIndex,
+        sectionTitle: payload.sectionTitle,
+        masteryScore: Number(payload.masteryScore || 0),
+        masteryStatus: payload.masteryStatus === 'FAILED' ? 'FAILED' : 'PASSED',
+        failedConcepts: Array.isArray(payload.failedConcepts) ? payload.failedConcepts : [],
+        teachingDecisionSnapshot: payload.teachingDecisionSnapshot,
+        calculationContextSnapshot: payload.calculationContextSnapshot,
+        diagramContextSnapshot: payload.diagramContextSnapshot,
+      });
       return;
     }
     default:

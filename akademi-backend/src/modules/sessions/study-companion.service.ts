@@ -8,6 +8,7 @@ import {
   StudyRoadmapStatus,
 } from '@prisma/client';
 import prisma from '../../config/db';
+import { JOB_NAMES, systemQueue } from '../../config/queue';
 import { aiProvider } from '../ai/ai.provider';
 import { decideTeachingStrategy, TeachingDecision, TeachingPace, TeachingStrategy } from './teaching-decision-engine';
 
@@ -409,6 +410,22 @@ type LearningIntelligenceContext = {
     mainReason: string | null;
     signals: string[];
   };
+};
+
+type PostAssessmentIntelligencePayload = {
+  sessionId: string;
+  companionStateId: string;
+  userId: string;
+  materialId: string;
+  courseCode: string;
+  sectionIndex: number;
+  sectionTitle: string;
+  masteryScore: number;
+  masteryStatus: 'PASSED' | 'FAILED';
+  failedConcepts: string[];
+  teachingDecisionSnapshot?: Record<string, unknown>;
+  calculationContextSnapshot?: string;
+  diagramContextSnapshot?: string;
 };
 
 type StudentLearningProfileContext = {
@@ -1793,6 +1810,10 @@ function isTeachingStrategy(value: string | null | undefined): value is Teaching
 
 function isTeachingPace(value: string | null | undefined): value is TeachingPace {
   return ['slow', 'normal', 'fast'].includes(String(value || ''));
+}
+
+function isPrerequisiteRepairMode(value: string | null | undefined): value is TeachingDecision['prerequisiteRepairMode'] {
+  return ['none', 'quick_refresh', 'medium_repair', 'full_reteach'].includes(String(value || ''));
 }
 
 function cosineSimilarity(a: number[], b: number[]) {
@@ -3736,6 +3757,325 @@ export class StudyCompanionService {
       });
       return record;
     }
+  }
+
+  private async buildImmediateLearningIntelligenceContext(args: {
+    sessionId: string;
+    sectionIndex: number;
+    sectionTitle: string;
+    sectionContent: string;
+    score: number;
+    passed: boolean;
+    failedConcepts: string[];
+    calculationContext: CalculationTeachingContext;
+    diagramContext: DiagramTeachingContext;
+    studentMemoryContext: StudentMemoryContext;
+    latestStudentMemory?: StudentMaterialMemoryRow | null;
+    teachBackAttempts: Array<{ student_response: string; evaluation: string; score: number }>;
+    memoryDumpEvaluation: { studentResponse: string; evaluation: string; score: number };
+  }): Promise<LearningIntelligenceContext> {
+    const memoryRecord = args.latestStudentMemory ? parseStudentMemoryRecord(args.latestStudentMemory) : null;
+    const averageTeachBack =
+      args.teachBackAttempts.length > 0
+        ? Math.round(args.teachBackAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / args.teachBackAttempts.length)
+        : args.score;
+    const shortAnswerRisk = args.teachBackAttempts.some((attempt) => attempt.student_response.trim().split(/\s+/).filter(Boolean).length < 18);
+    const calculationIssues = memoryRecord?.calculationIssues || [];
+    const diagramIssues = memoryRecord?.diagramIssues || [];
+    const prerequisiteWeakness = inferPrerequisiteWeaknessFromFailedConcepts(args.failedConcepts);
+    const recentTutorTrace = await (prisma as typeof prisma & {
+      tutorTurnTrace: {
+        findFirst: (query: unknown) => Promise<{ quality_issues: unknown } | null>;
+      };
+    }).tutorTurnTrace.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        quality_issues: true,
+      },
+    });
+    const hiddenConfusionEstimate = estimateHiddenConfusionRisk({
+      sectionTitle: args.sectionTitle,
+      sectionContent: args.sectionContent,
+      masteryScore: args.score,
+      masteryThreshold: 80,
+      teachBackAttempts: args.teachBackAttempts,
+      memoryDumpEvaluation: args.memoryDumpEvaluation,
+      failedConcepts: args.failedConcepts,
+      studentMemoryContext: args.studentMemoryContext,
+      latestStudentMemory: args.latestStudentMemory,
+      latestLearningIntelligenceContext: null,
+      traceQualityIssues: safeStringArray(recentTutorTrace?.quality_issues),
+      calculationContext: args.calculationContext,
+      diagramContext: args.diagramContext,
+    });
+
+    const hiddenConfusionRisk = clampReflectionScore(Math.max(
+      hiddenConfusionEstimate.risk,
+      (args.passed ? 30 : 60) + args.failedConcepts.length * 8 + (shortAnswerRisk ? 10 : 0) + (args.score <= 84 ? 8 : 0),
+    ));
+
+    return {
+      masteryScore: args.score,
+      conceptUnderstanding: clampReflectionScore(args.score),
+      proceduralAccuracy: clampReflectionScore(args.score - (calculationIssues.length ? 15 : 0)),
+      reasoningQuality: clampReflectionScore(averageTeachBack - Math.max(0, 70 - averageTeachBack) * 0.4),
+      confidence: clampReflectionScore(args.score - Math.max(0, averageTeachBack - args.memoryDumpEvaluation.score) - (args.failedConcepts.length * 4)),
+      hiddenConfusionRisk,
+      hiddenConfusionLevel: hiddenConfusionEstimate.level,
+      hiddenConfusionSignals: hiddenConfusionEstimate.signals,
+      recommendedConfusionIntervention: hiddenConfusionEstimate.recommendedIntervention,
+      retentionRisk: clampReflectionScore((100 - args.memoryDumpEvaluation.score) * 0.7 + (args.memoryDumpEvaluation.score < averageTeachBack ? 10 : 0)),
+      calculationWeakness: calculationIssues.length > 0 || (args.calculationContext.detected && args.score < 75),
+      diagramWeakness: diagramIssues.length > 0 || (args.diagramContext.detected && args.score < 75),
+      prerequisiteWeakness,
+      recommendedAction: args.score < 80
+        ? 'Reteach with slower pacing, prerequisite refresh, and one targeted worked example.'
+        : 'Reinforce retention with a short recap and one retrieval prompt in the next related section.',
+      evidence: {
+        mainReason: args.failedConcepts[0] || 'Assessment pattern suggests uneven mastery across dimensions.',
+        signals: truncateList([
+          `Teach-back average: ${averageTeachBack}`,
+          `Memory dump score: ${args.memoryDumpEvaluation.score}`,
+          shortAnswerRisk ? 'Student answers were unusually short.' : '',
+          calculationIssues.length ? `Calculation issues: ${calculationIssues.slice(0, 2).join(', ')}` : '',
+          diagramIssues.length ? `Diagram issues: ${diagramIssues.slice(0, 2).join(', ')}` : '',
+          ...hiddenConfusionEstimate.signals,
+        ].filter(Boolean), 5, 140),
+      },
+    };
+  }
+
+  async processPostAssessmentIntelligenceJob(payload: PostAssessmentIntelligencePayload) {
+    console.log('post_assessment_intelligence_started', {
+      sessionId: payload.sessionId,
+      sectionIndex: payload.sectionIndex,
+      materialId: payload.materialId,
+    });
+
+    try {
+      const session = await prisma.session.findUnique({
+        where: { id: payload.sessionId },
+        include: {
+          material: {
+            select: {
+              id: true,
+              content: true,
+              reader_structure: true,
+              teacher_brain: {
+                select: {
+                  summary: true,
+                  chapter_summaries: true,
+                  concept_graph: true,
+                  prerequisites: true,
+                  formulas: true,
+                  calculation_methods: true,
+                  diagrams: true,
+                  misconceptions: true,
+                  exam_angles: true,
+                  teacher_notes: true,
+                  subject_family: true,
+                  confidence: true,
+                },
+              },
+            },
+          },
+          companion_state: true,
+        },
+      });
+
+      if (!session?.material) {
+        console.warn('post_assessment_intelligence_failed', {
+          sessionId: payload.sessionId,
+          sectionIndex: payload.sectionIndex,
+          message: 'Session or material missing during post-assessment processing.',
+        });
+        return;
+      }
+
+      const roadmap = safeJsonArray<RoadmapSection>(session.companion_state?.roadmap);
+      const section = roadmap[payload.sectionIndex];
+      if (!section) {
+        console.warn('post_assessment_intelligence_failed', {
+          sessionId: payload.sessionId,
+          sectionIndex: payload.sectionIndex,
+          message: 'Section missing from roadmap during post-assessment processing.',
+        });
+        return;
+      }
+
+      const teacherBrain = parseTeacherBrain(session.material.teacher_brain);
+      const teacherBrainSectionContext = getTeacherBrainSectionContext(teacherBrain, payload.sectionIndex, section.title);
+      const calculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
+      const diagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
+      const studentMemoryContext = await this.buildStudentMemoryContext(
+        payload.userId,
+        payload.materialId,
+        payload.courseCode,
+        payload.sectionIndex,
+      );
+      const teachingDecision = this.parseTeachingDecisionSnapshot(payload.teachingDecisionSnapshot);
+
+      const teachBackAttempts = await prisma.teachBackAttempt.findMany({
+        where: {
+          companion_state_id: payload.companionStateId,
+          section_index: payload.sectionIndex,
+        },
+        orderBy: { created_at: 'asc' },
+        select: {
+          student_response: true,
+          evaluation: true,
+          score: true,
+        },
+      });
+      const memoryDumpAttempt = await prisma.memoryDumpAttempt.findFirst({
+        where: {
+          companion_state_id: payload.companionStateId,
+          section_index: payload.sectionIndex,
+        },
+        orderBy: { created_at: 'desc' },
+        select: {
+          student_response: true,
+          evaluation: true,
+          score: true,
+        },
+      });
+
+      if (!memoryDumpAttempt) {
+        console.warn('post_assessment_intelligence_failed', {
+          sessionId: payload.sessionId,
+          sectionIndex: payload.sectionIndex,
+          message: 'Memory dump attempt missing during post-assessment processing.',
+        });
+        return;
+      }
+
+      const latestStudentMemory = await this.compressStudentSectionMemory({
+        userId: payload.userId,
+        materialId: payload.materialId,
+        courseCode: payload.courseCode,
+        sectionIndex: payload.sectionIndex,
+        sectionTitle: payload.sectionTitle,
+        sectionContent: section.content,
+        passed: payload.masteryStatus === 'PASSED',
+        score: payload.masteryScore,
+        failedConcepts: payload.failedConcepts,
+        calculationContext,
+        diagramContext,
+        teachBackAttempts,
+        memoryDumpEvaluation: {
+          studentResponse: memoryDumpAttempt.student_response,
+          evaluation: memoryDumpAttempt.evaluation,
+          score: memoryDumpAttempt.score,
+        },
+      });
+
+      const latestTeachingReflection = teachingDecision
+        ? await this.createTeachingReflectionAfterSection({
+          sessionId: payload.sessionId,
+          companionStateId: payload.companionStateId,
+          userId: payload.userId,
+          materialId: payload.materialId,
+          courseCode: payload.courseCode,
+          sectionIndex: payload.sectionIndex,
+          sectionTitle: payload.sectionTitle,
+          sectionContent: section.content,
+          decision: teachingDecision,
+          score: payload.masteryScore,
+          passed: payload.masteryStatus === 'PASSED',
+          failedConcepts: payload.failedConcepts,
+          calculationContext,
+          diagramContext,
+          studentMemoryContext,
+          latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
+          teachBackAttempts,
+          memoryDumpEvaluation: {
+            studentResponse: memoryDumpAttempt.student_response,
+            evaluation: memoryDumpAttempt.evaluation,
+            score: memoryDumpAttempt.score,
+          },
+        })
+        : null;
+
+      await this.createLearningIntelligenceRecordAfterSection({
+        sessionId: payload.sessionId,
+        companionStateId: payload.companionStateId,
+        userId: payload.userId,
+        materialId: payload.materialId,
+        courseCode: payload.courseCode,
+        sectionIndex: payload.sectionIndex,
+        sectionTitle: payload.sectionTitle,
+        sectionContent: section.content,
+        score: payload.masteryScore,
+        passed: payload.masteryStatus === 'PASSED',
+        failedConcepts: payload.failedConcepts,
+        calculationContext,
+        diagramContext,
+        studentMemoryContext,
+        latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
+        latestTeachingReflection,
+        teachBackAttempts,
+        memoryDumpEvaluation: {
+          studentResponse: memoryDumpAttempt.student_response,
+          evaluation: memoryDumpAttempt.evaluation,
+          score: memoryDumpAttempt.score,
+        },
+      });
+
+      await this.updateStudentLearningProfileAfterReflection(
+        payload.userId,
+        payload.courseCode,
+        payload.materialId,
+      );
+
+      console.log('post_assessment_intelligence_completed', {
+        sessionId: payload.sessionId,
+        sectionIndex: payload.sectionIndex,
+        materialId: payload.materialId,
+      });
+    } catch (error) {
+      console.error('post_assessment_intelligence_failed', {
+        sessionId: payload.sessionId,
+        sectionIndex: payload.sectionIndex,
+        materialId: payload.materialId,
+        message: error instanceof Error ? error.message : 'Unknown post-assessment intelligence error',
+      });
+    }
+  }
+
+  private parseTeachingDecisionSnapshot(snapshot: Record<string, unknown> | undefined): TeachingDecision | null {
+    if (!snapshot) return null;
+
+    const strategy = typeof snapshot.strategy === 'string' ? snapshot.strategy : null;
+    const pace = typeof snapshot.pace === 'string' ? snapshot.pace : null;
+    const prerequisiteRepairMode = typeof snapshot.prerequisiteRepairMode === 'string'
+      ? snapshot.prerequisiteRepairMode
+      : null;
+
+    if (!isTeachingStrategy(strategy) || !isTeachingPace(pace) || !isPrerequisiteRepairMode(prerequisiteRepairMode)) {
+      return null;
+    }
+
+    return {
+      strategy,
+      pace,
+      prerequisiteRepairMode,
+      shouldUseAnalogy: Boolean(snapshot.shouldUseAnalogy),
+      shouldUseWorkedExample: Boolean(snapshot.shouldUseWorkedExample),
+      shouldUseVisualExplanation: Boolean(snapshot.shouldUseVisualExplanation),
+      shouldUseCalculationSteps: Boolean(snapshot.shouldUseCalculationSteps),
+      shouldUseExamFraming: Boolean(snapshot.shouldUseExamFraming),
+      shouldChallengeStudent: Boolean(snapshot.shouldChallengeStudent),
+      shouldSlowDown: Boolean(snapshot.shouldSlowDown),
+      shouldRepairPrerequisite: Boolean(snapshot.shouldRepairPrerequisite),
+      repairConcepts: safeStringArray(snapshot.repairConcepts),
+      reason: typeof snapshot.reason === 'string' ? snapshot.reason : '',
+      promptDirectives: safeStringArray(snapshot.promptDirectives),
+      traceMetadata: safeJsonObject<Record<string, unknown>>(snapshot.traceMetadata, {}),
+    };
   }
 
   private async updateStudentLearningProfileAfterReflection(userId: string, courseCode: string, materialId: string) {
@@ -6312,99 +6652,64 @@ export class StudyCompanionService {
         },
       });
 
-      const latestStudentMemory = await this.compressStudentSectionMemory({
+      const memoryDumpEvaluation = {
+        studentResponse: trimmed,
+        evaluation: evaluation.evaluation,
+        score: evaluation.score,
+      };
+
+      let postAssessmentLearningIntelligenceContext = learningIntelligenceContext;
+      try {
+        postAssessmentLearningIntelligenceContext = await this.buildImmediateLearningIntelligenceContext({
+          sessionId,
+          sectionIndex: state.current_section_index,
+          sectionTitle: section.title,
+          sectionContent: section.content,
+          score: finalScore,
+          passed,
+          failedConcepts,
+          calculationContext: sectionCalculationContext,
+          diagramContext: sectionDiagramContext,
+          studentMemoryContext,
+          latestStudentMemory: null,
+          teachBackAttempts: latestTeachBackAttempts,
+          memoryDumpEvaluation,
+        });
+      } catch (immediateIntelligenceError) {
+        console.error('learning_intelligence_failed', {
+          sessionId,
+          sectionIndex: state.current_section_index,
+          message: immediateIntelligenceError instanceof Error ? immediateIntelligenceError.message : 'Unknown immediate learning intelligence failure',
+        });
+      }
+
+      console.log('post_assessment_intelligence_queued', {
+        sessionId,
+        sectionIndex: state.current_section_index,
+        materialId: state.material_id,
+      });
+      void systemQueue.add(JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE, {
+        sessionId,
+        companionStateId: state.id,
         userId: state.user_id,
         materialId: state.material_id,
         courseCode: state.course_code,
         sectionIndex: state.current_section_index,
         sectionTitle: section.title,
-        sectionContent: section.content,
-        passed,
-        score: finalScore,
+        masteryScore: finalScore,
+        masteryStatus: passed ? 'PASSED' : 'FAILED',
         failedConcepts,
-        calculationContext: sectionCalculationContext,
-        diagramContext: sectionDiagramContext,
-        teachBackAttempts: latestTeachBackAttempts,
-        memoryDumpEvaluation: {
-          studentResponse: trimmed,
-          evaluation: evaluation.evaluation,
-          score: evaluation.score,
-        },
+        teachingDecisionSnapshot: teachingDecision,
+        calculationContextSnapshot: sectionCalculationContext.summary,
+        diagramContextSnapshot: sectionDiagramContext.summary,
+      }).catch((error: unknown) => {
+        console.error('post_assessment_intelligence_failed', {
+          sessionId,
+          sectionIndex: state.current_section_index,
+          materialId: state.material_id,
+          message: error instanceof Error ? error.message : 'Unknown queue failure',
+        });
       });
-
-      let latestTeachingReflection: TeachingReflectionRow | null = null;
-      try {
-        latestTeachingReflection = await this.createTeachingReflectionAfterSection({
-          sessionId,
-          companionStateId: state.id,
-          userId: state.user_id,
-          materialId: state.material_id,
-          courseCode: state.course_code,
-          sectionIndex: state.current_section_index,
-          sectionTitle: section.title,
-          sectionContent: section.content,
-          decision: teachingDecision,
-          score: finalScore,
-          passed,
-          failedConcepts,
-          calculationContext: sectionCalculationContext,
-          diagramContext: sectionDiagramContext,
-          studentMemoryContext,
-          latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
-          teachBackAttempts: latestTeachBackAttempts,
-          memoryDumpEvaluation: {
-            studentResponse: trimmed,
-            evaluation: evaluation.evaluation,
-            score: evaluation.score,
-          },
-        });
-      } catch (reflectionError) {
-        console.error('teaching_reflection_failed', {
-          sessionId,
-          sectionIndex: state.current_section_index,
-          message: reflectionError instanceof Error ? reflectionError.message : 'Unknown reflection failure',
-        });
-      }
-
-      let postAssessmentLearningIntelligenceContext = learningIntelligenceContext;
-      try {
-        await this.createLearningIntelligenceRecordAfterSection({
-          sessionId,
-          companionStateId: state.id,
-          userId: state.user_id,
-          materialId: state.material_id,
-          courseCode: state.course_code,
-          sectionIndex: state.current_section_index,
-          sectionTitle: section.title,
-          sectionContent: section.content,
-          score: finalScore,
-          passed,
-          failedConcepts,
-          calculationContext: sectionCalculationContext,
-          diagramContext: sectionDiagramContext,
-          studentMemoryContext,
-          latestStudentMemory: latestStudentMemory as StudentMaterialMemoryRow,
-          latestTeachingReflection,
-          teachBackAttempts: latestTeachBackAttempts,
-          memoryDumpEvaluation: {
-            studentResponse: trimmed,
-            evaluation: evaluation.evaluation,
-            score: evaluation.score,
-          },
-        });
-        postAssessmentLearningIntelligenceContext = await this.loadLatestLearningIntelligenceContext(
-          state.user_id,
-          state.material_id,
-          state.course_code,
-          state.current_section_index,
-        );
-      } catch (learningIntelligenceError) {
-        console.error('learning_intelligence_failed', {
-          sessionId,
-          sectionIndex: state.current_section_index,
-          message: learningIntelligenceError instanceof Error ? learningIntelligenceError.message : 'Unknown learning intelligence failure',
-        });
-      }
 
       const hasNextSection = state.current_section_index < roadmap.length - 1;
       const nextSection = hasNextSection ? this.sectionAt(roadmap, state.current_section_index + 1) : null;
