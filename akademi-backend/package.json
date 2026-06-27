@@ -9,6 +9,7 @@
     "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit --pretty false",
     "ci:check": "npm run typecheck",
     "start": "node dist/app.js",
+    "prisma:deploy": "prisma migrate deploy",
     "migrate": "prisma migrate deploy && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
     "render:build": "npm run build && npx prisma migrate deploy && node fix-db.js && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
     "seed:universities": "tsx prisma/seed-universities.ts",
