@@ -49,6 +49,8 @@ export type TeachingDecisionInput = {
   confidence?: number | null;
   hiddenConfusionRisk?: number | null;
   retentionRisk?: number | null;
+  hiddenConfusionSignals?: string[];
+  recommendedConfusionIntervention?: string;
   preferredTeachingStrategy?: TeachingStrategy | null;
   preferredPace?: TeachingPace | null;
   strategySuccessScores?: Partial<Record<TeachingStrategy, number>>;
@@ -178,6 +180,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   const calculationIssues = uniqueItems(input.calculationIssues);
   const diagramIssues = uniqueItems(input.diagramIssues);
   const prerequisiteIssues = uniqueItems(input.prerequisiteIssues);
+  const hiddenConfusionSignals = uniqueItems(input.hiddenConfusionSignals);
   const subjectFamily = String(input.subjectFamily || '').trim().toLowerCase();
   const signal = inferLearningSignal(input);
   const requiredMethods = uniqueItems(input.requiredMethods);
@@ -314,7 +317,7 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     if (input.isDiagramHeavy || input.diagramContext) {
       shouldUseVisualExplanation = true;
     }
-    reasons.push('hidden confusion risk is high');
+    reasons.push('hidden confusion risk is elevated');
   }
 
   if (signal.conceptUnderstanding <= 45) {
@@ -354,6 +357,45 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
     prerequisiteRepairMode = 'medium_repair';
     shouldRepairPrerequisite = true;
     reasons.push('very high hidden confusion risk');
+  }
+
+  if (signal.hiddenConfusionRisk >= 70) {
+    pace = 'slow';
+    shouldSlowDown = true;
+    shouldChallengeStudent = false;
+    if (input.isCalculationHeavy || signal.calculationWeakness >= 35) {
+      shouldUseWorkedExample = true;
+      shouldUseCalculationSteps = true;
+    } else if (input.isDiagramHeavy || signal.diagramWeakness >= 35) {
+      shouldUseVisualExplanation = true;
+    } else {
+      shouldUseAnalogy = true;
+    }
+    if (prerequisiteIssues.length) {
+      prerequisiteRepairMode = 'medium_repair';
+      shouldRepairPrerequisite = true;
+    }
+    promptDirectives.push('Let me tighten one idea before we continue.');
+    if (input.recommendedConfusionIntervention === 'mini_example') {
+      promptDirectives.push('Add one short, simpler example before moving on.');
+    } else if (input.recommendedConfusionIntervention === 'visual_explanation') {
+      promptDirectives.push('Add a brief mental visual to clarify the structure.');
+    } else if (input.recommendedConfusionIntervention === 'prerequisite_repair') {
+      promptDirectives.push('Give a short prerequisite refresh before continuing.');
+    } else {
+      promptDirectives.push('Add a short clarification before moving on.');
+    }
+    reasons.push('high hidden confusion needs intervention');
+  } else if (signal.hiddenConfusionRisk >= 40) {
+    shouldSlowDown = true;
+    if (input.recommendedConfusionIntervention === 'mini_example') {
+      promptDirectives.push('Before moving on, add one short mini example.');
+    } else if (input.recommendedConfusionIntervention === 'visual_explanation') {
+      promptDirectives.push('Before moving on, add one short mental visual explanation.');
+    } else {
+      promptDirectives.push('Before moving on, add one short clarification.');
+    }
+    reasons.push('medium hidden confusion suggests a light clarification');
   }
 
   if (hybridMasteryResult?.shouldRunRepair) {
@@ -516,6 +558,8 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
       calculation_issue_count: calculationIssues.length,
       diagram_issue_count: diagramIssues.length,
       prerequisite_issue_count: prerequisiteIssues.length,
+      hidden_confusion_signal_count: hiddenConfusionSignals.length,
+      recommended_confusion_intervention: input.recommendedConfusionIntervention || 'none',
       hybrid_mastery_result: hybridMasteryResult,
       retention_risk: signal.retentionRisk,
       preferred_teaching_strategy: profilePreferredStrategy,

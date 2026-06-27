@@ -257,6 +257,7 @@ type TutorTraceRuntime = {
   id: string | null;
   startedAt: number;
   aiLatencyMs: number;
+  metadata: Record<string, unknown>;
   quality: TutorQualityTraceCapture;
 };
 
@@ -396,6 +397,9 @@ type LearningIntelligenceContext = {
   reasoningQuality: number;
   confidence: number;
   hiddenConfusionRisk: number;
+  hiddenConfusionLevel: 'low' | 'medium' | 'high';
+  hiddenConfusionSignals: string[];
+  recommendedConfusionIntervention: 'none' | 'slow_down' | 'short_clarification' | 'prerequisite_repair' | 'mini_example' | 'visual_explanation';
   retentionRisk: number;
   calculationWeakness: boolean;
   diagramWeakness: boolean;
@@ -1416,8 +1420,151 @@ function buildDeterministicTeachingReflectionFallback(args: {
   };
 }
 
+function estimateHiddenConfusionRisk(args: {
+  sectionTitle: string;
+  sectionContent: string;
+  masteryScore: number;
+  masteryThreshold: number;
+  teachBackAttempts: Array<{ student_response: string; evaluation: string; score: number }>;
+  memoryDumpEvaluation: { studentResponse: string; evaluation: string; score: number };
+  failedConcepts: string[];
+  studentMemoryContext: StudentMemoryContext;
+  latestStudentMemory?: StudentMaterialMemoryRow | null;
+  latestLearningIntelligenceContext?: LearningIntelligenceContext | null;
+  traceQualityIssues?: string[];
+  calculationContext: CalculationTeachingContext;
+  diagramContext: DiagramTeachingContext;
+}) {
+  console.log('hidden_confusion_estimation_started', {
+    sectionTitle: args.sectionTitle,
+    masteryScore: args.masteryScore,
+    attemptCount: args.teachBackAttempts.length,
+  });
+
+  let risk = 0;
+  const signals: string[] = [];
+  const latestMemory = args.latestStudentMemory ? parseStudentMemoryRecord(args.latestStudentMemory) : null;
+  const averageTeachBack =
+    args.teachBackAttempts.length > 0
+      ? Math.round(args.teachBackAttempts.reduce((sum, attempt) => sum + attempt.score, 0) / args.teachBackAttempts.length)
+      : args.masteryScore;
+  const memoryGap = averageTeachBack - args.memoryDumpEvaluation.score;
+  const shortTeachBack = args.teachBackAttempts.some((attempt) => attempt.student_response.trim().split(/\s+/).filter(Boolean).length < 18);
+  const affirmativeOnly = args.teachBackAttempts.some((attempt) => /^(yes|okay|ok|understood|i understand|alright)$/i.test(attempt.student_response.trim()));
+  const copiedWording = args.teachBackAttempts.some((attempt) => {
+    const response = normalizeText(attempt.student_response).toLowerCase();
+    if (response.length < 40) return false;
+    return normalizeText(args.sectionContent)
+      .toLowerCase()
+      .includes(response.slice(0, Math.min(response.length, 140)));
+  });
+  const repeatedWeakPoints = args.studentMemoryContext.priorMemories
+    .flatMap((item) => [...item.weakPoints, ...item.misconceptions])
+    .filter((point) => args.failedConcepts.some((failed) => conceptMatches(point, failed)));
+  const repeatedCalculationIssues = args.studentMemoryContext.priorMemories
+    .flatMap((item) => item.calculationIssues);
+  const repeatedDiagramIssues = args.studentMemoryContext.priorMemories
+    .flatMap((item) => item.diagramIssues);
+
+  if (shortTeachBack) {
+    risk += 12;
+    signals.push('Teach-back answer was very short.');
+  }
+  if (args.masteryScore <= args.masteryThreshold + 5) {
+    risk += 10;
+    signals.push('Mastery score only barely passed.');
+  }
+  if (memoryGap >= 15) {
+    risk += 14;
+    signals.push('Memory dump was much weaker than teach-back.');
+  }
+  if (args.failedConcepts.length) {
+    risk += Math.min(20, args.failedConcepts.length * 6);
+    signals.push(`Failed concepts still present: ${truncateList(args.failedConcepts, 3, 80).join(', ')}.`);
+  }
+  if (repeatedWeakPoints.length) {
+    risk += 10;
+    signals.push('Some weak concepts have repeated from earlier sections.');
+  }
+  if ((args.latestLearningIntelligenceContext?.confidence ?? 100) <= 45) {
+    risk += 12;
+    signals.push('Confidence signal is low.');
+  }
+  if ((args.latestLearningIntelligenceContext?.retentionRisk ?? 0) >= 65) {
+    risk += 10;
+    signals.push('Retention risk is already high.');
+  }
+  if ((args.traceQualityIssues || []).length >= 2) {
+    risk += 8;
+    signals.push('Recent tutor quality issues may have reduced clarity.');
+  }
+  if (repeatedCalculationIssues.length >= 2 || (args.calculationContext.detected && latestMemory?.calculationIssues.length)) {
+    risk += 10;
+    signals.push('Calculation issues are recurring.');
+  }
+  if (repeatedDiagramIssues.length >= 2 || (args.diagramContext.detected && latestMemory?.diagramIssues.length)) {
+    risk += 10;
+    signals.push('Diagram or visual interpretation issues are recurring.');
+  }
+  if (affirmativeOnly) {
+    risk += 12;
+    signals.push('Student gave a very brief confirmation without demonstrating understanding.');
+  }
+  if (copiedWording) {
+    risk += 10;
+    signals.push('Student response echoed the material wording without enough explanation.');
+  }
+  if (args.teachBackAttempts.length > 1) {
+    risk += 10;
+    signals.push('Student needed multiple attempts before moving forward.');
+  }
+  // TODO: incorporate response latency / hesitation once reliable timing data is available.
+
+  const clampedRisk = clampReflectionScore(risk);
+  const level: 'low' | 'medium' | 'high' =
+    clampedRisk >= 70 ? 'high' : clampedRisk >= 40 ? 'medium' : 'low';
+  const recommendedIntervention =
+    level === 'high'
+      ? args.calculationContext.detected
+        ? 'mini_example'
+        : args.diagramContext.detected
+          ? 'visual_explanation'
+          : args.failedConcepts.some((item) => /prerequisite|basic|foundation|prior|background/i.test(item))
+            ? 'prerequisite_repair'
+            : 'slow_down'
+      : level === 'medium'
+        ? args.diagramContext.detected
+          ? 'visual_explanation'
+          : args.calculationContext.detected
+            ? 'mini_example'
+            : 'short_clarification'
+        : 'none';
+
+  const result = {
+    risk: clampedRisk,
+    level,
+    signals: truncateList(signals, 6, 140),
+    recommendedIntervention,
+  } as const;
+
+  console.log('hidden_confusion_estimation_completed', {
+    sectionTitle: args.sectionTitle,
+    risk: result.risk,
+    level: result.level,
+    recommendedIntervention: result.recommendedIntervention,
+    signals: result.signals,
+  });
+  return result;
+}
+
 function parseLearningIntelligenceContext(value: LearningIntelligenceRecordRow): LearningIntelligenceContext {
-  const evidence = safeJsonObject<{ main_reason?: string; signals?: unknown }>(value.evidence, {});
+  const evidence = safeJsonObject<{
+    main_reason?: string;
+    signals?: unknown;
+    hidden_confusion_level?: string;
+    hidden_confusion_signals?: unknown;
+    recommended_confusion_intervention?: string;
+  }>(value.evidence, {});
   return {
     masteryScore: value.mastery_score ?? null,
     conceptUnderstanding: clampReflectionScore(value.concept_understanding),
@@ -1425,6 +1572,15 @@ function parseLearningIntelligenceContext(value: LearningIntelligenceRecordRow):
     reasoningQuality: clampReflectionScore(value.reasoning_quality),
     confidence: clampReflectionScore(value.confidence),
     hiddenConfusionRisk: clampReflectionScore(value.hidden_confusion_risk),
+    hiddenConfusionLevel: String(evidence.hidden_confusion_level || '').trim().toLowerCase() === 'high'
+      ? 'high'
+      : String(evidence.hidden_confusion_level || '').trim().toLowerCase() === 'medium'
+        ? 'medium'
+        : 'low',
+    hiddenConfusionSignals: safeStringArray(evidence.hidden_confusion_signals),
+    recommendedConfusionIntervention: ['none', 'slow_down', 'short_clarification', 'prerequisite_repair', 'mini_example', 'visual_explanation'].includes(String(evidence.recommended_confusion_intervention || ''))
+      ? (String(evidence.recommended_confusion_intervention) as LearningIntelligenceContext['recommendedConfusionIntervention'])
+      : 'none',
     retentionRisk: clampReflectionScore(value.retention_risk),
     calculationWeakness: Boolean(value.calculation_weakness),
     diagramWeakness: Boolean(value.diagram_weakness),
@@ -2625,6 +2781,8 @@ export class StudyCompanionService {
       reasoningQuality: args.learningIntelligenceContext?.reasoningQuality ?? null,
       confidence: args.learningIntelligenceContext?.confidence ?? null,
       hiddenConfusionRisk: args.learningIntelligenceContext?.hiddenConfusionRisk ?? null,
+      hiddenConfusionSignals: args.learningIntelligenceContext?.hiddenConfusionSignals ?? [],
+      recommendedConfusionIntervention: args.learningIntelligenceContext?.recommendedConfusionIntervention ?? 'none',
       retentionRisk: args.learningIntelligenceContext?.retentionRisk ?? null,
       preferredTeachingStrategy: args.studentLearningProfileContext?.preferredTeachingStrategy ?? null,
       preferredPace: args.studentLearningProfileContext?.preferredPace ?? null,
@@ -2660,6 +2818,16 @@ export class StudyCompanionService {
       lecturerConstraintStrictness: args.lecturerConstraintContext?.strictness || 'medium',
       hybridMasteryResult: args.hybridMasteryResult ?? null,
     });
+    if (args.learningIntelligenceContext?.recommendedConfusionIntervention && args.learningIntelligenceContext.recommendedConfusionIntervention !== 'none') {
+      console.log('hidden_confusion_intervention_applied', {
+        phase: args.phase,
+        sectionTitle: args.section.title,
+        hiddenConfusionRisk: args.learningIntelligenceContext.hiddenConfusionRisk,
+        hiddenConfusionLevel: args.learningIntelligenceContext.hiddenConfusionLevel,
+        recommendedIntervention: args.learningIntelligenceContext.recommendedConfusionIntervention,
+        signals: args.learningIntelligenceContext.hiddenConfusionSignals,
+      });
+    }
 
     return decision;
   }
@@ -3173,13 +3341,45 @@ export class StudyCompanionService {
     const calculationIssues = memoryRecord?.calculationIssues || [];
     const diagramIssues = memoryRecord?.diagramIssues || [];
     const prerequisiteWeakness = inferPrerequisiteWeaknessFromFailedConcepts(args.failedConcepts);
+    const recentTutorTrace = await (prisma as typeof prisma & {
+      tutorTurnTrace: {
+        findFirst: (query: unknown) => Promise<{ quality_issues: unknown } | null>;
+      };
+    }).tutorTurnTrace.findFirst({
+      where: {
+        session_id: args.sessionId,
+        section_index: args.sectionIndex,
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        quality_issues: true,
+      },
+    });
+    const hiddenConfusionEstimate = estimateHiddenConfusionRisk({
+      sectionTitle: args.sectionTitle,
+      sectionContent: args.sectionContent,
+      masteryScore: args.score,
+      masteryThreshold: 80,
+      teachBackAttempts: args.teachBackAttempts,
+      memoryDumpEvaluation: args.memoryDumpEvaluation,
+      failedConcepts: args.failedConcepts,
+      studentMemoryContext: args.studentMemoryContext,
+      latestStudentMemory: args.latestStudentMemory,
+      latestLearningIntelligenceContext: null,
+      traceQualityIssues: safeStringArray(recentTutorTrace?.quality_issues),
+      calculationContext: args.calculationContext,
+      diagramContext: args.diagramContext,
+    });
 
     const fallback = {
       concept_understanding: clampReflectionScore(args.score),
       procedural_accuracy: clampReflectionScore(args.score - (calculationIssues.length ? 15 : 0)),
       reasoning_quality: clampReflectionScore(averageTeachBack - Math.max(0, 70 - averageTeachBack) * 0.4),
       confidence: clampReflectionScore(args.score - Math.max(0, averageTeachBack - args.memoryDumpEvaluation.score) - (args.failedConcepts.length * 4)),
-      hidden_confusion_risk: clampReflectionScore((args.passed ? 30 : 60) + args.failedConcepts.length * 8 + (shortAnswerRisk ? 10 : 0) + (args.score <= 84 ? 8 : 0)),
+      hidden_confusion_risk: clampReflectionScore(Math.max(
+        hiddenConfusionEstimate.risk,
+        (args.passed ? 30 : 60) + args.failedConcepts.length * 8 + (shortAnswerRisk ? 10 : 0) + (args.score <= 84 ? 8 : 0),
+      )),
       retention_risk: clampReflectionScore((100 - args.memoryDumpEvaluation.score) * 0.7 + (args.memoryDumpEvaluation.score < averageTeachBack ? 10 : 0)),
       calculation_weakness: calculationIssues.length > 0 || (args.calculationContext.detected && args.score < 75),
       diagram_weakness: diagramIssues.length > 0 || (args.diagramContext.detected && args.score < 75),
@@ -3195,7 +3395,11 @@ export class StudyCompanionService {
           shortAnswerRisk ? 'Student answers were unusually short.' : '',
           calculationIssues.length ? `Calculation issues: ${calculationIssues.slice(0, 2).join(', ')}` : '',
           diagramIssues.length ? `Diagram issues: ${diagramIssues.slice(0, 2).join(', ')}` : '',
+          ...hiddenConfusionEstimate.signals,
         ].filter(Boolean), 5, 140),
+        hidden_confusion_level: hiddenConfusionEstimate.level,
+        hidden_confusion_signals: hiddenConfusionEstimate.signals,
+        recommended_confusion_intervention: hiddenConfusionEstimate.recommendedIntervention,
       },
     };
 
@@ -3242,7 +3446,13 @@ export class StudyCompanionService {
         throw new Error('Learning intelligence JSON parse failed.');
       }
 
-      const evidence = safeJsonObject<{ main_reason?: string; signals?: unknown }>(parsed.evidence, {});
+      const evidence = safeJsonObject<{
+        main_reason?: string;
+        signals?: unknown;
+        hidden_confusion_level?: string;
+        hidden_confusion_signals?: unknown;
+        recommended_confusion_intervention?: string;
+      }>(parsed.evidence, {});
       const record = await learningIntelligenceRecord.upsert({
         where: { id: existing?.id || `missing-${args.sessionId}-${args.sectionIndex}` },
         create: {
@@ -3267,6 +3477,9 @@ export class StudyCompanionService {
           evidence: {
             main_reason: evidence.main_reason ? String(evidence.main_reason) : '',
             signals: safeStringArray(evidence.signals),
+            hidden_confusion_level: evidence.hidden_confusion_level ? String(evidence.hidden_confusion_level) : hiddenConfusionEstimate.level,
+            hidden_confusion_signals: safeStringArray(evidence.hidden_confusion_signals).length ? safeStringArray(evidence.hidden_confusion_signals) : hiddenConfusionEstimate.signals,
+            recommended_confusion_intervention: evidence.recommended_confusion_intervention ? String(evidence.recommended_confusion_intervention) : hiddenConfusionEstimate.recommendedIntervention,
           } as unknown as Prisma.InputJsonValue,
         },
         update: {
@@ -3285,6 +3498,9 @@ export class StudyCompanionService {
           evidence: {
             main_reason: evidence.main_reason ? String(evidence.main_reason) : '',
             signals: safeStringArray(evidence.signals),
+            hidden_confusion_level: evidence.hidden_confusion_level ? String(evidence.hidden_confusion_level) : hiddenConfusionEstimate.level,
+            hidden_confusion_signals: safeStringArray(evidence.hidden_confusion_signals).length ? safeStringArray(evidence.hidden_confusion_signals) : hiddenConfusionEstimate.signals,
+            recommended_confusion_intervention: evidence.recommended_confusion_intervention ? String(evidence.recommended_confusion_intervention) : hiddenConfusionEstimate.recommendedIntervention,
           } as unknown as Prisma.InputJsonValue,
         },
       });
@@ -3823,6 +4039,7 @@ export class StudyCompanionService {
       id: null,
       startedAt: Date.now(),
       aiLatencyMs: 0,
+      metadata: { ...(seed.metadata || {}) },
       quality: {
         issues: [],
         regenerated: false,
@@ -3904,6 +4121,7 @@ export class StudyCompanionService {
           latency_ms: latencyMs,
           ai_latency_ms: trace.aiLatencyMs || null,
           metadata: {
+            ...(trace.metadata || {}),
             regenerated: trace.quality.regenerated,
             fallback_used: trace.quality.fallbackUsed,
             correction_applied: trace.quality.correctionApplied,
@@ -3942,6 +4160,7 @@ export class StudyCompanionService {
           quality_issues: trace.quality.issues as unknown as Prisma.InputJsonValue,
           error_message: error instanceof Error ? error.message : 'Unknown tutor trace error',
           metadata: {
+            ...(trace.metadata || {}),
             regenerated: trace.quality.regenerated,
             fallback_used: trace.quality.fallbackUsed,
             correction_applied: trace.quality.correctionApplied,
@@ -5320,6 +5539,10 @@ export class StudyCompanionService {
         teaching_strategy: teachingDecision.strategy,
         teaching_pace: teachingDecision.pace,
         prerequisite_repair_mode: teachingDecision.prerequisiteRepairMode,
+        hidden_confusion_risk: learningIntelligenceContext?.hiddenConfusionRisk ?? null,
+        hidden_confusion_level: learningIntelligenceContext?.hiddenConfusionLevel ?? 'low',
+        hidden_confusion_signals: learningIntelligenceContext?.hiddenConfusionSignals ?? [],
+        recommended_confusion_intervention: learningIntelligenceContext?.recommendedConfusionIntervention ?? 'none',
       },
     });
 
