@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
+import { SkiaWhiteboardRenderer } from "./SkiaWhiteboardRenderer";
 import { SvgWhiteboardRenderer } from "./SvgWhiteboardRenderer";
 import { StaticWhiteboardRenderer } from "./StaticWhiteboardRenderer";
 import { WebViewWhiteboardRenderer } from "./WebViewWhiteboardRenderer";
@@ -16,10 +17,6 @@ type WhiteboardRendererProps = {
 };
 
 const modes: WhiteboardRendererMode[] = ["static", "svg", "webview", "skia"];
-
-const placeholderCopy: Record<Exclude<WhiteboardRendererMode, "static" | "svg" | "webview">, string> = {
-  skia: "Skia renderer coming next",
-};
 
 export const WhiteboardRenderer: React.FC<WhiteboardRendererProps> = ({
   plan,
@@ -55,9 +52,11 @@ export const WhiteboardRenderer: React.FC<WhiteboardRendererProps> = ({
         <SvgWhiteboardRenderer plan={plan} autoPlay />
       ) : mode === "webview" ? (
         <WebViewWhiteboardRenderer plan={plan} autoPlay />
+      ) : mode === "skia" ? (
+        <SkiaWhiteboardRenderer plan={plan} autoPlay />
       ) : (
         <View style={styles.placeholderCard}>
-          <Text style={styles.placeholderTitle}>{placeholderCopy[mode]}</Text>
+          <Text style={styles.placeholderTitle}>Renderer unavailable</Text>
           <Text style={styles.placeholderText}>
             This renderer shell is ready for comparison mode, but this renderer is still in placeholder mode for now.
           </Text>
