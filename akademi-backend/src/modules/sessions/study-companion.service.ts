@@ -245,6 +245,8 @@ type TutorMessageQualityArgs = {
   isCalculationHeavy: boolean;
   isDiagramHeavy: boolean;
   questionAllowed: boolean;
+  coveredConcepts?: string[];
+  isFirstIntro?: boolean;
 };
 
 type TutorQualityTraceCapture = {
@@ -512,6 +514,7 @@ type SectionContext = {
   reteachDelivered?: boolean;
   nextPromptKind?: 'teachback_2' | 'memory_dump';
   failedConcepts?: string[];
+  coveredConcepts?: string[];
   repairMode?: 'medium_prerequisite_repair' | 'full_section_reteach';
   repairConcepts?: string[];
   repairReason?: string;
@@ -574,6 +577,137 @@ function normalizeText(value: string) {
 
 function readSectionContext(value: unknown): SectionContext {
   return safeJsonObject<SectionContext>(value, {});
+}
+
+function canonicalizeCoveredConcept(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
+function mergeCoveredConcepts(existing: string[], next: string[]) {
+  return Array.from(new Set([...existing, ...next].map(canonicalizeCoveredConcept).filter(Boolean)));
+}
+
+function extractConceptLabel(value: string) {
+  const cleaned = String(value || '').trim();
+  if (!cleaned) return '';
+  const beforeColon = cleaned.split(':')[0]?.trim() || cleaned;
+  return canonicalizeCoveredConcept(beforeColon);
+}
+
+function inferPrerequisiteConcepts(
+  teacherBrainSectionContext?: TeacherBrainSectionContext,
+  lessonPlan?: StudySectionLessonPlanRecord,
+) {
+  const concepts = [
+    ...(teacherBrainSectionContext?.prerequisites || []).map((item) => String(item.concept || '').trim()),
+    ...(lessonPlan?.prerequisiteRefresh || []).map((item) => extractConceptLabel(item)),
+  ]
+    .map(canonicalizeCoveredConcept)
+    .filter(Boolean);
+
+  return Array.from(new Set(concepts));
+}
+
+function buildLecturerStyleDirectives(args: {
+  phase: StudyCompanionPhase | 'INTRO' | 'CHECKPOINT' | 'RETEACH';
+  turnType: 'teaching' | 'checkpoint_question' | 'reteach' | 'transition';
+  teachingDecision: TeachingDecision;
+  sectionTitle: string;
+  alreadyCoveredConcepts: string[];
+  prerequisiteRepairActive: boolean;
+  isCheckpointQuestion: boolean;
+}) {
+  const lines = [
+    'Sound like a calm university lecturer, not a textbook summary.',
+    'Teach one clear idea at a time.',
+    'Use natural bridge phrases such as Now connect that to, The key link is, This matters because, For exams, notice, or Keep this distinction in mind.',
+    'Avoid restarting the lesson from the beginning.',
+    'Avoid Welcome except for the very first opening message.',
+    'Keep intros short and direct.',
+    'Do not dump definitions mechanically.',
+    'Use a light lecturer-style coaching tone, not chatbot phrasing.',
+  ];
+
+  if (args.alreadyCoveredConcepts.length) {
+    lines.push(`These prerequisite ideas were already refreshed in this section: ${truncateList(args.alreadyCoveredConcepts, 6, 40).join(' | ')}.`);
+    lines.push('Do not explain those prerequisite ideas again in full. If needed, bridge to them in one short sentence only.');
+  }
+
+  if (args.prerequisiteRepairActive) {
+    lines.push('A short prerequisite repair is active, so focus only on the blocking prerequisite before returning to the main lesson.');
+  }
+
+  if (args.isCheckpointQuestion) {
+    lines.push('This is a checkpoint request, so ask clearly for the student response and do not continue teaching afterward.');
+  } else {
+    lines.push('This is teaching, not a checkpoint. Do not ask rhetorical questions.');
+  }
+
+  console.log('lecturer_style_directives_applied', {
+    phase: args.phase,
+    turnType: args.turnType,
+    sectionTitle: args.sectionTitle,
+    coveredConceptCount: args.alreadyCoveredConcepts.length,
+    prerequisiteRepairActive: args.prerequisiteRepairActive,
+    isCheckpointQuestion: args.isCheckpointQuestion,
+    strategy: args.teachingDecision.strategy,
+    pace: args.teachingDecision.pace,
+  });
+
+  return lines;
+}
+
+function planPrerequisiteRefresh(args: {
+  phase: 'INTRO' | 1 | 2 | 3 | 'RETEACH';
+  decision: TeachingDecision;
+  sectionContext: SectionContext;
+  teacherBrainSectionContext?: TeacherBrainSectionContext;
+  lessonPlan?: StudySectionLessonPlanRecord;
+  repairMode?: 'medium_prerequisite_repair' | 'full_section_reteach';
+}) {
+  const availableConcepts = inferPrerequisiteConcepts(args.teacherBrainSectionContext, args.lessonPlan);
+  const coveredConcepts = safeStringArray(args.sectionContext.coveredConcepts).map(canonicalizeCoveredConcept);
+  const unrepeated = availableConcepts.filter((concept) => !coveredConcepts.includes(concept));
+  const refreshAllowed =
+    args.phase === 'INTRO' ||
+    args.phase === 1 ||
+    args.phase === 'RETEACH' ||
+    args.repairMode === 'medium_prerequisite_repair' ||
+    args.decision.promptDirectives.some((line) => /prerequisite refresh|prerequisite repair|short clarification/i.test(line));
+
+  if (!availableConcepts.length || !refreshAllowed) {
+    return { lines: [] as string[], newCoveredConcepts: [] as string[] };
+  }
+
+  if (!unrepeated.length) {
+    console.log('repeated_prerequisite_suppressed', {
+      phase: args.phase,
+      repairMode: args.repairMode || null,
+      coveredConcepts,
+    });
+    return {
+      lines: ['We have already refreshed the prerequisite ideas for this section, so use only one short bridge sentence before continuing to the main concept.'],
+      newCoveredConcepts: [],
+    };
+  }
+
+  const selected = unrepeated.slice(0, args.repairMode === 'medium_prerequisite_repair' ? 2 : 3);
+  return {
+    lines: [`If a prerequisite refresh is needed here, keep it brief and limit it to: ${selected.join(', ')}. Refresh them once, then move straight into the main lesson.`],
+    newCoveredConcepts: selected,
+  };
+}
+
+function buildDeterministicTeachbackPrompt(section: RoadmapSection, attemptNumber: 1 | 2, keyConcepts: string[], mode: 'teachback' | 'memory_dump') {
+  if (mode === 'memory_dump') {
+    return `Memory Dump: Without checking notes, say or write everything you remember about ${section.title}. Include the main idea${keyConcepts.length ? ` and these key points: ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}.`;
+  }
+
+  if (attemptNumber === 1) {
+    return `Teach-Back 1: Explain ${section.title} in your own words${keyConcepts.length ? ` using these key ideas: ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Do not copy the definition; respond like you understand it.`;
+  }
+
+  return `Teach-Back 2: Explain ${section.title} again, this time correcting the missing ideas${keyConcepts.length ? ` around ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Respond clearly in your own words.`;
 }
 
 function buildTeachingDecisionPromptLines(
@@ -1994,6 +2128,15 @@ function applyTutorMessageCorrections(
     corrected = truncate(corrected, context.turnType === 'checkpoint_question' ? 260 : 900);
   }
 
+  if (issues.includes('repeated_welcome')) {
+    corrected = corrected.replace(/^\s*welcome[^.?!]*[.?!]?\s*/i, '').trim();
+  }
+
+  if (issues.includes('repeated_prerequisite_explanation')) {
+    corrected = corrected.replace(/\b(science|matter|energy|measurement|variables|formulas)\b[^.?!]*[.?!]/gi, '').trim();
+    corrected = corrected || 'We have already refreshed the prerequisite ideas, so now connect them directly to the main concept.';
+  }
+
   if (issues.includes('too_short') || issues.includes('empty_content')) {
     corrected = buildDeterministicTutorFallback(context);
   }
@@ -2004,6 +2147,15 @@ function applyTutorMessageCorrections(
 
   if (issues.includes('missing_visual_language')) {
     corrected = `${corrected} Picture the process clearly and follow the main parts or stages in order.`.trim();
+  }
+
+  if (issues.includes('checkpoint_too_long') || issues.includes('checkpoint_missing_instruction')) {
+    corrected = buildDeterministicTeachbackPrompt(
+      context.section,
+      context.turnType === 'checkpoint_question' && /Teach-Back 2|teach-back 2/i.test(context.content) ? 2 : 1,
+      [],
+      /memory dump/i.test(context.content) ? 'memory_dump' : 'teachback',
+    );
   }
 
   if (!context.questionAllowed) {
@@ -2041,6 +2193,17 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
     }
   }
 
+  if ((args.phase === PASS_1 || args.phase === PASS_2 || args.phase === PASS_3) && !args.isFirstIntro && /^\s*welcome\b/i.test(normalized)) {
+    issues.push('repeated_welcome');
+  }
+
+  if (args.coveredConcepts?.length && (args.phase === PASS_1 || args.phase === PASS_2 || args.phase === PASS_3)) {
+    const repeatedConceptHits = args.coveredConcepts.filter((concept) => concept && new RegExp(`\\b${concept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(normalized));
+    if (repeatedConceptHits.length >= 2) {
+      issues.push('repeated_prerequisite_explanation');
+    }
+  }
+
   if (args.isCalculationHeavy && args.phase === PASS_2) {
     if (!hasMathNotation(normalized) && !hasStepLanguage(normalized)) {
       issues.push('missing_calculation_steps');
@@ -2049,6 +2212,16 @@ function validateTutorMessageQuality(args: TutorMessageQualityArgs): TutorMessag
 
   if (args.isDiagramHeavy && !hasVisualLanguage(normalized)) {
     issues.push('missing_visual_language');
+  }
+
+  if (args.turnType === 'checkpoint_question') {
+    const sentenceCount = normalized.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+    if (sentenceCount > 2 || normalized.length > 260) {
+      issues.push('checkpoint_too_long');
+    }
+    if (!/\b(explain|respond|say|write|teach-back|memory dump)\b/i.test(normalized)) {
+      issues.push('checkpoint_missing_instruction');
+    }
   }
 
   const correctedContent = issues.length ? applyTutorMessageCorrections(normalized, issues, args) : undefined;
@@ -5015,6 +5188,10 @@ export class StudyCompanionService {
       'For processes, explain stages in order.',
       'Always be structured, clear, patient, and slightly demanding about recall.',
       'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
+      'Sound like an experienced university lecturer, not a textbook summary.',
+      'Use natural transitions and continue from the previous idea instead of restarting the lesson.',
+      'Avoid repeating prerequisite explanations once they have already been refreshed in the same section.',
+      'Do not use rhetorical questions during teaching passes.',
       'Whenever math appears, render it using proper LaTeX delimiters.',
       'Do not use markdown syntax, bold markers, heading markers, or chatbot-style formatting.',
       'Teach like a live tutor, one idea at a time.',
@@ -5093,6 +5270,7 @@ export class StudyCompanionService {
     nextIndex = findFirstRealTeachingSection(roadmap, nextIndex);
 
     const section = this.sectionAt(roadmap, nextIndex);
+    const sectionContext = readSectionContext(state.section_context);
     const teacherBrainContext = buildTeacherBrainPromptContext(teacherBrain, nextIndex, roadmap);
     const teacherBrainSectionContext = getTeacherBrainSectionContext(
       teacherBrain,
@@ -5145,6 +5323,14 @@ export class StudyCompanionService {
       }
     });
 
+    const introRefreshPlan = planPrerequisiteRefresh({
+      phase: 'INTRO',
+      decision: teachingDecision,
+      sectionContext,
+      teacherBrainSectionContext,
+      lessonPlan,
+    });
+
     const introPrompt = [
       `Material title: ${material.title}`,
       `Course code: ${session.course_code || material.course_code || 'GENERAL'}`,
@@ -5159,8 +5345,18 @@ export class StudyCompanionService {
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
       lessonPlan.teachingSequence.length ? `Start with these opening sequence cues: ${truncateList(lessonPlan.teachingSequence, 2, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(teachingDecision, { includeIntro: true, pass: 1 }).join('\n')}`,
+      buildLecturerStyleDirectives({
+        phase: 'INTRO',
+        turnType: 'transition',
+        teachingDecision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: safeStringArray(sectionContext.coveredConcepts),
+        prerequisiteRepairActive: false,
+        isCheckpointQuestion: false,
+      }).join('\n'),
+      ...introRefreshPlan.lines,
       lecturerConstraintContext?.promptContext ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.' : '',
-      'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences. Welcome the student, name the topic, state the learning goal, then move straight into the first teaching idea. If student memory shows a prerequisite weakness, briefly refresh it naturally and encouragingly. Do not ask for permission to begin. Do not say Ready? or Let us begin. Do not ask the student a question yet.',
+      'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences maximum. Name the topic, state the learning goal, and use at most one light hook or concrete anchor. Do not dump multiple prerequisites in the intro. Do not ask for permission to begin. Do not say Ready or Let us begin. Do not ask the student a question yet.',
     ].join('\n\n');
     const introQualityTrace: TutorQualityTraceCapture = {
       issues: [],
@@ -5241,6 +5437,8 @@ export class StudyCompanionService {
         isCalculationHeavy: sectionCalculationContext.detected,
         isDiagramHeavy: sectionDiagramContext.detected,
         questionAllowed: false,
+        coveredConcepts: [],
+        isFirstIntro: true,
         contextMeta: {
           sessionId,
           materialId: material.id,
@@ -5255,8 +5453,17 @@ export class StudyCompanionService {
         pending_prompt: content,
         refresh_question: refreshQuestion,
         refresh_answer: null,
-        section_context: {} as Prisma.InputJsonValue,
+        section_context: {
+          coveredConcepts: introRefreshPlan.newCoveredConcepts,
+        } as Prisma.InputJsonValue,
       });
+      if (introRefreshPlan.newCoveredConcepts.length) {
+        console.log('covered_concepts_updated', {
+          sessionId,
+          sectionIndex: nextIndex,
+          coveredConcepts: introRefreshPlan.newCoveredConcepts,
+        });
+      }
 
       const response = {
         content,
@@ -5296,8 +5503,9 @@ export class StudyCompanionService {
     lecturerConstraintPromptContext = '',
     lessonPlan?: StudySectionLessonPlanRecord,
     relevantMaterialContext?: RelevantMaterialContext,
+    sectionContext?: SectionContext,
     qualityTrace?: TutorQualityTraceCapture,
-  ) {
+  ): Promise<{ content: string; coveredConcepts: string[] }> {
     const calculationContext = buildCalculationTeachingContext(
       section,
       teacherBrainSectionContext || getTeacherBrainSectionContext(null, 0, ''),
@@ -5330,15 +5538,32 @@ export class StudyCompanionService {
         prompt: `teaching_pass_${pass}`,
       });
     }
+    const refreshPlan = planPrerequisiteRefresh({
+      phase: pass,
+      decision,
+      sectionContext: sectionContext || {},
+      teacherBrainSectionContext,
+      lessonPlan,
+    });
     const modeInstructions = [
       calculationContext.detected ? buildCalculationInstructions(pass, calculationContext) : '',
       diagramContext.detected ? buildDiagramInstructions(pass, diagramContext) : '',
       ...buildTeachingDecisionPromptLines(decision, { pass }),
+      ...buildLecturerStyleDirectives({
+        phase: pass === 1 ? PASS_1 : pass === 2 ? PASS_2 : PASS_3,
+        turnType: 'teaching',
+        teachingDecision: decision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: safeStringArray(sectionContext?.coveredConcepts),
+        prerequisiteRepairActive: false,
+        isCheckpointQuestion: false,
+      }),
+      ...refreshPlan.lines,
       pass === 1
-        ? 'Give Pass 1 only. Keep it focused on one core idea at a time. Explain what this section is about and why it matters for exams. Do not ask any question. Do not include a question mark. End with a statement.'
+        ? 'Give Pass 1 only. Start from the current lesson point, not from the beginning again. Focus on the big idea, the main intuition, and why it matters. Avoid long prerequisite chains. Do not ask any question. Do not include a question mark. End with a statement.'
         : pass === 2
-          ? 'Give Pass 2 only. Explain definitions, formulas, steps, and one strong example from this section. Keep it clean and conversational. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
-          : 'Give Pass 3 only. Connect this section to earlier ideas and likely exam use. Keep it short and natural. Do not ask any question. Do not include a question mark. End with a statement.',
+          ? 'Give Pass 2 only. Continue directly from the previous idea. Explain details, definitions, formulas, process, and one strong example from this section. Do not repeat the intro or refresh the same prerequisite again unless repair is active. Do not use markdown. Do not ask any question. Do not include a question mark. End with a statement.'
+          : 'Give Pass 3 only. Continue directly from the previous idea. Connect this section to earlier ideas, exam use, and the next conceptual link. Do not restart the lesson. Do not ask any question. Do not include a question mark. End with a statement.',
     ]
       .filter(Boolean)
       .join('\n');
@@ -5406,7 +5631,7 @@ export class StudyCompanionService {
       });
     }
     const rawContent = await generateText(prompt, this.companionSystemPrompt(), 900);
-    return this.enforceTutorMessageQuality({
+    const content = await this.enforceTutorMessageQuality({
       content: rawContent,
       prompt,
       maxTokens: 900,
@@ -5416,9 +5641,15 @@ export class StudyCompanionService {
       isCalculationHeavy: calculationContext.detected,
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: false,
+      coveredConcepts: safeStringArray(sectionContext?.coveredConcepts),
+      isFirstIntro: false,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teaching_pass_${pass}` } : undefined,
       qualityTrace,
     });
+    return {
+      content,
+      coveredConcepts: mergeCoveredConcepts(safeStringArray(sectionContext?.coveredConcepts), refreshPlan.newCoveredConcepts),
+    };
   }
 
   private async evaluateTeachBack(
@@ -5655,6 +5886,15 @@ export class StudyCompanionService {
       `Section content:\n${truncate(section.content, 2800)}`,
       lessonPlan?.checkpointFocus.length ? `Ask around these checkpoint targets: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
+      buildLecturerStyleDirectives({
+        phase: 'CHECKPOINT',
+        turnType: 'checkpoint_question',
+        teachingDecision: decision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: [],
+        prerequisiteRepairActive: false,
+        isCheckpointQuestion: true,
+      }).join('\n'),
       lecturerConstraintPromptContext ? 'Respect lecturer constraints while asking for the teach-back.' : '',
       diagramContext.detected
         ? attemptNumber === 1
@@ -5687,7 +5927,7 @@ export class StudyCompanionService {
       });
     }
     const rawContent = await generateText(prompt, this.companionSystemPrompt(), 220);
-    return this.enforceTutorMessageQuality({
+    const content = await this.enforceTutorMessageQuality({
       content: rawContent,
       prompt,
       maxTokens: 220,
@@ -5697,9 +5937,27 @@ export class StudyCompanionService {
       isCalculationHeavy: false,
       isDiagramHeavy: diagramContext.detected,
       questionAllowed: true,
+      coveredConcepts: [],
+      isFirstIntro: false,
       contextMeta: contextMeta ? { ...contextMeta, prompt: `teachback_prompt_${attemptNumber}` } : undefined,
       qualityTrace,
     });
+    const sentenceCount = content.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+    const looksTooTeachy = sentenceCount > 2 || /\bthis means|let us|remember that|in this section\b/i.test(content);
+    if (looksTooTeachy) {
+      const simplified = buildDeterministicTeachbackPrompt(
+        section,
+        attemptNumber,
+        lessonPlan?.checkpointFocus || [],
+        'teachback',
+      );
+      console.log('teachback_prompt_simplified', {
+        ...contextMeta,
+        attemptNumber,
+      });
+      return simplified;
+    }
+    return content;
   }
 
   private async buildMemoryDumpPrompt(
@@ -5725,6 +5983,15 @@ export class StudyCompanionService {
       `Section content:\n${truncate(section.content, 2600)}`,
       lessonPlan?.checkpointFocus.length ? `Memory dump should target these ideas: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}` : '',
       `Teaching decision:\n${buildTeachingDecisionPromptLines(decision, { includeCheckpoint: true }).join('\n')}`,
+      buildLecturerStyleDirectives({
+        phase: 'CHECKPOINT',
+        turnType: 'checkpoint_question',
+        teachingDecision: decision,
+        sectionTitle: section.title,
+        alreadyCoveredConcepts: [],
+        prerequisiteRepairActive: false,
+        isCheckpointQuestion: true,
+      }).join('\n'),
       lecturerConstraintPromptContext ? 'Respect lecturer constraints while deciding what the student should recall.' : '',
       'Ask the student for a memory dump. Tell them to write or say everything they remember from this section without checking notes.',
     ].join('\n\n');
@@ -5742,7 +6009,7 @@ export class StudyCompanionService {
       this.companionSystemPrompt(),
       220,
     );
-    return this.enforceTutorMessageQuality({
+    const content = await this.enforceTutorMessageQuality({
       content: rawContent,
       prompt,
       maxTokens: 220,
@@ -5752,9 +6019,20 @@ export class StudyCompanionService {
       isCalculationHeavy: false,
       isDiagramHeavy: false,
       questionAllowed: true,
+      coveredConcepts: [],
+      isFirstIntro: false,
       contextMeta: contextMeta ? { ...contextMeta, prompt: 'memory_dump_prompt' } : undefined,
       qualityTrace,
     });
+    const sentenceCount = content.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+    if (sentenceCount > 2) {
+      console.log('teachback_prompt_simplified', {
+        ...contextMeta,
+        attemptNumber: 'memory_dump',
+      });
+      return buildDeterministicTeachbackPrompt(section, 1, lessonPlan?.checkpointFocus || [], 'memory_dump');
+    }
+    return content;
   }
 
   private async buildGapReteach(
@@ -6101,13 +6379,19 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
+        const passResult = await this.buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace);
+        const content = passResult.content;
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_2,
           pending_prompt: content,
-          section_context: {} as Prisma.InputJsonValue,
+          section_context: {
+            coveredConcepts: passResult.coveredConcepts,
+          } as Prisma.InputJsonValue,
         });
+        if (passResult.coveredConcepts.length) {
+          console.log('covered_concepts_updated', { sessionId, sectionIndex: state.current_section_index, coveredConcepts: passResult.coveredConcepts });
+        }
         const response = {
           content,
           metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
@@ -6156,13 +6440,19 @@ export class StudyCompanionService {
       const trace = await this.startTutorTrace(buildTraceSeed(PASS_2, 'teaching', 'teaching_pass_2', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await this.buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
+        const passResult = await this.buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace);
+        const content = passResult.content;
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_3,
           pending_prompt: content,
-          section_context: {} as Prisma.InputJsonValue,
+          section_context: {
+            coveredConcepts: passResult.coveredConcepts,
+          } as Prisma.InputJsonValue,
         });
+        if (passResult.coveredConcepts.length) {
+          console.log('covered_concepts_updated', { sessionId, sectionIndex: state.current_section_index, coveredConcepts: passResult.coveredConcepts });
+        }
         const response = {
           content,
           metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
@@ -6212,13 +6502,20 @@ export class StudyCompanionService {
         const trace = await this.startTutorTrace(buildTraceSeed(PASS_3, 'teaching', 'teaching_pass_3', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await this.buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, qualityTrace);
+          const passResult = await this.buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace);
+          const content = passResult.content;
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await this.persistRoadmap(state.id, roadmap, {
             current_phase: PASS_3,
             pending_prompt: content,
-            section_context: { pass3QuestionPending: true } as Prisma.InputJsonValue,
+            section_context: {
+              pass3QuestionPending: true,
+              coveredConcepts: passResult.coveredConcepts,
+            } as Prisma.InputJsonValue,
           });
+          if (passResult.coveredConcepts.length) {
+            console.log('covered_concepts_updated', { sessionId, sectionIndex: state.current_section_index, coveredConcepts: passResult.coveredConcepts });
+          }
           const response = {
             content,
             metadata: await this.buildTurnMetadata(sessionId, 'teaching', {
@@ -6244,7 +6541,9 @@ export class StudyCompanionService {
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
-          section_context: {} as Prisma.InputJsonValue,
+          section_context: {
+            coveredConcepts: safeStringArray(sectionContext.coveredConcepts),
+          } as Prisma.InputJsonValue,
         });
         const response = {
           content,
@@ -6300,6 +6599,7 @@ export class StudyCompanionService {
           reteachDelivered: false,
           nextPromptKind: 'teachback_2',
           failedConcepts: evaluation.failedConcepts,
+          coveredConcepts: safeStringArray(sectionContext.coveredConcepts),
         } as Prisma.InputJsonValue,
       });
       const response = {
@@ -6349,6 +6649,7 @@ export class StudyCompanionService {
         pending_prompt: evaluation.evaluation,
         section_context: {
           nextPromptKind: 'memory_dump',
+          coveredConcepts: safeStringArray(sectionContext.coveredConcepts),
         } as Prisma.InputJsonValue,
       });
       const response = {
@@ -6925,16 +7226,19 @@ export class StudyCompanionService {
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
-        const content = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
+        const passResult = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined);
+        const content = passResult.content;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
           pending_prompt: content,
-          section_context: {} as Prisma.InputJsonValue,
+          section_context: {
+            coveredConcepts: passResult.coveredConcepts,
+          } as Prisma.InputJsonValue,
         });
         return {
           content,
@@ -7010,16 +7314,19 @@ export class StudyCompanionService {
           currentMasteryScore: state.last_mastery_score,
           lastMasteryScore: state.last_mastery_score,
         });
-        const content = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
+        const passResult = await this.buildTeachingPass(nextSection, 1, nextTeachingDecision, nextTeacherBrainContext, {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined);
+        const content = passResult.content;
         await this.persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
           current_section_index: nextIndex,
           pending_prompt: content,
-          section_context: {} as Prisma.InputJsonValue,
+          section_context: {
+            coveredConcepts: passResult.coveredConcepts,
+          } as Prisma.InputJsonValue,
         });
         return {
           content,
