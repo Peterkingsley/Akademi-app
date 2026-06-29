@@ -1366,18 +1366,25 @@ model WaitlistEntry {
   email         String   @unique
   phone         String?
   university    String?
+  faculty       String?
   department    String?
   level         Int?
   main_struggle String?
   source        String   @default("landing_page")
   status        String   @default("WAITLISTED")
+  first_invited_at DateTime?
+  last_invited_at  DateTime?
+  invite_count     Int      @default(0)
+  last_invited_by  String?
   metadata      Json     @default("{}")
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
   @@index([email])
   @@index([university])
+  @@index([faculty])
   @@index([department])
+  @@index([invite_count])
   @@index([created_at])
   @@map("waitlist_entries")
 }

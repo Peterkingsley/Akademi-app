@@ -179,11 +179,16 @@ export interface WaitlistEntry {
   email: string;
   phone?: string | null;
   university?: string | null;
+  faculty?: string | null;
   department?: string | null;
   level?: number | null;
   main_struggle?: string | null;
   source: string;
   status: string;
+  first_invited_at?: string | null;
+  last_invited_at?: string | null;
+  invite_count: number;
+  last_invited_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -196,7 +201,12 @@ export interface WaitlistResponse {
   totalPages: number;
   summary: {
     total: number;
+    invitedCount: number;
+    neverSentCount: number;
     byNeed: { need: string; count: number }[];
+    byUniversity: { name: string; count: number }[];
+    byFaculty: { name: string; count: number }[];
+    byDepartment: { name: string; count: number }[];
   };
 }
 

@@ -414,13 +414,17 @@ export class AdminService {
         { full_name: { contains: filter.search, mode: 'insensitive' } },
         { email: { contains: filter.search, mode: 'insensitive' } },
         { university: { contains: filter.search, mode: 'insensitive' } },
+        { faculty: { contains: filter.search, mode: 'insensitive' } },
         { department: { contains: filter.search, mode: 'insensitive' } },
       ];
     }
     if (filter.university) where.university = { contains: filter.university, mode: 'insensitive' };
+    if (filter.faculty) where.faculty = { contains: filter.faculty, mode: 'insensitive' };
     if (filter.department) where.department = { contains: filter.department, mode: 'insensitive' };
     if (filter.status) where.status = String(filter.status).trim().toUpperCase();
     if (filter.mainStruggle) where.main_struggle = String(filter.mainStruggle).trim();
+    if (filter.inviteStatus === 'never_sent') where.invite_count = 0;
+    if (filter.inviteStatus === 'sent_before') where.invite_count = { gt: 0 };
 
     if (filter.startDate || filter.endDate) {
       where.created_at = {};
@@ -436,7 +440,7 @@ export class AdminService {
     const limit = Math.min(Number(filter.limit) || 50, 100);
     const page = Math.max(Number(filter.page) || 1, 1);
 
-    const [entries, total, byNeed] = await Promise.all([
+    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, invitedCount, neverSentCount] = await Promise.all([
       prisma.waitlistEntry.findMany({
         where,
         orderBy: { created_at: 'desc' },
@@ -449,7 +453,33 @@ export class AdminService {
         where,
         _count: { _all: true },
       }),
+      prisma.waitlistEntry.groupBy({
+        by: ['university'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.groupBy({
+        by: ['faculty'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.groupBy({
+        by: ['department'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.count({ where: { ...where, invite_count: { gt: 0 } } }),
+      prisma.waitlistEntry.count({ where: { ...where, invite_count: 0 } }),
     ]);
+
+    const mapSummary = (items: Array<{ _count: { _all: number } } & Record<string, string | null>>, key: 'university' | 'faculty' | 'department') =>
+      items
+        .map((item) => ({
+          name: (item[key] as string | null) || 'not_set',
+          count: item._count._all,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
 
     return {
       entries,
@@ -459,6 +489,8 @@ export class AdminService {
       totalPages: Math.ceil(total / limit),
       summary: {
         total,
+        invitedCount,
+        neverSentCount,
         byNeed: byNeed
           .map(item => ({
             need: item.main_struggle || 'not_set',
@@ -466,6 +498,9 @@ export class AdminService {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 6),
+        byUniversity: mapSummary(byUniversity as any, 'university'),
+        byFaculty: mapSummary(byFaculty as any, 'faculty'),
+        byDepartment: mapSummary(byDepartment as any, 'department'),
       },
     };
   }
@@ -480,7 +515,7 @@ export class AdminService {
     const where = this.buildWaitlistWhere(filter);
     const recipients = await prisma.waitlistEntry.findMany({
       where,
-      select: { id: true, full_name: true, email: true },
+      select: { id: true, full_name: true, email: true, first_invited_at: true },
       orderBy: { created_at: 'desc' },
       take: 1000,
     });
@@ -509,6 +544,15 @@ export class AdminService {
           to: recipient.email,
           subject,
           html,
+        });
+        await prisma.waitlistEntry.update({
+          where: { id: recipient.id },
+          data: {
+            invite_count: { increment: 1 },
+            first_invited_at: recipient.first_invited_at || new Date(),
+            last_invited_at: new Date(),
+            last_invited_by: adminId,
+          },
         });
         sent += 1;
       } catch (error: any) {

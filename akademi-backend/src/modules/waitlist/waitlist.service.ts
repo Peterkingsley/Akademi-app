@@ -19,9 +19,11 @@ export class WaitlistService {
   async join(data: JoinWaitlistRequest) {
     const fullName = clean(data.full_name);
     const email = clean(data.email)?.toLowerCase();
+    const metadataFaculty = (data.metadata || {}).faculty;
+    const faculty = clean(data.faculty) || (typeof metadataFaculty === 'string' ? clean(metadataFaculty) : undefined);
     const metadata = {
       ...(data.metadata || {}),
-      faculty: clean(data.faculty) || (data.metadata || {}).faculty || null,
+      faculty: faculty || null,
     } as Prisma.InputJsonValue;
 
     if (!fullName || fullName.length < 2) {
@@ -39,6 +41,7 @@ export class WaitlistService {
         email,
         phone: clean(data.phone) || null,
         university: clean(data.university) || null,
+        faculty: faculty || null,
         department: clean(data.department) || null,
         level: parseLevel(data.level),
         main_struggle: clean(data.main_struggle) || null,
@@ -49,6 +52,7 @@ export class WaitlistService {
         full_name: fullName,
         phone: clean(data.phone) || null,
         university: clean(data.university) || null,
+        faculty: faculty || null,
         department: clean(data.department) || null,
         level: parseLevel(data.level),
         main_struggle: clean(data.main_struggle) || null,

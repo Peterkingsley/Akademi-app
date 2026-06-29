@@ -96,9 +96,11 @@ export interface EmailCampaignRequest extends UserListFilter {
 export interface WaitlistFilter {
   search?: string;
   university?: string;
+  faculty?: string;
   department?: string;
   status?: string;
   mainStruggle?: string;
+  inviteStatus?: 'never_sent' | 'sent_before';
   startDate?: string;
   endDate?: string;
   page?: number;
