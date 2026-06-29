@@ -30,6 +30,8 @@ const API_CANDIDATE_URLS = parseCandidateUrls(
   window.AKADEMI_API_FALLBACK_URLS,
   ...DEFAULT_API_URLS
 );
+const WHATSAPP_CHANNEL_URL =
+  window.AKADEMI_WHATSAPP_CHANNEL_URL || "https://whatsapp.com/channel/0029VbCc2PP3gvWgv5V9rG0s";
 
 let currentApiBaseUrl = API_CANDIDATE_URLS[0] || DEFAULT_API_URLS[0];
 
@@ -318,11 +320,14 @@ form.addEventListener("submit", async (event) => {
       throw lastError || new Error("Could not join waitlist.");
     }
 
-    setStatus("You're on the list. We'll email you the moment your school or department goes live.", "success");
+    setStatus("You're on the list. Redirecting you to our WhatsApp channel...", "success");
     form.reset();
     selectedSchool = null;
     schoolId.value = "";
     resetFaculty();
+    setTimeout(() => {
+      window.location.href = WHATSAPP_CHANNEL_URL;
+    }, 600);
   } catch (error) {
     setStatus(error.message || "Something went wrong. Please try again.", "error");
   } finally {
