@@ -1,4 +1,37 @@
-const API_BASE_URL = window.AKADEMI_API_URL || "https://akademi-app.onrender.com";
+const DEFAULT_API_URLS = [
+  "https://akademi-app-1.onrender.com",
+  "https://akademi-app.onrender.com",
+];
+
+function parseCandidateUrls(...sources) {
+  const seen = new Set();
+  const candidates = [];
+
+  sources.forEach((source) => {
+    if (!source) return;
+
+    String(source)
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .forEach((value) => {
+        const normalized = value.replace(/\/+$/, "");
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        candidates.push(normalized);
+      });
+  });
+
+  return candidates;
+}
+
+const API_CANDIDATE_URLS = parseCandidateUrls(
+  window.AKADEMI_API_URL,
+  window.AKADEMI_API_FALLBACK_URLS,
+  ...DEFAULT_API_URLS
+);
+
+let currentApiBaseUrl = API_CANDIDATE_URLS[0] || DEFAULT_API_URLS[0];
 
 const form = document.getElementById("waitlistForm");
 const statusEl = document.getElementById("formStatus");
@@ -64,12 +97,30 @@ function renderOptions(container, items, getTitle, getSubtitle, onSelect, emptyM
 }
 
 async function fetchJson(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-  const data = await response.json().catch(() => []);
-  if (!response.ok) {
-    throw new Error(data.message || "Could not load options.");
+  let lastError = null;
+
+  for (const baseUrl of API_CANDIDATE_URLS) {
+    try {
+      const response = await fetch(`${baseUrl}${path}`);
+      const data = await response.json().catch(() => []);
+
+      if (!response.ok) {
+        const message = data.message || "Could not load options.";
+        if (response.status >= 500) {
+          throw new Error(message);
+        }
+        currentApiBaseUrl = baseUrl;
+        throw new Error(message);
+      }
+
+      currentApiBaseUrl = baseUrl;
+      return data;
+    } catch (error) {
+      lastError = error;
+    }
   }
-  return data;
+
+  throw lastError || new Error("Could not load options.");
 }
 
 function resetFaculty() {
@@ -235,15 +286,36 @@ form.addEventListener("submit", async (event) => {
   setStatus("Saving your spot...", "");
 
   try {
-    const response = await fetch(`${API_BASE_URL}/waitlist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    let joined = false;
+    let lastError = null;
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(data.message || "Could not join waitlist.");
+    for (const baseUrl of API_CANDIDATE_URLS) {
+      try {
+        const response = await fetch(`${baseUrl}/waitlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const message = data.message || "Could not join waitlist.";
+          if (response.status >= 500) {
+            throw new Error(message);
+          }
+          throw new Error(message);
+        }
+
+        currentApiBaseUrl = baseUrl;
+        joined = true;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!joined) {
+      throw lastError || new Error("Could not join waitlist.");
     }
 
     setStatus("You're on the list. We'll email you the moment your school or department goes live.", "success");
