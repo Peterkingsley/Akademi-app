@@ -36,10 +36,10 @@ module.exports = {
     newArchEnabled: true,
     platforms: ["ios", "android", "web"],
     orientation: "portrait",
-    icon: "./assets/akademi-logo-icon.png",
+    icon: "./assets/icon.png",
     userInterfaceStyle: "dark",
     splash: {
-      image: "./assets/akademi-logo-icon.png",
+      image: "./assets/splash.png",
       resizeMode: "contain",
       backgroundColor: "#000000",
     },
@@ -56,7 +56,7 @@ module.exports = {
     android: {
       package: "com.akademi.app",
       adaptiveIcon: {
-        foregroundImage: "./assets/akademi-logo-icon.png",
+        foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#000000",
       },
       permissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
