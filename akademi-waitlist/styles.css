@@ -171,12 +171,18 @@ a {
 .hero {
   align-items: center;
   display: grid;
-  gap: 44px;
-  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+  gap: clamp(36px, 5vw, 72px);
+  grid-template-columns: minmax(0, 0.9fr) minmax(380px, 1.1fr);
   min-height: 620px;
   overflow: hidden;
   padding: clamp(34px, 5vw, 68px);
   position: relative;
+}
+
+.hero-copy {
+  max-width: 560px;
+  position: relative;
+  z-index: 2;
 }
 
 .hero-kicker,
@@ -200,9 +206,9 @@ p {
 h1 {
   font-size: clamp(42px, 5.5vw, 72px);
   letter-spacing: -0.045em;
-  line-height: 0.98;
+  line-height: 0.94;
   margin: 0;
-  max-width: 650px;
+  max-width: 560px;
 }
 
 h1 span {
@@ -249,13 +255,17 @@ h3 {
 }
 
 .hero-text {
-  max-width: 620px;
+  color: rgba(247, 251, 248, 0.8);
+  font-size: 18px;
+  max-width: 500px;
+  margin-top: 24px;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
+  margin-top: 28px;
 }
 
 .button,
@@ -263,6 +273,7 @@ h3 {
   align-items: center;
   border: 0;
   border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
@@ -279,8 +290,8 @@ h3 {
 }
 
 .secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: var(--text);
 }
 
@@ -292,33 +303,49 @@ h3 {
   position: relative;
 }
 
-.hero-phone-render {
-  display: block;
-  filter: drop-shadow(0 38px 90px rgba(0, 0, 0, 0.58));
-  height: auto;
-  max-width: min(100%, 560px);
-  transform: translateY(8px);
-  width: 100%;
+.product-preview::before {
+  background: radial-gradient(circle, rgba(175, 230, 7, 0.15), rgba(175, 230, 7, 0) 68%);
+  content: "";
+  height: 520px;
+  pointer-events: none;
+  position: absolute;
+  right: 2%;
+  top: 50%;
+  transform: translateY(-42%);
+  width: 520px;
+  z-index: 0;
 }
 
-.mini-stats strong {
-  color: var(--green-hot);
+.hero-phone-render {
   display: block;
+  filter:
+    drop-shadow(0 44px 110px rgba(0, 0, 0, 0.64))
+    drop-shadow(0 0 26px rgba(175, 230, 7, 0.14));
+  height: auto;
+  max-width: min(100%, 610px);
+  position: relative;
+  transform: translate(20px, 28px) scale(1.04);
+  width: 100%;
+  z-index: 1;
 }
 
 .trust-row {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(3, 1fr);
-  margin: 44px auto 78px;
+  margin: 28px auto 78px;
   max-width: 1180px;
 }
 
 .trust-row div {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(175, 230, 7, 0.04), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   padding: 22px;
+  position: relative;
+  top: -10px;
 }
 
 .trust-row strong {
@@ -626,6 +653,13 @@ input::placeholder {
     min-height: 520px;
   }
 
+  .product-preview::before {
+    height: 460px;
+    right: 50%;
+    transform: translate(50%, -42%);
+    width: 460px;
+  }
+
   .trust-row,
   .feature-band {
     grid-template-columns: 1fr;
@@ -716,12 +750,16 @@ input::placeholder {
   }
 
   .product-preview {
-    min-height: 510px;
+    min-height: 420px;
   }
 
   .hero-phone-render {
-    max-width: min(100%, 430px);
-    transform: translateY(0);
+    max-width: min(100%, 420px);
+    transform: translate(0, 10px) scale(1.02);
+  }
+
+  .trust-row div {
+    top: 0;
   }
 
   .trust-row {
