@@ -78,7 +78,7 @@ export const AdminMoreScreen: React.FC = () => {
                   label="Waitlist"
                   description="View landing page signups and email them"
                   onPress={() => navigation.navigate("AdminWaitlist")}
-                  color="#22C55E"
+                  color="#AFE607"
                 />
                 <MenuItem
                   icon={Swords}
@@ -163,3 +163,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+

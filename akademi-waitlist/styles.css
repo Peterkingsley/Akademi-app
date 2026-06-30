@@ -5,11 +5,11 @@
   --panel-soft: rgba(255, 255, 255, 0.055);
   --text: #f7fbf8;
   --muted: #9da8a2;
-  --green: #27c967;
-  --green-hot: #9cff00;
+  --green: #AFE607;
+  --green-hot: #AFE607;
   --green-deep: #062918;
   --line: rgba(255, 255, 255, 0.15);
-  --line-green: rgba(39, 201, 103, 0.38);
+  --line-green: rgba(175, 230, 7, 0.38);
 }
 
 * {
@@ -71,7 +71,7 @@ a {
 }
 
 .ambient-one {
-  background: rgba(39, 201, 103, 0.1);
+  background: rgba(175, 230, 7, 0.1);
   height: 360px;
   right: -120px;
   top: 40px;
@@ -79,7 +79,7 @@ a {
 }
 
 .ambient-two {
-  background: rgba(156, 255, 0, 0.07);
+  background: rgba(175, 230, 7, 0.07);
   bottom: 240px;
   height: 360px;
   left: -140px;
@@ -87,7 +87,7 @@ a {
 }
 
 .orbital {
-  border: 2px solid rgba(156, 255, 0, 0.46);
+  border: 2px solid rgba(175, 230, 7, 0.46);
   border-bottom-color: transparent;
   border-left-color: transparent;
   border-radius: 50%;
@@ -101,7 +101,7 @@ a {
 }
 
 .orbital-two {
-  border-color: rgba(39, 201, 103, 0.28);
+  border-color: rgba(175, 230, 7, 0.28);
   border-bottom-color: transparent;
   border-left-color: transparent;
   right: 4%;
@@ -124,19 +124,13 @@ a {
 .brand {
   align-items: center;
   display: inline-flex;
-  font-weight: 900;
+  line-height: 0;
 }
 
-.brand-wordmark {
-  color: var(--text);
-  font-size: clamp(1.6rem, 1.1rem + 1vw, 2rem);
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.brand-i {
-  color: var(--green-hot);
+.brand-logo {
+  display: block;
+  height: clamp(34px, 2.7vw, 42px);
+  width: auto;
 }
 
 .nav-menu {
@@ -163,7 +157,7 @@ a {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   background:
-    radial-gradient(circle at top right, rgba(39, 201, 103, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(175, 230, 7, 0.08), transparent 30%),
     var(--panel);
   border: 1px solid var(--line);
   border-radius: 34px;
@@ -216,7 +210,7 @@ h1 span {
 }
 
 h1 strong {
-  background: linear-gradient(90deg, var(--green-hot) 0%, var(--green) 58%, rgba(39, 201, 103, 0.22) 100%);
+  background: linear-gradient(90deg, var(--green-hot) 0%, var(--green) 58%, rgba(175, 230, 7, 0.22) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -328,8 +322,8 @@ h3 {
 
 .iphone-screen {
   background:
-    radial-gradient(circle at 86% 8%, rgba(156, 255, 0, 0.22), transparent 36%),
-    linear-gradient(160deg, rgba(39, 201, 103, 0.12), transparent 40%),
+    radial-gradient(circle at 86% 8%, rgba(175, 230, 7, 0.22), transparent 36%),
+    linear-gradient(160deg, rgba(175, 230, 7, 0.12), transparent 40%),
     #020403;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 42px;
@@ -353,7 +347,7 @@ h3 {
 
 .phone-card {
   background:
-    radial-gradient(circle at top right, rgba(156, 255, 0, 0.15), transparent 38%),
+    radial-gradient(circle at top right, rgba(175, 230, 7, 0.15), transparent 38%),
     rgba(6, 10, 8, 0.84);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 32px;
@@ -417,7 +411,7 @@ h3 {
 }
 
 .mini-stats span {
-  background: rgba(156, 255, 0, 0.1);
+  background: rgba(175, 230, 7, 0.1);
   border-radius: 16px;
   color: rgba(247, 251, 248, 0.72);
   flex: 1;
@@ -643,7 +637,7 @@ input:focus,
 select:focus,
 .select-trigger:focus {
   border-color: var(--green-hot);
-  box-shadow: 0 0 0 4px rgba(156, 255, 0, 0.12);
+  box-shadow: 0 0 0 4px rgba(175, 230, 7, 0.12);
 }
 
 input::placeholder {
@@ -699,7 +693,7 @@ input::placeholder {
 
 .lookup-option:hover,
 .lookup-option:focus {
-  background: rgba(156, 255, 0, 0.1);
+  background: rgba(175, 230, 7, 0.1);
   outline: none;
 }
 
@@ -928,3 +922,4 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 }
+

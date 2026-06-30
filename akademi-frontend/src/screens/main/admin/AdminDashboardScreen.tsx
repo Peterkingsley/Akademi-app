@@ -90,7 +90,7 @@ export const AdminDashboardScreen: React.FC = () => {
   const HealthItem = ({ name, status }: { name: string, status: 'online' | 'offline' }) => {
     return (
       <View style={styles.healthItem}>
-        <View style={[styles.statusDot, { backgroundColor: status === "online" ? "#22C55E" : "#EF4444" }]} />
+        <View style={[styles.statusDot, { backgroundColor: status === "online" ? "#AFE607" : "#EF4444" }]} />
         <Text style={[typography.bodySmall, { textTransform: "capitalize", color: colors.textPrimary }]} numberOfLines={1}>{name}</Text>
       </View>
     );
@@ -286,3 +286,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   }
 });
+

@@ -76,7 +76,7 @@ export const TournamentDetailScreen: React.FC = () => {
         radius,
         cx: cursorX,
         cy: Math.min(cursorY, BUBBLE_CHART_HEIGHT - radius - 12),
-        color: entry.score >= scoreStats.average ? "#22C55E" : "#EF4444",
+        color: entry.score >= scoreStats.average ? "#AFE607" : "#EF4444",
         firstName: entry.display_name.split(" ")[0] || "Player",
       };
       cursorX += radius * 2 + 14;
@@ -1001,4 +1001,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
+
 
