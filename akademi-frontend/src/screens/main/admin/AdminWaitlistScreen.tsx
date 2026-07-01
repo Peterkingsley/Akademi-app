@@ -305,9 +305,41 @@ export const AdminWaitlistScreen: React.FC = () => {
                   </Text>
                   <Text style={[typography.caption, { color: colors.textSecondary, textAlign: "center" }]}>
                     {topUniversity.count} signup{topUniversity.count === 1 ? "" : "s"}
-                    {typeof topUniversity.share === "number" ? ` • ${topUniversity.share}% of this audience` : ""}
+                    {typeof topUniversity.share === "number" ? ` | ${topUniversity.share}% of this audience` : ""}
                   </Text>
                 </TouchableOpacity>
+              )}
+              {universitySummary.length > 0 && (
+                <View style={styles.topSchoolsHeroBlock}>
+                  <Text style={[typography.label, { color: colors.textMuted }]}>TOP SCHOOLS RIGHT NOW</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topSchoolsHeroRow}>
+                    {universitySummary.slice(0, 5).map((item, index) => {
+                      const active = filters.university === item.name || (item.name === "not_set" && !filters.university);
+                      return (
+                        <TouchableOpacity
+                          key={`hero-school-${item.name}`}
+                          style={[
+                            styles.topSchoolHeroChip,
+                            {
+                              backgroundColor: active ? `${colors.primary}16` : colors.surface,
+                              borderColor: active ? colors.primary : colors.border,
+                            },
+                          ]}
+                          onPress={() => applyBucketFilter("university", item.name)}
+                        >
+                          <Text style={[typography.caption, { color: colors.textMuted }]}>#{index + 1}</Text>
+                          <Text
+                            style={[typography.caption, { color: active ? colors.primary : colors.textPrimary, fontWeight: "800" }]}
+                            numberOfLines={1}
+                          >
+                            {item.name.replace(/_/g, " ")}
+                          </Text>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.count}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
               )}
               <TouchableOpacity style={[styles.refreshButton, { borderColor: colors.border }]} onPress={() => loadWaitlist(true)}>
                 <RefreshCw size={16} color={colors.primary} />
@@ -539,6 +571,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     width: "100%",
+  },
+  topSchoolsHeroBlock: {
+    gap: 10,
+    marginTop: 16,
+    width: "100%",
+  },
+  topSchoolsHeroRow: {
+    gap: 10,
+  },
+  topSchoolHeroChip: {
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+    minWidth: 140,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   refreshButton: {
     alignItems: "center",
