@@ -55,6 +55,87 @@ let faculties = [];
 let departments = [];
 let schoolSearchTimer = null;
 let latestSchoolSearchRequestId = 0;
+const schoolSearchCache = new Map();
+const schoolSearchCacheTtlMs = 5 * 60 * 1000;
+const schoolSearchCacheMaxEntries = 80;
+
+function normalizeLookupValue(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s&(),.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeLookupKey(value) {
+  return normalizeLookupValue(value).toLowerCase();
+}
+
+function getCachedSchoolSearch(cacheKey) {
+  const cached = schoolSearchCache.get(cacheKey);
+  if (!cached) return null;
+
+  if (cached.expiresAt <= Date.now()) {
+    schoolSearchCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached.data;
+}
+
+function setCachedSchoolSearch(cacheKey, data) {
+  schoolSearchCache.set(cacheKey, {
+    expiresAt: Date.now() + schoolSearchCacheTtlMs,
+    data,
+  });
+
+  if (schoolSearchCache.size > schoolSearchCacheMaxEntries) {
+    const oldestKey = schoolSearchCache.keys().next().value;
+    if (oldestKey) {
+      schoolSearchCache.delete(oldestKey);
+    }
+  }
+}
+
+function buildSchoolSearchFallbacks(query) {
+  const base = normalizeLookupValue(query);
+  const variants = new Set();
+  const push = (value) => {
+    const normalized = normalizeLookupValue(value);
+    if (normalized.length >= 2) variants.add(normalized);
+  };
+
+  push(base);
+  push(base.replace(/\buni(?:v(?:ersity)?)?\b/gi, "university"));
+  push(base.replace(/\bfed(?:eral)?\s+uni(?:v(?:ersity)?)?\b/gi, "federal university"));
+  push(base.replace(/\bfut\b/gi, "federal university of technology"));
+  push(base.replace(/\bstate\s+uni(?:v(?:ersity)?)?\b/gi, "state university"));
+  push(base.replace(/\bpoly\b/gi, "polytechnic"));
+  push(base.replace(/[(),.-]/g, " "));
+
+  return Array.from(variants).slice(0, 6);
+}
+
+function scoreSchoolMatch(query, school) {
+  const normalizedQuery = normalizeLookupKey(query);
+  const normalizedName = normalizeLookupKey(school.name);
+  if (!normalizedQuery || !normalizedName) return 0;
+  if (normalizedName === normalizedQuery) return 1000;
+  if (normalizedName.startsWith(normalizedQuery)) return 800 - (normalizedName.length - normalizedQuery.length);
+  if (normalizedName.includes(normalizedQuery)) return 600 - (normalizedName.indexOf(normalizedQuery) || 0);
+
+  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  const nameTokens = normalizedName.split(" ").filter(Boolean);
+  let tokenHits = 0;
+  queryTokens.forEach((token) => {
+    if (nameTokens.some((nameToken) => nameToken.startsWith(token) || nameToken.includes(token))) {
+      tokenHits += 1;
+    }
+  });
+
+  return tokenHits > 0 ? tokenHits * 80 : 0;
+}
 
 function setStatus(message, type) {
   statusEl.textContent = message;
@@ -132,44 +213,66 @@ async function fetchJson(path) {
 }
 
 async function fetchUniversitySuggestions(query) {
+  const normalizedQuery = normalizeLookupValue(query);
+  const cacheKey = normalizeLookupKey(normalizedQuery);
+  const cached = getCachedSchoolSearch(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   let lastError = null;
   const orderedBaseUrls = [
     currentApiBaseUrl,
     ...API_CANDIDATE_URLS.filter((baseUrl) => baseUrl !== currentApiBaseUrl),
   ];
-  let emptyResult = [];
+  const mergedResults = new Map();
+  let sawSuccessfulResponse = false;
+  const fallbackQueries = buildSchoolSearchFallbacks(normalizedQuery);
 
   for (const baseUrl of orderedBaseUrls) {
     try {
-      const response = await fetch(`${baseUrl}/universities?search=${encodeURIComponent(query)}&limit=12`);
-      const data = await response.json().catch(() => []);
+      for (const candidateQuery of fallbackQueries) {
+        const response = await fetch(`${baseUrl}/universities?search=${encodeURIComponent(candidateQuery)}&limit=12`);
+        const data = await response.json().catch(() => []);
 
-      if (!response.ok) {
-        const message = data.message || "Could not load schools.";
-        if (response.status >= 500) {
+        if (!response.ok) {
+          const message = data.message || "Could not load schools.";
+          if (response.status >= 500) {
+            throw new Error(message);
+          }
           throw new Error(message);
         }
-        throw new Error(message);
-      }
 
-      if (Array.isArray(data) && data.length > 0) {
-        currentApiBaseUrl = baseUrl;
-        return data;
-      }
-
-      if (Array.isArray(data)) {
-        emptyResult = data;
+        sawSuccessfulResponse = true;
+        if (Array.isArray(data)) {
+          data.forEach((school) => {
+            if (school?.id && !mergedResults.has(school.id)) {
+              mergedResults.set(school.id, school);
+            }
+          });
+        }
       }
     } catch (error) {
       lastError = error;
     }
   }
 
-  if (emptyResult.length === 0 && lastError) {
+  const rankedResults = Array.from(mergedResults.values())
+    .map((school) => ({
+      school,
+      score: scoreSchoolMatch(normalizedQuery, school),
+    }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.school.name.localeCompare(b.school.name))
+    .slice(0, 12)
+    .map((item) => item.school);
+
+  if (!rankedResults.length && !sawSuccessfulResponse && lastError) {
     throw lastError;
   }
 
-  return emptyResult;
+  setCachedSchoolSearch(cacheKey, rankedResults);
+  return rankedResults;
 }
 
 function resetFaculty() {
@@ -226,7 +329,8 @@ async function selectDepartment(department) {
 }
 
 schoolSearch.addEventListener("input", () => {
-  const query = schoolSearch.value.trim();
+  const rawQuery = schoolSearch.value;
+  const query = normalizeLookupValue(rawQuery);
   const requestId = ++latestSchoolSearchRequestId;
   selectedSchool = null;
   schoolId.value = "";
@@ -241,7 +345,7 @@ schoolSearch.addEventListener("input", () => {
   schoolSearchTimer = setTimeout(async () => {
     try {
       const schools = await fetchUniversitySuggestions(query);
-      if (requestId !== latestSchoolSearchRequestId || schoolSearch.value.trim() !== query) {
+      if (requestId !== latestSchoolSearchRequestId || normalizeLookupValue(schoolSearch.value) !== query) {
         return;
       }
       renderOptions(
@@ -253,7 +357,7 @@ schoolSearch.addEventListener("input", () => {
         "No school found. Try the full official school name."
       );
     } catch (error) {
-      if (requestId !== latestSchoolSearchRequestId || schoolSearch.value.trim() !== query) {
+      if (requestId !== latestSchoolSearchRequestId || normalizeLookupValue(schoolSearch.value) !== query) {
         return;
       }
       renderOptions(schoolResults, [], () => "", () => "", () => {}, error.message || "Could not load schools.");
