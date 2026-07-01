@@ -214,6 +214,7 @@ export const AdminWaitlistScreen: React.FC = () => {
   );
 
   const needSummary = useMemo(() => data?.summary?.byNeed || [], [data]);
+  const topUniversity: { name: string; count: number; share?: number } | null = data?.summary?.topUniversity || data?.summary?.byUniversity?.[0] || null;
 
   if (loading) {
     return (
@@ -252,6 +253,21 @@ export const AdminWaitlistScreen: React.FC = () => {
                   <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>{data?.summary?.invitedCount || 0}</Text>
                 </View>
               </View>
+              {topUniversity && (
+                <TouchableOpacity
+                  style={[styles.topSchoolCard, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}55` }]}
+                  onPress={() => applyBucketFilter("university", topUniversity.name)}
+                >
+                  <Text style={[typography.label, { color: colors.textMuted }]}>SCHOOL WITH THE MOST JOINS</Text>
+                  <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "900", textAlign: "center" }]} numberOfLines={2}>
+                    {topUniversity.name.replace(/_/g, " ")}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textSecondary, textAlign: "center" }]}>
+                    {topUniversity.count} signup{topUniversity.count === 1 ? "" : "s"}
+                    {typeof topUniversity.share === "number" ? ` • ${topUniversity.share}% of this audience` : ""}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={[styles.refreshButton, { borderColor: colors.border }]} onPress={() => loadWaitlist(true)}>
                 <RefreshCw size={16} color={colors.primary} />
                 <Text style={[typography.caption, { color: colors.primary, fontWeight: "700" }]}>Refresh</Text>
@@ -472,6 +488,16 @@ const styles = StyleSheet.create({
     minWidth: 130,
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  topSchoolCard: {
+    alignItems: "center",
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    width: "100%",
   },
   refreshButton: {
     alignItems: "center",

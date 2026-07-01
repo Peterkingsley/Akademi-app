@@ -204,6 +204,7 @@ export interface WaitlistResponse {
     invitedCount: number;
     neverSentCount: number;
     byNeed: { need: string; count: number }[];
+    topUniversity?: { name: string; count: number; share: number } | null;
     byUniversity: { name: string; count: number }[];
     byFaculty: { name: string; count: number }[];
     byDepartment: { name: string; count: number }[];

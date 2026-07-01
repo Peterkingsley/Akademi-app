@@ -481,6 +481,14 @@ export class AdminService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
+    const universitySummary = mapSummary(byUniversity as any, 'university');
+    const topUniversity = universitySummary[0]
+      ? {
+          ...universitySummary[0],
+          share: total > 0 ? Math.round((universitySummary[0].count / total) * 100) : 0,
+        }
+      : null;
+
     return {
       entries,
       total,
@@ -498,7 +506,8 @@ export class AdminService {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 6),
-        byUniversity: mapSummary(byUniversity as any, 'university'),
+        topUniversity,
+        byUniversity: universitySummary,
         byFaculty: mapSummary(byFaculty as any, 'faculty'),
         byDepartment: mapSummary(byDepartment as any, 'department'),
       },
