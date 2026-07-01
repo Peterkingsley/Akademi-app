@@ -311,9 +311,9 @@ export const AdminWaitlistScreen: React.FC = () => {
               )}
               {universitySummary.length > 0 && (
                 <View style={styles.topSchoolsHeroBlock}>
-                  <Text style={[typography.label, { color: colors.textMuted }]}>TOP SCHOOLS RIGHT NOW</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topSchoolsHeroRow}>
-                    {universitySummary.slice(0, 5).map((item, index) => {
+                  <Text style={[typography.label, { color: colors.textMuted }]}>TOP 10 SCHOOLS RIGHT NOW</Text>
+                  <View style={styles.topSchoolsHeroList}>
+                    {universitySummary.slice(0, 10).map((item, index) => {
                       const active = filters.university === item.name || (item.name === "not_set" && !filters.university);
                       return (
                         <TouchableOpacity
@@ -327,18 +327,20 @@ export const AdminWaitlistScreen: React.FC = () => {
                           ]}
                           onPress={() => applyBucketFilter("university", item.name)}
                         >
-                          <Text style={[typography.caption, { color: colors.textMuted }]}>#{index + 1}</Text>
-                          <Text
-                            style={[typography.caption, { color: active ? colors.primary : colors.textPrimary, fontWeight: "800" }]}
-                            numberOfLines={1}
-                          >
-                            {item.name.replace(/_/g, " ")}
-                          </Text>
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.count}</Text>
+                          <Text style={[typography.caption, { color: colors.textMuted }]}>{String(index + 1).padStart(2, "0")}</Text>
+                          <View style={styles.topSchoolHeroContent}>
+                            <Text
+                              style={[typography.caption, { color: active ? colors.primary : colors.textPrimary, fontWeight: "800" }]}
+                              numberOfLines={2}
+                            >
+                              {item.name.replace(/_/g, " ")}
+                            </Text>
+                            <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.count} signup{item.count === 1 ? "" : "s"}</Text>
+                          </View>
                         </TouchableOpacity>
                       );
                     })}
-                  </ScrollView>
+                  </View>
                 </View>
               )}
               <TouchableOpacity style={[styles.refreshButton, { borderColor: colors.border }]} onPress={() => loadWaitlist(true)}>
@@ -577,16 +579,23 @@ const styles = StyleSheet.create({
     marginTop: 16,
     width: "100%",
   },
-  topSchoolsHeroRow: {
+  topSchoolsHeroList: {
     gap: 10,
+    width: "100%",
   },
   topSchoolHeroChip: {
+    alignItems: "flex-start",
     borderRadius: 16,
     borderWidth: 1,
-    gap: 4,
-    minWidth: 140,
+    flexDirection: "row",
+    gap: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    width: "100%",
+  },
+  topSchoolHeroContent: {
+    flex: 1,
+    gap: 4,
   },
   refreshButton: {
     alignItems: "center",
