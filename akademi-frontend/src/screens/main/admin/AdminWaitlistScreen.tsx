@@ -18,6 +18,26 @@ import { adminService, WaitlistEntry, WaitlistResponse } from "../../../services
 
 type InviteStatus = "all" | "never_sent" | "sent_before";
 
+type SummaryBucket = { name: string; count: number };
+
+const buildEntrySummary = (
+  entries: WaitlistEntry[],
+  key: "university" | "faculty" | "department"
+): SummaryBucket[] => {
+  const counts = new Map<string, number>();
+
+  entries.forEach((entry) => {
+    const rawValue = entry[key];
+    const normalized = typeof rawValue === "string" && rawValue.trim().length > 0 ? rawValue.trim() : "not_set";
+    counts.set(normalized, (counts.get(normalized) || 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+};
+
 export const AdminWaitlistScreen: React.FC = () => {
   const { colors, spacing, typography } = useTheme();
   const [data, setData] = useState<WaitlistResponse | null>(null);
@@ -214,7 +234,28 @@ export const AdminWaitlistScreen: React.FC = () => {
   );
 
   const needSummary = useMemo(() => data?.summary?.byNeed || [], [data]);
-  const topUniversity: { name: string; count: number; share?: number } | null = data?.summary?.topUniversity || data?.summary?.byUniversity?.[0] || null;
+  const universitySummary = useMemo(
+    () => (data?.summary?.byUniversity?.length ? data.summary.byUniversity : buildEntrySummary(data?.entries || [], "university")),
+    [data?.entries, data?.summary?.byUniversity]
+  );
+  const facultySummary = useMemo(
+    () => (data?.summary?.byFaculty?.length ? data.summary.byFaculty : buildEntrySummary(data?.entries || [], "faculty")),
+    [data?.entries, data?.summary?.byFaculty]
+  );
+  const departmentSummary = useMemo(
+    () => (data?.summary?.byDepartment?.length ? data.summary.byDepartment : buildEntrySummary(data?.entries || [], "department")),
+    [data?.entries, data?.summary?.byDepartment]
+  );
+  const topUniversity: { name: string; count: number; share?: number } | null = useMemo(() => {
+    const top = data?.summary?.topUniversity || universitySummary[0] || null;
+    if (!top) return null;
+    const total = data?.summary?.total || data?.total || data?.entries?.length || 0;
+
+    return {
+      ...top,
+      share: typeof top.share === "number" ? top.share : total > 0 ? Math.round((top.count / total) * 100) : 0,
+    };
+  }, [data?.entries?.length, data?.summary?.topUniversity, data?.summary?.total, data?.total, universitySummary]);
 
   if (loading) {
     return (
@@ -264,7 +305,7 @@ export const AdminWaitlistScreen: React.FC = () => {
                   </Text>
                   <Text style={[typography.caption, { color: colors.textSecondary, textAlign: "center" }]}>
                     {topUniversity.count} signup{topUniversity.count === 1 ? "" : "s"}
-                    {typeof topUniversity.share === "number" ? ` â€¢ ${topUniversity.share}% of this audience` : ""}
+                    {typeof topUniversity.share === "number" ? ` • ${topUniversity.share}% of this audience` : ""}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -348,9 +389,9 @@ export const AdminWaitlistScreen: React.FC = () => {
                 <BarChart3 size={20} color={colors.primary} />
                 <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>Demand metrics</Text>
               </View>
-              {renderMetricRow("Top schools", data?.summary?.byUniversity || [], "university")}
-              {renderMetricRow("Top faculties", data?.summary?.byFaculty || [], "faculty")}
-              {renderMetricRow("Top departments", data?.summary?.byDepartment || [], "department")}
+              {renderMetricRow("Top schools", universitySummary, "university")}
+              {renderMetricRow("Top faculties", facultySummary, "faculty")}
+              {renderMetricRow("Top departments", departmentSummary, "department")}
               {needSummary.length > 0 && (
                 <View style={styles.metricBlock}>
                   <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.sm }]}>Top learning needs</Text>
@@ -639,4 +680,5 @@ const styles = StyleSheet.create({
     padding: 18,
   },
 });
+
 
