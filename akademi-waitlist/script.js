@@ -478,14 +478,17 @@ form.addEventListener("submit", async (event) => {
       throw lastError || new Error("Could not join waitlist.");
     }
 
-    setStatus("You're on the list. Redirecting you to our WhatsApp channel...", "success");
+    setStatus(
+      "You have joined the waitlist and you will be redirected to our WhatsApp channel to stay updated.",
+      "success"
+    );
     form.reset();
     selectedSchool = null;
     schoolId.value = "";
     resetFaculty();
     setTimeout(() => {
       window.location.href = WHATSAPP_CHANNEL_URL;
-    }, 600);
+    }, 1600);
   } catch (error) {
     setStatus(error.message || "Something went wrong. Please try again.", "error");
   } finally {
