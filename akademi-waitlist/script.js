@@ -54,6 +54,7 @@ let selectedDepartment = null;
 let faculties = [];
 let departments = [];
 let schoolSearchTimer = null;
+let latestSchoolSearchRequestId = 0;
 
 function setStatus(message, type) {
   statusEl.textContent = message;
@@ -101,7 +102,12 @@ function renderOptions(container, items, getTitle, getSubtitle, onSelect, emptyM
 async function fetchJson(path) {
   let lastError = null;
 
-  for (const baseUrl of API_CANDIDATE_URLS) {
+  const orderedBaseUrls = [
+    currentApiBaseUrl,
+    ...API_CANDIDATE_URLS.filter((baseUrl) => baseUrl !== currentApiBaseUrl),
+  ];
+
+  for (const baseUrl of orderedBaseUrls) {
     try {
       const response = await fetch(`${baseUrl}${path}`);
       const data = await response.json().catch(() => []);
@@ -123,6 +129,47 @@ async function fetchJson(path) {
   }
 
   throw lastError || new Error("Could not load options.");
+}
+
+async function fetchUniversitySuggestions(query) {
+  let lastError = null;
+  const orderedBaseUrls = [
+    currentApiBaseUrl,
+    ...API_CANDIDATE_URLS.filter((baseUrl) => baseUrl !== currentApiBaseUrl),
+  ];
+  let emptyResult = [];
+
+  for (const baseUrl of orderedBaseUrls) {
+    try {
+      const response = await fetch(`${baseUrl}/universities?search=${encodeURIComponent(query)}&limit=12`);
+      const data = await response.json().catch(() => []);
+
+      if (!response.ok) {
+        const message = data.message || "Could not load schools.";
+        if (response.status >= 500) {
+          throw new Error(message);
+        }
+        throw new Error(message);
+      }
+
+      if (Array.isArray(data) && data.length > 0) {
+        currentApiBaseUrl = baseUrl;
+        return data;
+      }
+
+      if (Array.isArray(data)) {
+        emptyResult = data;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (emptyResult.length === 0 && lastError) {
+    throw lastError;
+  }
+
+  return emptyResult;
 }
 
 function resetFaculty() {
@@ -180,6 +227,7 @@ async function selectDepartment(department) {
 
 schoolSearch.addEventListener("input", () => {
   const query = schoolSearch.value.trim();
+  const requestId = ++latestSchoolSearchRequestId;
   selectedSchool = null;
   schoolId.value = "";
   resetFaculty();
@@ -192,7 +240,10 @@ schoolSearch.addEventListener("input", () => {
 
   schoolSearchTimer = setTimeout(async () => {
     try {
-      const schools = await fetchJson(`/universities?search=${encodeURIComponent(query)}&limit=12`);
+      const schools = await fetchUniversitySuggestions(query);
+      if (requestId !== latestSchoolSearchRequestId || schoolSearch.value.trim() !== query) {
+        return;
+      }
       renderOptions(
         schoolResults,
         schools,
@@ -202,6 +253,9 @@ schoolSearch.addEventListener("input", () => {
         "No school found. Try the full official school name."
       );
     } catch (error) {
+      if (requestId !== latestSchoolSearchRequestId || schoolSearch.value.trim() !== query) {
+        return;
+      }
       renderOptions(schoolResults, [], () => "", () => "", () => {}, error.message || "Could not load schools.");
     }
   }, 260);
