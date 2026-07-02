@@ -438,6 +438,15 @@ export class AdminController {
     }
   }
 
+  async getUniversityCoverage(req: Request, res: Response) {
+    try {
+      const coverage = await adminService.getUniversityCoverage();
+      res.json(coverage);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   // Pillar 5: Platform Analytics
   async getOverviewAnalytics(req: Request, res: Response) {
     try {

@@ -13,6 +13,7 @@
     "migrate": "prisma migrate deploy && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
     "render:build": "npm run build && npx prisma migrate deploy && node fix-db.js && npm run seed:admin && npm run seed:universities && npm run import:tertiary -- --apply",
     "seed:universities": "tsx prisma/seed-universities.ts",
+    "audit:school-coverage": "tsx prisma/audit-school-coverage.ts",
     "import:tertiary": "tsx prisma/import-tertiary-institutions.ts",
     "seed:courses": "tsx prisma/seed-courses.ts",
     "scrape:courses": "tsx src/scripts/scrape-courses.ts",

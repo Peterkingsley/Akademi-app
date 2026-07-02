@@ -99,6 +99,7 @@ router.post('/reingest-all-materials', authorizeRoles(AdminRole.SUPER_ADMIN), (r
 // Pillar 4: Discipline Documents
 router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));
 router.get('/documents/coverage', (req, res) => adminController.getDepartmentCoverage(req, res));
+router.get('/universities/coverage', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getUniversityCoverage(req, res));
 router.post('/documents/upload-file', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), documentUpload.single('document'), (req, res) => adminController.uploadDisciplineDocumentFile(req, res));
 router.get('/documents/:id', (req, res) => adminController.getDisciplineDocument(req, res));
 router.post('/documents', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadDisciplineDocument(req, res));

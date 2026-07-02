@@ -15,6 +15,7 @@ import { Resend } from 'resend';
 import { getSystemHealthSnapshot } from '../../shared/system/system-health';
 import { getQueueHealth } from '../../config/queue';
 import { queueMaterialIngestion } from '../materials/material-processing';
+import { getUniversityCoverageAudit } from '../universities/university-coverage';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -1310,6 +1311,10 @@ export class AdminService {
     });
 
     return coverage;
+  }
+
+  async getUniversityCoverage() {
+    return getUniversityCoverageAudit();
   }
 
   // Pillar 5: Platform Analytics
