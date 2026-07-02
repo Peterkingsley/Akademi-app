@@ -6,7 +6,7 @@ import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest, VerifyEmailRequest } from './auth.types';
-import { AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
+import { AdminRole, AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 import redisClient from '../../config/redis';
 
@@ -49,6 +49,30 @@ export class AuthService {
 
   private generateAccessToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwtSecret, { expiresIn: '15m' });
+  }
+
+  private generateAdminAccessToken(admin: { id: string; email: string; role: AdminRole }): string {
+    return jwt.sign(
+      { adminId: admin.id, email: admin.email, role: admin.role },
+      config.jwtSecret,
+      { expiresIn: '24h' },
+    );
+  }
+
+  private async getAdminAuthForEmail(email: string): Promise<{ adminRole: AdminRole | null; adminAccessToken: string | null }> {
+    const admin = await prisma.admin.findUnique({
+      where: { email },
+      select: { id: true, email: true, role: true, status: true },
+    });
+
+    if (!admin || admin.status === 'suspended') {
+      return { adminRole: null, adminAccessToken: null };
+    }
+
+    return {
+      adminRole: admin.role,
+      adminAccessToken: this.generateAdminAccessToken(admin),
+    };
   }
 
   private async generateRefreshToken(userId: string, deviceInfo: { name: string; type: any }): Promise<string> {
@@ -255,16 +279,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: verifiedUser.id, email: verifiedUser.email });
     const refreshToken = await this.generateRefreshToken(verifiedUser.id, deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: verifiedUser.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(verifiedUser.email);
 
     const { password_hash, ...userWithoutPassword } = verifiedUser;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -290,16 +312,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, data.deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(user.email);
 
     const { password_hash, ...userWithoutPassword } = user;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -322,16 +342,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(user.email);
 
     const { password_hash, ...userWithoutPassword } = user;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -364,16 +382,14 @@ export class AuthService {
       type: refreshTokenRecord.device_type,
     });
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: refreshTokenRecord.user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(refreshTokenRecord.user.email);
 
     const { password_hash, ...userWithoutPassword } = refreshTokenRecord.user;
     return {
       accessToken,
       refreshToken: newRefreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 

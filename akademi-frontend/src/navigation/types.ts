@@ -46,6 +46,7 @@ export type AuthStackParamList = {
     };
     accessToken: string;
     refreshToken: string;
+    adminAccessToken?: string | null;
   };
   Login: undefined;
   ForgotPassword: { email?: string };

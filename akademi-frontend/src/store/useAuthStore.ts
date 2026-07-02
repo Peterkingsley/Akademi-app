@@ -23,11 +23,12 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  adminAccessToken: string | null;
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
   hasHydrated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
-  updateTokens: (accessToken: string, refreshToken: string) => void;
+  setAuth: (user: User, accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
+  updateTokens: (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
   updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
   setOnboardingComplete: (complete: boolean) => void;
@@ -40,20 +41,21 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
+      adminAccessToken: null,
       isAuthenticated: false,
       hasSeenOnboarding: false,
       hasHydrated: false,
-      setAuth: (user, accessToken, refreshToken) => {
-        void saveTokens(accessToken, refreshToken).catch((error) => {
+      setAuth: (user, accessToken, refreshToken, adminAccessToken = null) => {
+        void saveTokens(accessToken, refreshToken, adminAccessToken).catch((error) => {
           console.error("Failed to save auth tokens securely", error);
         });
-        set({ user, accessToken, refreshToken, isAuthenticated: true });
+        set({ user, accessToken, refreshToken, adminAccessToken, isAuthenticated: true });
       },
-      updateTokens: (accessToken, refreshToken) => {
-        void saveTokens(accessToken, refreshToken).catch((error) => {
+      updateTokens: (accessToken, refreshToken, adminAccessToken = null) => {
+        void saveTokens(accessToken, refreshToken, adminAccessToken).catch((error) => {
           console.error("Failed to rotate auth tokens securely", error);
         });
-        set({ accessToken, refreshToken, isAuthenticated: true });
+        set({ accessToken, refreshToken, adminAccessToken, isAuthenticated: true });
       },
       updateUser: (updatedUser) => {
         set((state) => ({
@@ -69,6 +71,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           accessToken: null,
           refreshToken: null,
+          adminAccessToken: null,
           isAuthenticated: false,
           hasSeenOnboarding: true,
         });
@@ -85,10 +88,11 @@ export const useAuthStore = create<AuthState>()(
         hasSeenOnboarding: state.hasSeenOnboarding,
       }),
       onRehydrateStorage: () => async (state) => {
-        const { accessToken, refreshToken } = await readStoredTokens();
+        const { accessToken, refreshToken, adminAccessToken } = await readStoredTokens();
         useAuthStore.setState({
           accessToken,
           refreshToken,
+          adminAccessToken,
           isAuthenticated: Boolean(state?.user && accessToken && refreshToken),
           hasHydrated: true,
         });

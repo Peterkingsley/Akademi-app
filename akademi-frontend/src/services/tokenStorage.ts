@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 
 const ACCESS_TOKEN_KEY = "akademi.accessToken";
 const REFRESH_TOKEN_KEY = "akademi.refreshToken";
+const ADMIN_ACCESS_TOKEN_KEY = "akademi.adminAccessToken";
 const LEGACY_ACCESS_TOKEN_KEY = "accessToken";
 const LEGACY_REFRESH_TOKEN_KEY = "refreshToken";
 const AUTH_STORAGE_KEY = "auth-storage";
@@ -25,6 +26,7 @@ const stripTokensFromAuthStorage = async () => {
     if (parsed?.state) {
       delete parsed.state.accessToken;
       delete parsed.state.refreshToken;
+      delete parsed.state.adminAccessToken;
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
     }
   } catch {
@@ -43,13 +45,18 @@ const migrateLegacyToken = async (legacyKey: string, secureKey: string) => {
   return legacyValue;
 };
 
-export const saveTokens = async (accessToken: string, refreshToken: string) => {
+export const saveTokens = async (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => {
   if (!(await canUseSecureStore())) {
     throw new Error("Secure token storage is not available on this device.");
   }
 
   await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
   await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+  if (adminAccessToken) {
+    await SecureStore.setItemAsync(ADMIN_ACCESS_TOKEN_KEY, adminAccessToken);
+  } else {
+    await SecureStore.deleteItemAsync(ADMIN_ACCESS_TOKEN_KEY);
+  }
   await AsyncStorage.multiRemove([LEGACY_ACCESS_TOKEN_KEY, LEGACY_REFRESH_TOKEN_KEY]);
   await stripTokensFromAuthStorage();
 };
@@ -72,13 +79,22 @@ export const readRefreshToken = async () => {
   return migrateLegacyToken(LEGACY_REFRESH_TOKEN_KEY, REFRESH_TOKEN_KEY);
 };
 
+export const readAdminAccessToken = async () => {
+  if (await canUseSecureStore()) {
+    return SecureStore.getItemAsync(ADMIN_ACCESS_TOKEN_KEY);
+  }
+
+  return null;
+};
+
 export const readStoredTokens = async () => {
-  const [accessToken, refreshToken] = await Promise.all([
+  const [accessToken, refreshToken, adminAccessToken] = await Promise.all([
     readAccessToken(),
     readRefreshToken(),
+    readAdminAccessToken(),
   ]);
   await stripTokensFromAuthStorage();
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, adminAccessToken };
 };
 
 export const clearTokens = async () => {
@@ -86,6 +102,7 @@ export const clearTokens = async () => {
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+      SecureStore.deleteItemAsync(ADMIN_ACCESS_TOKEN_KEY),
     ]);
   }
 
