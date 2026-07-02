@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
+import { Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
+import Animated, { ZoomIn } from "react-native-reanimated";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 
@@ -45,7 +46,10 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
   };
 
   return (
-    <View style={[styles.base, getVariantStyle(), style]}>
+    <Animated.View
+      entering={ZoomIn.springify().damping(11).mass(0.5)}
+      style={[styles.base, getVariantStyle(), style]}
+    >
       <Text
         style={[
           styles.text,
@@ -56,7 +60,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
       >
         {label}
       </Text>
-    </View>
+    </Animated.View>
   );
 };
 

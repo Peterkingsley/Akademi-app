@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { TouchableOpacity, View, StyleSheet, ViewStyle } from "react-native";
-import { colors } from "../../theme/colors";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from "react-native-reanimated";
+import { useTheme } from "../../theme/ThemeContext";
+import { usePressBounce } from "../../hooks/usePressBounce";
 
 interface CardProps {
   children: React.ReactNode;
@@ -11,6 +13,8 @@ interface CardProps {
   noPadding?: boolean;
 }
 
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
 export const Card: React.FC<CardProps> = ({
   children,
   style,
@@ -19,26 +23,65 @@ export const Card: React.FC<CardProps> = ({
   bordered = true,
   noPadding = false,
 }) => {
-  const Container = onPress ? TouchableOpacity : View;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { animatedStyle, onPressIn, onPressOut } = usePressBounce(0.97);
+  const pressed = useSharedValue(0);
+
+  const borderStyle = useAnimatedStyle(() => ({
+    borderColor: bordered
+      ? interpolateColor(pressed.value, [0, 1], [colors.border, colors.primary])
+      : "transparent",
+  }));
+
+  if (!onPress) {
+    return (
+      <View
+        style={[
+          styles.base,
+          noPadding && styles.noPadding,
+          elevated ? styles.elevated : styles.default,
+          bordered && styles.bordered,
+          style,
+        ]}
+      >
+        {children}
+      </View>
+    );
+  }
+
+  const handlePressIn = () => {
+    onPressIn();
+    pressed.value = withTiming(1, { duration: 120 });
+  };
+
+  const handlePressOut = () => {
+    onPressOut();
+    pressed.value = withTiming(0, { duration: 220 });
+  };
 
   return (
-    <Container
+    <AnimatedTouchableOpacity
       onPress={onPress}
-      activeOpacity={0.8}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={0.9}
       style={[
         styles.base,
         noPadding && styles.noPadding,
         elevated ? styles.elevated : styles.default,
         bordered && styles.bordered,
         style,
+        animatedStyle,
+        borderStyle,
       ]}
     >
       {children}
-    </Container>
+    </AnimatedTouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   base: {
     borderRadius: 12,
     padding: 16,
