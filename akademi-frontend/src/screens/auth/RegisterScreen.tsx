@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { BookOpen, GraduationCap, LockKeyhole, Mail, User } from "lucide-react-native";
+import { ArrowRight, BookOpen, GraduationCap, LockKeyhole, Mail, ShieldCheck, User } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
@@ -67,15 +67,15 @@ export const RegisterScreen: React.FC = () => {
         email: form.email.trim(),
         password: form.password,
         university,
-          faculty,
-          department,
-          level: levelInt,
-          semester,
-          semesterStart,
-          semesterEnd,
-          courses: selectedCourses,
-          academicCourses,
-        });
+        faculty,
+        department,
+        level: levelInt,
+        semester,
+        semesterStart,
+        semesterEnd,
+        courses: selectedCourses,
+        academicCourses,
+      });
 
       navigation.navigate("EmailVerification", { email: form.email.trim() });
     } catch (err: any) {
@@ -100,48 +100,52 @@ export const RegisterScreen: React.FC = () => {
   return (
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.backChip} activeOpacity={0.8}>
-            <GraduationCap size={17} color={colors.primary} />
-            <Text style={styles.backChipText}>Academic profile</Text>
+        <View style={styles.topRow}>
+          <TouchableOpacity style={styles.profileChip} onPress={() => navigation.navigate("UniversityPicker")} activeOpacity={0.85}>
+            <GraduationCap size={16} color={colors.primary} />
+            <Text style={styles.profileChipText}>Academic Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate("Login")} activeOpacity={0.8}>
-            <Text style={styles.signInTop}>Sign in</Text>
+          <TouchableOpacity style={styles.authChip} onPress={() => navigation.navigate("Login")} activeOpacity={0.85}>
+            <Text style={styles.authChipText}>Sign In</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <User size={23} color={colors.primary} />
+        <View style={styles.heroPanel}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.headline}>Create Account</Text>
+            <Text style={styles.subtext}>Save your materials, practice history, and progress from day one.</Text>
           </View>
-          <Text style={styles.headline}>Create your account</Text>
-          <Text style={styles.subtext}>Save your materials, tutor sessions, mock attempts, and progress history.</Text>
+          <View style={styles.heroOrb}>
+            <ShieldCheck size={28} color="#050505" />
+          </View>
         </View>
 
-        <View style={styles.academicCard}>
-          <View style={styles.academicIcon}>
-            <BookOpen size={19} color={colors.primary} />
+        <View style={styles.profileSummaryCard}>
+          <View style={styles.summaryIcon}>
+            <BookOpen size={18} color={colors.primary} />
           </View>
-          <View style={styles.academicCopy}>
-            <Text style={styles.cardLabel}>Studying as</Text>
-            <Text style={styles.academicTitle} numberOfLines={2}>
+          <View style={styles.summaryCopy}>
+            <Text style={styles.summaryLabel}>Current profile</Text>
+            <Text style={styles.summaryTitle} numberOfLines={2}>
               {hasAcademicProfile ? `${department} / ${level || "Level"} / Semester ${semester}` : "Academic profile missing"}
             </Text>
-            <Text style={styles.academicMeta} numberOfLines={2}>
-              {hasAcademicProfile ? `${university} - ${selectedCourses.length} course codes - ${semesterStart} to ${semesterEnd}` : "Go back and choose your school details."}
+            <Text style={styles.summaryMeta} numberOfLines={2}>
+              {hasAcademicProfile
+                ? `${university} · ${selectedCourses.length} courses · ${semesterStart} to ${semesterEnd}`
+                : "Go back and choose your school details before creating your account."}
             </Text>
           </View>
         </View>
 
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+        <View style={styles.formPanel}>
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        <View style={styles.formCard}>
           <Input
-            label="Full name"
+            label="Full Name"
             placeholder="Enter your full name"
             value={form.name}
             onChangeText={(text) => setForm({ ...form, name: text })}
@@ -149,7 +153,7 @@ export const RegisterScreen: React.FC = () => {
           />
 
           <Input
-            label="Email address"
+            label="Email"
             placeholder="name@example.com"
             value={form.email}
             onChangeText={(text) => setForm({ ...form, email: text })}
@@ -189,14 +193,15 @@ export const RegisterScreen: React.FC = () => {
             <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Privacy Policy</Text>.
           </Text>
 
-          <Button label="Create account" onPress={handleRegister} loading={loading} disabled={loading} style={styles.createButton} />
+          <Button
+            label="Create Account"
+            onPress={handleRegister}
+            loading={loading}
+            disabled={loading}
+            style={styles.createButton}
+            icon={<ArrowRight size={18} color="#FFFFFF" />}
+          />
         </View>
-
-        <TouchableOpacity onPress={() => navigation.navigate("Login")} style={styles.signInLink}>
-          <Text style={styles.signInText}>
-            Already have an account? <Text style={styles.linkText}>Sign in instead</Text>
-          </Text>
-        </TouchableOpacity>
       </ScrollView>
     </Screen>
   );
@@ -209,111 +214,140 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingBottom: 34,
-    paddingHorizontal: 24,
-    paddingTop: 22,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
-  topBar: {
-    alignItems: "center",
+  topRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 18,
+    gap: 10,
   },
-  backChip: {
+  profileChip: {
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     alignItems: "center",
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-  },
-  backChipText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: "700",
-    marginLeft: 7,
-  },
-  signInTop: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 14,
-    padding: 18,
-  },
-  heroIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    height: 46,
     justifyContent: "center",
-    marginBottom: 16,
-    width: 46,
+    backgroundColor: "#111111",
+    borderWidth: 1,
+    borderColor: "#232323",
+    flexDirection: "row",
+  },
+  profileChipText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  authChip: {
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#101412",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+  },
+  authChipText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  heroPanel: {
+    backgroundColor: "#101412",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+    borderRadius: 28,
+    marginBottom: 14,
+    minHeight: 186,
+    overflow: "hidden",
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    justifyContent: "space-between",
+  },
+  heroCopy: {
+    maxWidth: "74%",
   },
   headline: {
     ...typography.h1,
-    color: colors.textPrimary,
-    fontSize: 27,
-    lineHeight: 34,
+    color: "#FFFFFF",
+    fontSize: 31,
+    lineHeight: 36,
   },
   subtext: {
     ...typography.body,
     color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 21,
+    lineHeight: 19,
     marginTop: 8,
   },
-  academicCard: {
-    alignItems: "center",
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    marginBottom: 14,
-    padding: 14,
+  heroOrb: {
+    position: "absolute",
+    right: -18,
+    top: -18,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: "#0A0D0B",
+    alignItems: "flex-start",
+    justifyContent: "flex-end",
+    paddingBottom: 20,
+    paddingLeft: 18,
   },
-  academicIcon: {
+  profileSummaryCard: {
+    backgroundColor: "#101412",
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#1D3528",
+    padding: 14,
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
+    marginBottom: 16,
+  },
+  summaryIcon: {
+    width: 42,
     height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(34,197,94,0.14)",
+    alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
-    width: 42,
   },
-  academicCopy: {
+  summaryCopy: {
     flex: 1,
-    minWidth: 0,
   },
-  cardLabel: {
+  summaryLabel: {
     ...typography.label,
     color: colors.primary,
-    fontSize: 9,
     marginBottom: 4,
   },
-  academicTitle: {
-    ...typography.h4,
+  summaryTitle: {
+    ...typography.body,
     color: colors.textPrimary,
-    fontSize: 14,
+    fontWeight: "700",
   },
-  academicMeta: {
+  summaryMeta: {
     ...typography.caption,
     color: colors.textSecondary,
-    lineHeight: 16,
     marginTop: 4,
+    lineHeight: 16,
+  },
+  formPanel: {
+    backgroundColor: "#050505",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#1F1F1F",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 20,
   },
   errorBanner: {
     backgroundColor: "rgba(239,68,68,0.12)",
     borderColor: colors.error,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     marginBottom: 14,
     padding: 12,
@@ -323,26 +357,19 @@ const styles = StyleSheet.create({
     color: colors.error,
     lineHeight: 18,
   },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 16,
-  },
   passwordInput: {
     marginBottom: 8,
   },
   strengthBarContainer: {
     flexDirection: "row",
-    gap: 5,
+    gap: 6,
     marginBottom: 8,
   },
   strengthSegment: {
     backgroundColor: colors.border,
-    borderRadius: 2,
+    borderRadius: 999,
     flex: 1,
-    height: 4,
+    height: 5,
   },
   strengthLabel: {
     ...typography.caption,
@@ -361,14 +388,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   createButton: {
-    borderRadius: 8,
-  },
-  signInLink: {
-    alignItems: "center",
-    marginTop: 18,
-  },
-  signInText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    borderRadius: 999,
+    height: 52,
   },
 });

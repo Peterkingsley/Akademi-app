@@ -3,7 +3,7 @@ import api from "./api";
 export interface Session {
   id: string;
   user_id: string;
-  session_type: "ASSIGNMENT" | "STUDY" | "TUTOR" | "EXAM_PREP";
+  session_type: "ASSIGNMENT" | "STUDY" | "EXAM_PREP";
   reply_mode?: "DIRECT" | "STUDY" | "QUESTION" | "WRONGLY";
   course_code: string;
   material_id?: string | null;
@@ -29,6 +29,12 @@ export interface Message {
   role: "STUDENT" | "AI";
   content: string;
   metadata?: {
+    autoContinue?: boolean;
+    waitForStudent?: boolean;
+    nextAction?: "continue_teaching" | "evaluate_answer" | "ask_followup" | "move_next";
+    turnType?: "teaching" | "checkpoint_question" | "evaluation" | "reteach" | "transition";
+    allowInterruption?: boolean;
+    questionCount?: number;
     whiteboard?: {
       available?: boolean;
       subject_family?: string;
@@ -47,9 +53,85 @@ export interface Message {
         summary?: string;
       };
     };
+    study_companion?: StudyCompanionState | null;
   };
   reply_mode?: string;
   created_at: string;
+}
+
+export interface TranscriptionResult {
+  transcript: string;
+  fileName?: string;
+}
+
+export interface StudyRoadmapSection {
+  key: string;
+  title: string;
+  content: string;
+  status: "NOT_STARTED" | "IN_PROGRESS" | "NEEDS_REVIEW" | "MASTERED";
+  pageStart: number;
+  pageEnd: number;
+}
+
+export interface StudyCompanionState {
+  phase:
+    | "MATERIAL_SELECTION_REQUIRED"
+    | "MATERIAL_SELECTED"
+    | "ROADMAP_GENERATED"
+    | "TEACHING_PASS_1_BIG_PICTURE"
+    | "TEACHING_PASS_2_DETAILS"
+    | "TEACHING_PASS_3_CONNECTIONS"
+    | "TEACHBACK_1_REQUESTED"
+    | "TEACHBACK_1_EVALUATION"
+    | "GAP_RETEACH"
+    | "TEACHBACK_2_REQUESTED"
+    | "TEACHBACK_2_EVALUATION"
+    | "MEMORY_DUMP_REQUESTED"
+    | "MEMORY_DUMP_EVALUATION"
+    | "MASTERY_PASSED"
+    | "MASTERY_FAILED"
+    | "SECTION_COMPLETED"
+    | "NEXT_SECTION_READY"
+    | "SESSION_COMPLETED";
+  currentSectionIndex: number;
+  lastCompletedIndex: number;
+  lastMasteryScore: number | null;
+  masteryThreshold: number;
+  roadmap: StudyRoadmapSection[];
+  progress: {
+    completedSections: number;
+    totalSections: number;
+    masteredSections: number;
+  };
+  refreshQuestion: string | null;
+  pendingPrompt: string | null;
+  materialId: string;
+  courseCode: string;
+}
+
+export interface StudyVisualItem {
+  title: string;
+  diagramType: string;
+  description: string;
+  whenToShow: string;
+  studentShouldNotice: string[];
+  suggestedRenderer:
+    | "mental_model"
+    | "flowchart"
+    | "graph"
+    | "equation_breakdown"
+    | "labeled_diagram"
+    | "process_steps"
+    | "table"
+    | "future_image_generation";
+  priority: number;
+}
+
+export interface StudyVisualPlan {
+  sectionIndex: number;
+  sectionTitle: string;
+  isDiagramHeavy: boolean;
+  visuals: StudyVisualItem[];
 }
 
 export interface SessionSummary {
@@ -132,20 +214,77 @@ export const sessionService = {
     });
     return response.data;
   },
-  getPlayableLesson: async (sessionId: string) => {
-    const response = await api.get(`/sessions/${sessionId}/teaching`, {
+
+  getCompanionState: async (sessionId: string) => {
+    try {
+      const response = await api.get<StudyCompanionState | null>(`/sessions/${sessionId}/companion`);
+      return response.data;
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  getVisualPlan: async (sessionId: string) => {
+    const response = await api.get<StudyVisualPlan>(`/sessions/${sessionId}/visual-plan`);
+    return response.data;
+  },
+
+  startCompanion: async (
+    sessionId: string,
+    data: {
+      mode: "continue" | "specific" | "beginning" | "roadmap";
+      section_title?: string;
+    }
+  ) => {
+    const response = await api.post<Message>(`/sessions/${sessionId}/companion/start`, data, {
       timeout: 90000,
     });
     return response.data;
   },
 
-  generateTeaching: async (sessionId: string, studentMessage: string, materialContext?: string) => {
-    const response = await api.post(`/sessions/${sessionId}/teaching`, {
-      studentMessage,
-      materialContext,
-    }, {
+  sendCompanionMessage: async (sessionId: string, content: string) => {
+    const response = await api.post<Message>(
+      `/sessions/${sessionId}/companion/message`,
+      { content },
+      { timeout: 90000 },
+    );
+    return response.data;
+  },
+
+  sendCompanionTurn: async (
+    sessionId: string,
+    data: {
+      action: "tutor:start" | "tutor:continue" | "tutor:student_response" | "tutor:interrupt";
+      mode?: "continue" | "specific" | "beginning" | "roadmap";
+      section_title?: string;
+      content?: string;
+    }
+  ) => {
+    const response = await api.post<Message>(`/sessions/${sessionId}/companion/turn`, data, {
       timeout: 90000,
     });
+    return response.data;
+  },
+
+  sendPhotoMessage: async (sessionId: string, uri: string, name = "solution.jpg") => {
+    const formData = new FormData();
+    formData.append("photo", {
+      uri,
+      name,
+      type: "image/jpeg",
+    } as any);
+
+    const response = await api.post<{ extractedText: string; message: Message }>(
+      `/sessions/${sessionId}/messages/photo`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 90000,
+      },
+    );
     return response.data;
   },
 };

@@ -79,6 +79,15 @@ export class UsersController {
     }
   }
 
+  async getCourseOptions(req: Request, res: Response) {
+    try {
+      const courses = await usersService.getCourseOptions(req.user!.userId);
+      res.status(200).json(courses);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async updateAcademicProfile(req: Request, res: Response) {
     try {
       const profile = await usersService.updateAcademicProfile(req.user!.userId, req.body);

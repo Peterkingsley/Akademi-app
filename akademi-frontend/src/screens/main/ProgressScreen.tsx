@@ -181,7 +181,7 @@ export const ProgressScreen: React.FC = () => {
 
             <View style={styles.statsGrid}>
               <StatCard icon={BookOpen} label="Solved" value={progress.summary.solved} sub={`${progress.summary.accuracy}% accuracy`} />
-              <StatCard icon={Clock3} label="Sessions" value={progress.summary.sessions} sub={`${progress.summary.totalTutorMinutes} tutor min`} />
+              <StatCard icon={Clock3} label="Sessions" value={progress.summary.sessions} sub="Study activity" />
               <StatCard icon={FileText} label="Uploads" value={progress.summary.uploads} sub={`${progress.summary.approvedUploads} approved`} />
               <StatCard icon={Target} label="Mocks" value={progress.summary.mockAttempts} sub={`${progress.summary.examPlans} exam plans`} />
             </View>
@@ -248,7 +248,7 @@ export const ProgressScreen: React.FC = () => {
             ) : (
               <EmptyCard
                 title="No course activity yet"
-                text="Solve a question, start a tutor session, upload a material, or take a mock exam to see course progress here."
+                text="Solve a question, upload a material, or take a mock exam to see course progress here."
               />
             )}
 
@@ -261,7 +261,7 @@ export const ProgressScreen: React.FC = () => {
                     <ActivityRow
                       key={session.id}
                       icon={Clock3}
-                      title={session.topic || "Tutor session"}
+                      title={session.topic || "Study session"}
                       meta={`${session.courseCode || "General"} - ${session.messageCount} messages - ${formatDate(session.createdAt)}`}
                     />
                   ))}

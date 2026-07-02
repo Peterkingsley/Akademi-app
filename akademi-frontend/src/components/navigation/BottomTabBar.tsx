@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,31 @@ import {
   Platform,
 } from "react-native";
 import { BarChart3, Clock3, House, Camera, Library, User } from "lucide-react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import * as Haptics from "expo-haptics";
+
+const INDICATOR_WIDTH = 28;
+const INDICATOR_SPRING = { damping: 16, stiffness: 260, mass: 0.7 };
+const ICON_SPRING = { damping: 8, stiffness: 300, mass: 0.5 };
+const LIFT_SPRING = { damping: 10, stiffness: 260, mass: 0.5 };
+
+const TabIcon: React.FC<{ focused: boolean; children: React.ReactNode }> = ({ focused, children }) => {
+  const scale = useSharedValue(focused ? 1.15 : 1);
+  const translateY = useSharedValue(focused ? -3 : 0);
+
+  useEffect(() => {
+    scale.value = withSpring(focused ? 1.15 : 1, ICON_SPRING);
+    translateY.value = withSpring(focused ? -3 : 0, LIFT_SPRING);
+  }, [focused]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
+};
 
 interface BottomTabBarProps {
   state: any;
@@ -23,6 +45,19 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   navigation,
 }) => {
   const { colors } = useTheme();
+  const [tabWidth, setTabWidth] = useState(0);
+  const indicatorX = useSharedValue(0);
+
+  useEffect(() => {
+    if (tabWidth > 0) {
+      const target = state.index * tabWidth + tabWidth / 2 - INDICATOR_WIDTH / 2;
+      indicatorX.value = withSpring(target, INDICATOR_SPRING);
+    }
+  }, [state.index, tabWidth]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorX.value }],
+  }));
 
   const getIcon = (name: string, color: string) => {
     switch (name) {
@@ -49,7 +84,13 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
         styles.container,
         { backgroundColor: colors.surface, borderTopColor: colors.border },
       ]}
+      onLayout={(event) => setTabWidth(event.nativeEvent.layout.width / state.routes.length)}
     >
+      {tabWidth > 0 && (
+        <Animated.View
+          style={[styles.slidingIndicator, { backgroundColor: colors.primary }, indicatorStyle]}
+        />
+      )}
       {state.routes.map((route: any, index: number) => {
         const { options } = descriptors[route.key];
         const label =
@@ -96,8 +137,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             style={styles.tabItem}
             activeOpacity={0.8}
           >
-            {isFocused && <View style={[styles.indicator, { backgroundColor: colors.primary }]} />}
-            {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
+            <TabIcon focused={isFocused}>
+              {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
+            </TabIcon>
             <Text
               style={[
                 styles.label,
@@ -129,11 +171,11 @@ const styles = StyleSheet.create({
   label: {
     marginTop: 4,
   },
-  indicator: {
+  slidingIndicator: {
     position: "absolute",
-    top: 10,
-    width: 4,
-    height: 4,
+    top: 0,
+    width: INDICATOR_WIDTH,
+    height: 3,
     borderRadius: 2,
   },
 });

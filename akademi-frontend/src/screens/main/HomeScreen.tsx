@@ -15,14 +15,12 @@ import {
 import {
   Bell,
   BookOpen,
-  Bot,
   Circle,
   ChevronRight,
   Clock,
   CalendarDays,
   FileText,
   Library,
-  PlayCircle,
   Sparkles,
   Swords,
   Target,
@@ -51,7 +49,6 @@ import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types"
 
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 const HOME_TOUR_PENDING_KEY = "home_tour_pending";
-const WELCOME_BACK_PENDING_KEY = "welcome_back_pending";
 
 const QUICK_ACTIONS = [
   {
@@ -63,20 +60,20 @@ const QUICK_ACTIONS = [
     screen: "Library",
   },
   {
-    id: "tutor",
-    label: "Tutor",
-    description: "Live support",
-    icon: Bot,
-    tint: "#A78BFA",
-    screen: "LiveTutorEntry",
-  },
-  {
     id: "exam",
     label: "Exam Prep",
     description: "Mock tests",
     icon: Target,
     tint: colors.warning,
     screen: "ExamPrep",
+  },
+  {
+    id: "ai_tutor",
+    label: "AI Tutor",
+    description: "Guided study",
+    icon: Sparkles,
+    tint: "#A855F7",
+    screen: "AITutor",
   },
   {
     id: "compete",
@@ -98,11 +95,6 @@ const HOME_TOUR_STEPS = [
     id: "library",
     title: "Study from your library",
     body: "Open verified materials, ask Akademi questions, summarize passages, and practice CBT from real course content.",
-  },
-  {
-    id: "tutor",
-    title: "Study with AI Tutor",
-    body: "Open a material and let the tutor teach it in guided chunks instead of giving one-off answers.",
   },
   {
     id: "exam",
@@ -154,6 +146,15 @@ const getDaysLeft = (dateString?: string) => {
     0,
     Math.ceil((new Date(dateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
   );
+};
+
+const settle = async <T,>(promise: Promise<T>) => {
+  try {
+    const value = await promise;
+    return { status: "fulfilled" as const, value };
+  } catch (reason) {
+    return { status: "rejected" as const, reason };
+  }
 };
 
 const QuickActionTile = ({
@@ -210,7 +211,6 @@ export const HomeScreen: React.FC = () => {
   const [tourStepIndex, setTourStepIndex] = useState(0);
   const [activeCampaignIndex, setActiveCampaignIndex] = useState(0);
   const [openingSessionId, setOpeningSessionId] = useState<string | null>(null);
-  const [welcomeBackName, setWelcomeBackName] = useState<string | null>(null);
   const campaignScrollRef = React.useRef<ScrollView | null>(null);
 
   useEffect(() => {
@@ -223,16 +223,8 @@ export const HomeScreen: React.FC = () => {
     React.useCallback(() => {
       const refreshHomeSignals = async () => {
         try {
-          const [notifications, welcomeBackName] = await Promise.all([
-            notificationService.list(),
-            AsyncStorage.getItem(WELCOME_BACK_PENDING_KEY),
-          ]);
+          const notifications = await notificationService.list();
           setUnreadNotifications(notifications.filter((item) => !item.read).length);
-
-          if (welcomeBackName) {
-            await AsyncStorage.removeItem(WELCOME_BACK_PENDING_KEY);
-            setWelcomeBackName(welcomeBackName);
-          }
         } catch (error) {
           console.error("Failed to refresh home signals:", error);
         }
@@ -262,25 +254,39 @@ export const HomeScreen: React.FC = () => {
   const fetchData = async () => {
     try {
       const [sessionsRes, profileRes, progressRes, examsRes, notificationsRes, tournamentsRes] = await Promise.all([
-        api.get("/users/me/sessions?limit=4"),
-        api.get("/users/me/learning-profile"),
-        userService.getProgress(),
-        api.get("/exam-prep"),
-        notificationService.list(),
-        competitionService.getTournaments().catch(() => []),
+        settle(api.get("/users/me/sessions?limit=4")),
+        settle(api.get("/users/me/learning-profile")),
+        settle(userService.getProgress()),
+        settle(api.get("/exam-prep")),
+        settle(notificationService.list()),
+        settle(competitionService.getTournaments().catch(() => [])),
       ]);
 
-      setSessions(sessionsRes.data || []);
-      setLearningProfile(profileRes.data || { session_count: 0, subject_weaknesses: [] });
-      setProgress(progressRes);
-      setExams(examsRes.data || []);
-      setUnreadNotifications(notificationsRes.filter((item) => !item.read).length);
-      const liveCampaigns = (tournamentsRes || []).filter(
+      if (sessionsRes.status === "fulfilled") {
+        setSessions(sessionsRes.value.data || []);
+      }
+
+      if (profileRes.status === "fulfilled") {
+        setLearningProfile(profileRes.value.data || { session_count: 0, subject_weaknesses: [] });
+      }
+
+      if (progressRes.status === "fulfilled") {
+        setProgress(progressRes.value);
+      }
+
+      if (examsRes.status === "fulfilled") {
+        setExams(examsRes.value.data || []);
+      }
+
+      if (notificationsRes.status === "fulfilled") {
+        setUnreadNotifications(notificationsRes.value.filter((item) => !item.read).length);
+      }
+
+      const tournamentData = tournamentsRes.status === "fulfilled" ? tournamentsRes.value : [];
+      const liveCampaigns = (tournamentData || []).filter(
         (item) => item.status === "PUBLISHED" || item.status === "LIVE"
       );
       setCampaigns(liveCampaigns);
-    } catch (error) {
-      console.error("Error fetching home data:", error);
     } finally {
       setLoading(false);
     }
@@ -339,9 +345,9 @@ export const HomeScreen: React.FC = () => {
       recs.push({
         id: "rec-weakness",
         title: `Strengthen ${weakness.topic || weakness.subject}`,
-        description: `Use a focused tutor session to close this gap before your next test.`,
+        description: `Use exam prep or study mode to close this gap before your next test.`,
         type: "weakness",
-        color: "#A78BFA",
+        color: colors.primary,
         metadata: {
           duration: "25m",
           sections: 1,
@@ -364,25 +370,6 @@ export const HomeScreen: React.FC = () => {
           duration: nextExamDays === null ? "Plan" : `${nextExamDays}d`,
           sections: nextExam.tasks?.length || 0,
           course_code: nextExam.course_code,
-        },
-      });
-    }
-
-    const latestTutorSession = sessions.find(
-      (session) => session.session_type === "TUTOR" || session.type === "TUTOR"
-    );
-
-    if (latestTutorSession) {
-      recs.push({
-        id: `rec-session-${latestTutorSession.id}`,
-        title: `Resume ${latestTutorSession.topic || latestTutorSession.course_code || "your tutor session"}`,
-        description: "Continue from your latest live tutor session or review what was covered.",
-        type: "material",
-        color: colors.primary,
-        metadata: {
-          duration: latestTutorSession.duration ? `${latestTutorSession.duration}m` : "Recent",
-          sections: 1,
-          course_code: latestTutorSession.course_code,
         },
       });
     }
@@ -413,8 +400,6 @@ export const HomeScreen: React.FC = () => {
     switch (type) {
       case "STUDY":
         return "Open";
-      case "TUTOR":
-        return "Continue";
       case "ASSIGNMENT":
         return "Review";
       case "EXAM_PREP":
@@ -429,11 +414,6 @@ export const HomeScreen: React.FC = () => {
 
     try {
       setOpeningSessionId(item.id);
-
-      if (sessionType === "TUTOR") {
-        navigation.navigate("LiveTutorSession", { sessionId: item.id });
-        return;
-      }
 
       if (sessionType === "STUDY") {
         navigation.navigate("StudyMode", { sessionId: item.id });
@@ -480,7 +460,11 @@ export const HomeScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate("LiveTutorEntry");
+    navigation.navigate("ExamPrep");
+  };
+
+  const openQuickAction = (action: QuickAction) => {
+    navigation.navigate(action.screen);
   };
 
   const renderSessionCard = ({ item, index }: { item: Session; index: number }) => (
@@ -560,13 +544,12 @@ export const HomeScreen: React.FC = () => {
 
   const getContinueAccent = (session: Session, index: number) => {
     const type = session.session_type || session.type || "";
-    if (type.includes("TUTOR")) return { color: "#A855F7", icon: PlayCircle };
     if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.primary, icon: FileText };
-    return { color: ["#22C55E", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
+    return { color: ["#304000", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
   };
 
   const getUpcomingAccent = (index: number) => {
-    return ["#F59E0B", "#22C55E", "#3B82F6"][index % 3];
+    return ["#F59E0B", "#304000", "#3B82F6"][index % 3];
   };
 
   return (
@@ -702,7 +685,7 @@ export const HomeScreen: React.FC = () => {
               key={action.id}
               action={action}
               isTourTarget={isTourVisible && activeTourStep?.id === action.id}
-              onPress={() => navigation.navigate(action.screen)}
+              onPress={() => openQuickAction(action)}
             />
           ))}
         </View>
@@ -880,36 +863,6 @@ export const HomeScreen: React.FC = () => {
         </View>
       </Modal>
 
-      <Modal
-        transparent
-        visible={!!welcomeBackName}
-        animationType="fade"
-        onRequestClose={() => setWelcomeBackName(null)}
-      >
-        <View style={styles.welcomeOverlay}>
-          <TouchableOpacity
-            activeOpacity={1}
-            style={styles.welcomeScrim}
-            onPress={() => setWelcomeBackName(null)}
-          />
-          <View style={styles.welcomeCard}>
-            <View style={styles.welcomeIcon}>
-              <Sparkles size={18} color={colors.primary} />
-            </View>
-            <Text style={styles.welcomeTitle}>Welcome back, {welcomeBackName}</Text>
-            <Text style={styles.welcomeBody}>
-              Good to see you again. Your study space is ready.
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.welcomeButton}
-              onPress={() => setWelcomeBackName(null)}
-            >
-              <Text style={styles.welcomeButtonText}>Let&apos;s continue</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </Screen>
   );
 };
@@ -1528,55 +1481,5 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     color: colors.background,
     marginRight: 6,
   },
-  welcomeOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    paddingHorizontal: 22,
-  },
-  welcomeScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.62)",
-  },
-  welcomeCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    zIndex: 1,
-  },
-  welcomeIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.14)",
-    borderRadius: 999,
-    height: 38,
-    justifyContent: "center",
-    marginBottom: 14,
-    width: 38,
-  },
-  welcomeTitle: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    fontSize: 24,
-    lineHeight: 30,
-    marginBottom: 8,
-  },
-  welcomeBody: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 18,
-  },
-  welcomeButton: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    justifyContent: "center",
-    minHeight: 50,
-  },
-  welcomeButtonText: {
-    ...typography.h4,
-    color: colors.background,
-  },
 });
+

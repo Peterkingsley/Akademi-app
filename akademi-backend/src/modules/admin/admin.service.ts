@@ -14,6 +14,8 @@ import { notificationsService } from '../notifications/notifications.service';
 import { Resend } from 'resend';
 import { getSystemHealthSnapshot } from '../../shared/system/system-health';
 import { getQueueHealth } from '../../config/queue';
+import { queueMaterialIngestion } from '../materials/material-processing';
+import { getUniversityCoverageAudit } from '../universities/university-coverage';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -118,7 +120,7 @@ export class AdminService {
       materialsPending,
       flaggedContent,
       aiRequestsToday
-    ] = await Promise.all([
+    ] = await prisma.$transaction([
       prisma.user.count({
         where: { is_deleted: false }
       }),
@@ -329,7 +331,6 @@ export class AdminService {
     if (filter.featureUsed) {
       const feature = String(filter.featureUsed).toLowerCase();
       if (feature === 'assignment') where.sessions = { some: { session_type: SessionType.ASSIGNMENT } };
-      if (feature === 'tutor') where.sessions = { some: { session_type: SessionType.TUTOR } };
       if (feature === 'study') where.sessions = { some: { session_type: SessionType.STUDY } };
       if (feature === 'exam_prep') where.exam_prep_plans = { some: {} };
       if (feature === 'uploads') where.materials = { some: {} };
@@ -414,13 +415,17 @@ export class AdminService {
         { full_name: { contains: filter.search, mode: 'insensitive' } },
         { email: { contains: filter.search, mode: 'insensitive' } },
         { university: { contains: filter.search, mode: 'insensitive' } },
+        { faculty: { contains: filter.search, mode: 'insensitive' } },
         { department: { contains: filter.search, mode: 'insensitive' } },
       ];
     }
     if (filter.university) where.university = { contains: filter.university, mode: 'insensitive' };
+    if (filter.faculty) where.faculty = { contains: filter.faculty, mode: 'insensitive' };
     if (filter.department) where.department = { contains: filter.department, mode: 'insensitive' };
     if (filter.status) where.status = String(filter.status).trim().toUpperCase();
     if (filter.mainStruggle) where.main_struggle = String(filter.mainStruggle).trim();
+    if (filter.inviteStatus === 'never_sent') where.invite_count = 0;
+    if (filter.inviteStatus === 'sent_before') where.invite_count = { gt: 0 };
 
     if (filter.startDate || filter.endDate) {
       where.created_at = {};
@@ -436,7 +441,7 @@ export class AdminService {
     const limit = Math.min(Number(filter.limit) || 50, 100);
     const page = Math.max(Number(filter.page) || 1, 1);
 
-    const [entries, total, byNeed] = await Promise.all([
+    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, invitedCount, neverSentCount, waitlistEvents] = await Promise.all([
       prisma.waitlistEntry.findMany({
         where,
         orderBy: { created_at: 'desc' },
@@ -449,7 +454,102 @@ export class AdminService {
         where,
         _count: { _all: true },
       }),
+      prisma.waitlistEntry.groupBy({
+        by: ['university'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.groupBy({
+        by: ['faculty'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.groupBy({
+        by: ['department'],
+        where,
+        _count: { _all: true },
+      }),
+      prisma.waitlistEntry.count({ where: { ...where, invite_count: { gt: 0 } } }),
+      prisma.waitlistEntry.count({ where: { ...where, invite_count: 0 } }),
+      prisma.waitlistEvent.findMany({
+        orderBy: { created_at: 'desc' },
+        take: 5000,
+        select: {
+          event_name: true,
+          visitor_id: true,
+          referrer: true,
+          utm_source: true,
+          school_query: true,
+          school_name: true,
+        },
+      }),
     ]);
+
+    const mapSummary = (items: Array<{ _count: { _all: number } } & Record<string, string | null>>, key: 'university' | 'faculty' | 'department') =>
+      items
+        .map((item) => ({
+          name: (item[key] as string | null) || 'not_set',
+          count: item._count._all,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+    const universitySummary = mapSummary(byUniversity as any, 'university');
+    const topUniversity = universitySummary[0]
+      ? {
+          ...universitySummary[0],
+          share: total > 0 ? Math.round((universitySummary[0].count / total) * 100) : 0,
+        }
+      : null;
+
+    const eventCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+    const schoolSearchCounts = new Map<string, number>();
+    const schoolSelectionCounts = new Map<string, number>();
+    const uniqueVisitors = new Set<string>();
+
+    waitlistEvents.forEach((event) => {
+      eventCounts.set(event.event_name, (eventCounts.get(event.event_name) || 0) + 1);
+      if (event.visitor_id) uniqueVisitors.add(event.visitor_id);
+
+      const rawSource = String(event.utm_source || event.referrer || 'direct').trim();
+      const source = rawSource.length > 0 ? rawSource : 'direct';
+      sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+
+      if (event.school_query) {
+        const query = event.school_query.trim();
+        if (query) {
+          schoolSearchCounts.set(query, (schoolSearchCounts.get(query) || 0) + 1);
+        }
+      }
+
+      if (event.school_name) {
+        const schoolName = event.school_name.trim();
+        if (schoolName) {
+          schoolSelectionCounts.set(schoolName, (schoolSelectionCounts.get(schoolName) || 0) + 1);
+        }
+      }
+    });
+
+    const pageViews = eventCounts.get('waitlist_page_view') || 0;
+    const formStarts = eventCounts.get('waitlist_form_started') || 0;
+    const submitSuccesses = eventCounts.get('waitlist_submit_success') || 0;
+    const whatsappRedirects = eventCounts.get('waitlist_redirect_whatsapp') || 0;
+
+    const topSources = Array.from(sourceCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const topSchoolQueries = Array.from(schoolSearchCounts.entries())
+      .map(([query, count]) => ({ query, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const topSelectedSchools = Array.from(schoolSelectionCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     return {
       entries,
@@ -459,6 +559,8 @@ export class AdminService {
       totalPages: Math.ceil(total / limit),
       summary: {
         total,
+        invitedCount,
+        neverSentCount,
         byNeed: byNeed
           .map(item => ({
             need: item.main_struggle || 'not_set',
@@ -466,6 +568,24 @@ export class AdminService {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 6),
+        topUniversity,
+        byUniversity: universitySummary,
+        byFaculty: mapSummary(byFaculty as any, 'faculty'),
+        byDepartment: mapSummary(byDepartment as any, 'department'),
+        traffic: {
+          pageViews,
+          uniqueVisitors: uniqueVisitors.size,
+          formStarts,
+          schoolSearches: eventCounts.get('waitlist_school_search') || 0,
+          schoolSelections: eventCounts.get('waitlist_school_selected') || 0,
+          submitSuccesses,
+          whatsappRedirects,
+          submitConversionRate: pageViews > 0 ? Math.round((submitSuccesses / pageViews) * 100) : 0,
+          whatsappRedirectRate: submitSuccesses > 0 ? Math.round((whatsappRedirects / submitSuccesses) * 100) : 0,
+          topSources,
+          topSchoolQueries,
+          topSelectedSchools,
+        },
       },
     };
   }
@@ -480,7 +600,7 @@ export class AdminService {
     const where = this.buildWaitlistWhere(filter);
     const recipients = await prisma.waitlistEntry.findMany({
       where,
-      select: { id: true, full_name: true, email: true },
+      select: { id: true, full_name: true, email: true, first_invited_at: true },
       orderBy: { created_at: 'desc' },
       take: 1000,
     });
@@ -509,6 +629,15 @@ export class AdminService {
           to: recipient.email,
           subject,
           html,
+        });
+        await prisma.waitlistEntry.update({
+          where: { id: recipient.id },
+          data: {
+            invite_count: { increment: 1 },
+            first_invited_at: recipient.first_invited_at || new Date(),
+            last_invited_at: new Date(),
+            last_invited_by: adminId,
+          },
         });
         sent += 1;
       } catch (error: any) {
@@ -646,7 +775,6 @@ export class AdminService {
 
     const featureUsage = {
       assignmentSolving: sessions.filter((session) => session.session_type === SessionType.ASSIGNMENT).length,
-      liveTutor: sessions.filter((session) => session.session_type === SessionType.TUTOR).length,
       studyMode: sessions.filter((session) => session.session_type === SessionType.STUDY).length,
       examPrep: examPlans.length + mockAttempts.length,
       materialUploads: uploads.length,
@@ -852,6 +980,23 @@ export class AdminService {
     return material;
   }
 
+  async approveMaterials(ids: string[], adminId: string) {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id?.trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) {
+      throw new Error('Select at least one material');
+    }
+
+    const results = [];
+    for (const id of uniqueIds) {
+      results.push(await this.approveMaterial(id, adminId));
+    }
+
+    return {
+      count: results.length,
+      materials: results,
+    };
+  }
+
   async takedownMaterial(id: string, adminId: string) {
     const material = await prisma.material.update({
       where: { id },
@@ -898,6 +1043,47 @@ export class AdminService {
 
   async forceVerify(id: string, adminId: string) {
     return this.approveMaterial(id, adminId);
+  }
+
+  async reingestAllPdfMaterials(secret: string) {
+    if (!config.adminReingestSecret || secret !== config.adminReingestSecret) {
+      throw new Error('Invalid admin secret');
+    }
+
+    const materials = await prisma.material.findMany({
+      where: {
+        file_type: 'PDF' as any,
+        verification_status: VerificationStatus.VERIFIED,
+      },
+      select: {
+        id: true,
+        upload_chunks: {
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+
+    for (const material of materials) {
+      await prisma.material.update({
+        where: { id: material.id },
+        data: {
+          content: null,
+          reader_structure: null,
+          processing_status: 'QUEUED' as any,
+          processing_error: null,
+          processing_started_at: null,
+          processing_completed_at: null,
+          next_retry_at: null,
+        } as any,
+      });
+      await queueMaterialIngestion(material.id, material.upload_chunks.length > 0);
+    }
+
+    return {
+      count: materials.length,
+      queued: materials.length,
+    };
   }
 
   // Pillar 4: Discipline Documents
@@ -1125,6 +1311,10 @@ export class AdminService {
     });
 
     return coverage;
+  }
+
+  async getUniversityCoverage() {
+    return getUniversityCoverageAudit();
   }
 
   // Pillar 5: Platform Analytics

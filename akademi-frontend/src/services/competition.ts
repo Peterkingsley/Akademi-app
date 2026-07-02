@@ -77,12 +77,38 @@ export interface CompetitionLeaderboardEntry {
 
 export type TournamentStatus = "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
 export type TournamentEntryStatus = "REGISTERED" | "CHECKED_IN" | "ELIMINATED" | "WINNER";
+export type TournamentCampaignType = "SIMPLE" | "MULTI_STAGE";
+export type TournamentStageStatus = "SCHEDULED" | "CHECK_IN" | "LIVE" | "COMPLETED" | "CANCELLED";
+export type TournamentInterestType = "PARTICIPANT" | "SPECTATOR";
+export type TournamentPredictionStatus = "OPEN" | "LOCKED" | "CORRECT" | "INCORRECT" | "WINNER";
+
+export interface TournamentStage {
+  id: string;
+  name: string;
+  stage_order: number;
+  status: TournamentStageStatus;
+  starts_at: string;
+  duration_minutes: number;
+  question_timer_style: string;
+  question_count: number;
+  question_timer_sec: number | null;
+  question_source: string | null;
+  difficulty_level: string | null;
+  qualification_count: number | null;
+  minimum_participants: number | null;
+  fallback_rule: string | null;
+  result_visibility: string;
+  room_id?: string | null;
+  participant_count?: number;
+  qualified_count?: number;
+}
 
 export interface Tournament {
   id: string;
   title: string;
   description: string | null;
   status: TournamentStatus;
+  campaign_type: TournamentCampaignType;
   format: CompetitionFormat;
   shared_course_code: string | null;
   question_count: number;
@@ -100,6 +126,11 @@ export interface Tournament {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  prediction_enabled: boolean;
+  prediction_prize_summary: string | null;
+  prediction_winner_count: number | null;
+  prediction_closes_at: string | null;
+  share_template: string | null;
   audience_scope: "EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT";
   audience_university: string | null;
   audience_faculty: string | null;
@@ -111,6 +142,35 @@ export interface Tournament {
   room_id?: string | null;
   joined?: boolean;
   entry_status?: TournamentEntryStatus | null;
+  share_token?: string | null;
+  stages?: TournamentStage[];
+  interest_type?: TournamentInterestType | null;
+  prediction_status?: TournamentPredictionStatus | null;
+  predicted_user_id?: string | null;
+  cheer_count?: number;
+}
+
+export interface TournamentArena {
+  tournament: Tournament;
+  current_stage: TournamentStage | null;
+  stage_tracker: TournamentStage[];
+  leaderboard: Array<{
+    user_id: string;
+    display_name: string;
+    score: number;
+    correct_answers: number;
+    average_response_ms: number | null;
+    rank: number | null;
+    qualified: boolean;
+    love_count: number;
+    prediction_count: number;
+  }>;
+  stats: {
+    participants: number;
+    spectators: number;
+    total_loves: number;
+    predictions: number;
+  };
 }
 
 export const competitionService = {
@@ -173,6 +233,11 @@ export const competitionService = {
     return data;
   },
 
+  async getTournamentArena(tournamentId: string) {
+    const { data } = await api.get<TournamentArena>(`/competitions/tournaments/${tournamentId}/arena`);
+    return data;
+  },
+
   async joinTournament(tournamentId: string) {
     const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/join`);
     return data;
@@ -180,6 +245,30 @@ export const competitionService = {
 
   async checkInTournament(tournamentId: string) {
     const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/check-in`);
+    return data;
+  },
+
+  async registerTournamentInterest(tournamentId: string, interest_type: TournamentInterestType, supporting_user_id?: string) {
+    const { data } = await api.post<Tournament>(`/competitions/tournaments/${tournamentId}/interest`, {
+      interest_type,
+      supporting_user_id,
+    });
+    return data;
+  },
+
+  async submitTournamentPrediction(tournamentId: string, predicted_user_id: string, stage_id?: string) {
+    const { data } = await api.post<TournamentArena>(`/competitions/tournaments/${tournamentId}/predictions`, {
+      predicted_user_id,
+      stage_id,
+    });
+    return data;
+  },
+
+  async sendTournamentCheer(tournamentId: string, participant_user_id: string, stage_id?: string) {
+    const { data } = await api.post<TournamentArena>(`/competitions/tournaments/${tournamentId}/cheers`, {
+      participant_user_id,
+      stage_id,
+    });
     return data;
   },
 };

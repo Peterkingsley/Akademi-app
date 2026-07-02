@@ -46,7 +46,7 @@ export const RootNavigator = () => {
           name: "default",
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#22C55E",
+          lightColor: "#304000",
         });
       }
 
@@ -88,9 +88,12 @@ export const RootNavigator = () => {
           updateUser(profile);
           // Register for push notifications
           registerForPushNotificationsAsync().catch(console.error);
-        } catch (error) {
+        } catch (error: any) {
           socketService.disconnect();
-          clearAuth();
+          const status = error?.response?.status;
+          if (status === 401) {
+            clearAuth();
+          }
           console.error("Auth verification failed on startup:", error);
         }
       }
@@ -128,3 +131,4 @@ export const RootNavigator = () => {
     </Stack.Navigator>
   );
 };
+

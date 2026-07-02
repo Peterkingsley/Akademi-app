@@ -106,7 +106,7 @@ export const MyCoursesScreen: React.FC = () => {
             <View style={styles.emptyState}>
               <GraduationCap size={42} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>No courses saved</Text>
-              <Text style={styles.emptySubtitle}>Add your semester course codes so uploads, CBT, tutor, and progress stay organized.</Text>
+              <Text style={styles.emptySubtitle}>Add your semester course codes so uploads, CBT, exam prep, and progress stay organized.</Text>
               <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditAcademicDetails")}>
                 <PenLine size={15} color={colors.background} />
                 <Text style={styles.editButtonText}>Add courses</Text>

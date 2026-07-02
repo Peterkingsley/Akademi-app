@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { BookOpen, ClipboardList, GraduationCap, ListChecks, Send, Sparkles, X } from "lucide-react-native";
 
-import { sessionService } from "../../services/session";
+import { sessionService, StudyCompanionState } from "../../services/session";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Avatar } from "./Avatar";
@@ -27,6 +27,7 @@ import { VoiceInputButton } from "./VoiceInputButton";
 import { AiVoiceToggleButton } from "./AiVoiceToggleButton";
 
 type AskAction = "ask" | "summarize" | "explain" | "teach" | "practice";
+type CompanionStartMode = "continue" | "specific" | "beginning" | "roadmap";
 
 interface ChatMessage {
   id: string;
@@ -45,6 +46,8 @@ interface AskAkademiModalProps {
   chapterTitle?: string;
   pageTitle?: string;
   materialContext?: string;
+  materialId?: string;
+  roadmapSections?: string[];
 }
 
 export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
@@ -58,12 +61,17 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
   chapterTitle,
   pageTitle,
   materialContext,
+  materialId,
+  roadmapSections = [],
 }) => {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<AskAction>("ask");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [companionStarted, setCompanionStarted] = useState(false);
+  const [selectedRoadmapSection, setSelectedRoadmapSection] = useState<string | null>(null);
+  const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
   const spokenMessageIdsRef = useRef<Set<string>>(new Set());
   const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
@@ -78,12 +86,17 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     stopErrorTitle: "Voice input failed",
   });
 
+  const isStudyCompanionMode = Boolean(materialId && materialTitle);
+
   useEffect(() => {
     if (visible) {
       setQuestion("");
       setMessages([]);
       setSessionId(null);
       setActiveAction("ask");
+      setCompanionStarted(false);
+      setSelectedRoadmapSection(null);
+      setCompanionState(null);
       spokenMessageIdsRef.current.clear();
     }
   }, [visible]);
@@ -113,6 +126,18 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       .join("\n");
   }, [chapterTitle, materialTitle, pageTitle, selectedPassage]);
 
+  const roadmap = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          roadmapSections
+            .map((section) => section.trim())
+            .filter(Boolean),
+        ),
+      ).slice(0, 18),
+    [roadmapSections],
+  );
+
   const buildPrompt = (action: AskAction, outgoingQuestion: string) => {
     const safeContext = contextText.trim();
     const highlighted = selectedPassage?.trim() || "";
@@ -123,14 +148,18 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       .join("\n");
 
     const sharedGuide = [
-      "You are Akademi's in-material study companion.",
+      "You are Akademi AI Study Companion.",
+      "Your primary goal is to help the student pass exams using the selected material.",
       "The student is actively reading one specific material.",
+      "This is not open-ended general chat. Stay inside the selected material and course context.",
       "Your first job is to understand the highlighted part in the context of this material.",
       "Use the selected text first. If that text is incomplete or ambiguous, use the surrounding passage to infer what it refers to.",
       "If the student's question is still genuinely ambiguous after using the material context, ask one short clarifying question before explaining further.",
-      "Do not jump into a long generic answer. Keep replies short, grounded, and conversational.",
+      "Do not jump into a long generic answer. Keep replies short, grounded, conversational, and exam-focused.",
       "Explain in the context of this material first. Any outside analogy must stay close to the material and should only support understanding.",
       "If the material's meaning and general-world meaning could differ, always privilege the meaning that fits this material.",
+      "If the material is unclear or incomplete, you may use external knowledge, but you must label it clearly as external support.",
+      "When appropriate, follow a guided study flow: big picture, details, connections, teach-back, memory dump, and mastery.",
       "Whenever you write mathematics, use proper LaTeX delimiters: inline math in \\(...\\) and standalone math in \\[...\\].",
       "End in a way that keeps the conversation open so the student can reply from where they are stuck.",
       materialTitle ? `Material title: ${materialTitle}` : "",
@@ -150,7 +179,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       case "explain":
         return `${sharedGuide}\n\nTask: Explain this exact part step by step in simple language. Start from what the highlighted line is referring to in this material.`;
       case "teach":
-        return `${sharedGuide}\n\nTask: Teach this part like a patient tutor. Start with the exact confusion point, connect it to the material, then build understanding carefully.`;
+        return `${sharedGuide}\n\nTask: Explain this part patiently. Start with the exact confusion point, connect it to the material, then build understanding carefully.`;
       case "practice":
         return `${sharedGuide}\n\nTask: Create a short CBT-style practice from this exact part of the material only. Give 5 multiple-choice questions with options, answers, and short explanations.`;
       case "ask":
@@ -159,10 +188,74 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     }
   };
 
+  const ensureSession = async (replyMode: "STUDY" | "QUESTION" = "STUDY") => {
+    if (sessionId) return sessionId;
+
+    const created = await sessionService.createSession({
+      session_type: "STUDY",
+      course_code: courseCode || "GENERAL",
+      reply_mode: replyMode,
+      topic: materialTitle || chapterTitle || "AI Study Companion",
+      material_id: materialId,
+      metadata: {
+        mode: "ai-study-companion",
+        materialTitle,
+        chapterTitle,
+        roadmap,
+      },
+    });
+
+    setSessionId(created.id);
+    return created.id;
+  };
+
+  const handleCompanionStart = async (mode: CompanionStartMode, section?: string) => {
+    if (!contextText.trim()) return;
+
+    Keyboard.dismiss();
+    setLoading(true);
+    setCompanionStarted(true);
+    if (section) setSelectedRoadmapSection(section);
+
+    try {
+      const activeSessionId = await ensureSession("STUDY");
+      const aiMessage = await sessionService.startCompanion(activeSessionId, {
+        mode,
+        section_title: section,
+      });
+
+      if (aiMessage.metadata?.study_companion) {
+        setCompanionState(aiMessage.metadata.study_companion);
+      } else {
+        const liveState = await sessionService.getCompanionState(activeSessionId);
+        setCompanionState(liveState);
+      }
+
+      setMessages((current) => [
+        ...current,
+        { id: aiMessage.id || `ai-${Date.now()}`, role: "ai", content: aiMessage.content },
+      ]);
+    } catch (error) {
+      console.error("Failed to start AI Study Companion:", error);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `ai-error-${Date.now()}`,
+          role: "ai",
+          content: "I couldn't start the guided study session just yet. Please try again in a moment.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAction = async (action: AskAction = activeAction) => {
     if (!contextText.trim()) return;
 
-    const outgoingQuestion =
+    const outgoingQuestion = isStudyCompanionMode
+      ? question.trim()
+      : (
       action === "ask"
         ? question.trim()
         : action === "summarize"
@@ -171,7 +264,8 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
             ? "Please explain this part clearly."
             : action === "teach"
               ? "Teach me this part carefully."
-              : "Give me practice questions from this part.";
+            : "Give me practice questions from this part."
+        );
 
     if (!outgoingQuestion) return;
 
@@ -180,18 +274,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     setActiveAction(action);
 
     try {
-      const activeSessionId =
-        sessionId ||
-        (
-          await sessionService.createSession({
-            session_type: "STUDY",
-            course_code: courseCode || "GENERAL",
-            reply_mode: action === "practice" ? "QUESTION" : "STUDY",
-            topic: materialTitle || chapterTitle || "Material study help",
-          })
-        ).id;
-
-      if (!sessionId) setSessionId(activeSessionId);
+      const activeSessionId = await ensureSession(action === "practice" ? "QUESTION" : "STUDY");
 
       setMessages((current) => [
         ...current,
@@ -203,9 +286,13 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       ]);
 
       const aiMessage = await sessionService.sendMessage(activeSessionId, {
-        content: buildPrompt(action, outgoingQuestion),
+        content: isStudyCompanionMode ? outgoingQuestion : buildPrompt(action, outgoingQuestion),
         reply_mode: action === "practice" ? "QUESTION" : "STUDY",
       });
+
+      if (aiMessage.metadata?.study_companion) {
+        setCompanionState(aiMessage.metadata.study_companion);
+      }
 
       setMessages((current) => [
         ...current,
@@ -237,6 +324,15 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     { key: "teach" as const, label: "Teach", icon: <GraduationCap size={16} color="#FFFFFF" /> },
     { key: "practice" as const, label: "CBT", icon: <ClipboardList size={16} color="#FFFFFF" /> },
   ];
+
+  const currentRoadmapSection =
+    companionState?.roadmap?.[Math.max(0, Math.min(companionState.currentSectionIndex, (companionState.roadmap?.length || 1) - 1))] || null;
+  const phaseLabel = companionState?.phase
+    ? companionState.phase
+        .replace(/^TEACHING_/, "")
+        .replace(/^TEACHBACK_/, "TEACH BACK ")
+        .replace(/_/g, " ")
+    : null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -275,19 +371,94 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 </Text>
               </View>
 
-              <View style={styles.actionRow}>
-                {actions.map((action) => (
-                  <TouchableOpacity
-                    key={action.key}
-                    style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
-                    onPress={() => handleAction(action.key)}
-                    disabled={loading}
-                  >
-                    {action.icon}
-                    <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {isStudyCompanionMode && !companionStarted && messages.length === 0 ? (
+                <View style={styles.companionIntroCard}>
+                  <Text style={styles.companionEyebrow}>AI STUDY COMPANION</Text>
+                  <Text style={styles.companionTitle}>Study this material with Akademi</Text>
+                  <Text style={styles.companionBody}>
+                    Akademi will guide this material section by section, push recall, and keep the session focused on exam success.
+                  </Text>
+                  <View style={styles.startActions}>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("continue")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Continue from last point</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("beginning")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Start from beginning</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("roadmap")} disabled={loading}>
+                      <Text style={styles.startButtonText}>Create study roadmap</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {roadmap.length > 0 ? (
+                    <View style={styles.roadmapCard}>
+                      <Text style={styles.roadmapTitle}>Material roadmap</Text>
+                      {roadmap.slice(0, 8).map((section, index) => (
+                        <TouchableOpacity
+                          key={`${section}-${index}`}
+                          style={[
+                            styles.roadmapRow,
+                            selectedRoadmapSection === section && styles.roadmapRowActive,
+                          ]}
+                          onPress={() => handleCompanionStart("specific", section)}
+                          disabled={loading}
+                        >
+                          <Text style={styles.roadmapIndex}>{index + 1}</Text>
+                          <Text style={styles.roadmapLabel}>{section}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {companionState ? (
+                <View style={styles.progressCard}>
+                  <View style={styles.progressHeader}>
+                    <Text style={styles.progressTitle}>Study progress</Text>
+                    {phaseLabel ? <Text style={styles.phaseBadge}>{phaseLabel}</Text> : null}
+                  </View>
+                  <Text style={styles.progressMeta}>
+                    {companionState.progress.masteredSections}/{companionState.progress.totalSections} sections mastered
+                    {companionState.lastMasteryScore !== null ? ` • Last score ${companionState.lastMasteryScore}%` : ""}
+                  </Text>
+                  {currentRoadmapSection ? (
+                    <Text style={styles.currentSectionText}>
+                      Current section: {currentRoadmapSection.title}
+                    </Text>
+                  ) : null}
+                  <View style={styles.roadmapMiniList}>
+                    {companionState.roadmap.slice(0, 8).map((section, index) => (
+                      <TouchableOpacity
+                        key={section.key}
+                        style={[
+                          styles.roadmapMiniRow,
+                          index === companionState.currentSectionIndex && styles.roadmapMiniRowActive,
+                        ]}
+                        onPress={() => handleCompanionStart("specific", section.title)}
+                        disabled={loading}
+                      >
+                        <Text style={styles.roadmapMiniIndex}>{index + 1}</Text>
+                        <Text style={styles.roadmapMiniLabel}>{section.title}</Text>
+                        <Text style={styles.roadmapMiniStatus}>{section.status.replace(/_/g, " ")}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.actionRow}>
+                  {actions.map((action) => (
+                    <TouchableOpacity
+                      key={action.key}
+                      style={[styles.actionChip, activeAction === action.key && styles.actionChipActive]}
+                      onPress={() => handleAction(action.key)}
+                      disabled={loading}
+                    >
+                      {action.icon}
+                      <Text style={[styles.actionText, typography.caption]}>{action.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               {messages.length > 0 ? (
                 <View style={styles.messagesContainer}>
@@ -320,21 +491,27 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                 </View>
               ) : (
                 <Text style={[styles.helperText, typography.bodySmall]}>
-                  Ask about the highlighted line, and Akademi will explain it using this material first.
+                  {isStudyCompanionMode
+                    ? "Start the study companion, then reply through each phase as Akademi guides you."
+                    : "Ask about the highlighted line, and Akademi will explain it using this material first."}
                 </Text>
               )}
 
               <View style={styles.inputArea}>
                 <Text style={[styles.inputLabel, typography.bodySmall]}>
-                  {messages.length > 0 ? "Reply to keep going" : "What would you like to know about this?"}
+                  {isStudyCompanionMode
+                    ? (messages.length > 0 ? "Reply to continue this study phase" : "Start a guided study session")
+                    : (messages.length > 0 ? "Reply to keep going" : "What would you like to know about this?")}
                 </Text>
                 <View style={styles.inputWrap}>
                   <TextInput
                     style={[styles.input, typography.bodySmall]}
                     placeholder={
-                      messages.length > 0
-                        ? "Reply here..."
-                        : "Tell Akademi exactly where you got confused..."
+                      isStudyCompanionMode
+                        ? (messages.length > 0 ? "Give your teach-back, memory dump, or reply here..." : "Start with one of the study options above...")
+                        : messages.length > 0
+                          ? "Reply here..."
+                          : "Tell Akademi exactly where you got confused..."
                     }
                     placeholderTextColor={colors.textMuted}
                     multiline
@@ -354,7 +531,11 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
 
             <View style={styles.footer}>
               <Button
-                label={messages.length ? "Send reply" : "Ask Akademi"}
+                label={
+                  isStudyCompanionMode
+                    ? (messages.length ? "Continue study" : "Start study")
+                    : (messages.length ? "Send reply" : "Ask Akademi")
+                }
                 onPress={() => handleAction("ask")}
                 loading={loading}
                 disabled={!question.trim()}
@@ -468,6 +649,152 @@ const styles = StyleSheet.create({
   actionText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  companionIntroCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  companionEyebrow: {
+    ...typography.mono,
+    color: colors.primary,
+    fontSize: 10,
+    marginBottom: 8,
+  },
+  companionTitle: {
+    ...typography.h3,
+    color: "#FFFFFF",
+    marginBottom: 8,
+  },
+  companionBody: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  startActions: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  startButton: {
+    backgroundColor: "#141414",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  startButtonText: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  roadmapCard: {
+    marginTop: 4,
+    gap: 8,
+  },
+  roadmapTitle: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  roadmapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 12,
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  roadmapRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}18`,
+  },
+  roadmapIndex: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    minWidth: 18,
+  },
+  roadmapLabel: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    flex: 1,
+  },
+  progressCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 10,
+  },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+  progressTitle: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  phaseBadge: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  progressMeta: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  currentSectionText: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  roadmapMiniList: {
+    gap: 8,
+  },
+  roadmapMiniRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#141414",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  roadmapMiniRowActive: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}16`,
+  },
+  roadmapMiniIndex: {
+    ...typography.caption,
+    color: colors.primary,
+    minWidth: 16,
+    fontWeight: "700",
+  },
+  roadmapMiniLabel: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    flex: 1,
+  },
+  roadmapMiniStatus: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: "capitalize",
   },
   inputArea: {
     marginBottom: 18,

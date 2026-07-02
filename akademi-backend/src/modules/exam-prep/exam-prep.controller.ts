@@ -6,9 +6,24 @@ const examPrepService = new ExamPrepService();
 export class ExamPrepController {
   async createPlan(req: Request, res: Response) {
     try {
-      const { course_code, exam_date, assessment_type } = req.body;
+      const {
+        course_code,
+        exam_date,
+        assessment_type,
+        duration_minutes,
+        objective_question_count,
+        theory_question_count,
+      } = req.body;
       const userId = (req.user as any).userId;
-      const plan = await examPrepService.createPlan(userId, course_code, exam_date, assessment_type);
+      const plan = await examPrepService.createPlan(
+        userId,
+        course_code,
+        exam_date,
+        assessment_type,
+        duration_minutes,
+        objective_question_count,
+        theory_question_count,
+      );
       res.status(201).json(plan);
     } catch (error: any) {
       res.status(400).json({ message: error.message || 'Failed to create plan' });

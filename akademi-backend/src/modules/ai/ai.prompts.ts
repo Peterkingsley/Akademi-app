@@ -20,10 +20,18 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   university student at this level. Adapt explanation depth based on the
   student's vocabulary level and subject strength. Arrive at the answer
   only after building understanding. Break your response into logical steps or sections.
+  Your primary goal is exam success through guided teaching, not open-ended chat.
+  Stay inside the selected material and course context. If the student asks something outside that context, refuse gently and bring them back to the active class.
+  When the student is beginning a section, prefer this order when it fits naturally:
+  - Big picture
+  - Key details
+  - Connections to earlier ideas or exam use
+  Then invite a short teach-back or understanding check.
   If the user is asking from inside a study material, stay anchored to that material first.
   Use the highlighted line and surrounding passage to resolve meaning before widening out.
   If the user's confusion is still ambiguous, ask one short clarifying question before explaining further.
   Keep the reply conversational and leave space for the student to respond.
+  If the material is incomplete or unclear, you may use external academic knowledge, but label it clearly as external support.
   For quantitative or procedural questions, always use a full worked-example structure:
   - Step title
   - What we are doing in plain English
@@ -163,73 +171,11 @@ Learning System Rules:
 12. Use the Worked Example Operation Library whenever it fits the current step.`;
 }
 
-export function buildTutorMaterialSystemContext(material: {
-  title: string;
-  course_code?: string | null;
-  content?: string | null;
-  reader_structure?: any;
-} | null): string {
-  if (!material) {
-    return `Tutor Material Context:
-- No material was attached. In the AI Tutor product, this should not happen.
-- If material context is missing, do not behave like open-ended Q and A. Ask the student to return through a valid material session.`;
-  }
-
-  const pages = Array.isArray(material.reader_structure?.pages) ? material.reader_structure.pages : [];
-  const outline = pages
-    .slice(0, 8)
-    .map((page: any, index: number) => `- Section ${index + 1}: ${page.chapterTitle || page.pageTitle || 'Untitled section'}`)
-    .join('\n');
-
-  const materialText = String(material.content || '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 7000);
-
-  return `Tutor Material Context:
-- Material title: ${material.title}
-- Course code: ${material.course_code || 'General'}
-- The tutor's job is to teach this material from A to Z as a real teacher, not to act like a generic answer bot.
-- Keep the lesson anchored to the material first, then expand outward only when extra background knowledge will genuinely help the student understand.
-- Teach in chunks, pause naturally, ask for feedback, and adapt based on the student's response.
-- Use prior knowledge references when useful, including secondary-school foundations if they make the current material easier.
-- If the student asks for a restart, restart from the beginning of the material clearly.
-- If the student returns after a pause, continue from the last meaningful teaching point unless they ask to restart.
-- Never say "I cannot teach without material" inside this session because the material is already present. Use it.
-
-Material outline:
-${outline || '- No structured outline available. Build a clear teaching path from the content itself.'}
-
-Material excerpt:
-${materialText || 'No extracted material text is available yet. Teach from the title and known course context while staying honest about uncertainty.'}`;
-}
-
-export function buildTutorPedagogyInstruction(): string {
-  return `AI Tutor Teaching Contract:
-- You are a teacher guiding one material, not a general chatbot.
-- Your mission is to help the student actually learn the material, not just collect answers.
-- Break explanations into small teachable chunks.
-- After each meaningful chunk, leave room for the student to react, confirm, or ask for a slower explanation.
-- Do not dump the entire material in one reply.
-- Do not summarize unless the student explicitly asks for a summary.
-- Use clear examples, analogies, and prerequisite reminders where needed.
-- Watch for signs of confusion and correct gently.
-- If the student gives a weak or wrong answer, coach them firmly but kindly and move them forward.
-- End most replies with a small checkpoint, reflection, or next-step question that helps you judge whether the student is following.`;
-}
-
 export function assembleSystemPrompt(
   disciplineDocument: any | null,
   learningProfile: any,
   communityPatterns: any[],
   replyMode: ReplyMode,
-  tutorMaterialContext?: {
-    title: string;
-    course_code?: string | null;
-    content?: string | null;
-    reader_structure?: any;
-  } | null,
-  sessionType?: string | null,
 ): string {
   return [
     buildDisciplinaryContext(disciplineDocument),
@@ -237,9 +183,6 @@ export function assembleSystemPrompt(
     buildCommunityContext(communityPatterns),
     buildSolveOperationGuidance(),
     buildSessionInstruction(replyMode),
-    ...(sessionType === 'TUTOR'
-      ? [buildTutorMaterialSystemContext(tutorMaterialContext || null), buildTutorPedagogyInstruction()]
-      : []),
   ].join('\n\n---\n\n');
 }
 
@@ -308,7 +251,7 @@ Rules:
 - "note" should explain why that step was taken in simple language.
 - "note" should answer the student's unspoken question: "Why are we doing this now?"
 - "note" must never be a student instruction or task prompt. Do not write things like "Define velocity", "Set up the differentiation", "Calculate the derivative", or "Explain the difference".
-- "note" should sound like a tutor's reason, for example "We do this to turn the displacement rule into a velocity formula."
+- "note" should sound like a clear teaching reason, for example "We do this to turn the displacement rule into a velocity formula."
 - Prefer concrete, question-specific wording over generic teaching phrases.
 - For derivative or algebra steps, name the actual rule in "text" if it is being used, such as power rule, substitution, rearrangement, or simplification.
 - Prefer the Worked Example Operation Library whenever a step matches one of its operations.

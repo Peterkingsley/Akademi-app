@@ -1,4 +1,3 @@
-import { aiService } from "../ai/ai.service";
 import { Request, Response } from 'express';
 import { SessionsService } from './sessions.service';
 
@@ -6,7 +5,7 @@ const sessionsService = new SessionsService();
 
 function statusForError(error: any, fallbackStatus = 400) {
   const message = error?.message || '';
-  if (message.includes('AI tutor is temporarily busy')) return 503;
+  if (message.includes('AI is temporarily busy')) return 503;
   return fallbackStatus;
 }
 
@@ -97,6 +96,43 @@ export class SessionsController {
     }
   }
 
+  async synthesizeTutorSpeech(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.synthesizeTutorSpeech(req.body?.text || '');
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error, 503)).json({ message: error.message });
+    }
+  }
+
+  async createTutorSpeechStream(req: Request, res: Response) {
+    try {
+      const result = await sessionsService.createTutorSpeechStream(
+        req.user!.userId,
+        req.params.id,
+        req.body?.text || '',
+      );
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error, 503)).json({ message: error.message });
+    }
+  }
+
+  async streamTutorSpeech(req: Request, res: Response) {
+    try {
+      await sessionsService.streamTutorSpeech(
+        req.user!.userId,
+        req.params.id,
+        req.params.streamId,
+        res,
+      );
+    } catch (error: any) {
+      if (!res.headersSent) {
+        res.status(statusForError(error, 503)).json({ message: error.message });
+      }
+    }
+  }
+
   async getSummary(req: Request, res: Response) {
     try {
       const summary = await sessionsService.getSessionSummary(req.params.id);
@@ -104,28 +140,86 @@ export class SessionsController {
     } catch (error: any) {
       res.status(404).json({ message: error.message });
     }
+  }
 
-}
-  async getPlayableLesson(req: Request, res: Response) {
+  async getCompanionState(req: Request, res: Response) {
     try {
-      const lesson = await sessionsService.getPlayableLesson(req.params.id);
-      res.status(200).json(lesson);
+      const state = await sessionsService.getCompanionState(req.params.id);
+      res.status(200).json(state);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(statusForError(error, 404)).json({ message: error.message });
     }
   }
 
-  async generateTeaching(req: Request, res: Response) {
+  async getVisualPlan(req: Request, res: Response) {
     try {
-      const lesson = await aiService.generateTeachingLesson(
+      const visualPlan = await sessionsService.getVisualPlan(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+      );
+      res.status(200).json(visualPlan);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
+  async listTutorTraces(req: Request, res: Response) {
+    try {
+      const traces = await sessionsService.listTutorTraces(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+        req.query as any,
+      );
+      res.status(200).json(traces);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
+  async getTutorTraceSummary(req: Request, res: Response) {
+    try {
+      const summary = await sessionsService.getTutorTraceSummary(
+        req.params.id,
+        { userId: req.user!.userId, email: req.user!.email },
+      );
+      res.status(200).json(summary);
+    } catch (error: any) {
+      res.status(statusForError(error, 403)).json({ message: error.message });
+    }
+  }
+
+  async startCompanion(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.startCompanion(req.params.id, req.body);
+      res.status(201).json(message);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
+
+  async sendCompanionMessage(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.sendCompanionMessage(
         req.user!.userId,
         req.params.id,
-        req.body.studentMessage,
-        req.body.materialContext
+        req.body,
       );
-      res.status(200).json(lesson);
+      res.status(201).json(message);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
+
+  async handleCompanionTurn(req: Request, res: Response) {
+    try {
+      const message = await sessionsService.handleCompanionTurn(
+        req.user!.userId,
+        req.params.id,
+        req.body,
+      );
+      res.status(201).json(message);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
     }
   }
 }

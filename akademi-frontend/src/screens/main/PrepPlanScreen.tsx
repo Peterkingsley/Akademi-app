@@ -165,6 +165,51 @@ export const PrepPlanScreen: React.FC = () => {
     );
   };
 
+  const renderMockFormatCard = () => {
+    if (!plan) return null;
+
+    const durationMinutes = plan.duration_minutes || 120;
+    const objectiveCount = plan.objective_question_count || 40;
+    const theoryCount = plan.theory_question_count || 5;
+
+    return (
+      <Card style={styles.mockFormatCard}>
+        <View style={styles.mockFormatHeader}>
+          <View>
+            <Text style={[styles.mockFormatLabel, typography.caption]}>MOCK FORMAT</Text>
+            <Text style={[styles.mockFormatTitle, typography.h3]}>
+              What this {plan.assessment_label || "exam"} will look like
+            </Text>
+          </View>
+          <Badge
+            label={`${durationMinutes} mins`}
+            variant="blue"
+            style={styles.mockFormatBadge}
+          />
+        </View>
+
+        <Text style={[styles.mockFormatDescription, typography.bodySmall]}>
+          Akademi will pull questions from all approved materials in {plan.course_code} and build the mock in this format.
+        </Text>
+
+        <View style={styles.mockStatsRow}>
+          <View style={styles.mockStatPill}>
+            <Text style={[styles.mockStatValue, typography.h3]}>{objectiveCount}</Text>
+            <Text style={[styles.mockStatLabel, typography.caption]}>Objective</Text>
+          </View>
+          <View style={styles.mockStatPill}>
+            <Text style={[styles.mockStatValue, typography.h3]}>{theoryCount}</Text>
+            <Text style={[styles.mockStatLabel, typography.caption]}>Theory</Text>
+          </View>
+          <View style={styles.mockStatPill}>
+            <Text style={[styles.mockStatValue, typography.h3]}>{objectiveCount + theoryCount}</Text>
+            <Text style={[styles.mockStatLabel, typography.caption]}>Total</Text>
+          </View>
+        </View>
+      </Card>
+    );
+  };
+
   const renderTask = (task: Task) => (
     <View key={task.id} style={styles.taskItem}>
       <TouchableOpacity
@@ -299,6 +344,7 @@ export const PrepPlanScreen: React.FC = () => {
         ) : (
           <Animated.View entering={FadeInUp}>
             {renderProgressCard()}
+            {renderMockFormatCard()}
             {renderMockHistory()}
             <View style={styles.timeline}>
               {dailyTasks.map((group, idx) => renderDayGroup(group, idx))}
@@ -371,6 +417,55 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
+  },
+  mockFormatCard: {
+    padding: 18,
+    marginBottom: 24,
+    backgroundColor: colors.surface,
+  },
+  mockFormatHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 10,
+  },
+  mockFormatLabel: {
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  mockFormatTitle: {
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  mockFormatBadge: {
+    alignSelf: "flex-start",
+  },
+  mockFormatDescription: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  mockStatsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  mockStatPill: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+  },
+  mockStatValue: {
+    color: colors.primary,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  mockStatLabel: {
+    color: colors.textSecondary,
   },
   historySection: {
     marginBottom: 32,

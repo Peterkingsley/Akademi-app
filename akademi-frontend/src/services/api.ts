@@ -37,6 +37,7 @@ const API_CANDIDATE_URLS = parseCandidateUrls(
 
 let currentApiBaseUrl = API_CANDIDATE_URLS[0] || DEFAULT_API_URLS[0];
 let activeUrlProbe: Promise<string> | null = null;
+let activeRefreshRequest: Promise<{ accessToken: string; refreshToken: string }> | null = null;
 
 const setCurrentApiBaseUrl = (nextUrl: string) => {
   currentApiBaseUrl = nextUrl.replace(/\/+$/, "");
@@ -85,6 +86,63 @@ const api = axios.create({
   timeout: 30000,
 });
 
+const readStoredRefreshToken = async () => {
+  let refreshToken = await AsyncStorage.getItem("refreshToken");
+
+  if (!refreshToken) {
+    const authStorage = await AsyncStorage.getItem("auth-storage");
+    if (authStorage) {
+      const parsed = JSON.parse(authStorage);
+      refreshToken = parsed.state?.refreshToken || null;
+    }
+  }
+
+  return refreshToken;
+};
+
+const persistRotatedTokens = async (accessToken: string, refreshToken: string) => {
+  await AsyncStorage.setItem("accessToken", accessToken);
+  await AsyncStorage.setItem("refreshToken", refreshToken);
+  useAuthStore.getState().updateTokens(accessToken, refreshToken);
+
+  const authStorage = await AsyncStorage.getItem("auth-storage");
+  if (authStorage) {
+    const parsed = JSON.parse(authStorage);
+    parsed.state.accessToken = accessToken;
+    parsed.state.refreshToken = refreshToken;
+    await AsyncStorage.setItem("auth-storage", JSON.stringify(parsed));
+  }
+};
+
+const refreshAccessToken = async () => {
+  if (activeRefreshRequest) {
+    return activeRefreshRequest;
+  }
+
+  activeRefreshRequest = (async () => {
+    const refreshToken = await readStoredRefreshToken();
+    if (!refreshToken) {
+      throw new Error("No refresh token stored");
+    }
+
+    const { data } = await axios.post(`${currentApiBaseUrl}/auth/refresh`, {
+      refreshToken,
+    });
+
+    await persistRotatedTokens(data.accessToken, data.refreshToken);
+    return {
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    };
+  })();
+
+  try {
+    return await activeRefreshRequest;
+  } finally {
+    activeRefreshRequest = null;
+  }
+};
+
 // Request interceptor — attach token
 api.interceptors.request.use(async (config) => {
   // Try to get token from AsyncStorage first
@@ -115,11 +173,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Logging failed requests for diagnostics
-    console.error(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, {
+    // Log expected client/API failures as warnings to avoid dev-screen noise for handled cases.
+    const logPayload = {
       status: error.response?.status,
       data: error.response?.data
-    });
+    };
+    if (error.response?.status === 429 || (error.response?.status && error.response.status < 500)) {
+      console.warn(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, logPayload);
+    } else {
+      console.error(`API Error [${originalRequest.method.toUpperCase()}] ${originalRequest.url}: `, logPayload);
+    }
 
     if (error.response?.status >= 500 || !error.response) {
       captureFrontendException(error, {
@@ -145,39 +208,8 @@ api.interceptors.response.use(
         if (!originalRequest._retry) {
           originalRequest._retry = true;
           try {
-            let refreshToken = await AsyncStorage.getItem("refreshToken");
-
-            if (!refreshToken) {
-              const authStorage = await AsyncStorage.getItem("auth-storage");
-              if (authStorage) {
-                const parsed = JSON.parse(authStorage);
-                refreshToken = parsed.state?.refreshToken;
-              }
-            }
-
-            if (!refreshToken) {
-              useAuthStore.getState().clearAuth();
-              return Promise.reject(error);
-            }
-
-            const { data } = await axios.post(`${currentApiBaseUrl}/auth/refresh`, {
-              refreshToken,
-            });
-
-            await AsyncStorage.setItem("accessToken", data.accessToken);
-            await AsyncStorage.setItem("refreshToken", data.refreshToken);
-            useAuthStore.getState().updateTokens(data.accessToken, data.refreshToken);
-
-            // Update auth-storage too for consistency
-            const authStorage = await AsyncStorage.getItem("auth-storage");
-            if (authStorage) {
-              const parsed = JSON.parse(authStorage);
-              parsed.state.accessToken = data.accessToken;
-              parsed.state.refreshToken = data.refreshToken;
-              await AsyncStorage.setItem("auth-storage", JSON.stringify(parsed));
-            }
-
-            originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+            const { accessToken } = await refreshAccessToken();
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return api(originalRequest);
           } catch (refreshError) {
             // Handle refresh token expiration (e.g., logout user)

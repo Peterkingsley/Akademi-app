@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { CompetitionParticipantStatus } from '@prisma/client';
+import { CompetitionParticipantStatus, TournamentInterestType } from '@prisma/client';
 import { CompetitionsService } from './competitions.service';
 
 const competitionsService = new CompetitionsService();
@@ -121,6 +121,66 @@ export class CompetitionsController {
       res.status(200).json(tournament);
     } catch (error: any) {
       res.status(404).json({ message: error.message || 'Tournament not found' });
+    }
+  }
+
+  async getTournamentArena(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const arena = await competitionsService.getTournamentArena(userId, req.params.id);
+      res.status(200).json(arena);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message || 'Tournament arena not found' });
+    }
+  }
+
+  async registerTournamentInterest(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const interestType = req.body.interest_type as TournamentInterestType;
+      if (!Object.values(TournamentInterestType).includes(interestType)) {
+        res.status(400).json({ message: 'Invalid interest type' });
+        return;
+      }
+      const tournament = await competitionsService.registerTournamentInterest(
+        userId,
+        req.params.id,
+        interestType,
+        req.body.supporting_user_id,
+      );
+      res.status(200).json(tournament);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to register campaign interest' });
+    }
+  }
+
+  async submitTournamentPrediction(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const arena = await competitionsService.submitTournamentPrediction(
+        userId,
+        req.params.id,
+        req.body.predicted_user_id,
+        req.body.stage_id,
+      );
+      res.status(200).json(arena);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to submit prediction' });
+    }
+  }
+
+  async sendTournamentCheer(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const arena = await competitionsService.sendTournamentCheer(
+        userId,
+        req.params.id,
+        req.body.participant_user_id,
+        req.body.stage_id,
+      );
+      res.status(200).json(arena);
+    } catch (error: any) {
+      res.status(429).json({ message: error.message || 'Failed to send cheer' });
     }
   }
 }

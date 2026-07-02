@@ -12,12 +12,8 @@ import { MaterialPracticeScreen } from "../screens/main/MaterialPracticeScreen";
 import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
 import { CameraScreen } from "../screens/main/CameraScreen";
 import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
-import { WhiteboardTutorScreen } from "../screens/main/WhiteboardTutorScreen";
 import { AIProcessingScreen } from "../screens/main/AIProcessingScreen";
 import { BoardReplayScreen } from "../screens/main/BoardReplayScreen";
-import { LiveTutorEntryScreen } from "../screens/main/LiveTutorEntryScreen";
-import { LiveTutorSessionScreen } from "../screens/main/LiveTutorSessionScreen";
-import { TutorSessionSummaryScreen } from "../screens/main/TutorSessionSummaryScreen";
 import { ExamPrepScreen } from "../screens/main/ExamPrepScreen";
 import { AddExamScreen } from "../screens/main/AddExamScreen";
 import { PrepPlanScreen } from "../screens/main/PrepPlanScreen";
@@ -48,6 +44,8 @@ import { CreateCompetitionScreen } from "../screens/main/CreateCompetitionScreen
 import { CompetitionLobbyScreen } from "../screens/main/CompetitionLobbyScreen";
 import { CompetitionResultScreen } from "../screens/main/CompetitionResultScreen";
 import { TournamentDetailScreen } from "../screens/main/TournamentDetailScreen";
+import { AITutorScreen } from "../screens/main/AITutorScreen";
+import { StudyCompanionScreen } from "../screens/main/StudyCompanionScreen";
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -60,6 +58,8 @@ export const MainStack = () => {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="AITutor" component={AITutorScreen} />
+      <Stack.Screen name="StudyCompanion" component={StudyCompanionScreen} />
       <Stack.Screen
         name="AssignmentResult"
         component={AssignmentResultScreen}
@@ -77,19 +77,6 @@ export const MainStack = () => {
       <Stack.Screen name="CropConfirm" component={CropConfirmScreen} />
       <Stack.Screen name="AIProcessing" component={AIProcessingScreen} />
       <Stack.Screen name="BoardReplay" component={BoardReplayScreen} />
-      <Stack.Screen
-        name="WhiteboardTutor"
-        component={WhiteboardTutorScreen}
-      />
-      <Stack.Screen name="LiveTutorEntry" component={LiveTutorEntryScreen} />
-      <Stack.Screen
-        name="LiveTutorSession"
-        component={LiveTutorSessionScreen}
-      />
-      <Stack.Screen
-        name="TutorSessionSummary"
-        component={TutorSessionSummaryScreen}
-      />
       <Stack.Screen name="ExamPrep" component={ExamPrepScreen} />
       <Stack.Screen name="AddExam" component={AddExamScreen} />
       <Stack.Screen name="AcademicTimeline" component={AcademicTimelineScreen} />

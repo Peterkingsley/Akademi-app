@@ -14,6 +14,53 @@ const s3Client = new S3Client({
 });
 
 export class UsersService {
+  private async resolveUserDepartment(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId, is_deleted: false },
+      select: {
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+      },
+    });
+
+    if (!user?.university || !user.department || !user.level) {
+      throw new Error('Complete your academic profile first');
+    }
+
+    const university = await prisma.university.findFirst({
+      where: { name: user.university },
+      select: { id: true, name: true },
+    });
+
+    if (!university) {
+      throw new Error('University record not found');
+    }
+
+    const department = await prisma.department.findFirst({
+      where: {
+        university_id: university.id,
+        name: user.department,
+      },
+      select: {
+        id: true,
+        name: true,
+        faculty: true,
+      },
+    });
+
+    if (!department) {
+      throw new Error('Department record not found');
+    }
+
+    return {
+      user,
+      university,
+      department,
+    };
+  }
+
   async getProfile(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId, is_deleted: false },
@@ -160,6 +207,64 @@ export class UsersService {
     return user;
   }
 
+  async getCourseOptions(userId: string) {
+    const { department, user } = await this.resolveUserDepartment(userId);
+
+    const [seededCourses, studentCourses] = await Promise.all([
+      prisma.course.findMany({
+        where: {
+          department_id: department.id,
+          level: user.level,
+        },
+        orderBy: [{ code: 'asc' }],
+      }),
+      prisma.studentCourse.groupBy({
+        by: ['code', 'name', 'level', 'semester'],
+        where: {
+          department_id: department.id,
+          level: user.level,
+        },
+        _count: { code: true },
+        orderBy: [{ _count: { code: 'desc' } }, { code: 'asc' }],
+        take: 100,
+      }),
+    ]);
+
+    const merged = new Map<string, any>();
+
+    for (const course of seededCourses) {
+      merged.set(`${course.code}-${course.level}-${course.semester}`, {
+        id: course.id,
+        code: course.code,
+        name: course.name,
+        level: course.level,
+        semester: course.semester,
+        source: course.source || 'seeded',
+        usageCount: 0,
+      });
+    }
+
+    for (const course of studentCourses) {
+      const key = `${course.code}-${course.level}-${course.semester}`;
+      const existing = merged.get(key);
+      merged.set(key, {
+        id: existing?.id || key,
+        code: course.code,
+        name: existing?.name || course.name || null,
+        level: course.level,
+        semester: course.semester,
+        source: existing ? 'seeded_and_crowdsourced' : 'crowdsourced',
+        usageCount: course._count.code,
+      });
+    }
+
+    return Array.from(merged.values()).sort((a, b) => {
+      if (a.code !== b.code) return a.code.localeCompare(b.code);
+      if (a.semester !== b.semester) return a.semester - b.semester;
+      return a.level - b.level;
+    });
+  }
+
   async updateAcademicProfile(userId: string, data: UpdateAcademicProfileRequest) {
     const currentUser = await prisma.user.findUnique({
       where: { id: userId, is_deleted: false },
@@ -292,7 +397,7 @@ export class UsersService {
   }
 
   async getProgress(userId: string) {
-    const [user, sessions, uploads, questionAttempts, mockAttempts, examPlans, studentCourses] = await Promise.all([
+    const [user, sessions, uploads, questionAttempts, mockAttempts, examPlans, studentCourses] = await prisma.$transaction([
       prisma.user.findUnique({
         where: { id: userId, is_deleted: false },
         select: {
@@ -474,7 +579,6 @@ export class UsersService {
         completedMocks,
         activeDays,
         streak: this.calculateStreak(dayKeys),
-        totalTutorMinutes: sessions.reduce((sum, session) => sum + (session.duration || 0), 0),
       },
       weeklyActivity,
       courses: Array.from(courseMap.values()).sort((a, b) => {
@@ -596,13 +700,13 @@ export class UsersService {
     }
 
     if (input.sessions > 0) {
-      return 'Your tutor sessions are being tracked. Add a mock or CBT attempt next so Akademi can spot stronger weak areas.';
+      return 'Your study sessions are being tracked. Add a mock or CBT attempt next so Akademi can spot stronger weak areas.';
     }
 
     if (input.uploads > 0) {
       return 'Your uploads are saved. Open one material, study it, then practice CBT to start building measurable progress.';
     }
 
-    return 'Start with one material, one tutor question, or one assignment solve. Your progress screen will fill up as you work.';
+    return 'Start with one material, one assignment solve, or one mock exam. Your progress screen will fill up as you work.';
   }
 }

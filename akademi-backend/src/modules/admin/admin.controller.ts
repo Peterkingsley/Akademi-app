@@ -281,6 +281,16 @@ export class AdminController {
     }
   }
 
+  async approveMaterials(req: Request, res: Response) {
+    try {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+      const result = await adminService.approveMaterials(ids, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async takedownMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.takedownMaterial(req.params.id, req.admin!.adminId);
@@ -305,6 +315,17 @@ export class AdminController {
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  }
+
+  async reingestAllMaterials(req: Request, res: Response) {
+    try {
+      const result = await adminService.reingestAllPdfMaterials(String(req.headers['x-admin-secret'] || ''));
+      res.json(result);
+    } catch (error: any) {
+      const message = String(error?.message || 'Failed to re-queue materials');
+      const status = message.toLowerCase().includes('secret') ? 403 : 500;
+      res.status(status).json({ message });
     }
   }
 
@@ -411,6 +432,15 @@ export class AdminController {
   async getDepartmentCoverage(req: Request, res: Response) {
     try {
       const coverage = await adminService.getDepartmentCoverage();
+      res.json(coverage);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getUniversityCoverage(req: Request, res: Response) {
+    try {
+      const coverage = await adminService.getUniversityCoverage();
       res.json(coverage);
     } catch (error: any) {
       res.status(500).json({ message: error.message });

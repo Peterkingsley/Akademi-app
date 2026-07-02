@@ -25,12 +25,12 @@ import { useTheme } from "../../theme/ThemeContext";
 import { useNavigation } from "@react-navigation/native";
 import { sessionService } from "../../services/session";
 
-type FilterTab = "All" | "Assignments" | "Tutor" | "Study Mode";
+type FilterTab = "All" | "Assignments" | "Study Mode";
 
 interface SessionUI {
   id: string;
   course: string;
-  type: "SOLVE ASSIGNMENT" | "TUTOR" | "STUDY";
+  type: "SOLVE ASSIGNMENT" | "STUDY";
   title: string;
   date: string;
   duration: string;
@@ -39,7 +39,6 @@ interface SessionUI {
 
 const TYPE_COLORS: Record<SessionUI["type"], string> = {
   "SOLVE ASSIGNMENT": "#6366F1",
-  TUTOR: "#7C3AED",
   STUDY: "#D97706",
 };
 
@@ -51,7 +50,6 @@ const formatSessionDuration = (duration?: number) => {
 
 const getSessionTitle = (session: any, type: SessionUI["type"]) => {
   if (session.topic?.trim()) return session.topic.trim();
-  if (type === "TUTOR") return "AI tutor material session";
   if (type === "SOLVE ASSIGNMENT") return "Assignment help";
   return "Study session";
 };
@@ -64,7 +62,6 @@ const SessionIcon: React.FC<{ type: SessionUI["type"] }> = ({ type }) => {
   return (
     <View style={[styles.sessionIcon, { backgroundColor: bg + "22" }]}>
       {type === "SOLVE ASSIGNMENT" && <Camera size={20} color={bg} />}
-      {type === "TUTOR" && <MessageSquare size={20} color={bg} />}
       {type === "STUDY" && <BookOpen size={20} color={bg} />}
     </View>
   );
@@ -99,8 +96,7 @@ export const SessionsScreen: React.FC = () => {
 
       const mapped: SessionUI[] = data.map((s: any) => {
           let type: SessionUI["type"] = "STUDY";
-          if (s.session_type === "TUTOR") type = "TUTOR";
-          else if (s.session_type === "ASSIGNMENT") type = "SOLVE ASSIGNMENT";
+          if (s.session_type === "ASSIGNMENT") type = "SOLVE ASSIGNMENT";
 
           const date = new Date(s.created_at);
           const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -141,7 +137,6 @@ export const SessionsScreen: React.FC = () => {
   const filteredSessions = sessions.filter((s) => {
     if (activeTab === "All") return true;
     if (activeTab === "Assignments") return s.type === "SOLVE ASSIGNMENT";
-    if (activeTab === "Tutor") return s.type === "TUTOR";
     if (activeTab === "Study Mode") return s.type === "STUDY";
     return true;
   });
@@ -171,7 +166,7 @@ export const SessionsScreen: React.FC = () => {
 
         {/* Filter Tabs */}
         <View style={styles.tabsRow}>
-          {(["All", "Assignments", "Tutor", "Study Mode"] as FilterTab[]).map((tab) => (
+          {(["All", "Assignments", "Study Mode"] as FilterTab[]).map((tab) => (
             <TouchableOpacity
               key={tab}
               style={styles.tabItem}

@@ -13,7 +13,6 @@ import {
   Sparkles,
   Infinity as InfinityIcon,
   Book,
-  Bot,
   Download,
   Target,
   ArrowRight
@@ -80,7 +79,6 @@ export const SubscriptionScreen: React.FC = () => {
   const features = [
     { icon: <InfinityIcon size={20} color="#FFFFFF" />, text: "Unlimited assignment solving" },
     { icon: <Book size={20} color="#FFFFFF" />, text: "Full Study Mode with practice questions" },
-    { icon: <Bot size={20} color="#FFFFFF" />, text: "Unlimited Live Tutor sessions" },
     { icon: <Download size={20} color="#FFFFFF" />, text: "Offline access to all materials" },
     { icon: <Target size={20} color="#FFFFFF" />, text: "Full Exam Prep & unlimited mock exams" },
   ];

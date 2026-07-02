@@ -1,36 +1,91 @@
 import prisma from '../../config/db';
-import { typesenseService } from '../../shared/search/typesense.service';
+
+type UniversitySearchCacheEntry = {
+  expiresAt: number;
+  data: Array<{ id: string; name: string; location: string | null; created_at: Date }>;
+};
 
 export class UniversitiesService {
+  private universitySearchCache = new Map<string, UniversitySearchCacheEntry>();
+  private readonly universitySearchCacheTtlMs = 60 * 1000;
+
+  private getCachedUniversitySearch(cacheKey: string) {
+    const cached = this.universitySearchCache.get(cacheKey);
+    if (!cached) return null;
+
+    if (cached.expiresAt <= Date.now()) {
+      this.universitySearchCache.delete(cacheKey);
+      return null;
+    }
+
+    return cached.data;
+  }
+
+  private setCachedUniversitySearch(
+    cacheKey: string,
+    data: Array<{ id: string; name: string; location: string | null; created_at: Date }>
+  ) {
+    this.universitySearchCache.set(cacheKey, {
+      expiresAt: Date.now() + this.universitySearchCacheTtlMs,
+      data,
+    });
+
+    if (this.universitySearchCache.size > 200) {
+      const oldestKey = this.universitySearchCache.keys().next().value;
+      if (oldestKey) {
+        this.universitySearchCache.delete(oldestKey);
+      }
+    }
+  }
+
   async getAllUniversities(search?: string, limit?: number) {
     const query = typeof search === 'string' ? search.trim() : '';
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+    const normalizedLimit = Number(limit);
+    const take =
+      Number.isFinite(normalizedLimit) && normalizedLimit > 0
+        ? Math.min(Math.max(normalizedLimit, 1), 1000)
+        : undefined;
 
-    if (query) {
-      return prisma.university.findMany({
-        where: { name: { contains: query, mode: 'insensitive' } },
-        orderBy: { name: 'asc' },
-        take,
-      });
-    }
-
-    // We can use Typesense for faster discovery or Prisma for source of truth.
-    // The ticket asks for /universities to return all supported universities.
-    // Using Typesense:
-    try {
-      const results = await typesenseService.search('universities', {
-        q: '*',
-        query_by: 'name',
-        sort_by: 'name:asc',
-      });
-      return results.hits?.map((hit: any) => hit.document) || [];
-    } catch (error) {
-      // Fallback to Prisma if Typesense fails or is not initialized
+    if (!query) {
       return prisma.university.findMany({
         orderBy: { name: 'asc' },
         take,
       });
     }
+
+    const safeTake = take || 12;
+    const normalizedQuery = query.toLowerCase();
+    const cacheKey = `${normalizedQuery}:${safeTake}`;
+    const cached = this.getCachedUniversitySearch(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const prefixMatches = await prisma.university.findMany({
+      where: { name: { startsWith: query, mode: 'insensitive' } },
+      orderBy: { name: 'asc' },
+      take: safeTake,
+    });
+
+    let results = prefixMatches;
+
+    if (results.length < safeTake) {
+      const remaining = safeTake - results.length;
+      const prefixIds = results.map((item) => item.id);
+      const containsMatches = await prisma.university.findMany({
+        where: {
+          name: { contains: query, mode: 'insensitive' },
+          ...(prefixIds.length ? { id: { notIn: prefixIds } } : {}),
+        },
+        orderBy: { name: 'asc' },
+        take: remaining,
+      });
+
+      results = [...results, ...containsMatches];
+    }
+
+    this.setCachedUniversitySearch(cacheKey, results);
+    return results;
   }
 
   async getFacultiesByUniversity(universityId: string) {

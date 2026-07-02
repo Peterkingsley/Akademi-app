@@ -22,18 +22,9 @@ const plugins = [
   "@react-native-community/datetimepicker",
 ];
 
-if (process.env.SENTRY_ORG && process.env.SENTRY_PROJECT) {
-  plugins.push([
-    "@sentry/react-native/expo",
-    {
-      organization: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      url: process.env.SENTRY_URL || "https://sentry.io/",
-    },
-  ]);
-} else {
-  plugins.push("@sentry/react-native");
-}
+// Sentry native upload is temporarily disabled because the Android EAS build
+// is failing during Sentry Gradle upload.
+// Re-enable after confirming SENTRY_ORG, SENTRY_PROJECT, and SENTRY_AUTH_TOKEN.
 
 module.exports = {
   expo: {
@@ -42,13 +33,13 @@ module.exports = {
     owner: "akademiapp21",
     scheme: "akademi",
     version: "1.0.0",
-    newArchEnabled: false,
+    newArchEnabled: true,
     platforms: ["ios", "android", "web"],
     orientation: "portrait",
-    icon: "./assets/akademi-logo-icon.png",
+    icon: "./assets/icon.png",
     userInterfaceStyle: "dark",
     splash: {
-      image: "./assets/akademi-logo-icon.png",
+      image: "./assets/splash.png",
       resizeMode: "contain",
       backgroundColor: "#000000",
     },
@@ -65,7 +56,7 @@ module.exports = {
     android: {
       package: "com.akademi.app",
       adaptiveIcon: {
-        foregroundImage: "./assets/akademi-logo-icon.png",
+        foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#000000",
       },
       permissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],

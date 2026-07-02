@@ -27,6 +27,27 @@ async function main() {
     `;
     console.log('Marked 20260522090202_add_question_scoring_fields as finished:', updateResult);
 
+    const visualCueColumns = await prisma.$queryRaw`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'visual_cues'
+      AND column_name IN ('generation_status', 'generation_error');
+    `;
+
+    const hasVisualCueGenerationColumns = Array.isArray(visualCueColumns) && visualCueColumns.length >= 2;
+
+    if (hasVisualCueGenerationColumns) {
+      const resetVisualCuesResult = await prisma.$executeRaw`
+        UPDATE visual_cues
+        SET generation_status = 'PENDING',
+            generation_error = NULL
+        WHERE generation_status IN ('PROCESSING', 'FAILED');
+      `;
+      console.log('Reset stuck whiteboard visual cue generation statuses:', resetVisualCuesResult);
+    } else {
+      console.log('Skipped whiteboard visual cue reset: generation columns are not present yet.');
+    }
+
     console.log('Database migration fix completed successfully.');
   } catch (error) {
     console.error('Error during database migration fix:', error);

@@ -220,7 +220,7 @@ export const NotificationsScreen: React.FC = () => {
               </View>
               <Text style={styles.emptyTitle}>No activity yet</Text>
               <Text style={styles.emptySubtext}>
-                Upload approvals, new course materials, exam reminders, tutor summaries, and progress alerts will appear here.
+                Upload approvals, new course materials, exam reminders, and progress alerts will appear here.
               </Text>
             </View>
           }

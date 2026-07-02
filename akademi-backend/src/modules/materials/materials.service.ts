@@ -9,6 +9,8 @@ import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
+import { queueMaterialIngestion } from './material-processing';
+import { backfillTeacherBrains, regenerateTeacherBrain } from './teacher-brain.service';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -20,6 +22,15 @@ const s3Client = new S3Client({
 });
 
 export class MaterialsService {
+  private async getAdminRoleByEmail(email?: string | null) {
+    if (!email) return null;
+    const admin = await prisma.admin.findFirst({
+      where: { email, status: 'active' as any },
+      select: { role: true },
+    });
+    return admin?.role || null;
+  }
+
   private mapStorageError(error: unknown, fallbackMessage: string) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`${fallbackMessage} Please try again shortly. (${detail})`);
@@ -156,6 +167,192 @@ export class MaterialsService {
     return Boolean(requestingUserId && material.uploaded_by === requestingUserId);
   }
 
+  private sanitizeConstraintStringList(value: unknown, limit = 12) {
+    return Array.isArray(value)
+      ? value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .slice(0, limit)
+      : [];
+  }
+
+  private sanitizeConstraintTerminology(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .map(([key, item]) => [String(key || '').trim(), String(item || '').trim()] as const)
+        .filter(([key, item]) => key && item)
+        .slice(0, 12),
+    );
+  }
+
+  private normalizeConstraintStrictness(value: unknown) {
+    const normalized = String(value || 'medium').trim().toLowerCase();
+    return ['low', 'medium', 'high'].includes(normalized) ? normalized : 'medium';
+  }
+
+  private async ensureCanManageMaterialTeachingConstraints(materialId: string, requester: { userId: string; email?: string | null }) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    const material = await prisma.material.findUnique({
+      where: { id: materialId },
+      select: {
+        id: true,
+        title: true,
+        uploaded_by: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        semester: true,
+      },
+    });
+
+    if (!material) {
+      throw new Error('Material not found');
+    }
+
+    const isOwner = material.uploaded_by === requester.userId;
+    if (!isOwner && !adminRole) {
+      throw new Error('You are not allowed to manage teaching constraints for this material.');
+    }
+
+    return { material, adminRole, isOwner };
+  }
+
+  private async ensureCourseCodeExistsForUpload(
+    userId: string,
+    payload: {
+      courseCode: string | null;
+      university: string;
+      faculty: string;
+      department: string;
+      level: number;
+      semester?: number | null;
+      semester_start?: string | null;
+      semester_end?: string | null;
+    },
+  ) {
+    if (!payload.courseCode) {
+      return null;
+    }
+
+    const departmentUniversity = await prisma.university.upsert({
+      where: { name: payload.university },
+      update: {},
+      create: { name: payload.university, location: 'Nigeria' },
+      select: { id: true },
+    });
+
+    const department = await prisma.department.upsert({
+      where: {
+        name_university_id: {
+          name: payload.department,
+          university_id: departmentUniversity.id,
+        },
+      },
+      update: { faculty: payload.faculty },
+      create: {
+        name: payload.department,
+        faculty: payload.faculty,
+        university_id: departmentUniversity.id,
+      },
+      select: { id: true },
+    });
+
+    const fallbackStudentCourse = await prisma.studentCourse.findFirst({
+      where: {
+        user_id: userId,
+        level: payload.level,
+      },
+      orderBy: [{ updated_at: 'desc' }],
+      select: {
+        semester: true,
+        semester_start: true,
+        semester_end: true,
+      },
+    });
+
+    const semester = payload.semester || fallbackStudentCourse?.semester || 1;
+    const semesterStart = payload.semester_start
+      ? new Date(payload.semester_start)
+      : fallbackStudentCourse?.semester_start || null;
+    const semesterEnd = payload.semester_end
+      ? new Date(payload.semester_end)
+      : fallbackStudentCourse?.semester_end || null;
+
+    await prisma.course.upsert({
+      where: {
+        code_department_id: {
+          code: payload.courseCode,
+          department_id: department.id,
+        },
+      },
+      update: {
+        level: payload.level,
+        semester,
+      },
+      create: {
+        code: payload.courseCode,
+        name: payload.courseCode,
+        level: payload.level,
+        semester,
+        source: 'student_upload',
+        department_id: department.id,
+      },
+    });
+
+    if (semesterStart && semesterEnd) {
+      await prisma.studentCourse.upsert({
+        where: {
+          user_id_code_level_semester: {
+            user_id: userId,
+            code: payload.courseCode,
+            level: payload.level,
+            semester,
+          },
+        },
+        update: {
+          department_id: department.id,
+          name: payload.courseCode,
+          semester_start: semesterStart,
+          semester_end: semesterEnd,
+          source: 'student_upload',
+        },
+        create: {
+          user_id: userId,
+          department_id: department.id,
+          code: payload.courseCode,
+          name: payload.courseCode,
+          level: payload.level,
+          semester,
+          semester_start: semesterStart,
+          semester_end: semesterEnd,
+          source: 'student_upload',
+        },
+      });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { courses: true },
+    });
+
+    const nextCourses = Array.from(new Set([...(currentUser?.courses || []), payload.courseCode]));
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        courses: nextCourses,
+      },
+    });
+
+    return { departmentId: department.id, semester, semesterStart, semesterEnd };
+  }
+
   async getMaterial(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
     let docImageDiagnostic: { code: string; message: string; detail?: string } | null = null;
     let material = await prisma.material.findUnique({
@@ -239,9 +436,366 @@ export class MaterialsService {
     };
   }
 
+  async getTeacherBrain(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    const material = await this.getMaterial(materialId, {
+      requestingUserId: requester.userId,
+      requestingAdminRole: adminRole,
+    });
+
+    const teacherBrain = await prisma.materialTeacherBrain.findUnique({
+      where: { material_id: materialId },
+      select: {
+        id: true,
+        material_id: true,
+        course_code: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        summary: true,
+        chapter_summaries: true,
+        concept_graph: true,
+        prerequisites: true,
+        formulas: true,
+        calculation_methods: true,
+        diagrams: true,
+        misconceptions: true,
+        exam_angles: true,
+        teacher_notes: true,
+        subject_family: true,
+        confidence: true,
+        generated_at: true,
+        updated_at: true,
+      },
+    });
+
+    if (!teacherBrain) {
+      throw new Error('Teacher Brain not found for this material.');
+    }
+
+    return {
+      materialId: material.id,
+      title: material.title,
+      teacherBrain,
+    };
+  }
+
+  async regenerateMaterialTeacherBrain(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+    options?: { force?: boolean },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    await this.getMaterial(materialId, {
+      requestingUserId: requester.userId,
+      requestingAdminRole: adminRole,
+    });
+
+    return regenerateTeacherBrain(materialId, options);
+  }
+
+  async backfillMaterialTeacherBrains(
+    requester: { userId: string; email?: string | null },
+    options?: {
+      limit?: number;
+      courseCode?: string;
+      department?: string;
+      subjectFamily?: string;
+      missingOnly?: boolean;
+      force?: boolean;
+    },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    if (!adminRole) {
+      throw new Error('Only admins can backfill teacher brains.');
+    }
+
+    return backfillTeacherBrains(options);
+  }
+
+  async auditMaterialIntelligenceReadiness(
+    requester: { userId: string; email?: string | null },
+    options?: {
+      limit?: number;
+      courseCode?: string;
+      department?: string;
+      status?: string;
+      missingOnly?: boolean;
+    },
+  ) {
+    const adminRole = await this.getAdminRoleByEmail(requester.email);
+    if (!adminRole) {
+      throw new Error('Only admins can audit material intelligence readiness.');
+    }
+
+    const limit = Math.min(Math.max(Number(options?.limit) || 50, 1), 200);
+    const status = String(options?.status || '').trim().toUpperCase();
+
+    const materials = await prisma.material.findMany({
+      where: {
+        ...(options?.courseCode ? { course_code: options.courseCode } : {}),
+        ...(options?.department ? { department: options.department } : {}),
+        ...(status ? { processing_status: status as any } : {}),
+      },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        course_code: true,
+        department: true,
+        level: true,
+        file_type: true,
+        processing_status: true as any,
+        content: true,
+        reader_structure: true,
+        teacher_brain: {
+          select: {
+            generated_at: true,
+            subject_family: true,
+          },
+        },
+        _count: {
+          select: {
+            embeddings: true,
+          },
+        },
+      },
+    });
+
+    const audited = materials.map((material) => {
+      const contentText = String(material.content || '');
+      const pages = Array.isArray((material.reader_structure as { pages?: unknown[] } | null)?.pages)
+        ? ((material.reader_structure as { pages: unknown[] }).pages)
+        : [];
+      const hasContent = contentText.trim().length > 0;
+      const hasReaderStructure = pages.length > 0;
+      const embeddingCount = material._count.embeddings;
+      const hasTeacherBrain = Boolean(material.teacher_brain);
+      const hasExtractedStatus = material.processing_status === 'EXTRACTED';
+      const missingArtifacts = [
+        ...(hasContent ? [] : ['content']),
+        ...(hasReaderStructure ? [] : ['reader_structure']),
+        ...(embeddingCount > 0 ? [] : ['embeddings']),
+        ...(hasTeacherBrain ? [] : ['teacher_brain']),
+        ...(hasExtractedStatus ? [] : ['extracted_status']),
+      ];
+
+      const readinessStatus = material.processing_status === 'FAILED'
+        ? 'FAILED_PROCESSING'
+        : missingArtifacts.length === 0
+          ? 'READY'
+          : 'INCOMPLETE';
+
+      return {
+        id: material.id,
+        title: material.title,
+        course_code: material.course_code,
+        department: material.department,
+        level: material.level,
+        file_type: material.file_type,
+        processing_status: material.processing_status,
+        hasContent,
+        contentLength: contentText.length,
+        hasReaderStructure,
+        readerPageCount: pages.length,
+        embeddingCount,
+        hasTeacherBrain,
+        teacherBrainGeneratedAt: material.teacher_brain?.generated_at || null,
+        teacherBrainSubjectFamily: material.teacher_brain?.subject_family || null,
+        readinessStatus,
+        missingArtifacts,
+      };
+    }).filter((material) => {
+      if (options?.missingOnly !== true) return true;
+      return material.readinessStatus !== 'READY';
+    });
+
+    return {
+      totalChecked: audited.length,
+      readyCount: audited.filter((material) => material.readinessStatus === 'READY').length,
+      incompleteCount: audited.filter((material) => material.readinessStatus !== 'READY').length,
+      materials: audited,
+    };
+  }
+
+  async listTeachingConstraints(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const constraints = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findMany: (query: unknown) => Promise<unknown[]>;
+      };
+    }).lecturerTeachingConstraint.findMany({
+      where: {
+        material_id: materialId,
+        is_active: true,
+      },
+      orderBy: [{ updated_at: 'desc' }],
+    });
+    return { materialId, constraints };
+  }
+
+  async createTeachingConstraint(
+    materialId: string,
+    requester: { userId: string; email?: string | null },
+    input: Record<string, unknown>,
+  ) {
+    const { material } = await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const title = String(input.title || '').trim();
+    if (!title) {
+      throw new Error('Constraint title is required.');
+    }
+
+    const created = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        create: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.create({
+      data: {
+        material_id: materialId,
+        course_code: material.course_code,
+        university: material.university,
+        faculty: material.faculty,
+        department: material.department,
+        level: material.level,
+        semester: material.semester,
+        created_by: requester.userId,
+        title,
+        description: input.description ? String(input.description).trim() : null,
+        required_order: this.sanitizeConstraintStringList(input.required_order),
+        must_cover_topics: this.sanitizeConstraintStringList(input.must_cover_topics),
+        do_not_skip_topics: this.sanitizeConstraintStringList(input.do_not_skip_topics),
+        preferred_terminology: this.sanitizeConstraintTerminology(input.preferred_terminology),
+        required_methods: this.sanitizeConstraintStringList(input.required_methods),
+        forbidden_methods: this.sanitizeConstraintStringList(input.forbidden_methods),
+        assessment_focus: this.sanitizeConstraintStringList(input.assessment_focus),
+        unit_policy: input.unit_policy ? String(input.unit_policy).trim() : null,
+        proof_policy: input.proof_policy ? String(input.proof_policy).trim() : null,
+        calculation_policy: input.calculation_policy ? String(input.calculation_policy).trim() : null,
+        diagram_policy: input.diagram_policy ? String(input.diagram_policy).trim() : null,
+        strictness: this.normalizeConstraintStrictness(input.strictness),
+        is_active: true,
+      },
+    });
+
+    console.log('lecturer_constraint_created', {
+      materialId,
+      createdBy: requester.userId,
+      title,
+    });
+    return created;
+  }
+
+  async updateTeachingConstraint(
+    materialId: string,
+    constraintId: string,
+    requester: { userId: string; email?: string | null },
+    input: Record<string, unknown>,
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const existing = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findFirst: (query: unknown) => Promise<{ id: string; material_id: string | null } | null>;
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.findFirst({
+      where: { id: constraintId, material_id: materialId, is_active: true },
+      select: { id: true, material_id: true },
+    });
+
+    if (!existing) {
+      throw new Error('Teaching constraint not found.');
+    }
+
+    const updated = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.update({
+      where: { id: constraintId },
+      data: {
+        title: input.title !== undefined ? String(input.title || '').trim() : undefined,
+        description: input.description !== undefined ? (input.description ? String(input.description).trim() : null) : undefined,
+        required_order: input.required_order !== undefined ? this.sanitizeConstraintStringList(input.required_order) : undefined,
+        must_cover_topics: input.must_cover_topics !== undefined ? this.sanitizeConstraintStringList(input.must_cover_topics) : undefined,
+        do_not_skip_topics: input.do_not_skip_topics !== undefined ? this.sanitizeConstraintStringList(input.do_not_skip_topics) : undefined,
+        preferred_terminology: input.preferred_terminology !== undefined ? this.sanitizeConstraintTerminology(input.preferred_terminology) : undefined,
+        required_methods: input.required_methods !== undefined ? this.sanitizeConstraintStringList(input.required_methods) : undefined,
+        forbidden_methods: input.forbidden_methods !== undefined ? this.sanitizeConstraintStringList(input.forbidden_methods) : undefined,
+        assessment_focus: input.assessment_focus !== undefined ? this.sanitizeConstraintStringList(input.assessment_focus) : undefined,
+        unit_policy: input.unit_policy !== undefined ? (input.unit_policy ? String(input.unit_policy).trim() : null) : undefined,
+        proof_policy: input.proof_policy !== undefined ? (input.proof_policy ? String(input.proof_policy).trim() : null) : undefined,
+        calculation_policy: input.calculation_policy !== undefined ? (input.calculation_policy ? String(input.calculation_policy).trim() : null) : undefined,
+        diagram_policy: input.diagram_policy !== undefined ? (input.diagram_policy ? String(input.diagram_policy).trim() : null) : undefined,
+        strictness: input.strictness !== undefined ? this.normalizeConstraintStrictness(input.strictness) : undefined,
+      },
+    });
+
+    console.log('lecturer_constraint_updated', {
+      materialId,
+      constraintId,
+      updatedBy: requester.userId,
+    });
+    return updated;
+  }
+
+  async disableTeachingConstraint(
+    materialId: string,
+    constraintId: string,
+    requester: { userId: string; email?: string | null },
+  ) {
+    await this.ensureCanManageMaterialTeachingConstraints(materialId, requester);
+    const existing = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        findFirst: (query: unknown) => Promise<{ id: string } | null>;
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.findFirst({
+      where: { id: constraintId, material_id: materialId, is_active: true },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new Error('Teaching constraint not found.');
+    }
+
+    const disabled = await (prisma as typeof prisma & {
+      lecturerTeachingConstraint: {
+        update: (query: unknown) => Promise<unknown>;
+      };
+    }).lecturerTeachingConstraint.update({
+      where: { id: constraintId },
+      data: { is_active: false },
+    });
+
+    console.log('lecturer_constraint_disabled', {
+      materialId,
+      constraintId,
+      disabledBy: requester.userId,
+    });
+    return disabled;
+  }
+
   async createUpload(userId: string, data: UploadMaterialRequest) {
     const validated = this.assertUploadPayload(data);
     const courseCode = validated.courseCode;
+    const ensuredCourse = await this.ensureCourseCodeExistsForUpload(userId, {
+      courseCode,
+      university: validated.university,
+      faculty: validated.faculty,
+      department: validated.department,
+      level: data.level,
+      semester: data.semester,
+      semester_start: data.semester_start,
+      semester_end: data.semester_end,
+    });
     const matchingStudentCourse = courseCode
       ? await prisma.studentCourse.findFirst({
           where: {
@@ -254,13 +808,13 @@ export class MaterialsService {
         })
       : null;
 
-    const semester = data.semester ? Number(data.semester) : matchingStudentCourse?.semester || null;
+    const semester = data.semester ? Number(data.semester) : matchingStudentCourse?.semester || ensuredCourse?.semester || null;
     const semesterStart = data.semester_start
       ? new Date(data.semester_start)
-      : matchingStudentCourse?.semester_start || null;
+      : matchingStudentCourse?.semester_start || ensuredCourse?.semesterStart || null;
     const semesterEnd = data.semester_end
       ? new Date(data.semester_end)
-      : matchingStudentCourse?.semester_end || null;
+      : matchingStudentCourse?.semester_end || ensuredCourse?.semesterEnd || null;
 
     const material = await prisma.material.create({
       data: {
@@ -276,6 +830,12 @@ export class MaterialsService {
         academic_year: validated.academicYear || this.getAcademicYear(semesterStart),
         file_type: data.file_type,
         verification_status: VerificationStatus.PENDING,
+        processing_status: 'UPLOADED' as any,
+        processing_attempts: 0,
+        processing_error: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        next_retry_at: null,
         uploaded_by: userId,
         file_ref: '', // Will be updated after upload or derived
         contributor_ids: [userId],
@@ -477,6 +1037,11 @@ export class MaterialsService {
       where: { id },
       data: {
         verification_status: VerificationStatus.PENDING,
+        processing_status: 'QUEUED' as any,
+        processing_error: null,
+        processing_started_at: null,
+        processing_completed_at: null,
+        next_retry_at: null,
       },
     });
 
@@ -490,10 +1055,9 @@ export class MaterialsService {
     try {
       // If chunks exist, trigger assembly
       if (material.upload_chunks.length > 0) {
-        await systemQueue.add(JOB_NAMES.ASSEMBLE_CHUNKS, { materialId: id });
+        await queueMaterialIngestion(id, true);
       } else {
-        // Direct upload, trigger ingestion
-        await systemQueue.add(JOB_NAMES.INGEST_MATERIAL, { materialId: id });
+        await queueMaterialIngestion(id, false);
       }
       processingNotice = {
         status: 'queued',
@@ -501,6 +1065,15 @@ export class MaterialsService {
       };
     } catch (error) {
       console.error(`Material ${id} upload confirmed, but ingestion failed:`, error);
+      await prisma.material.update({
+        where: { id },
+        data: {
+          processing_status: 'FAILED' as any,
+          processing_error: error instanceof Error ? error.message : 'Unknown queue error',
+        } as any,
+      }).catch((updateError) => {
+        console.error(`Failed to persist processing failure for material ${id}:`, updateError);
+      });
       processingNotice = {
         status: 'degraded',
         message: 'Upload saved, but processing is delayed right now. The material will need a retry when queue health recovers.',

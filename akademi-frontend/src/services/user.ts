@@ -91,7 +91,6 @@ export interface ProgressSummary {
     completedMocks: number;
     activeDays: number;
     streak: number;
-    totalTutorMinutes: number;
   };
   weeklyActivity: Array<{
     day: string;
@@ -151,6 +150,16 @@ export interface AcademicProfile {
   student_courses: StudentAcademicCourse[];
 }
 
+export interface CourseOption {
+  id: string;
+  code: string;
+  name?: string | null;
+  level: number;
+  semester: number;
+  source?: string;
+  usageCount?: number;
+}
+
 export const userService = {
   getProfile: async () => {
     const response = await api.get<UserProfile>("/users/me");
@@ -164,6 +173,11 @@ export const userService = {
 
   getAcademicProfile: async () => {
     const response = await api.get<AcademicProfile>("/users/me/academic-profile");
+    return response.data;
+  },
+
+  getCourseOptions: async () => {
+    const response = await api.get<CourseOption[]>("/users/me/course-options");
     return response.data;
   },
 

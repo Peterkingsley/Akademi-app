@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetFlatList, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import * as DocumentPicker from "expo-document-picker";
 import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeInUp, Layout } from "react-native-reanimated";
@@ -21,11 +21,20 @@ import { Screen } from "../../components/layout/Screen";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Toast } from "../../components/ui/Toast";
 import { materialService, Material } from "../../services/material";
-import { AcademicProfile, StudentAcademicCourse, userService } from "../../services/user";
+import { AcademicProfile, CourseOption, StudentAcademicCourse, userService } from "../../services/user";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+
+const settle = async <T,>(promise: Promise<T>) => {
+  try {
+    const value = await promise;
+    return { status: "fulfilled" as const, value };
+  } catch (reason) {
+    return { status: "rejected" as const, reason };
+  }
+};
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -47,7 +56,10 @@ export const LibraryScreen: React.FC = () => {
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadCourseCode, setUploadCourseCode] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<DocumentPicker.DocumentPickerResult | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
+  const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
+  const [courseInputMode, setCourseInputMode] = useState<"select" | "manual">("select");
+  const [showCourseOptions, setShowCourseOptions] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
 
   const userCourses = useMemo(() => user?.courses || [], [user?.courses]);
@@ -79,10 +91,15 @@ export const LibraryScreen: React.FC = () => {
 
   const fetchAcademicProfile = async () => {
     try {
-      const data = await userService.getAcademicProfile();
-      setAcademicProfile(data);
+      const [profileData, courseOptionData] = await Promise.all([
+        userService.getAcademicProfile(),
+        userService.getCourseOptions().catch(() => []),
+      ]);
+      setAcademicProfile(profileData);
+      setCourseOptions(courseOptionData);
     } catch (err) {
       setAcademicProfile(null);
+      setCourseOptions([]);
     }
   };
 
@@ -93,6 +110,41 @@ export const LibraryScreen: React.FC = () => {
     }
     return map;
   }, [academicProfile]);
+
+  const fallbackCourseOptions = useMemo<CourseOption[]>(
+    () =>
+      Array.from(
+        new Map(
+          (academicProfile?.student_courses || []).map((course) => [
+            `${course.code}-${course.level}-${course.semester}`,
+            {
+              id: course.id || `${course.code}-${course.level}-${course.semester}`,
+              code: course.code,
+              name: course.name,
+              level: course.level,
+              semester: course.semester,
+              source: course.source,
+              usageCount: undefined,
+            } satisfies CourseOption,
+          ]),
+        ).values(),
+      ),
+    [academicProfile],
+  );
+
+  const availableCourseOptions = useMemo(
+    () => (courseOptions.length > 0 ? courseOptions : fallbackCourseOptions),
+    [courseOptions, fallbackCourseOptions],
+  );
+
+  const selectedCourseMeta = useMemo(() => {
+    const normalized = uploadCourseCode.trim().toUpperCase();
+    return (
+      availableCourseOptions.find((course) => course.code.toUpperCase() === normalized) ||
+      courseLookup.get(normalized) ||
+      null
+    );
+  }, [availableCourseOptions, courseLookup, uploadCourseCode]);
 
   useEffect(() => {
     if (!uploadCourseCode && defaultCourseCode) {
@@ -133,12 +185,19 @@ export const LibraryScreen: React.FC = () => {
           "application/msword",
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         ],
+        multiple: true,
       });
 
       if (!result.canceled) {
-        setSelectedFile(result);
-        if (!uploadTitle) {
-          setUploadTitle(result.assets[0].name.split(".")[0]);
+        const assets = result.assets.slice(0, 20);
+        setSelectedFiles(assets);
+        if (result.assets.length > 20) {
+          setToast({ message: "Only the first 20 files were selected.", type: "warning" });
+        }
+        if (assets.length === 1 && !uploadTitle) {
+          setUploadTitle(assets[0].name.split(".")[0].toUpperCase());
+        } else if (assets.length > 1) {
+          setUploadTitle("");
         }
       }
     } catch (err) {
@@ -147,83 +206,126 @@ export const LibraryScreen: React.FC = () => {
   };
 
   const handleUpload = async () => {
-    if (!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile) return;
+    if (!uploadCourseCode || selectedFiles.length === 0 || !hasAcademicProfile) return;
 
     setUploading(true);
     try {
-      const file = selectedFile.assets[0];
       const normalizedCourseCode = uploadCourseCode.trim().toUpperCase();
-      const selectedCourseMeta = courseLookup.get(normalizedCourseCode);
-      const fileExtension = file.name.split(".").pop()?.toUpperCase();
-      const fileType =
-        fileExtension === "PDF"
-          ? "PDF"
-          : ["JPG", "JPEG", "PNG", "WEBP"].includes(fileExtension || "")
-            ? "IMAGE"
-            : "DOC";
-      const mimeType =
-        file.mimeType ||
-        (fileType === "PDF"
-          ? "application/pdf"
-          : fileType === "IMAGE"
-            ? fileExtension === "PNG"
-              ? "image/png"
-              : fileExtension === "WEBP"
-                ? "image/webp"
-                : "image/jpeg"
-            : fileExtension === "DOC"
-              ? "application/msword"
-              : fileExtension === "TXT"
-                ? "text/plain"
-                : fileExtension === "MD"
-                  ? "text/markdown"
-                  : fileExtension === "CSV"
-                    ? "text/csv"
-                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      const uploadResults = await Promise.all(
+        selectedFiles.map(async (file, index) => {
+          return settle((async () => {
+            const fileExtension = file.name.split(".").pop()?.toUpperCase();
+            const fileType =
+              fileExtension === "PDF"
+                ? "PDF"
+                : ["JPG", "JPEG", "PNG", "WEBP"].includes(fileExtension || "")
+                  ? "IMAGE"
+                  : "DOC";
+            const mimeType =
+              file.mimeType ||
+              (fileType === "PDF"
+                ? "application/pdf"
+                : fileType === "IMAGE"
+                  ? fileExtension === "PNG"
+                    ? "image/png"
+                    : fileExtension === "WEBP"
+                      ? "image/webp"
+                      : "image/jpeg"
+                  : fileExtension === "DOC"
+                    ? "application/msword"
+                    : fileExtension === "TXT"
+                      ? "text/plain"
+                      : fileExtension === "MD"
+                        ? "text/markdown"
+                        : fileExtension === "CSV"
+                          ? "text/csv"
+                          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+            const fallbackTitle = file.name.replace(/\.[^.]+$/, "").toUpperCase();
+            const title =
+              selectedFiles.length === 1
+                ? (uploadTitle.trim() || fallbackTitle).toUpperCase()
+                : fallbackTitle;
 
-      const { materialId, presignedUrl } = await materialService.uploadMaterial({
-        title: uploadTitle.trim(),
-        course_code: normalizedCourseCode,
-        university: user?.university || "",
-        faculty: user?.faculty || "",
-        department: user?.department || "",
-        level: userLevel,
-        semester: selectedCourseMeta?.semester || null,
-        semester_start: selectedCourseMeta?.semester_start || null,
-        semester_end: selectedCourseMeta?.semester_end || null,
-        file_type: fileType,
-        file_name: file.name,
-        file_size: file.size || 0,
-        mime_type: mimeType,
-      });
+            const { materialId, presignedUrl } = await materialService.uploadMaterial({
+              title,
+              course_code: normalizedCourseCode,
+              university: user?.university || "",
+              faculty: user?.faculty || "",
+              department: user?.department || "",
+              level: userLevel,
+              semester: selectedCourseMeta?.semester || null,
+              semester_start:
+                "semester_start" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_start || null : null,
+              semester_end:
+                "semester_end" in (selectedCourseMeta || {}) ? (selectedCourseMeta as StudentAcademicCourse).semester_end || null : null,
+              file_type: fileType,
+              file_name: file.name,
+              file_size: file.size || 0,
+              mime_type: mimeType,
+            });
 
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
+            const localFileResponse = await fetch(file.uri);
+            if (!localFileResponse.ok) {
+              throw new Error(`Could not read selected file (${localFileResponse.status})`);
+            }
 
-      await fetch(presignedUrl, {
-        method: "PUT",
-        body: blob,
-        headers: { "Content-Type": mimeType },
-      });
+            const blob = await localFileResponse.blob();
+            const uploadResponse = await fetch(presignedUrl, {
+              method: "PUT",
+              body: blob,
+              headers: { "Content-Type": mimeType },
+            });
 
-      const confirmedMaterial = await materialService.confirmUpload(materialId);
+            if (!uploadResponse.ok) {
+              throw new Error(`Cloud upload failed (${uploadResponse.status})`);
+            }
+
+            const confirmedMaterial = await materialService.confirmUpload(materialId);
+            return { confirmedMaterial, index };
+          })());
+        }),
+      );
+
+      const successfulUploads = uploadResults.filter(
+        (result): result is { status: "fulfilled"; value: { confirmedMaterial: Material; index: number } } =>
+          result.status === "fulfilled",
+      );
+      const failedUploads = uploadResults.length - successfulUploads.length;
+
+      if (successfulUploads.length === 0) {
+        const firstFailure = uploadResults.find(
+          (result): result is { status: "rejected"; reason: any } => result.status === "rejected",
+        );
+        throw new Error(
+          firstFailure?.reason?.response?.data?.message ||
+          firstFailure?.reason?.message ||
+          "All uploads failed",
+        );
+      }
 
       bottomSheetRef.current?.close();
       setUploadTitle("");
       setUploadCourseCode(defaultCourseCode);
-      setSelectedFile(null);
+      setSelectedFiles([]);
+      setShowCourseOptions(false);
+      setCourseInputMode("select");
       fetchMaterials();
+      fetchAcademicProfile();
+      const degradedNotice = successfulUploads.find(
+        (result) => result.value.confirmedMaterial.processingNotice?.status === "degraded",
+      );
       setToast({
-        message:
-          confirmedMaterial.processingNotice?.status === "degraded"
-            ? confirmedMaterial.processingNotice.message
-            : "Upload received. It is pending admin approval.",
-        type: "success",
+        message: degradedNotice
+          ? degradedNotice.value.confirmedMaterial.processingNotice?.message || "Some uploads were received in degraded mode."
+          : failedUploads > 0
+            ? `${successfulUploads.length} file(s) uploaded, ${failedUploads} failed.`
+            : `${successfulUploads.length} file(s) uploaded. Pending admin approval.`,
+        type: failedUploads > 0 ? "warning" : "success",
       });
       navigation.navigate("MyUploads", { uploadStatus: "success" });
     } catch (err) {
       setToast({
-        message: "Upload failed. Please check your connection and try again.",
+        message: err instanceof Error ? err.message : "Upload failed. Please try again.",
         type: "error",
       });
     } finally {
@@ -377,7 +479,12 @@ export const LibraryScreen: React.FC = () => {
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandle}
       >
-        <BottomSheetView style={styles.bottomSheetContent}>
+        <BottomSheetScrollView
+          style={styles.bottomSheetContent}
+          contentContainerStyle={styles.bottomSheetScrollContent}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
           <Text style={styles.sheetTitle}>Upload material</Text>
           <Text style={styles.sheetSubtitle}>
             Your upload goes to admin review before other students can see it.
@@ -393,26 +500,104 @@ export const LibraryScreen: React.FC = () => {
           )}
 
           <Button
-            label={selectedFile && !selectedFile.canceled ? selectedFile.assets[0].name : "Select file"}
+            label={selectedFiles.length > 0 ? `${selectedFiles.length} FILE${selectedFiles.length === 1 ? "" : "S"} SELECTED` : "Select files"}
             variant="secondary"
             onPress={handleSelectFile}
             icon={<Upload size={20} color="#FFFFFF" />}
             style={styles.sheetButton}
           />
 
-          <Input
-            label="Course Code"
-            placeholder="e.g. EEE 301"
-            value={uploadCourseCode}
-            onChangeText={setUploadCourseCode}
-          />
+          {selectedFiles.length > 0 ? (
+            <View style={styles.selectedFilesCard}>
+              {selectedFiles.map((file) => (
+                <Text key={`${file.uri}-${file.name}`} style={styles.selectedFileName} numberOfLines={1}>
+                  {file.name.toUpperCase()}
+                </Text>
+              ))}
+            </View>
+          ) : null}
 
-          <Input
-            label="Material Title"
-            placeholder="e.g. Week 1 Lecture Note"
-            value={uploadTitle}
-            onChangeText={setUploadTitle}
-          />
+          <View style={styles.modeToggleRow}>
+            <TouchableOpacity
+              style={[styles.modeToggleChip, courseInputMode === "select" && styles.modeToggleChipActive]}
+              onPress={() => setCourseInputMode("select")}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleText, courseInputMode === "select" && styles.modeToggleTextActive]}>
+                Select saved code
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeToggleChip, courseInputMode === "manual" && styles.modeToggleChipActive]}
+              onPress={() => setCourseInputMode("manual")}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleText, courseInputMode === "manual" && styles.modeToggleTextActive]}>
+                Type new code
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {courseInputMode === "select" ? (
+            <View>
+              <TouchableOpacity
+                style={styles.coursePicker}
+                onPress={() => setShowCourseOptions((current) => !current)}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.coursePickerText, !uploadCourseCode && styles.coursePickerPlaceholder]}>
+                  {uploadCourseCode || "Choose course code"}
+                </Text>
+              </TouchableOpacity>
+
+              {showCourseOptions ? (
+                <BottomSheetFlatList
+                  style={styles.courseOptionsCard}
+                  data={availableCourseOptions}
+                  keyExtractor={(course) => `${course.code}-${course.level}-${course.semester}`}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.courseOptionsContent}
+                  nestedScrollEnabled
+                  renderItem={({ item: course }) => {
+                      const active = course.code.toUpperCase() === uploadCourseCode.trim().toUpperCase();
+                      return (
+                        <TouchableOpacity
+                          style={[styles.courseOptionRow, active && styles.courseOptionRowActive]}
+                          onPress={() => {
+                            setUploadCourseCode(course.code.toUpperCase());
+                            setShowCourseOptions(false);
+                        }}
+                        activeOpacity={0.82}
+                      >
+                        <Text style={styles.courseOptionCode}>{course.code.toUpperCase()}</Text>
+                        <Text style={styles.courseOptionMeta}>SEMESTER {course.semester}</Text>
+                        </TouchableOpacity>
+                      );
+                    }}
+                />
+              ) : null}
+            </View>
+          ) : (
+            <Input
+              label="Course Code"
+              placeholder="e.g. EEE 301"
+              value={uploadCourseCode}
+              onChangeText={(value) => setUploadCourseCode(value.toUpperCase())}
+            />
+          )}
+
+          {selectedFiles.length <= 1 ? (
+            <Input
+              label="Material Title"
+              placeholder="e.g. Week 1 Lecture Note"
+              value={uploadTitle}
+              onChangeText={setUploadTitle}
+            />
+          ) : (
+            <Text style={styles.batchHelperText}>
+              Multiple files use each file name as the material title, in uppercase.
+            </Text>
+          )}
 
           <View style={styles.profileCard}>
             <InfoRow label="University" value={user?.university || "Not set"} />
@@ -422,8 +607,8 @@ export const LibraryScreen: React.FC = () => {
             <InfoRow
               label="Semester"
               value={
-                courseLookup.get(uploadCourseCode.trim().toUpperCase())?.semester
-                  ? `Semester ${courseLookup.get(uploadCourseCode.trim().toUpperCase())?.semester}`
+                selectedCourseMeta?.semester
+                  ? `Semester ${selectedCourseMeta.semester}`
                   : "Matched after save"
               }
             />
@@ -433,11 +618,16 @@ export const LibraryScreen: React.FC = () => {
             label="Submit for review"
             onPress={handleUpload}
             loading={uploading}
-            disabled={!uploadTitle || !uploadCourseCode || !selectedFile || selectedFile.canceled || !hasAcademicProfile}
+            disabled={
+              !uploadCourseCode ||
+              selectedFiles.length === 0 ||
+              (selectedFiles.length === 1 && !uploadTitle.trim()) ||
+              !hasAcademicProfile
+            }
             icon={<FileUp size={18} color="#FFFFFF" />}
             style={styles.uploadButton}
           />
-        </BottomSheetView>
+        </BottomSheetScrollView>
       </BottomSheet>
 
       {toast && (
@@ -631,6 +821,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   bottomSheetContent: {
     flex: 1,
+  },
+  bottomSheetScrollContent: {
     padding: 24,
   },
   sheetTitle: {
@@ -667,6 +859,102 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   sheetButton: {
     borderRadius: 8,
     marginBottom: 18,
+  },
+  selectedFilesCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    maxHeight: 156,
+    padding: 12,
+  },
+  selectedFileName: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontSize: 11,
+    marginBottom: 6,
+  },
+  modeToggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+  },
+  modeToggleChip: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  modeToggleChipActive: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.34)",
+  },
+  modeToggleText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modeToggleTextActive: {
+    color: colors.primary,
+  },
+  coursePicker: {
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    marginBottom: 12,
+    minHeight: 54,
+    paddingHorizontal: 14,
+  },
+  coursePickerText: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  coursePickerPlaceholder: {
+    color: colors.textMuted,
+  },
+  courseOptionsCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 14,
+    maxHeight: 208,
+  },
+  courseOptionsContent: {
+    paddingBottom: 4,
+  },
+  courseOptionRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  courseOptionRowActive: {
+    backgroundColor: "rgba(34,197,94,0.08)",
+  },
+  courseOptionCode: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  courseOptionMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 4,
+  },
+  batchHelperText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: 14,
   },
   profileCard: {
     backgroundColor: colors.surfaceElevated,

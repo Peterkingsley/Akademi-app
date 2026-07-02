@@ -1,1 +1,0 @@
-/* Full updated component with all fixes - see artifacts version */

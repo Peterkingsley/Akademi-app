@@ -86,6 +86,18 @@ export const AdminTournamentCampaignsScreen: React.FC = () => {
                     {tournament.prize_summary || "No prize summary yet"}
                   </Text>
                 </View>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.badge, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
+                    <Text style={[typography.caption, { color: colors.primary, fontWeight: "800" }]}>
+                      {tournament.campaign_type === "MULTI_STAGE" ? "MULTI-STAGE" : "SIMPLE"}
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
+                    <Text style={[typography.caption, { color: tournament.prediction_enabled ? colors.primary : colors.textMuted, fontWeight: "800" }]}>
+                      {tournament.prediction_enabled ? "PREDICTIONS ON" : "PREDICTIONS OFF"}
+                    </Text>
+                  </View>
+                </View>
                 {tournament.status === "DRAFT" ? (
                   <TouchableOpacity style={[styles.publishButton, { backgroundColor: colors.primary }]} onPress={() => publish(tournament.id)}>
                     <Text style={styles.publishText}>Publish Tournament</Text>
@@ -129,6 +141,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  badge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   publishButton: {
     marginTop: 8,

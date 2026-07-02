@@ -39,7 +39,6 @@ type NotificationSettings = {
   streakAtRisk: boolean;
   newMaterial: boolean;
   uploadVerified: boolean;
-  tutorSummary: boolean;
   pauseAll: boolean;
 };
 
@@ -52,7 +51,6 @@ const defaultSettings: NotificationSettings = {
   streakAtRisk: true,
   newMaterial: true,
   uploadVerified: true,
-  tutorSummary: true,
   pauseAll: false,
 };
 
@@ -76,7 +74,6 @@ export const NotificationsSettingsScreen: React.FC = () => {
       settings.streakAtRisk,
       settings.newMaterial,
       settings.uploadVerified,
-      settings.tutorSummary,
     ].filter(Boolean).length;
   }, [settings]);
 
@@ -128,7 +125,7 @@ export const NotificationsSettingsScreen: React.FC = () => {
               {settings.pauseAll ? "Notifications are paused" : `${activeCount} alerts enabled`}
             </Text>
             <Text style={styles.heroText}>
-              Control study nudges, approvals, new materials, tutor summaries, and exam reminders.
+              Control study nudges, approvals, new materials, progress summaries, and exam reminders.
             </Text>
           </View>
         </View>
@@ -218,14 +215,14 @@ export const NotificationsSettingsScreen: React.FC = () => {
           <SettingRow
             icon={<LineChart size={20} color={colors.primary} />}
             title="Weekly progress summary"
-            subtitle="Summarize solved questions, tutor time, uploads, and mocks."
+            subtitle="Summarize solved questions, uploads, mocks, and study activity."
             value={settings.weeklySummary}
             disabled={settings.pauseAll}
             onToggle={() => toggleSetting("weeklySummary")}
           />
         </Section>
 
-        <Section title="Content and tutor">
+        <Section title="Content">
           <SettingRow
             icon={<Sparkles size={20} color={colors.primary} />}
             title="New verified material"
@@ -241,14 +238,6 @@ export const NotificationsSettingsScreen: React.FC = () => {
             value={settings.uploadVerified}
             disabled={settings.pauseAll}
             onToggle={() => toggleSetting("uploadVerified")}
-          />
-          <SettingRow
-            icon={<Sparkles size={20} color={colors.primary} />}
-            title="Tutor session summary"
-            subtitle="Notify when Live Tutor generates a session recap."
-            value={settings.tutorSummary}
-            disabled={settings.pauseAll}
-            onToggle={() => toggleSetting("tutorSummary")}
           />
         </Section>
 

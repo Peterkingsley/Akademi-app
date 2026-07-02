@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "audit:brochure": "node sync_jamb_brochure_master.js",
+    "sync:brochure": "node sync_jamb_brochure_master.js --deep --apply"
   },
   "keywords": [],
   "author": "",

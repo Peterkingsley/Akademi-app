@@ -24,6 +24,7 @@ const GEMINI_FALLBACK_MODELS = [
   'gemini-3.5-flash',
 ];
 
+
 function isPlaceholder(key: string | undefined | null): boolean {
   if (!key) return true;
   const lowerKey = key.toLowerCase();
@@ -53,6 +54,29 @@ function isRetryableGeminiError(message: string) {
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function normalizeVector(values: number[]) {
+  const magnitude = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
+  if (!magnitude) return values;
+  return values.map(value => Number((value / magnitude).toFixed(6)));
+}
+
+function hashTextEmbedding(text: string, dimensions = 256) {
+  const vector = new Array(dimensions).fill(0);
+  const tokens = text.toLowerCase().match(/[a-z0-9]+/g) || [];
+
+  for (const token of tokens) {
+    let hash = 2166136261;
+    for (let i = 0; i < token.length; i++) {
+      hash ^= token.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    const index = Math.abs(hash) % dimensions;
+    vector[index] += 1;
+  }
+
+  return normalizeVector(vector);
 }
 
 export class AIProvider {
@@ -149,7 +173,7 @@ export class AIProvider {
     }
 
     console.error('AI providers failed', { geminiError, claudeError });
-    throw new Error('AI tutor is temporarily busy. Please try again in a moment.');
+    throw new Error('AI is temporarily busy. Please try again in a moment.');
   }
 
   async transcribeAudio(buffer: Buffer, mimeType: string): Promise<string> {
@@ -198,6 +222,24 @@ export class AIProvider {
     console.error('Audio transcription failed', { lastError });
     throw new Error('Could not transcribe that recording. Please try again or type the question instead.');
   }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    const geminiClient = this.getGemini();
+
+    if (geminiClient) {
+      try {
+        const model = geminiClient.getGenerativeModel({ model: 'embedding-001' });
+        const result = await model.embedContent(text.slice(0, 8000));
+        const values = result.embedding.values;
+        if (values?.length) return values;
+      } catch (error) {
+        console.error('Gemini embedding failed, using deterministic fallback:', error);
+      }
+    }
+
+    return hashTextEmbedding(text);
+  }
+
 }
 
 export const aiProvider = new AIProvider();

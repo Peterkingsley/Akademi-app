@@ -1,0 +1,7 @@
+ALTER TABLE "universities"
+ADD COLUMN IF NOT EXISTS "source" TEXT,
+ADD COLUMN IF NOT EXISTS "source_url" TEXT;
+
+ALTER TABLE "departments"
+ADD COLUMN IF NOT EXISTS "source" TEXT,
+ADD COLUMN IF NOT EXISTS "source_url" TEXT;

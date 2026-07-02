@@ -10,6 +10,7 @@ export const JOB_NAMES = {
   GENERATE_QUESTIONS: 'GENERATE_QUESTIONS',
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
+  POST_ASSESSMENT_INTELLIGENCE: 'POST_ASSESSMENT_INTELLIGENCE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -17,6 +18,17 @@ type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 type JobPayload = {
   materialId?: string;
   sessionId?: string;
+  companionStateId?: string;
+  userId?: string;
+  courseCode?: string;
+  sectionIndex?: number;
+  sectionTitle?: string;
+  masteryScore?: number;
+  masteryStatus?: 'PASSED' | 'FAILED';
+  failedConcepts?: string[];
+  teachingDecisionSnapshot?: Record<string, unknown>;
+  calculationContextSnapshot?: string;
+  diagramContextSnapshot?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -25,6 +37,8 @@ type QueueHealth = {
   mode: 'inline';
   status: QueueStatus;
   processing: boolean;
+  activeBackgroundJobs: number;
+  queuedBackgroundJobs: number;
   lastRunAt: string | null;
   lastSuccessAt: string | null;
   lastFailureAt: string | null;
@@ -35,6 +49,8 @@ const queueHealth: QueueHealth = {
   mode: 'inline',
   status: 'online',
   processing: false,
+  activeBackgroundJobs: 0,
+  queuedBackgroundJobs: 0,
   lastRunAt: null,
   lastSuccessAt: null,
   lastFailureAt: null,
@@ -58,6 +74,52 @@ const markQueueFailure = (error: unknown) => {
   queueHealth.status = 'degraded';
   queueHealth.lastFailureAt = new Date().toISOString();
   queueHealth.lastError = error instanceof Error ? error.message : String(error);
+};
+
+const BACKGROUND_JOB_NAMES = new Set<JobName>([
+  JOB_NAMES.INGEST_MATERIAL,
+  JOB_NAMES.ASSEMBLE_CHUNKS,
+  JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE,
+]);
+
+const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
+const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string }> = [];
+const backgroundJobKeys = new Set<string>();
+let activeBackgroundJobs = 0;
+
+const getBackgroundJobKey = (name: JobName, payload: JobPayload) => {
+  return `${name}:${JSON.stringify(payload)}`;
+};
+
+const refreshBackgroundQueueHealth = () => {
+  queueHealth.activeBackgroundJobs = activeBackgroundJobs;
+  queueHealth.queuedBackgroundJobs = backgroundJobQueue.length;
+  queueHealth.processing = activeBackgroundJobs > 0 || backgroundJobQueue.length > 0;
+};
+
+const drainBackgroundJobs = () => {
+  refreshBackgroundQueueHealth();
+
+  while (activeBackgroundJobs < MAX_BACKGROUND_JOBS && backgroundJobQueue.length > 0) {
+    const job = backgroundJobQueue.shift()!;
+    activeBackgroundJobs += 1;
+    refreshBackgroundQueueHealth();
+    markQueueRun();
+
+    void runInlineJob(job.name, job.payload)
+      .then(markQueueSuccess)
+      .catch((error) => {
+        markQueueFailure(error);
+        // eslint-disable-next-line no-console
+        console.error('[queue:inline] background job failed', { name: job.name, payload: job.payload, error });
+      })
+      .finally(() => {
+        activeBackgroundJobs = Math.max(activeBackgroundJobs - 1, 0);
+        backgroundJobKeys.delete(job.key);
+        refreshBackgroundQueueHealth();
+        setImmediate(drainBackgroundJobs);
+      });
+  }
 };
 
 async function runInlineJob(name: JobName, payload: JobPayload) {
@@ -85,6 +147,28 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       await activateTournamentsJob();
       return;
     }
+    case JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE: {
+      if (!payload.sessionId || !payload.companionStateId || !payload.userId || !payload.materialId || !payload.courseCode || payload.sectionIndex === undefined || !payload.sectionTitle) {
+        throw new Error('POST_ASSESSMENT_INTELLIGENCE requires session, companion, user, material, course, and section fields');
+      }
+      const { postAssessmentIntelligenceJob } = await import('../jobs/postAssessmentIntelligence.job');
+      await postAssessmentIntelligenceJob({
+        sessionId: payload.sessionId,
+        companionStateId: payload.companionStateId,
+        userId: payload.userId,
+        materialId: payload.materialId,
+        courseCode: payload.courseCode,
+        sectionIndex: payload.sectionIndex,
+        sectionTitle: payload.sectionTitle,
+        masteryScore: Number(payload.masteryScore || 0),
+        masteryStatus: payload.masteryStatus === 'FAILED' ? 'FAILED' : 'PASSED',
+        failedConcepts: Array.isArray(payload.failedConcepts) ? payload.failedConcepts : [],
+        teachingDecisionSnapshot: payload.teachingDecisionSnapshot,
+        calculationContextSnapshot: payload.calculationContextSnapshot,
+        diagramContextSnapshot: payload.diagramContextSnapshot,
+      });
+      return;
+    }
     default:
       return;
   }
@@ -99,6 +183,26 @@ export const systemQueue: any = {
       // eslint-disable-next-line no-console
       console.log('[queue:inline] add', name, payload);
     }
+
+    if (BACKGROUND_JOB_NAMES.has(name)) {
+      const key = getBackgroundJobKey(name, payload);
+      if (backgroundJobKeys.has(key)) {
+        if (process.env.NODE_ENV !== 'test') {
+          // eslint-disable-next-line no-console
+          console.log('[queue:inline] deduped background job', { name, payload });
+        }
+        return;
+      }
+
+      backgroundJobKeys.add(key);
+      backgroundJobQueue.push({ name, payload, key });
+      refreshBackgroundQueueHealth();
+      setImmediate(() => {
+        drainBackgroundJobs();
+      });
+      return;
+    }
+
     markQueueRun();
     try {
       await runInlineJob(name, payload);
@@ -131,5 +235,9 @@ export const systemQueue: any = {
 export const getQueueHealth = () => ({ ...queueHealth });
 
 export const shutdownQueue = async () => {
+  backgroundJobQueue.length = 0;
+  backgroundJobKeys.clear();
+  activeBackgroundJobs = 0;
+  refreshBackgroundQueueHealth();
   queueHealth.processing = false;
 };

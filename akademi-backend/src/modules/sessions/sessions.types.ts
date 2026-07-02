@@ -19,6 +19,18 @@ export interface SendPhotoMessageRequest {
   reply_mode?: ReplyMode;
 }
 
+export interface StartCompanionRequest {
+  mode: 'continue' | 'specific' | 'beginning' | 'roadmap';
+  section_title?: string;
+}
+
+export interface CompanionTurnRequest {
+  action: 'tutor:start' | 'tutor:continue' | 'tutor:student_response' | 'tutor:interrupt';
+  mode?: 'continue' | 'specific' | 'beginning' | 'roadmap';
+  section_title?: string;
+  content?: string;
+}
+
 export interface SessionResponse {
   id: string;
   session_type: SessionType;

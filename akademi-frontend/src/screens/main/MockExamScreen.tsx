@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   Dimensions,
+  TextInput,
 } from "react-native";
 import {
   X,
@@ -129,6 +130,12 @@ export const MockExamScreen: React.FC = () => {
     setAnswers(prev => ({ ...prev, [currentQuestionId]: option }));
   };
 
+  const updateTheoryAnswer = (text: string) => {
+    if (!exam) return;
+    const currentQuestionId = exam.questions[currentIndex].id;
+    setAnswers(prev => ({ ...prev, [currentQuestionId]: text }));
+  };
+
   const toggleFlag = () => {
     if (!exam) return;
     const currentQuestionId = exam.questions[currentIndex].id;
@@ -221,6 +228,20 @@ export const MockExamScreen: React.FC = () => {
           )}
         </Card>
 
+        {currentQuestion.responseType === "THEORY" ? (
+          <View style={styles.theoryWrap}>
+            <Text style={[styles.theoryLabel, typography.caption]}>Type your answer</Text>
+            <TextInput
+              multiline
+              placeholder="Write your theory answer here..."
+              placeholderTextColor={colors.textMuted}
+              value={answers[currentQuestion.id] || ""}
+              onChangeText={updateTheoryAnswer}
+              style={styles.theoryInput}
+              textAlignVertical="top"
+            />
+          </View>
+        ) : (
         <View style={styles.optionsList}>
           {currentQuestion.options.map((option, idx) => {
             const letter = String.fromCharCode(65 + idx);
@@ -251,6 +272,7 @@ export const MockExamScreen: React.FC = () => {
             );
           })}
         </View>
+        )}
 
         <TouchableOpacity style={styles.flagButton} onPress={toggleFlag}>
           <Flag
@@ -492,6 +514,24 @@ const styles = StyleSheet.create({
   },
   optionsList: {
     marginBottom: 32,
+  },
+  theoryWrap: {
+    marginBottom: 32,
+    gap: 10,
+  },
+  theoryLabel: {
+    color: colors.textMuted,
+  },
+  theoryInput: {
+    minHeight: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    color: colors.textPrimary,
+    padding: 14,
+    fontSize: 16,
+    lineHeight: 22,
   },
   optionPill: {
     flexDirection: "row",

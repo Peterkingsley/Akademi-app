@@ -147,7 +147,6 @@ export const AdminUserDetailScreen: React.FC = () => {
         <Section title="Feature Usage" icon={<Sparkles size={18} color={colors.primary} />}>
           <View style={styles.statGridCompact}>
             <Stat label="Assignments" value={featureUsage.assignmentSolving} />
-            <Stat label="Tutor" value={featureUsage.liveTutor} />
             <Stat label="Study" value={featureUsage.studyMode} />
             <Stat label="Exam prep" value={featureUsage.examPrep} />
             <Stat label="Uploads" value={featureUsage.materialUploads} />

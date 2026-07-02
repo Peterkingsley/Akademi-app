@@ -117,6 +117,11 @@ export const materialService = {
     return data;
   },
 
+  getMaterialDownloadUrl: async (id: string) => {
+    const { data } = await api.get<{ url: string }>(`/materials/${id}/download`);
+    return data;
+  },
+
   getMaterialQuestions: async (id: string, limit?: number) => {
     const { data } = await api.get<PracticeQuestion[]>(`/materials/${id}/questions`, {
       params: limit ? { limit } : undefined,

@@ -22,6 +22,9 @@ export interface ExamPrepPlan {
   assessment_type?: "TEST" | "EXAM";
   assessment_label?: string;
   exam_date: string;
+  duration_minutes?: number;
+  objective_question_count?: number;
+  theory_question_count?: number;
   progress: number;
   readiness_score: number;
   readiness_grade: string;
@@ -43,6 +46,7 @@ export interface MockQuestion {
   text: string;
   options: string[];
   formula?: string;
+  responseType?: "OBJECTIVE" | "THEORY";
 }
 
 export interface MockExam {
@@ -65,6 +69,7 @@ export interface MockResultQuestion {
   correctAnswer: string;
   isCorrect: boolean;
   aiExplanation: string;
+  responseType?: "OBJECTIVE" | "THEORY";
   isLocked: boolean;
 }
 
@@ -102,11 +107,21 @@ const examPrepService = {
     return data;
   },
 
-  createPlan: async (course_code: string, exam_date: string, assessment_type: "TEST" | "EXAM" = "EXAM") => {
+  createPlan: async (
+    course_code: string,
+    exam_date: string,
+    assessment_type: "TEST" | "EXAM" = "EXAM",
+    duration_minutes = 120,
+    objective_question_count = 40,
+    theory_question_count = 5,
+  ) => {
     const { data } = await api.post<ExamPrepPlan>("/exam-prep", {
       course_code,
       exam_date,
       assessment_type,
+      duration_minutes,
+      objective_question_count,
+      theory_question_count,
     });
     return data;
   },

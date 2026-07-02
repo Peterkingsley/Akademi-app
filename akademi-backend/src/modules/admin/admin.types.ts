@@ -79,7 +79,7 @@ export interface UserListFilter {
   joinedWithinDays?: string | number;
   level?: string | number;
   courseCode?: string;
-  featureUsed?: 'assignment' | 'tutor' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
+  featureUsed?: 'assignment' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -96,9 +96,11 @@ export interface EmailCampaignRequest extends UserListFilter {
 export interface WaitlistFilter {
   search?: string;
   university?: string;
+  faculty?: string;
   department?: string;
   status?: string;
   mainStruggle?: string;
+  inviteStatus?: 'never_sent' | 'sent_before';
   startDate?: string;
   endDate?: string;
   page?: number;

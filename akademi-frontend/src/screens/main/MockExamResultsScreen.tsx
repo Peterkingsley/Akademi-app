@@ -88,29 +88,14 @@ export const MockExamResultsScreen: React.FC = () => {
   }));
 
   const weakTopics = results?.breakdown.filter(item => item.questions > 0 && item.correct / item.questions < 0.7) || [];
-  const missedQuestions = results?.questions.filter(q => !q.isCorrect && !q.isLocked) || [];
+  const missedQuestions = results?.questions.filter(
+    q => q.responseType !== "THEORY" && !q.isCorrect && !q.isLocked,
+  ) || [];
   const topicsToReview = results
     ? (weakTopics.length > 0
       ? weakTopics
       : results.breakdown.filter(item => item.questions > 0).slice(0, 2))
     : [];
-
-  const buildTutorContext = () => {
-    if (!results) return "";
-
-    const topicLines = topicsToReview.length > 0
-      ? topicsToReview.map(topic => {
-        const score = Math.round((topic.correct / topic.questions) * 100);
-        return `- ${topic.topic}: ${score}% (${topic.correct}/${topic.questions})`;
-      }).join("\n")
-      : "- No weak topic rows were returned. Use the missed questions as the study guide.";
-
-    const missedLines = missedQuestions.slice(0, 4).map((question, index) =>
-      `${index + 1}. ${question.text}\nStudent answered: ${question.userAnswer}\nCorrect answer: ${question.correctAnswer}\nExplanation: ${question.aiExplanation}`
-    ).join("\n\n");
-
-    return `Mock exam score: ${results.score}%.\nCourse: ${plan?.course_code || "Exam prep"} ${plan?.course_name ? `- ${plan.course_name}` : ""}.\n\nWeak topics:\n${topicLines}\n\nMissed questions to reteach:\n${missedLines || "No missed unlocked questions were returned."}\n\nTutor instruction: reteach these weak areas simply, ask one diagnostic question at a time, and help the student build exam-ready confidence.`;
-  };
 
   const handleStudyWeakAreas = () => {
     if (!results) return;
@@ -250,13 +235,8 @@ export const MockExamResultsScreen: React.FC = () => {
 
         <View style={styles.weakActionRow}>
           <Button
-            label="Live Tutor"
-            onPress={() => navigation.navigate("LiveTutorEntry", {
-              courseCode: plan?.course_code,
-              topic: topicsToReview[0]?.topic || plan?.course_name || "Mock exam weak areas",
-              materialTitle: `${plan?.course_code || "Mock Exam"} Weak Areas`,
-              materialContext: buildTutorContext(),
-            })}
+            label="Back to Prep"
+            onPress={() => navigation.navigate("PrepPlan", { examId })}
             style={styles.weakActionBtn}
           />
           <Button
@@ -309,15 +289,42 @@ export const MockExamResultsScreen: React.FC = () => {
                   />
 
                   <View style={styles.answerRow}>
-                    <View style={[styles.answerStatus, q.isCorrect ? styles.correctBg : styles.incorrectBg]}>
-                      {q.isCorrect ? <Check size={12} color="white" /> : <X size={12} color="white" />}
+                    <View
+                      style={[
+                        styles.answerStatus,
+                        q.responseType === "THEORY"
+                          ? styles.theoryBg
+                          : q.isCorrect
+                            ? styles.correctBg
+                            : styles.incorrectBg,
+                      ]}
+                    >
+                      {q.responseType === "THEORY" ? (
+                        <Text style={[styles.theoryBadgeText, typography.caption]}>T</Text>
+                      ) : q.isCorrect ? (
+                        <Check size={12} color="white" />
+                      ) : (
+                        <X size={12} color="white" />
+                      )}
                     </View>
-                    <Text style={[styles.userAnswer, typography.bodySmall, { color: q.isCorrect ? colors.success : colors.error }]}>
-                      Your Answer: {q.userAnswer}
+                    <Text
+                      style={[
+                        styles.userAnswer,
+                        typography.bodySmall,
+                        {
+                          color: q.responseType === "THEORY"
+                            ? colors.warning
+                            : q.isCorrect
+                              ? colors.success
+                              : colors.error,
+                        },
+                      ]}
+                    >
+                      {q.responseType === "THEORY" ? "Your Theory Answer:" : "Your Answer:"} {q.userAnswer}
                     </Text>
                   </View>
 
-                  {!q.isCorrect && (
+                  {q.responseType !== "THEORY" && !q.isCorrect && (
                     <View style={styles.correctAnswerWrap}>
                       <Text style={[styles.correctAnswerLabel, typography.caption]}>Correct Answer:</Text>
                       <RichMathText
@@ -330,7 +337,9 @@ export const MockExamResultsScreen: React.FC = () => {
                   )}
 
                   <View style={styles.aiExplanationCard}>
-                    <Text style={[styles.aiLabel, typography.mono]}>AI EXPLANATION</Text>
+                    <Text style={[styles.aiLabel, typography.mono]}>
+                      {q.responseType === "THEORY" ? "AI FEEDBACK" : "AI EXPLANATION"}
+                    </Text>
                     <RichMathText
                       content={q.aiExplanation}
                       textColor={colors.textSecondary}
@@ -650,6 +659,13 @@ const styles = StyleSheet.create({
   },
   incorrectBg: {
     backgroundColor: colors.error,
+  },
+  theoryBg: {
+    backgroundColor: colors.warning,
+  },
+  theoryBadgeText: {
+    color: colors.background,
+    fontWeight: "700",
   },
   userAnswer: {
     fontWeight: "600",

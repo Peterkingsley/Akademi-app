@@ -120,7 +120,7 @@ export const PlatformAnalyticsScreen: React.FC = () => {
            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>TOP PERFORMING FEATURES</Text>
            <FeatureRow name="Assignment Solver" usage="42%" trend="+12%" />
            <FeatureRow name="Mock Exams" usage="28%" trend="+5%" />
-           <FeatureRow name="Tutor Chat" usage="15%" trend="-2%" />
+           <FeatureRow name="Study Mode" usage="15%" trend="-2%" />
            <FeatureRow name="Library" usage="10%" trend="+1%" />
         </View>
       </View>

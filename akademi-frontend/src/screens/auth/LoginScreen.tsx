@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import { BookOpen, LockKeyhole, Mail } from "lucide-react-native";
+import { ArrowRight, BookOpen, LockKeyhole, Mail, Search, ShieldCheck } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
 import { BrandWordmark } from "../../components/ui/BrandWordmark";
@@ -12,8 +11,6 @@ import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-
-const WELCOME_BACK_PENDING_KEY = "welcome_back_pending";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -44,12 +41,6 @@ export const LoginScreen: React.FC = () => {
       });
 
       const { user, accessToken, refreshToken } = response.data;
-      await AsyncStorage.setItem("accessToken", accessToken);
-      await AsyncStorage.setItem("refreshToken", refreshToken);
-      await AsyncStorage.setItem(
-        WELCOME_BACK_PENDING_KEY,
-        user?.name?.split(" ")[0] || "Student"
-      );
       setAuth(user, accessToken, refreshToken);
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid email or password.");
@@ -61,27 +52,39 @@ export const LoginScreen: React.FC = () => {
   return (
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <BrandWordmark style={styles.brandText} />
+        <View style={styles.topRow}>
+          <View style={styles.brandBadge}>
+            <BrandWordmark style={styles.brandText} />
+          </View>
+          <View style={styles.iconRow}>
+            <View style={styles.utilityIcon}>
+              <Search size={16} color={colors.textPrimary} />
+            </View>
+            <TouchableOpacity style={styles.authChip} onPress={() => navigation.navigate("UniversityPicker")} activeOpacity={0.85}>
+              <Text style={styles.authChipText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <BookOpen size={24} color={colors.primary} />
+        <View style={styles.heroPanel}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.headline}>Sign In</Text>
+            <Text style={styles.subtext}>Continue your study sessions, saved materials, and exam prep.</Text>
           </View>
-          <Text style={styles.headline}>Welcome back</Text>
-          <Text style={styles.subtext}>Sign in to continue your study sessions, materials, and exam prep.</Text>
+          <View style={styles.heroOrb}>
+            <ShieldCheck size={28} color={colors.background} />
+          </View>
         </View>
 
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
+        <View style={styles.formPanel}>
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-        <View style={styles.formCard}>
           <Input
-            label="Email address"
+            label="Email"
             placeholder="name@example.com"
             value={form.email}
             onChangeText={(text) => setForm({ ...form, email: text })}
@@ -99,17 +102,35 @@ export const LoginScreen: React.FC = () => {
             style={styles.passwordInput}
           />
 
-          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })} style={styles.forgotButton}>
+          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })} style={styles.forgotButton} activeOpacity={0.85}>
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
 
-          <Button label="Sign in" onPress={handleLogin} loading={loading} disabled={loading} style={styles.signInButton} />
-        </View>
+          <Button
+            label="Sign In"
+            onPress={handleLogin}
+            loading={loading}
+            disabled={loading}
+            style={styles.signInButton}
+            icon={<ArrowRight size={18} color="#FFFFFF" />}
+          />
 
-        <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.createCard} activeOpacity={0.85}>
-          <Text style={styles.createTitle}>New to Akademi?</Text>
-          <Text style={styles.createText}>Create your academic profile</Text>
-        </TouchableOpacity>
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>New here?</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.secondaryCard} activeOpacity={0.85}>
+            <View style={styles.secondaryIcon}>
+              <BookOpen size={18} color={colors.primary} />
+            </View>
+            <View style={styles.secondaryCopy}>
+              <Text style={styles.secondaryTitle}>Create your academic profile</Text>
+              <Text style={styles.secondaryText}>Set up your school, department, level, and course codes.</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -122,52 +143,111 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingBottom: 34,
-    paddingHorizontal: 24,
-    paddingTop: 22,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 28,
   },
-  topBar: {
-    alignItems: "center",
+  topRow: {
     flexDirection: "row",
-    marginBottom: 22,
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 18,
+  },
+  brandBadge: {
+    alignItems: "center",
+    backgroundColor: "#101412",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+    borderRadius: 18,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 16,
   },
   brandText: {
-    ...typography.h2,
+    ...typography.h4,
+    color: colors.textPrimary,
   },
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 18,
-    padding: 20,
-  },
-  heroIcon: {
+  iconRow: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    height: 48,
+    gap: 8,
+  },
+  utilityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
-    width: 48,
+  },
+  authChip: {
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#101412",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+  },
+  authChipText: {
+    ...typography.bodySmall,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  heroPanel: {
+    backgroundColor: "#101412",
+    borderWidth: 1,
+    borderColor: "#1D3528",
+    borderRadius: 28,
+    marginBottom: 16,
+    minHeight: 192,
+    overflow: "hidden",
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    justifyContent: "space-between",
+  },
+  heroCopy: {
+    maxWidth: "72%",
   },
   headline: {
     ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 34,
+    lineHeight: 38,
   },
   subtext: {
     ...typography.body,
     color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 21,
+    lineHeight: 19,
     marginTop: 8,
+  },
+  heroOrb: {
+    position: "absolute",
+    right: -22,
+    bottom: -28,
+    width: 124,
+    height: 124,
+    borderRadius: 62,
+    backgroundColor: "#0A0D0B",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    paddingTop: 26,
+    paddingLeft: 24,
+  },
+  formPanel: {
+    backgroundColor: "#050505",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#1F1F1F",
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 20,
   },
   errorBanner: {
     backgroundColor: "rgba(239,68,68,0.12)",
     borderColor: colors.error,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     marginBottom: 14,
     padding: 12,
@@ -176,13 +256,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.error,
     lineHeight: 18,
-  },
-  formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: 16,
   },
   passwordInput: {
     marginBottom: 8,
@@ -197,24 +270,54 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   signInButton: {
-    borderRadius: 8,
+    borderRadius: 999,
+    height: 52,
   },
-  createCard: {
+  dividerRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+    marginVertical: 18,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#1D1D1D",
+  },
+  dividerText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  secondaryCard: {
     backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
+    borderRadius: 18,
     borderWidth: 1,
-    marginTop: 16,
+    borderColor: "#1D3528",
     padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  createTitle: {
-    ...typography.bodySmall,
+  secondaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(34,197,94,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  secondaryCopy: {
+    flex: 1,
+  },
+  secondaryTitle: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  secondaryText: {
+    ...typography.caption,
     color: colors.textSecondary,
-  },
-  createText: {
-    ...typography.h4,
-    color: colors.primary,
     marginTop: 4,
+    lineHeight: 16,
   },
 });

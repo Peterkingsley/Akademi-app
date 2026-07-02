@@ -4,7 +4,11 @@ import {
   CompetitionParticipantStatus,
   CompetitionStatus,
   CompetitionVisibility,
+  TournamentCampaignType,
   TournamentEntryStatus,
+  TournamentInterestType,
+  TournamentPredictionStatus,
+  TournamentStageStatus,
   TournamentStatus,
 } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -21,8 +25,11 @@ import {
   CompetitionQuestionView,
   CreateCompetitionRequest,
   CreateTournamentRequest,
+  CreateTournamentStageRequest,
+  TournamentArenaView,
   TournamentAudienceOptions,
   TournamentMaterialOption,
+  TournamentStageView,
   TournamentView,
 } from './competitions.types';
 
@@ -56,6 +63,23 @@ function generateRoomCode() {
     code += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return code;
+}
+
+function generateShareToken() {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let token = '';
+  for (let i = 0; i < 18; i += 1) {
+    token += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return token;
+}
+
+function schoolAbbreviation(value?: string | null) {
+  if (!value) return null;
+  const words = value.replace(/[^a-zA-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  if (words.length === 1) return words[0].slice(0, 6).toUpperCase();
+  return words.map((word) => word[0]).join('').slice(0, 6).toUpperCase();
 }
 
 export class CompetitionsService {
@@ -204,16 +228,58 @@ export class CompetitionsService {
     return match;
   }
 
+  private formatTournamentStage(stage: any): TournamentStageView {
+    return {
+      id: stage.id,
+      name: stage.name,
+      stage_order: stage.stage_order,
+      status: stage.status,
+      starts_at: stage.starts_at,
+      duration_minutes: stage.duration_minutes,
+      question_timer_style: stage.question_timer_style,
+      question_count: stage.question_count,
+      question_timer_sec: stage.question_timer_sec ?? null,
+      question_source: stage.question_source || null,
+      difficulty_level: stage.difficulty_level || null,
+      qualification_count: stage.qualification_count ?? null,
+      minimum_participants: stage.minimum_participants ?? null,
+      fallback_rule: stage.fallback_rule || null,
+      result_visibility: stage.result_visibility,
+      room_id: stage.room_id || null,
+      participant_count: stage.participants?.length || 0,
+      qualified_count: stage.participants?.filter((participant: any) => participant.qualified).length || 0,
+    };
+  }
+
+  private publicContestantName(user: {
+    name?: string | null;
+    university?: string | null;
+    department?: string | null;
+  }, audienceScope: string) {
+    const firstName = (user.name || 'Student').trim().split(/\s+/)[0] || 'Student';
+    if (audienceScope === 'EVERYONE' || audienceScope === 'UNIVERSITY') {
+      const abbr = schoolAbbreviation(user.university);
+      return abbr ? `${firstName} - ${abbr}` : firstName;
+    }
+    if (audienceScope === 'FACULTY' || audienceScope === 'DEPARTMENT') {
+      return user.department ? `${firstName} - ${user.department}` : firstName;
+    }
+    return firstName;
+  }
+
   private formatTournament(tournament: any, userId?: string): TournamentView {
     const entry = userId ? tournament.entries?.find((item: any) => item.user_id === userId) || null : null;
     const registeredCount = tournament.entries?.filter((item: any) => item.status === TournamentEntryStatus.REGISTERED).length || 0;
     const checkedInCount = tournament.entries?.filter((item: any) => item.status === TournamentEntryStatus.CHECKED_IN).length || 0;
     const standbyCount = tournament.entries?.filter((item: any) => item.status === 'STANDBY').length || 0;
+    const interest = userId ? tournament.interests?.find((item: any) => item.user_id === userId) || null : null;
+    const prediction = userId ? tournament.predictions?.find((item: any) => item.user_id === userId) || null : null;
     return {
       id: tournament.id,
       title: tournament.title,
       description: tournament.description || null,
       status: tournament.status,
+      campaign_type: tournament.campaign_type || TournamentCampaignType.SIMPLE,
       format: tournament.format,
       shared_course_code: tournament.shared_course_code || null,
       source_material_ids: tournament.source_material_ids || [],
@@ -232,6 +298,11 @@ export class CompetitionsService {
       campaign_cta_label: tournament.campaign_cta_label || null,
       campaign_cta_url: tournament.campaign_cta_url || null,
       campaign_preheader: tournament.campaign_preheader || null,
+      prediction_enabled: !!tournament.prediction_enabled,
+      prediction_prize_summary: tournament.prediction_prize_summary || null,
+      prediction_winner_count: tournament.prediction_winner_count ?? null,
+      prediction_closes_at: tournament.prediction_closes_at || null,
+      share_template: tournament.share_template || null,
       audience_scope: tournament.audience_scope,
       audience_university: tournament.audience_university || null,
       audience_faculty: tournament.audience_faculty || null,
@@ -240,9 +311,20 @@ export class CompetitionsService {
       registered_count: registeredCount,
       checked_in_count: checkedInCount,
       standby_count: standbyCount,
-      room_id: tournament.room?.id || null,
+      room_id: tournament.room?.id || tournament.rooms?.[0]?.id || null,
       joined: !!entry,
       entry_status: entry?.status || null,
+      share_token: entry?.share_token || null,
+      stages: Array.isArray(tournament.stages)
+        ? tournament.stages
+            .slice()
+            .sort((a: any, b: any) => a.stage_order - b.stage_order)
+            .map((stage: any) => this.formatTournamentStage(stage))
+        : [],
+      interest_type: interest?.interest_type || null,
+      prediction_status: prediction?.status || null,
+      predicted_user_id: prediction?.predicted_user_id || null,
+      cheer_count: tournament.cheers?.reduce((sum: number, cheer: any) => sum + (cheer.amount || 1), 0) || 0,
     };
   }
 
@@ -316,10 +398,11 @@ export class CompetitionsService {
         status: {
           in: [TournamentStatus.PUBLISHED, TournamentStatus.LIVE],
         },
+        campaign_type: TournamentCampaignType.SIMPLE,
         scheduled_at: {
           lte: new Date(),
         },
-        room: null,
+        rooms: { none: {} },
       },
       include: {
         entries: {
@@ -332,7 +415,7 @@ export class CompetitionsService {
             },
           },
         },
-        room: {
+        rooms: {
           include: {
             participants: true,
           },
@@ -381,7 +464,7 @@ export class CompetitionsService {
                 },
               },
             },
-            room: {
+            rooms: {
               include: {
                 participants: true,
               },
@@ -402,7 +485,7 @@ export class CompetitionsService {
           continue;
         }
 
-        let room = refreshedTournament.room;
+        let room = refreshedTournament.rooms[0] || null;
 
         if (!room) {
           const hostEntry = eligibleEntries[0];
@@ -482,6 +565,15 @@ export class CompetitionsService {
       if (!exists) return code;
     }
     throw new Error('Unable to generate competition code');
+  }
+
+  private async generateUniqueShareToken() {
+    for (let i = 0; i < 10; i += 1) {
+      const token = generateShareToken();
+      const exists = await prisma.tournamentEntry.findUnique({ where: { share_token: token } });
+      if (!exists) return token;
+    }
+    throw new Error('Unable to generate campaign share token');
   }
 
   async createRoom(userId: string, payload: CreateCompetitionRequest) {
@@ -964,9 +1056,45 @@ export class CompetitionsService {
       .slice(0, limit);
   }
 
+  private normalizeTournamentStages(payload: CreateTournamentRequest): CreateTournamentStageRequest[] {
+    const suppliedStages = Array.isArray(payload.stages) ? payload.stages : [];
+    if (payload.campaign_type !== TournamentCampaignType.MULTI_STAGE && suppliedStages.length === 0) {
+      return [];
+    }
+
+    const fallbackStage: CreateTournamentStageRequest = {
+      name: 'Open Challenge',
+      stage_order: 1,
+      starts_at: payload.scheduled_at,
+      duration_minutes: Math.max(1, Math.ceil(((payload.question_count || 10) * (payload.question_timer_sec || 20)) / 60)),
+      question_timer_style: 'PER_QUESTION',
+      question_count: payload.question_count || 10,
+      question_timer_sec: payload.question_timer_sec || 20,
+      question_source: payload.shared_course_code || 'campaign_pool',
+      qualification_count: payload.max_participants || undefined,
+      result_visibility: 'QUALIFIERS',
+    };
+
+    return (suppliedStages.length > 0 ? suppliedStages : [fallbackStage])
+      .map((stage, index) => ({
+        ...stage,
+        name: stage.name?.trim() || `Stage ${index + 1}`,
+        stage_order: stage.stage_order || index + 1,
+        duration_minutes: Math.min(Math.max(Number(stage.duration_minutes) || 10, 1), 240),
+        question_count: Math.min(Math.max(Number(stage.question_count) || payload.question_count || 10, 1), 100),
+        question_timer_sec: stage.question_timer_sec
+          ? Math.min(Math.max(Number(stage.question_timer_sec), 5), 600)
+          : payload.question_timer_sec,
+        starts_at: stage.starts_at || payload.scheduled_at,
+      }))
+      .sort((a, b) => (a.stage_order || 0) - (b.stage_order || 0));
+  }
+
   async createTournament(adminId: string, payload: CreateTournamentRequest) {
     const sourceMaterialIds = Array.from(new Set((payload.source_material_ids || []).map((id) => id.trim()).filter(Boolean)));
     let normalizedSharedCourseCode = payload.shared_course_code?.trim().toUpperCase() || null;
+    const campaignType = payload.campaign_type || (payload.stages?.length ? TournamentCampaignType.MULTI_STAGE : TournamentCampaignType.SIMPLE);
+    const stages = this.normalizeTournamentStages({ ...payload, campaign_type: campaignType });
 
     if (sourceMaterialIds.length > 0) {
       const materials = await prisma.material.findMany({
@@ -995,6 +1123,7 @@ export class CompetitionsService {
       data: {
         title: payload.title.trim(),
         description: payload.description?.trim() || null,
+        campaign_type: campaignType,
         format: payload.format || CompetitionFormat.SHARED_COURSE,
         shared_course_code: normalizedSharedCourseCode,
         source_material_ids: sourceMaterialIds,
@@ -1007,6 +1136,11 @@ export class CompetitionsService {
         campaign_cta_label: payload.campaign_cta_label?.trim() || null,
         campaign_cta_url: payload.campaign_cta_url?.trim() || null,
         campaign_preheader: payload.campaign_preheader?.trim() || null,
+        prediction_enabled: !!payload.prediction_enabled,
+        prediction_prize_summary: payload.prediction_prize_summary?.trim() || null,
+        prediction_winner_count: payload.prediction_winner_count || null,
+        prediction_closes_at: payload.prediction_closes_at ? new Date(payload.prediction_closes_at) : null,
+        share_template: payload.share_template?.trim() || null,
         audience_scope: (payload.audience_scope || 'EVERYONE') as any,
         audience_university: payload.audience_university?.trim() || null,
         audience_faculty: payload.audience_faculty?.trim() || null,
@@ -1017,9 +1151,36 @@ export class CompetitionsService {
         check_in_opens_at: payload.check_in_opens_at ? new Date(payload.check_in_opens_at) : null,
         check_in_closes_at: payload.check_in_closes_at ? new Date(payload.check_in_closes_at) : null,
         created_by_admin_id: adminId,
+        stages: stages.length > 0
+          ? {
+              create: stages.map((stage, index) => ({
+                name: stage.name,
+                stage_order: stage.stage_order || index + 1,
+                starts_at: new Date(stage.starts_at),
+                duration_minutes: stage.duration_minutes,
+                question_timer_style: stage.question_timer_style || 'PER_QUESTION',
+                question_count: stage.question_count,
+                question_timer_sec: stage.question_timer_sec || payload.question_timer_sec || null,
+                question_source: stage.question_source?.trim() || normalizedSharedCourseCode || null,
+                difficulty_level: stage.difficulty_level?.trim() || null,
+                qualification_count: stage.qualification_count || null,
+                minimum_participants: stage.minimum_participants || null,
+                fallback_rule: stage.fallback_rule?.trim() || null,
+                result_visibility: stage.result_visibility || 'QUALIFIERS',
+              })),
+            }
+          : undefined,
       },
       include: {
         entries: true,
+        stages: {
+          include: {
+            participants: true,
+          },
+        },
+        interests: true,
+        predictions: true,
+        cheers: true,
       },
     });
 
@@ -1035,6 +1196,10 @@ export class CompetitionsService {
       },
       include: {
         entries: true,
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
       },
     });
 
@@ -1046,7 +1211,11 @@ export class CompetitionsService {
     const tournaments = await prisma.tournament.findMany({
       include: {
         entries: true,
-        room: {
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: {
           select: {
             id: true,
           },
@@ -1183,7 +1352,11 @@ export class CompetitionsService {
       },
       include: {
         entries: true,
-        room: {
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: {
           select: {
             id: true,
           },
@@ -1201,7 +1374,11 @@ export class CompetitionsService {
       where: { id: tournamentId },
       include: {
         entries: true,
-        room: {
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: {
           select: {
             id: true,
           },
@@ -1230,7 +1407,13 @@ export class CompetitionsService {
           tournament_id: tournamentId,
           user_id: userId,
           status: TournamentEntryStatus.REGISTERED,
+          share_token: await this.generateUniqueShareToken(),
         },
+      });
+    } else if (!existing.share_token) {
+      await prisma.tournamentEntry.update({
+        where: { id: existing.id },
+        data: { share_token: await this.generateUniqueShareToken() },
       });
     }
 
@@ -1238,7 +1421,11 @@ export class CompetitionsService {
       where: { id: tournamentId },
       include: {
         entries: true,
-        room: {
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: {
           select: {
             id: true,
           },
@@ -1252,7 +1439,7 @@ export class CompetitionsService {
   async checkInTournament(userId: string, tournamentId: string) {
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      include: { entries: true, room: { select: { id: true } } },
+      include: { entries: true, rooms: { select: { id: true } } },
     });
 
     if (!tournament) throw new Error('Tournament not found');
@@ -1274,7 +1461,14 @@ export class CompetitionsService {
 
     const updated = await prisma.tournament.findUnique({
       where: { id: tournamentId },
-      include: { entries: true, room: { select: { id: true } } },
+      include: {
+        entries: true,
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: { select: { id: true } },
+      },
     });
 
     return this.formatTournament(updated, userId);
@@ -1286,7 +1480,11 @@ export class CompetitionsService {
       where: { id: tournamentId },
       include: {
         entries: true,
-        room: {
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: {
           select: {
             id: true,
           },
@@ -1296,5 +1494,281 @@ export class CompetitionsService {
 
     if (!tournament) throw new Error('Tournament not found');
     return this.formatTournament(tournament, userId);
+  }
+
+  async registerTournamentInterest(
+    userId: string,
+    tournamentId: string,
+    interestType: TournamentInterestType,
+    supportingUserId?: string,
+  ) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: { select: { id: true } },
+      },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    if (tournament.status !== TournamentStatus.PUBLISHED && tournament.status !== TournamentStatus.LIVE) {
+      throw new Error('Campaign is not open yet');
+    }
+
+    await prisma.tournamentSpectatorInterest.upsert({
+      where: {
+        tournament_id_user_id_interest_type: {
+          tournament_id: tournamentId,
+          user_id: userId,
+          interest_type: interestType,
+        },
+      },
+      update: {
+        supporting_user_id: supportingUserId || null,
+      },
+      create: {
+        tournament_id: tournamentId,
+        user_id: userId,
+        interest_type: interestType,
+        supporting_user_id: supportingUserId || null,
+      },
+    });
+
+    const updated = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+        stages: { include: { participants: true } },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: { select: { id: true } },
+      },
+    });
+
+    return this.formatTournament(updated, userId);
+  }
+
+  async submitTournamentPrediction(
+    userId: string,
+    tournamentId: string,
+    predictedUserId: string,
+    stageId?: string,
+  ) {
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+        stages: { include: { participants: true } },
+      },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    if (!tournament.prediction_enabled) throw new Error('Predictions are not enabled for this campaign');
+    if (tournament.prediction_closes_at && tournament.prediction_closes_at.getTime() <= Date.now()) {
+      throw new Error('Prediction window has closed');
+    }
+
+    const isParticipant = tournament.entries.some((entry) => entry.user_id === predictedUserId)
+      || tournament.stages.some((stage) => stage.participants.some((participant) => participant.user_id === predictedUserId));
+    if (!isParticipant) throw new Error('You can only predict a registered campaign participant');
+
+    const existingPrediction = await prisma.tournamentPrediction.findFirst({
+      where: {
+        tournament_id: tournamentId,
+        stage_id: stageId || null,
+        user_id: userId,
+      },
+      select: { id: true },
+    });
+
+    if (existingPrediction) {
+      await prisma.tournamentPrediction.update({
+        where: { id: existingPrediction.id },
+        data: {
+          predicted_user_id: predictedUserId,
+          status: TournamentPredictionStatus.OPEN,
+          locked_at: null,
+        },
+      });
+    } else {
+      await prisma.tournamentPrediction.create({
+        data: {
+          tournament_id: tournamentId,
+          stage_id: stageId || null,
+          user_id: userId,
+          predicted_user_id: predictedUserId,
+        },
+      });
+    }
+
+    return this.getTournamentArena(userId, tournamentId);
+  }
+
+  async sendTournamentCheer(
+    userId: string,
+    tournamentId: string,
+    participantUserId: string,
+    stageId?: string,
+  ) {
+    if (userId === participantUserId) {
+      throw new Error('You cannot cheer yourself');
+    }
+
+    const recentCheers = await prisma.tournamentCheer.aggregate({
+      where: {
+        tournament_id: tournamentId,
+        spectator_user_id: userId,
+        participant_user_id: participantUserId,
+        created_at: {
+          gte: new Date(Date.now() - 10_000),
+        },
+      },
+      _sum: { amount: true },
+    });
+
+    if ((recentCheers._sum.amount || 0) >= 5) {
+      throw new Error('Cheer limit reached. Try again in a few seconds');
+    }
+
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: true,
+        stages: { include: { participants: true } },
+      },
+    });
+    if (!tournament) throw new Error('Tournament not found');
+
+    const isParticipant = tournament.entries.some((entry) => entry.user_id === participantUserId)
+      || tournament.stages.some((stage) => stage.participants.some((participant) => participant.user_id === participantUserId));
+    if (!isParticipant) throw new Error('You can only cheer a campaign participant');
+
+    await prisma.tournamentCheer.create({
+      data: {
+        tournament_id: tournamentId,
+        stage_id: stageId || null,
+        spectator_user_id: userId,
+        participant_user_id: participantUserId,
+        amount: 1,
+      },
+    });
+
+    emitToUser(participantUserId, 'tournament:cheer', {
+      tournamentId,
+      stageId: stageId || null,
+      spectatorUserId: userId,
+    });
+
+    return this.getTournamentArena(userId, tournamentId);
+  }
+
+  async getTournamentArena(userId: string, tournamentId: string): Promise<TournamentArenaView> {
+    await this.ensureTournamentRooms();
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      include: {
+        entries: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                university: true,
+                department: true,
+              },
+            },
+          },
+        },
+        stages: {
+          include: {
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    university: true,
+                    department: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { stage_order: 'asc' },
+        },
+        interests: true,
+        predictions: true,
+        cheers: true,
+        rooms: { select: { id: true } },
+      },
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+
+    const currentStage = tournament.stages.find((stage) => stage.status === TournamentStageStatus.LIVE)
+      || tournament.stages.find((stage) => stage.status === TournamentStageStatus.CHECK_IN)
+      || tournament.stages.find((stage) => stage.status === TournamentStageStatus.SCHEDULED)
+      || null;
+
+    const sourceParticipants = currentStage?.participants.length
+      ? currentStage.participants
+      : tournament.entries.map((entry) => ({
+          user_id: entry.user_id,
+          score: 0,
+          correct_answers: 0,
+          wrong_answers: 0,
+          average_response_ms: null,
+          rank: null,
+          qualified: false,
+          user: entry.user,
+        }));
+
+    const loveCounts = tournament.cheers.reduce<Record<string, number>>((acc, cheer) => {
+      acc[cheer.participant_user_id] = (acc[cheer.participant_user_id] || 0) + (cheer.amount || 1);
+      return acc;
+    }, {});
+    const predictionCounts = tournament.predictions.reduce<Record<string, number>>((acc, prediction) => {
+      acc[prediction.predicted_user_id] = (acc[prediction.predicted_user_id] || 0) + 1;
+      return acc;
+    }, {});
+
+    const leaderboard = sourceParticipants
+      .map((participant: any) => ({
+        user_id: participant.user_id,
+        display_name: this.publicContestantName(participant.user, tournament.audience_scope),
+        score: participant.score || 0,
+        correct_answers: participant.correct_answers || 0,
+        average_response_ms: participant.average_response_ms ?? null,
+        rank: participant.rank ?? null,
+        qualified: !!participant.qualified,
+        love_count: loveCounts[participant.user_id] || 0,
+        prediction_count: predictionCounts[participant.user_id] || 0,
+      }))
+      .sort((a, b) => {
+        if ((a.rank || 0) && (b.rank || 0)) return (a.rank || 0) - (b.rank || 0);
+        if (b.score !== a.score) return b.score - a.score;
+        if ((a.average_response_ms || Number.MAX_SAFE_INTEGER) !== (b.average_response_ms || Number.MAX_SAFE_INTEGER)) {
+          return (a.average_response_ms || Number.MAX_SAFE_INTEGER) - (b.average_response_ms || Number.MAX_SAFE_INTEGER);
+        }
+        return b.love_count - a.love_count;
+      });
+
+    return {
+      tournament: this.formatTournament(tournament, userId),
+      current_stage: currentStage ? this.formatTournamentStage(currentStage) : null,
+      stage_tracker: tournament.stages.map((stage) => this.formatTournamentStage(stage)),
+      leaderboard,
+      stats: {
+        participants: tournament.entries.length,
+        spectators: tournament.interests.filter((interest) => interest.interest_type === TournamentInterestType.SPECTATOR).length,
+        total_loves: tournament.cheers.reduce((sum, cheer) => sum + (cheer.amount || 1), 0),
+        predictions: tournament.predictions.length,
+      },
+    };
   }
 }

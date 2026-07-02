@@ -23,6 +23,7 @@ import notificationRoutes from './modules/notifications/notifications.routes';
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
 import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
+import { recoverPendingMaterials, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
 import { getSystemHealthSnapshot } from './shared/system/system-health';
 import { getRuntimeState, markShuttingDown, markStartupComplete } from './shared/system/runtime-state';
 
@@ -35,6 +36,15 @@ const server = http.createServer(app);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use((req, _res, next) => {
+  if (req.path.includes('/teaching')) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `HTTP TEACHING REQUEST - method: ${req.method}, path: ${req.originalUrl}, hasAuth: ${Boolean(req.headers.authorization)}`,
+    );
+  }
+  next();
+});
 app.use((req, _res, next) => {
   if (req.admin?.adminId) {
     setSentryRequestUser({
@@ -116,9 +126,11 @@ const startServer = async () => {
     if (config.serviceType === 'api') {
       // await typesenseService.initCollections();
       initWebSocket(server);
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
+        void recoverPendingMaterials();
       });
     } else if (config.serviceType === 'websocket') {
       initWebSocket(server);
@@ -129,18 +141,22 @@ const startServer = async () => {
     } else if (config.serviceType === 'jobs') {
       console.log('Jobs Processor mode active');
       startCompetitionScheduler();
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
+        void recoverPendingMaterials();
       });
     } else {
       console.warn(`Unknown service type: ${config.serviceType}. Starting all components.`);
       // await typesenseService.initCollections();
       initWebSocket(server);
       startCompetitionScheduler();
+      startMaterialRetryScheduler();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+        void recoverPendingMaterials();
       });
     }
   } catch (error) {
@@ -171,6 +187,7 @@ const gracefulShutdown = async (signal: string) => {
 
   try {
     stopCompetitionScheduler();
+    stopMaterialRetryScheduler();
     await shutdownWebSocket();
     await shutdownQueue();
     await new Promise<void>((resolve, reject) => {

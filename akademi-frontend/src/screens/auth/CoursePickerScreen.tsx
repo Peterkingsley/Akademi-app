@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +48,7 @@ export const CoursePickerScreen: React.FC = () => {
   const [manualCode, setManualCode] = useState("");
   const [selectedCourses, setSelectedCourses] = useState<CourseSuggestion[]>([]);
   const [suggestions, setSuggestions] = useState<CourseSuggestion[]>([]);
+  const [showManualEntry, setShowManualEntry] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,7 +116,17 @@ export const CoursePickerScreen: React.FC = () => {
 
   const handleDone = () => {
     if (!canContinue) {
-      setError("Add at least one course code and your semester start/end dates.");
+      const hasCourses = selectedCourses.length > 0;
+      const hasStart = !!semesterStart.trim();
+      const hasEnd = !!semesterEnd.trim();
+
+      if (!hasCourses && (!hasStart || !hasEnd)) {
+        setError("Select at least one course code and add your semester start/end dates.");
+      } else if (!hasCourses) {
+        setError("Select at least one course code to continue.");
+      } else {
+        setError("Add your semester start and end dates to continue.");
+      }
       return;
     }
 
@@ -139,10 +151,14 @@ export const CoursePickerScreen: React.FC = () => {
   const renderSuggestion = ({ item }: { item: CourseSuggestion }) => {
     const isSelected = selectedCodes.has(item.code);
     return (
-      <TouchableOpacity
-        style={[styles.suggestionCard, isSelected && styles.selectedSuggestionCard]}
-        onPress={() => toggleSuggestion(item)}
-        activeOpacity={0.85}
+      <Pressable
+        style={({ pressed }) => [
+          styles.suggestionCard,
+          isSelected && styles.selectedSuggestionCard,
+          pressed && styles.pressedSuggestionCard,
+        ]}
+        onPressIn={() => toggleSuggestion(item)}
+        hitSlop={8}
       >
         <View style={styles.suggestionHeader}>
           <Text style={styles.courseCode}>{item.code}</Text>
@@ -154,7 +170,12 @@ export const CoursePickerScreen: React.FC = () => {
         <Text style={styles.sourceText}>
           {item.usageCount ? `${item.usageCount} student${item.usageCount === 1 ? "" : "s"} used this` : item.source || "suggested"}
         </Text>
-      </TouchableOpacity>
+        <View style={[styles.suggestionAction, isSelected && styles.selectedSuggestionAction]}>
+          <Text style={[styles.suggestionActionText, isSelected && styles.selectedSuggestionActionText]}>
+            {isSelected ? "Selected" : "Tap to add"}
+          </Text>
+        </View>
+      </Pressable>
     );
   };
 
@@ -206,6 +227,8 @@ export const CoursePickerScreen: React.FC = () => {
                   placeholder="YYYY-MM-DD"
                   value={semesterStart}
                   onChangeText={setSemesterStart}
+                  keyboardType="numbers-and-punctuation"
+                  enableVoiceInput={false}
                   leftIcon={<CalendarDays size={17} color={colors.textMuted} />}
                   style={styles.dateInput}
                 />
@@ -214,34 +237,64 @@ export const CoursePickerScreen: React.FC = () => {
                   placeholder="YYYY-MM-DD"
                   value={semesterEnd}
                   onChangeText={setSemesterEnd}
+                  keyboardType="numbers-and-punctuation"
+                  enableVoiceInput={false}
                   leftIcon={<CalendarDays size={17} color={colors.textMuted} />}
                   style={styles.dateInput}
                 />
               </View>
 
-              <View style={styles.manualCard}>
-                <Input
-                  label="Course code"
-                  placeholder="e.g. EEE 301"
-                  value={manualCode}
-                  onChangeText={setManualCode}
-                  style={styles.manualInput}
-                />
-                <TouchableOpacity style={styles.addButton} onPress={addManualCourse} activeOpacity={0.85}>
-                  <Plus size={18} color={colors.background} />
-                  <Text style={styles.addButtonText}>Add code</Text>
+              {showManualEntry ? (
+                <View style={styles.manualCard}>
+                  <Input
+                    label="Course code"
+                    placeholder="e.g. EEE 301"
+                    value={manualCode}
+                    onChangeText={setManualCode}
+                    style={styles.manualInput}
+                  />
+                  <View style={styles.manualActionsRow}>
+                    <TouchableOpacity style={styles.addButton} onPress={addManualCourse} activeOpacity={0.85}>
+                      <Plus size={18} color={colors.background} />
+                      <Text style={styles.addButtonText}>Add code</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.manualSecondaryButton}
+                      onPress={() => {
+                        setManualCode("");
+                        setShowManualEntry(false);
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.manualSecondaryButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.manualEntryToggle}
+                  onPress={() => setShowManualEntry(true)}
+                  activeOpacity={0.85}
+                >
+                  <Plus size={16} color={colors.primary} />
+                  <Text style={styles.manualEntryToggleText}>Add a course code manually</Text>
                 </TouchableOpacity>
-              </View>
+              )}
 
               {selectedCourses.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedRow}>
-                  {selectedCourses.map((course) => (
-                    <TouchableOpacity key={course.code} style={styles.selectedPill} onPress={() => removeCourse(course.code)}>
-                      <Text style={styles.selectedPillText}>{course.code}</Text>
-                      <X size={14} color={colors.primary} />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <View style={styles.selectionSummary}>
+                  <Text style={styles.selectionSummaryText}>
+                    Tap any selected course below to remove it before you continue.
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedRow}>
+                    {selectedCourses.map((course) => (
+                      <TouchableOpacity key={course.code} style={styles.selectedPill} onPress={() => removeCourse(course.code)}>
+                        <Text style={styles.selectedPillText}>{course.code}</Text>
+                        <X size={14} color={colors.primary} />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
               ) : null}
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -370,6 +423,11 @@ const styles = StyleSheet.create({
   manualInput: {
     marginBottom: 10,
   },
+  manualActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   addButton: {
     alignItems: "center",
     alignSelf: "flex-start",
@@ -385,9 +443,44 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 6,
   },
+  manualSecondaryButton: {
+    alignItems: "center",
+    borderColor: colors.border,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
+  manualSecondaryButtonText: {
+    ...typography.bodySmall,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  manualEntryToggle: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    marginBottom: 12,
+    paddingVertical: 6,
+  },
+  manualEntryToggleText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
   selectedRow: {
     gap: 8,
     paddingBottom: 14,
+  },
+  selectionSummary: {
+    marginBottom: 12,
+  },
+  selectionSummaryText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
   selectedPill: {
     alignItems: "center",
@@ -431,6 +524,10 @@ const styles = StyleSheet.create({
   },
   selectedSuggestionCard: {
     borderColor: colors.primary,
+    backgroundColor: "#101412",
+  },
+  pressedSuggestionCard: {
+    transform: [{ scale: 0.985 }],
   },
   suggestionHeader: {
     alignItems: "center",
@@ -453,6 +550,25 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     marginTop: 8,
+  },
+  suggestionAction: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 999,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  selectedSuggestionAction: {
+    backgroundColor: "rgba(34, 197, 94, 0.14)",
+  },
+  suggestionActionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
+  selectedSuggestionActionText: {
+    color: colors.primary,
   },
   emptyCard: {
     alignItems: "center",

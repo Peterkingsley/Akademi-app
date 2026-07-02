@@ -84,24 +84,20 @@ export type AdminStackParamList = {
 
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
+  AITutor: undefined;
+  StudyCompanion: {
+    sessionId: string;
+    materialTitle: string;
+    courseCode: string;
+  };
   AssignmentResult: { sessionId: string };
-  StudyMode: { sessionId?: string; materialId?: string };
+  StudyMode: { sessionId?: string; materialId?: string; autoOpenTutor?: boolean };
   MaterialPractice: { materialId: string; title?: string };
   ChallengeResult: { sessionId: string };
   Camera: undefined;
   CropConfirm: { imageUri: string };
-  AIProcessing: { type: "assignment" | "tutor"; sessionId?: string; reply_mode?: string };
+  AIProcessing: { type: "assignment"; sessionId?: string; reply_mode?: string };
   BoardReplay: { sessionId: string };
-  LiveTutorEntry: {
-    courseCode?: string;
-    topic?: string;
-    materialId?: string;
-    materialTitle?: string;
-    materialContext?: string;
-  } | undefined;
-  LiveTutorSession: { sessionId: string };
-  WhiteboardTutor: { sessionId: string };
-  TutorSessionSummary: { sessionId: string };
   ExamPrep: undefined;
   AddExam: undefined;
   AcademicTimeline: undefined;

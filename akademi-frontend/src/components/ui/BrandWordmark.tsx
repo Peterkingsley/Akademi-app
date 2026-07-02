@@ -1,26 +1,37 @@
 import React from "react";
-import { StyleProp, StyleSheet, Text, TextStyle } from "react-native";
+import { Image, ImageStyle, StyleProp, StyleSheet } from "react-native";
 
-import { colors } from "../../theme/colors";
+const logo = require("../../../assets/branding/akademi-logo.png");
 
 interface BrandWordmarkProps {
-  style?: StyleProp<TextStyle>;
-  iColor?: string;
+  style?: StyleProp<ImageStyle>;
 }
 
-export const BrandWordmark: React.FC<BrandWordmarkProps> = ({ style, iColor = colors.primary }) => {
+export const BrandWordmark: React.FC<BrandWordmarkProps> = ({ style }) => {
+  const flattened = (StyleSheet.flatten(style) || {}) as ImageStyle & { fontSize?: number };
+  const derivedHeight =
+    typeof flattened.height === "number"
+      ? flattened.height
+      : typeof flattened.fontSize === "number"
+        ? Math.max(flattened.fontSize * 1.45, 28)
+        : 40;
+  const derivedWidth =
+    typeof flattened.width === "number"
+      ? flattened.width
+      : derivedHeight * 2.57;
+
   return (
-    <Text style={[styles.wordmark, style]}>
-      Akadem<Text style={{ color: iColor }}>i</Text>
-    </Text>
+    <Image
+      source={logo}
+      resizeMode="contain"
+      accessibilityLabel="Akademi"
+      style={[styles.wordmark, { width: derivedWidth, height: derivedHeight }, style]}
+    />
   );
 };
 
 const styles = StyleSheet.create({
   wordmark: {
-    color: colors.textPrimary,
-    fontFamily: "Inter-Bold",
-    fontWeight: "700",
-    letterSpacing: 0,
+    maxWidth: "100%",
   },
 });

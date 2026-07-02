@@ -66,7 +66,7 @@ interface TournamentLivePayload {
 export interface ServerToClientEvents {
   'session:joined': (payload: { sessionId: string }) => void;
   'message:typing': () => void;
-  'message:receive': (payload: { content: string; messageId: string }) => void;
+  'message:receive': (payload: { content: string; messageId: string; metadata?: Record<string, unknown> }) => void;
   'audio:stream': (payload: { chunk: string; isLast: boolean }) => void;
   'audio:stop': () => void;
   'session:paused': (payload: { position: number }) => void;

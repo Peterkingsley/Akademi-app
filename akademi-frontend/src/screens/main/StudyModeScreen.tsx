@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   View,
   Text,
@@ -11,7 +12,9 @@ import {
   TouchableWithoutFeedback,
   useWindowDimensions,
 } from "react-native";
-import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
+import { WebView } from "react-native-webview";
+import * as FileSystem from "expo-file-system";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -24,6 +27,8 @@ import { sessionService, Message } from "../../services/session";
 import { materialService, Material, offlineService } from "../../services/material";
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { PdfSelectableViewer } from "../../components/ui/PdfSelectableViewer";
 
 const formatStudyContent = (value: string) =>
   value
@@ -66,8 +71,12 @@ interface ReaderSection {
   blocks: ReaderBlock[];
 }
 
-const BOOK_PAGE_TARGET_CHARS = 1800;
-const PAGE_FILL_MIN_RATIO = 0.68;
+const isMajorSectionTitle = (title: string) =>
+  /^(chapter|unit|part|section)\s+\d+/i.test(title.trim()) ||
+  /^\d+\.\s+[A-Z]/.test(title.trim());
+
+const BOOK_PAGE_TARGET_CHARS = 3500;
+const PAGE_FILL_MIN_RATIO = 0.4;
 
 const HEADING_PATTERNS = [
   /^chapter\s+\d+/i,
@@ -78,6 +87,12 @@ const HEADING_PATTERNS = [
 
 const SOFT_HEADING_PATTERNS = [
   /^slide\s+\d+/i,
+];
+
+const HARD_HEADING_PATTERNS = [
+  /^chapter\s+\d+/i,
+  /^unit\s+\d+/i,
+  /^part\s+\d+/i,
 ];
 
 const isLikelyHeading = (line: string) => {
@@ -91,6 +106,7 @@ const isLikelyHeading = (line: string) => {
 };
 
 const isSoftHeading = (line: string) => SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
+const isHardHeading = (line: string) => HARD_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 
 const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] => {
   const paragraphs = body
@@ -148,9 +164,11 @@ const repaginateStructuredPages = (pages: ReaderPage[]): ReaderPage[] => {
 
     if (!renderedSection) return;
 
-    if (!isSoftHeading(title)) {
+    if (isHardHeading(title)) {
       flushCurrent();
-      mergedPages.push(...chunkSection(title, page.content.trim(), BOOK_PAGE_TARGET_CHARS));
+      currentStartTitle = title;
+      currentTitle = title;
+      currentContent = page.content.trim();
       return;
     }
 
@@ -270,10 +288,13 @@ export const StudyModeScreen: React.FC = () => {
   const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { sessionId, materialId } = route.params || {};
+  const { sessionId, materialId, autoOpenTutor } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [material, setMaterial] = useState<Material | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [selectedPassage, setSelectedPassage] = useState("");
@@ -281,6 +302,14 @@ export const StudyModeScreen: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [pdfData, setPdfData] = useState<string | null>(null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
+  const [hasReachedMaterialEnd, setHasReachedMaterialEnd] = useState(false);
+  const [hasAutoOpenedTutor, setHasAutoOpenedTutor] = useState(false);
+  const skeletonOpacity = useRef(new Animated.Value(0)).current;
+  const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
   const hasExtractedContent = Boolean(content.trim()) && content !== "No text content available for this material.";
   const displayContent = formatStudyContent(content || "No content available.");
@@ -297,6 +326,11 @@ export const StudyModeScreen: React.FC = () => {
   const embeddedImageHeight = hasImagePage
     ? Math.max(280, Math.floor(windowHeight * 0.32))
     : 220;
+  const pdfViewerHeight = Math.max(windowHeight * 0.74, 560);
+  const isPdfMaterial = material?.file_type === "PDF";
+  const isDocMaterial = material?.file_type === "DOC";
+  const showOriginalPdf = Boolean(material) && isPdfMaterial;
+  const showOriginalDoc = Boolean(material) && isDocMaterial;
   const materialContext = material
     ? [
         `Material title: ${material.title}`,
@@ -307,55 +341,201 @@ export const StudyModeScreen: React.FC = () => {
         material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
       ].join("\n")
     : content;
-  const continuousSections: ReaderSection[] = material
-    ? readerPages.reduce<ReaderSection[]>((sections, page, index) => {
-        const lastSection = sections[sections.length - 1];
-        const pageBlocks =
-          page.blocks && page.blocks.length
-            ? page.blocks
-            : [{ id: `text-fallback-${index}`, type: "text" as const, text: page.content }];
-
-        if (lastSection && lastSection.title === page.chapterTitle) {
-          lastSection.blocks = [...lastSection.blocks, ...pageBlocks];
-          return sections;
-        }
-
-        sections.push({
-          id: `${page.chapterTitle}-${index}`,
-          title: page.chapterTitle,
-          blocks: [...pageBlocks],
-        });
-        return sections;
-      }, [])
-    : [];
+  const roadmapSections = Array.from(
+    new Set(
+      readerPages
+        .map((page) => page.chapterTitle?.trim())
+        .filter(Boolean) as string[],
+    ),
+  );
+  useEffect(() => {
+    Animated.timing(skeletonOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [skeletonOpacity]);
 
   useEffect(() => {
-    const fetchContent = async () => {
+    if (!isExtracting) {
+      extractionProgress.stopAnimation();
+      extractionProgress.setValue(0);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(extractionProgress, {
+          toValue: 0.85,
+          duration: 2400,
+          useNativeDriver: false,
+        }),
+        Animated.timing(extractionProgress, {
+          toValue: 0.2,
+          duration: 0,
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      extractionProgress.stopAnimation();
+    };
+  }, [isExtracting, extractionProgress]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const fetchContent = async (polling = false) => {
       try {
+        if (!polling) {
+          setLoading(true);
+        }
+        setLoadError(null);
+
         if (sessionId) {
           const messages = await sessionService.listMessages(sessionId);
+          if (cancelled) return;
           const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
-          if (aiMsg) setContent(aiMsg.content);
-        } else if (materialId) {
-          const data = await materialService.getMaterialDetails(materialId);
-          setMaterial(data);
-          setContent(data.content || "No text content available for this material.");
-          const downloaded = await offlineService.isDownloaded(materialId);
-          setIsDownloaded(downloaded);
+          setContent(aiMsg?.content || "");
+          setIsExtracting(false);
+          return;
         }
-      } catch (error) {
+
+        if (materialId) {
+          const data = await materialService.getMaterialDetails(materialId);
+          if (cancelled) return;
+          setMaterial(data);
+          const hasContent = typeof data.content === "string" && data.content.trim().length > 0;
+          setContent(hasContent ? data.content! : "No text content available for this material.");
+          setIsExtracting(!hasContent);
+          const downloaded = await offlineService.isDownloaded(materialId);
+          if (cancelled) return;
+          setIsDownloaded(downloaded);
+
+          if (!hasContent) {
+            pollTimer = setTimeout(() => {
+              void fetchContent(true);
+            }, 10000);
+          }
+        }
+      } catch (error: any) {
+        if (cancelled) return;
         console.error("Failed to fetch content:", error);
+        setLoadError(error?.response?.data?.message || error?.message || "This material could not be loaded. Please try again.");
+        setIsExtracting(false);
       } finally {
-        setLoading(false);
+        if (!cancelled && !polling) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchContent();
-  }, [sessionId, materialId]);
+    void fetchContent();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
+  }, [sessionId, materialId, retryTick]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOriginalDocument = async () => {
+      if (!material || (material.file_type !== "PDF" && material.file_type !== "DOC")) {
+        setPdfData(null);
+        setDocumentUrl(null);
+        setPdfLoadError(null);
+        setPdfLoading(false);
+        return;
+      }
+
+      setPdfLoading(true);
+      setPdfLoadError(null);
+
+      try {
+        let base64Data = "";
+        let resolvedDocumentUrl: string | null = null;
+
+        if (material.file_type === "PDF" && material.file_ref?.startsWith("file://")) {
+          base64Data = await FileSystem.readAsStringAsync(material.file_ref, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        } else {
+          const { url } = await materialService.getMaterialDownloadUrl(material.id);
+          if (cancelled) return;
+
+          if (material.file_type === "PDF") {
+            const cacheUri = `${FileSystem.cacheDirectory || FileSystem.documentDirectory}${material.id}-viewer.pdf`;
+            const downloadResult = await FileSystem.downloadAsync(url, cacheUri);
+            if (cancelled) return;
+
+            if (downloadResult.status !== 200) {
+              throw new Error(`PDF download failed with status ${downloadResult.status}`);
+            }
+
+            base64Data = await FileSystem.readAsStringAsync(downloadResult.uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+          } else {
+            resolvedDocumentUrl = url;
+          }
+        }
+
+        if (cancelled) return;
+        setPdfData(base64Data);
+        setDocumentUrl(resolvedDocumentUrl);
+      } catch (error) {
+        console.error("Failed to load original document:", error);
+        if (cancelled) return;
+        setPdfLoadError("We couldn't open the original file right now.");
+      } finally {
+        if (!cancelled) {
+          setPdfLoading(false);
+        }
+      }
+    };
+
+    void loadOriginalDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [material?.id, material?.file_type, material?.file_ref]);
 
   useEffect(() => {
     setCurrentPageIndex(0);
   }, [content, materialId, sessionId]);
+
+  useEffect(() => {
+    setHasReachedMaterialEnd(false);
+  }, [material?.id, material?.file_type, pdfData, documentUrl]);
+
+  useEffect(() => {
+    setHasAutoOpenedTutor(false);
+  }, [materialId, sessionId]);
+
+  useEffect(() => {
+    if (!autoOpenTutor || hasAutoOpenedTutor || loading || !material) return;
+
+    const tutorContext = [
+      `Material title: ${material.title}`,
+      `Course: ${courseCode}`,
+      `University: ${material.university}`,
+      `Department: ${material.department}`,
+      `Level: ${material.level}L`,
+      material.content ? `Extracted text:\n${material.content}` : "Extracted text is not available yet.",
+    ].join("\n");
+
+    setSelectedPassage(material.title);
+    setSelectedText(tutorContext);
+    setIsAskModalVisible(true);
+    setHasAutoOpenedTutor(true);
+  }, [autoOpenTutor, hasAutoOpenedTutor, loading, material, courseCode]);
 
   const handleAskAkademi = (text: string) => {
     const focusedPassage = text?.trim() || "";
@@ -430,11 +610,81 @@ export const StudyModeScreen: React.FC = () => {
     }
   };
 
+  const handleDocumentScroll = (event: any) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const reachedEnd = contentOffset.y + layoutMeasurement.height >= contentSize.height - 48;
+    setHasReachedMaterialEnd(reachedEnd);
+  };
+
   if (loading) {
     return (
       <Screen style={styles.screen} hideHeader={true}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <Animated.ScrollView
+          style={{ opacity: skeletonOpacity }}
+          contentContainerStyle={styles.skeletonContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {[0, 1, 2].map((section) => (
+            <View key={section} style={styles.skeletonSection}>
+              <Skeleton height={24} width="60%" borderRadius={8} style={styles.skeletonTitle} />
+              {[0, 1, 2, 3, 4].map((line) => (
+                <Skeleton key={line} height={14} width="100%" borderRadius={6} style={styles.skeletonLine} />
+              ))}
+              <Skeleton height={14} width="75%" borderRadius={6} style={styles.skeletonShortLine} />
+            </View>
+          ))}
+        </Animated.ScrollView>
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen style={styles.screen} hideHeader={true}>
+        <View style={styles.statusContainer}>
+          <AlertCircle size={34} color={colors.error} />
+          <Text style={styles.statusTitle}>Failed to load material</Text>
+          <Text style={styles.statusText}>{loadError || "This material could not be loaded. Please try again."}</Text>
+          <Button
+            label="Retry"
+            onPress={() => {
+              setLoadError(null);
+              setMaterial(null);
+              setContent("");
+              setLoading(true);
+              setRetryTick((value) => value + 1);
+            }}
+            style={styles.statusPrimaryButton}
+          />
+          <Button
+            label="Go Back"
+            variant="secondary"
+            onPress={() => navigation.goBack()}
+            style={styles.statusSecondaryButton}
+          />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (isExtracting && material) {
+    const progressWidth = extractionProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: ["0%", "100%"],
+    });
+
+    return (
+      <Screen style={styles.screen} hideHeader={true}>
+        <View style={styles.statusContainer}>
+          <BookOpen size={34} color={colors.primary} />
+          <Text style={styles.statusTitle}>Preparing your material</Text>
+          <Text style={styles.statusText}>
+            We're extracting and processing this file. This usually takes 30 seconds to 2 minutes depending on file size.
+          </Text>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
+          </View>
+          <Text style={styles.progressHint}>We’ll keep checking automatically.</Text>
         </View>
       </Screen>
     );
@@ -475,7 +725,11 @@ export const StudyModeScreen: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, (showOriginalPdf || showOriginalDoc) && styles.scrollContentPdf]}
+        scrollEnabled={!(showOriginalPdf || showOriginalDoc)}
+      >
         {material?.diagnostics?.warnings?.length ? (
           <View style={styles.diagnosticBanner}>
             <Text style={[styles.diagnosticTitle, typography.bodySmall]}>
@@ -495,13 +749,22 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View style={material ? styles.documentSurface : undefined}>
-        <Card style={material ? styles.documentCard : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }}>
+        <View style={material ? [styles.documentSurface, (showOriginalPdf || showOriginalDoc) && styles.documentSurfacePdf] : undefined}>
+        <Card
+          noPadding={Boolean(material)}
+          style={
+            material
+              ? ((showOriginalPdf || showOriginalDoc)
+                  ? { ...styles.documentCard, ...styles.documentCardPdf }
+                  : styles.documentCard)
+              : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }
+          }
+        >
           {!material && (
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
               <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700", marginLeft: 12 }]}>
-                Akademi AI Tutor
+                Akademi Study Mode
               </Text>
             </View>
           )}
@@ -526,49 +789,73 @@ export const StudyModeScreen: React.FC = () => {
               <Text style={styles.documentMeta}>
                 {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
               </Text>
-              {continuousSections.map((section, sectionIndex) => (
-                <View
-                  key={section.id}
-                  style={[
-                    styles.documentSection,
-                    sectionIndex < continuousSections.length - 1 && styles.documentSectionSpacing,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      sectionIndex === 0 ? styles.documentLeadHeading : styles.documentHeading,
-                      sectionIndex === 0 ? typography.h2 : typography.h2,
-                    ]}
-                  >
-                    {section.title}
-                  </Text>
-                  <View style={styles.documentSectionContent}>
-                    {section.blocks.map((block, blockIndex) =>
-                      block.type === "image" && block.src ? (
-                        <TouchableOpacity
-                          key={block.id}
-                          activeOpacity={0.92}
-                          style={styles.documentImageWrap}
-                          onPress={() => handleAskAboutImage(block)}
-                        >
-                          <Image source={{ uri: block.src }} style={styles.documentImage} resizeMode="contain" />
-                          {block.caption ? (
-                            <Text style={[styles.documentCaption, typography.bodySmall]}>{block.caption}</Text>
-                          ) : null}
-                        </TouchableOpacity>
-                      ) : (
-                        <SelectableText
-                          key={block.id || `text-${sectionIndex}-${blockIndex}`}
-                          content={block.text || ""}
-                          onAskAkademi={handleAskAkademi}
-                          onHighlight={handleHighlight}
-                        />
-                      )
-                    )}
-                  </View>
-                  {sectionIndex < continuousSections.length - 1 ? <View style={styles.documentDivider} /> : null}
+              {showOriginalPdf ? (
+                <View style={styles.pdfViewerShell}>
+                  {pdfLoading ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.pdfStatusText}>Opening original PDF...</Text>
+                    </View>
+                  ) : pdfLoadError ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <AlertCircle size={20} color={colors.warning} />
+                      <Text style={styles.pdfStatusText}>{pdfLoadError}</Text>
+                    </View>
+                  ) : pdfData ? (
+                    <PdfSelectableViewer
+                      pdfBase64={pdfData}
+                      height={pdfViewerHeight}
+                      onAskAkademi={handleAskAkademi}
+                      onHighlight={handleHighlight}
+                      onReachEndChange={setHasReachedMaterialEnd}
+                    />
+                  ) : (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <Text style={styles.pdfStatusText}>Original PDF is not ready yet.</Text>
+                    </View>
+                  )}
                 </View>
-              ))}
+              ) : showOriginalDoc ? (
+                <View style={styles.pdfViewerShell}>
+                  {pdfLoading ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <ActivityIndicator size="small" color={colors.primary} />
+                      <Text style={styles.pdfStatusText}>Opening original document...</Text>
+                    </View>
+                  ) : pdfLoadError ? (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <AlertCircle size={20} color={colors.warning} />
+                      <Text style={styles.pdfStatusText}>{pdfLoadError}</Text>
+                    </View>
+                  ) : documentUrl ? (
+                    <WebView
+                      source={{
+                        uri: `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(documentUrl)}`,
+                      }}
+                      style={[styles.pdfViewer, { height: pdfViewerHeight }]}
+                      originWhitelist={["*"]}
+                      startInLoadingState
+                      nestedScrollEnabled
+                      onScroll={handleDocumentScroll}
+                      scrollEventThrottle={16}
+                      renderLoading={() => (
+                        <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                          <ActivityIndicator size="small" color={colors.primary} />
+                          <Text style={styles.pdfStatusText}>Opening original document...</Text>
+                        </View>
+                      )}
+                    />
+                  ) : (
+                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                      <Text style={styles.pdfStatusText}>Original document is not ready yet.</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={[styles.pdfStatus, { height: 240 }]}>
+                  <Text style={styles.pdfStatusText}>This file format is not supported for in-app document view yet.</Text>
+                </View>
+              )}
             </View>
           ) : (
             <View style={hasImagePage ? styles.pageContentWithImage : undefined}>
@@ -660,7 +947,7 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
 
-        {(material || isLastPage) && (
+        {((material && hasReachedMaterialEnd) || (!material && isLastPage)) && (
           <View style={[styles.bottomBar, material && styles.bottomBarDocument]}>
             {material && (
               <Button
@@ -685,12 +972,14 @@ export const StudyModeScreen: React.FC = () => {
         onClose={() => setIsAskModalVisible(false)}
         contextText={selectedText}
         courseCode={courseCode}
+        materialId={material?.id}
         materialTitle={material?.title}
         selectedPassage={selectedPassage || undefined}
         surroundingPassage={currentPage?.content || undefined}
         chapterTitle={currentPage?.chapterTitle}
         pageTitle={currentPage?.pageTitle}
         materialContext={materialContext}
+        roadmapSections={roadmapSections}
       />
     </Screen>
   );
@@ -705,6 +994,66 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  skeletonContainer: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 32,
+  },
+  skeletonSection: {
+    marginBottom: 28,
+  },
+  skeletonTitle: {
+    marginBottom: 16,
+  },
+  skeletonLine: {
+    marginBottom: 10,
+  },
+  skeletonShortLine: {
+    marginBottom: 24,
+  },
+  statusContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 28,
+  },
+  statusTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  statusText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  progressTrack: {
+    width: "100%",
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceElevated,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  progressHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  statusPrimaryButton: {
+    marginTop: 6,
+  },
+  statusSecondaryButton: {
+    marginTop: 10,
   },
   header: {
     flexDirection: "row",
@@ -742,6 +1091,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  scrollContentPdf: {
+    paddingHorizontal: 0,
+  },
   studyCard: {
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -752,16 +1104,23 @@ const styles = StyleSheet.create({
   documentSurface: {
     marginBottom: 20,
   },
+  documentSurfacePdf: {
+    marginBottom: 0,
+  },
   documentCard: {
     backgroundColor: "transparent",
     borderRadius: 0,
     marginBottom: 0,
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
     paddingTop: 8,
     paddingBottom: 12,
     borderWidth: 0,
     shadowOpacity: 0,
     elevation: 0,
+  },
+  documentCardPdf: {
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   diagnosticBanner: {
     backgroundColor: "#2A1606",
@@ -811,11 +1170,65 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 22,
   },
+  readerModeSwitch: {
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  readerModeButton: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  readerModeButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  readerModeLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  readerModeLabelActive: {
+    color: "#04130A",
+  },
+  pdfViewerShell: {
+    overflow: "hidden",
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: "#0F1115",
+    marginBottom: 0,
+  },
+  pdfViewer: {
+    width: "100%",
+    backgroundColor: "#0F1115",
+  },
+  pdfStatus: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+  pdfStatusText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  pdfFallbackButton: {
+    marginTop: 6,
+  },
   documentSection: {
     gap: 10,
   },
   documentSectionSpacing: {
-    marginBottom: 12,
+    marginBottom: 20,
+    marginTop: 20,
   },
   documentHeading: {
     color: "#D6E4FF",

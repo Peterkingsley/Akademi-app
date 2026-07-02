@@ -30,7 +30,7 @@ export const CoverageMapScreen: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "#22C55E";
+      case "active": return "#304000";
       case "outdated": return "#F59E0B";
       case "missing": return "#EF4444";
       default: return colors.textMuted;
@@ -77,7 +77,7 @@ export const CoverageMapScreen: React.FC = () => {
   return (
     <Screen title="Knowledge Coverage" scrollable={false}>
       <View style={styles.legend}>
-        <LegendItem label="Active" color="#22C55E" />
+        <LegendItem label="Active" color="#304000" />
         <LegendItem label="Outdated" color="#F59E0B" />
         <LegendItem label="Missing" color="#EF4444" />
       </View>
@@ -167,3 +167,4 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.05)',
   }
 });
+

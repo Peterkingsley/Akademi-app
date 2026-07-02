@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -47,13 +48,13 @@ const looksLikeStandaloneMath = (line: string) => {
   if (!trimmed) return false;
   if (isBulletLine(trimmed)) return false;
   if (/^\d+\.\s/.test(trimmed)) return false;
-  if (/[.!?]$/.test(trimmed)) return false;
+  if (trimmed.split(/\s+/).length > 15) return false;
 
   const mathSignals =
-    /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|\d+\s*[A-Za-z]|[A-Za-z]\([^)]+\)/;
-  const wordMatches = trimmed.match(/[A-Za-z]{3,}/g) || [];
+    /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥×÷]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|n\([^)]+\)|[A-Z]\s*=\s*[A-Z0-9]|[0-9]+\s*[A-Za-z]\s*[=×]|[A-Za-z]\([^)]+\)\s*=|²|³|μ|λ|θ|α|β|γ|δ|ω|σ/;
+  const wordMatches = trimmed.match(/[A-Za-z]{4,}/g) || [];
 
-  return trimmed.length <= 120 && mathSignals.test(trimmed) && wordMatches.length <= 6;
+  return trimmed.length <= 150 && mathSignals.test(trimmed) && wordMatches.length <= 8;
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
@@ -114,29 +115,42 @@ type WebMessage =
   | { type: "height"; value: number }
   | { type: "selection"; value: string };
 
+const contentHasMath = (content: string) => {
+  const normalized = normalizeText(content);
+  if (!normalized) return false;
+
+  return normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .some(
+      (line) =>
+        explicitDisplayMathPattern.test(line) ||
+        explicitInlineMathPattern.test(line) ||
+        looksLikeStandaloneMath(line),
+    );
+};
+
 export const SelectableText: React.FC<SelectableTextProps> = ({
   content,
   onAskAkademi,
   onHighlight,
   fixedHeight,
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.max(windowWidth - 32, 240);
+  const shouldLoadKatex = useMemo(() => contentHasMath(content), [content]);
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [height, setHeight] = useState(64);
-  const heightRef = useRef(64);
-  const isHeightLockedRef = useRef(Boolean(fixedHeight));
 
   useEffect(() => {
     if (fixedHeight) {
-      heightRef.current = fixedHeight;
-      isHeightLockedRef.current = true;
       setHeight(fixedHeight);
       return;
     }
 
-    heightRef.current = 64;
-    isHeightLockedRef.current = false;
     setHeight(64);
   }, [content, fixedHeight]);
 
@@ -147,9 +161,9 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+    ${shouldLoadKatex ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>' : ""}
     <style>
       html, body {
         margin: 0;
@@ -166,11 +180,20 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         user-select: text;
       }
       #content {
-        width: 100%;
+        width: ${contentWidth}px;
+        max-width: 100%;
+        box-sizing: border-box;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
       }
       .paragraph {
+        width: 100%;
+        display: block;
         margin: 0 0 0.6em 0;
         word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
       }
       .math-line {
         margin: 0.2em 0 0.45em 0;
@@ -183,11 +206,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         margin: 0 0 0.35em 0;
       }
       .katex {
-        color: #FFFFFF;
-        font-size: 1em;
+        color: inherit;
+        font-size: 1.05em;
       }
       .katex-display {
-        margin: 0.2em 0;
+        margin: 0.6em 0;
         overflow-x: auto;
         overflow-y: hidden;
       }
@@ -246,6 +269,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       }
 
       function waitForMathRenderer(attempt) {
+        if (!${shouldLoadKatex ? "true" : "false"}) {
+          postFinalHeight();
+          return;
+        }
+
         if (window.renderMathInElement) {
           renderMath();
           return;
@@ -273,12 +301,39 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       document.addEventListener('click', function () {
         setTimeout(updateSelection, 20);
       });
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver(function () {
+          postFinalHeight();
+        });
+        resizeObserver.observe(document.body);
+      }
+      if (window.MutationObserver) {
+        const mutationObserver = new MutationObserver(function () {
+          postFinalHeight();
+        });
+        mutationObserver.observe(document.getElementById('content'), {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
+      let heightPollCount = 0;
+      const heightPoller = setInterval(function () {
+        postFinalHeight();
+        heightPollCount += 1;
+        if (heightPollCount >= 8) {
+          clearInterval(heightPoller);
+        }
+      }, 250);
       window.addEventListener('load', function () { waitForMathRenderer(0); });
-      document.addEventListener('DOMContentLoaded', function () { waitForMathRenderer(0); });
+      document.addEventListener('DOMContentLoaded', function () {
+        postFinalHeight();
+        waitForMathRenderer(0);
+      });
     </script>
   </body>
 </html>`,
-    [content]
+    [content, contentWidth, shouldLoadKatex]
   );
 
   const clearSelection = () => {
@@ -317,17 +372,14 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         javaScriptEnabled
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        style={[styles.webview, { height: fixedHeight ?? height }]}
+        style={[styles.webview, { width: contentWidth, height: fixedHeight ?? height }]}
         containerStyle={styles.webviewContainer}
         onMessage={(event) => {
           try {
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
-              if (isHeightLockedRef.current) return;
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
-              heightRef.current = nextHeight;
-              isHeightLockedRef.current = true;
-              setHeight(nextHeight);
+              setHeight((currentHeight) => (nextHeight > currentHeight ? nextHeight : currentHeight));
               return;
             }
 

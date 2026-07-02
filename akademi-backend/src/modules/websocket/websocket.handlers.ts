@@ -3,7 +3,6 @@ import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketDa
 import { SessionsService } from '../sessions/sessions.service';
 import { streamAudio } from './websocket.audio';
 import redisClient from '../../config/redis';
-import { config } from '../../config/env';
 import { CompetitionParticipantStatus, SessionType } from '@prisma/client';
 import { CompetitionsService } from '../competitions/competitions.service';
 import { checkSocketRateLimit } from './websocket.rate-limit';
@@ -21,7 +20,6 @@ const getClientSafeError = (error: any) => {
   console.error('WebSocket handler error:', error);
 
   if (
-    message.includes('AI tutor is temporarily busy') ||
     message.includes('AI providers failed') ||
     message.includes('Gemini') ||
     message.includes('Claude') ||
@@ -29,7 +27,7 @@ const getClientSafeError = (error: any) => {
     message.includes('503') ||
     message.includes('Service Unavailable')
   ) {
-    return 'AI tutor is temporarily busy. Please try again in a moment.';
+    return 'AI is temporarily busy. Please try again in a moment.';
   }
 
   return message || 'Something went wrong. Please try again.';
@@ -151,7 +149,7 @@ export const registerHandlers = (
         session = await sessionsService.startSession(userId, {
           course_code: normalizedCourseCode,
           topic,
-          session_type: sessionType || SessionType.TUTOR,
+          session_type: sessionType || SessionType.STUDY,
           reply_mode: replyMode,
         });
       }
@@ -174,12 +172,14 @@ export const registerHandlers = (
 
       socket.emit('message:receive', {
         content: aiMessage.content,
-        messageId: aiMessage.id
+        messageId: aiMessage.id,
+        metadata:
+          aiMessage.metadata && typeof aiMessage.metadata === 'object' && !Array.isArray(aiMessage.metadata)
+            ? aiMessage.metadata as Record<string, unknown>
+            : {},
       });
 
-      if (config.enableLiveTutorAudio) {
-        await streamAudio(socket, aiMessage.content);
-      }
+      await streamAudio(socket, aiMessage.content);
     } catch (error: any) {
       socket.emit('error', { message: getClientSafeError(error) });
     }

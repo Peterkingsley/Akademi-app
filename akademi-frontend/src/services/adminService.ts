@@ -179,11 +179,16 @@ export interface WaitlistEntry {
   email: string;
   phone?: string | null;
   university?: string | null;
+  faculty?: string | null;
   department?: string | null;
   level?: number | null;
   main_struggle?: string | null;
   source: string;
   status: string;
+  first_invited_at?: string | null;
+  last_invited_at?: string | null;
+  invite_count: number;
+  last_invited_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -196,7 +201,27 @@ export interface WaitlistResponse {
   totalPages: number;
   summary: {
     total: number;
+    invitedCount: number;
+    neverSentCount: number;
     byNeed: { need: string; count: number }[];
+    topUniversity?: { name: string; count: number; share: number } | null;
+    byUniversity: { name: string; count: number }[];
+    byFaculty: { name: string; count: number }[];
+    byDepartment: { name: string; count: number }[];
+    traffic?: {
+      pageViews: number;
+      uniqueVisitors: number;
+      formStarts: number;
+      schoolSearches: number;
+      schoolSelections: number;
+      submitSuccesses: number;
+      whatsappRedirects: number;
+      submitConversionRate: number;
+      whatsappRedirectRate: number;
+      topSources: { name: string; count: number }[];
+      topSchoolQueries: { query: string; count: number }[];
+      topSelectedSchools: { name: string; count: number }[];
+    };
   };
 }
 
@@ -205,6 +230,7 @@ export interface AdminTournament {
   title: string;
   description: string | null;
   status: "DRAFT" | "PUBLISHED" | "LIVE" | "COMPLETED" | "CANCELLED";
+  campaign_type: "SIMPLE" | "MULTI_STAGE";
   format: "SHARED_COURSE" | "DUAL_COURSE";
   shared_course_code: string | null;
   source_material_ids: string[];
@@ -223,6 +249,10 @@ export interface AdminTournament {
   campaign_cta_label: string | null;
   campaign_cta_url: string | null;
   campaign_preheader: string | null;
+  prediction_enabled: boolean;
+  prediction_prize_summary: string | null;
+  prediction_winner_count: number | null;
+  prediction_closes_at: string | null;
   audience_scope: "EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT";
   audience_university: string | null;
   audience_faculty: string | null;
@@ -232,6 +262,13 @@ export interface AdminTournament {
   checked_in_count?: number;
   standby_count?: number;
   room_id?: string | null;
+  stages?: Array<{
+    id: string;
+    name: string;
+    stage_order: number;
+    status: string;
+    starts_at: string;
+  }>;
 }
 
 export interface AdminCompetitionRoom {
@@ -429,6 +466,15 @@ export const adminService = {
   approveMaterial: async (id: string) => {
     const { data } = await api.patch(`/admin/materials/${id}/approve`);
     return data;
+  },
+
+  approveMaterials: async (ids: string[]) => {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id?.trim()).filter(Boolean)));
+    const materials = await Promise.all(uniqueIds.map((id) => adminService.approveMaterial(id)));
+    return {
+      count: materials.length,
+      materials,
+    };
   },
 
   takedownMaterial: async (id: string) => {

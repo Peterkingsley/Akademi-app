@@ -1,0 +1,15 @@
+ALTER TABLE "learning_profiles"
+ADD COLUMN "teaching_strategy_success" JSONB NOT NULL DEFAULT '{}',
+ADD COLUMN "preferred_teaching_strategy" TEXT,
+ADD COLUMN "preferred_pace" TEXT,
+ADD COLUMN "analogy_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "visual_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "worked_example_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "definition_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "problem_first_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "story_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "exam_first_success_score" INTEGER NOT NULL DEFAULT 50,
+ADD COLUMN "calculation_support_needed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "visual_support_needed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "confidence_support_needed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "last_profile_update_at" TIMESTAMP(3);

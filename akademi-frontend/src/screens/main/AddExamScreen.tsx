@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   Dimensions,
@@ -14,11 +15,19 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { useNavigation } from "@react-navigation/native";
 import examPrepService from "../../services/examPrep";
+import { materialService } from "../../services/material";
 import { SafeArea } from "../../components/layout/SafeArea";
 import { useAuthStore } from "../../store/useAuthStore";
 
 const { width } = Dimensions.get("window");
 type AssessmentType = "TEST" | "EXAM";
+
+const getDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 export const AddExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -33,9 +42,30 @@ export const AddExamScreen: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState(courses[0] || "");
   const [assessmentType, setAssessmentType] = useState<AssessmentType>("EXAM");
   const [selectedDate, setSelectedDate] = useState<Date>(tomorrow);
+  const [durationMinutes, setDurationMinutes] = useState("120");
   const [loading, setLoading] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date(tomorrow.getFullYear(), tomorrow.getMonth(), 1));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [errorMessage, setErrorMessage] = useState("");
+  const [materialCount, setMaterialCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const loadCourseMaterials = async () => {
+      if (!selectedCourse) {
+        setMaterialCount(null);
+        return;
+      }
+      try {
+        const materials = await materialService.getMaterials({ course_code: selectedCourse });
+        setMaterialCount(materials.length);
+      } catch {
+        setMaterialCount(null);
+      }
+    };
+    loadCourseMaterials();
+  }, [selectedCourse]);
 
   const handleAddExam = async () => {
     if (!selectedCourse) {
@@ -43,8 +73,18 @@ export const AddExamScreen: React.FC = () => {
       return;
     }
 
-    if (selectedDate < tomorrow) {
-      setErrorMessage("Choose a future exam date.");
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const selectedDateStart = new Date(selectedDate);
+    selectedDateStart.setHours(0, 0, 0, 0);
+
+    if (selectedDateStart.getTime() < todayStart.getTime()) {
+      setErrorMessage("Choose today or a future exam date.");
+      return;
+    }
+    const numericDuration = Number(durationMinutes);
+    if (!Number.isFinite(numericDuration) || numericDuration < 15) {
+      setErrorMessage("Set a valid exam duration in minutes.");
       return;
     }
 
@@ -52,7 +92,14 @@ export const AddExamScreen: React.FC = () => {
     setLoading(true);
     try {
       const dateString = selectedDate.toISOString().split('T')[0];
-      const plan = await examPrepService.createPlan(selectedCourse, dateString, assessmentType);
+      const plan = await examPrepService.createPlan(
+        selectedCourse,
+        dateString,
+        assessmentType,
+        numericDuration,
+        40,
+        5,
+      );
       navigation.replace("PrepPlan", { examId: plan.id });
     } catch (error: any) {
       console.error("Failed to add exam:", error);
@@ -71,6 +118,8 @@ export const AddExamScreen: React.FC = () => {
   const renderCalendar = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayKey = getDateKey(today);
+    const selectedDateKey = getDateKey(selectedDate);
     const currentMonth = calendarMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
     const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
     const firstDayOffset = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay();
@@ -94,9 +143,12 @@ export const AddExamScreen: React.FC = () => {
              if (!cell.day) return <View key={cell.key} style={styles.dayCell} />;
 
              const cellDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), cell.day, 12);
-             const isSelected = selectedDate.toDateString() === cellDate.toDateString();
-             const isToday = today.toDateString() === cellDate.toDateString();
-             const isPast = cellDate < tomorrow;
+             const cellDateKey = getDateKey(cellDate);
+             const isSelected = selectedDateKey === cellDateKey;
+             const isToday = todayKey === cellDateKey;
+             const cellDateStart = new Date(cellDate);
+             cellDateStart.setHours(0, 0, 0, 0);
+             const isPast = cellDateStart.getTime() < today.getTime();
 
              return (
                <TouchableOpacity
@@ -106,9 +158,11 @@ export const AddExamScreen: React.FC = () => {
                    isSelected && styles.selectedDay,
                    isPast && styles.disabledDay,
                  ]}
-                 disabled={isPast}
+                 activeOpacity={0.72}
+                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                  onPress={() => {
-                   setSelectedDate(cellDate);
+                   if (isPast) return;
+                   setSelectedDate(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), cell.day || 1, 12));
                    setErrorMessage("");
                  }}
                >
@@ -121,17 +175,19 @@ export const AddExamScreen: React.FC = () => {
                  ]}>
                    {cell.day}
                  </Text>
-                 {isToday && !isSelected && <View style={styles.todayIndicator} />}
+                 {isToday && !isSelected && <View pointerEvents="none" style={styles.todayIndicator} />}
                </TouchableOpacity>
              );
            })}
         </View>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaPill}>
-            <Clock size={16} color={colors.textSecondary} style={styles.metaIcon} />
-            <Text style={[styles.metaText, typography.bodySmall]}>{assessmentType === "EXAM" ? "120 Mins" : "45 Mins"}</Text>
-          </View>
+          <View style={styles.metaRow}>
+            <View style={styles.metaPill}>
+              <Clock size={16} color={colors.textSecondary} style={styles.metaIcon} />
+            <Text style={[styles.metaText, typography.bodySmall]}>
+              {`${Math.max(Number(durationMinutes) || 0, 0) || (assessmentType === "EXAM" ? 120 : 45)} Mins`}
+            </Text>
+            </View>
           <View style={[styles.metaPill, styles.formatPill]}>
             <FileText size={16} color={colors.warning} style={styles.metaIcon} />
             <Text style={[styles.formatText, typography.bodySmall]}>Course-wide prep</Text>
@@ -218,11 +274,42 @@ export const AddExamScreen: React.FC = () => {
               No courses found. Complete your academic setup before creating an exam plan.
             </Text>
           )}
+          {selectedCourse ? (
+            <View style={styles.courseSummaryCard}>
+              <Text style={[styles.courseSummaryTitle, typography.bodySmall]}>
+                {selectedCourse} will pull from every available material in this course.
+              </Text>
+              <Text style={[styles.courseSummaryText, typography.caption]}>
+                {materialCount === null
+                  ? "Checking available course materials..."
+                  : `${materialCount} material${materialCount === 1 ? "" : "s"} found. Default mock format: 40 objective questions and 5 typed theory questions.`}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.section}>
           <Text style={[styles.label, typography.mono]}>{assessmentType === "TEST" ? "TEST DATE" : "EXAMINATION DATE"}</Text>
           {renderCalendar()}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.label, typography.mono]}>EXAM DURATION</Text>
+          <View style={styles.durationCard}>
+            <Text style={[styles.durationText, typography.bodySmall]}>How many minutes will the real exam take?</Text>
+            <TextInput
+              value={durationMinutes}
+              onChangeText={(text) => {
+                setDurationMinutes(text.replace(/[^0-9]/g, ""));
+                setErrorMessage("");
+              }}
+              keyboardType="number-pad"
+              placeholder="120"
+              placeholderTextColor={colors.textMuted}
+              style={styles.durationInput}
+            />
+            <Text style={[styles.durationHint, typography.caption]}>Default question mix: 40 objective + 5 theory.</Text>
+          </View>
         </View>
 
         {errorMessage ? (
@@ -372,6 +459,23 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 12,
   },
+  courseSummaryCard: {
+    marginTop: 14,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  courseSummaryTitle: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  courseSummaryText: {
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
   calendarContainer: {
     marginTop: 16,
   },
@@ -458,6 +562,32 @@ const styles = StyleSheet.create({
   formatText: {
     color: colors.warning,
     fontWeight: "600",
+  },
+  durationCard: {
+    marginTop: 14,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  durationText: {
+    color: colors.textPrimary,
+  },
+  durationInput: {
+    minHeight: 52,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceElevated,
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: "700",
+    paddingHorizontal: 14,
+  },
+  durationHint: {
+    color: colors.textMuted,
   },
   errorCard: {
     backgroundColor: "rgba(239, 68, 68, 0.12)",

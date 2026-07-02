@@ -1,6 +1,7 @@
 import prisma from '../../config/db';
-import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest } from './sessions.types';
-import { SessionType, MessageRole, Feature, Prisma } from '@prisma/client';
+import { Response } from 'express';
+import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest, CompanionTurnRequest } from './sessions.types';
+import { SessionType, MessageRole, Feature, Prisma, ReplyMode } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
@@ -8,7 +9,8 @@ import { config } from '../../config/env';
 import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
 import { aiProvider } from '../ai/ai.provider';
-import { aiService } from "../ai/ai.service";
+import { studyCompanionService } from './study-companion.service';
+import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -30,6 +32,28 @@ function getVisionClient() {
 
 function normalizeExtractedText(text: string) {
   return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function sanitizeSpeechText(content: string) {
+  return content
+    .replace(/\\\[(.*?)\\\]/gs, '$1')
+    .replace(/\\\((.*?)\\\)/gs, '$1')
+    .replace(/\$\$(.*?)\$\$/gs, '$1')
+    .replace(/\$(.*?)\$/gs, '$1')
+    .replace(/[`*_#>-]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function parseElevenLabsError(status: number, detail: string) {
+  if (status === 402 && detail.includes('paid_plan_required')) {
+    return [
+      'ElevenLabs voice is not available on this plan.',
+      'Set ELEVENLABS_VOICE_ID to a default voice available in your ElevenLabs account, or upgrade the ElevenLabs plan for library voices.',
+    ].join(' ');
+  }
+
+  return `ElevenLabs speech synthesis failed (${status}). ${detail}`.trim();
 }
 
 async function extractTextFromImage(buffer: Buffer) {
@@ -74,95 +98,216 @@ async function extractTextFromImage(buffer: Buffer) {
 }
 
 export class SessionsService {
-  private buildTutorKickoffMessage(material: {
-    title: string;
-    course_code?: string | null;
-    reader_structure?: Prisma.JsonValue | null;
-  }) {
-    const structure = material.reader_structure as
-      | {
-          pages?: Array<{
-            chapterTitle?: string;
-            pageTitle?: string;
-          }>;
-        }
-      | null
-      | undefined;
-    const firstPage = structure?.pages?.find((page) => page.chapterTitle || page.pageTitle);
-    const firstAnchor = firstPage?.chapterTitle || firstPage?.pageTitle || 'the foundation of this material';
-    const courseText = material.course_code ? ` for ${material.course_code}` : '';
-
-    return [
-      `We will study ${material.title}${courseText} as a proper lesson, not just as quick question-and-answer.`,
-      `I will teach it in small chunks from beginning to end, pause for your feedback, and keep checking whether each idea is landing before we move on.`,
-      `We will begin with ${firstAnchor}. If you ever want to restart from the beginning, revise a section, or slow down, just say so.`,
-      `Ready? Let us start with the first key idea in the material.`,
-    ].join(' ');
-  }
-
-  private async resolveTutorMaterialAccess(userId: string, materialId: string) {
-    const material = await prisma.material.findUnique({
-      where: { id: materialId },
+  private async assertTutorTraceAccess(sessionId: string, requester: { userId: string; email: string }) {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
       select: {
         id: true,
-        title: true,
-        course_code: true,
-        university: true,
-        faculty: true,
-        department: true,
-        verification_status: true,
-        uploaded_by: true,
-        content: true,
-        reader_structure: true,
+        user_id: true,
       },
     });
 
-    if (!material) {
-      throw new Error('Selected material was not found');
+    if (!session) {
+      throw new Error('Session not found');
     }
 
-    const canAccess =
-      material.verification_status === 'VERIFIED' || material.uploaded_by === userId;
-
-    if (!canAccess) {
-      throw new Error('You do not have access to tutor with this material');
+    if (session.user_id === requester.userId) {
+      return session;
     }
 
-    return material;
+    const admin = await prisma.admin.findFirst({
+      where: { email: requester.email },
+      select: { id: true, role: true, status: true },
+    });
+
+    if (admin && admin.status === 'active') {
+      return session;
+    }
+
+    throw new Error('You do not have access to these tutor traces.');
   }
 
-  private async seedTutorKickoffMessage(sessionId: string, userId: string, material: {
-    title: string;
-    course_code?: string | null;
-    reader_structure?: Prisma.JsonValue | null;
-  }) {
-    const existingAiMessage = await prisma.message.findFirst({
+  async listTutorTraces(
+    sessionId: string,
+    requester: { userId: string; email: string },
+    filters: { limit?: string | number; phase?: string; sectionIndex?: string | number; errorsOnly?: string | boolean },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+
+    const parsedLimit = Math.min(Math.max(Number(filters.limit) || 20, 1), 100);
+    const parsedSectionIndex =
+      filters.sectionIndex !== undefined && filters.sectionIndex !== null && `${filters.sectionIndex}` !== ''
+        ? Number(filters.sectionIndex)
+        : null;
+    const errorsOnly =
+      filters.errorsOnly === true ||
+      filters.errorsOnly === 'true' ||
+      filters.errorsOnly === '1';
+
+    console.log('tutor_trace_debug_list_requested', {
+      sessionId,
+      requesterUserId: requester.userId,
+      limit: parsedLimit,
+      phase: filters.phase || null,
+      sectionIndex: parsedSectionIndex,
+      errorsOnly,
+    });
+
+    return prisma.tutorTurnTrace.findMany({
       where: {
         session_id: sessionId,
-        role: MessageRole.AI,
+        ...(filters.phase ? { phase: String(filters.phase) } : {}),
+        ...(Number.isFinite(parsedSectionIndex as number) ? { section_index: parsedSectionIndex as number } : {}),
+        ...(errorsOnly ? { error_message: { not: null } } : {}),
       },
-      select: { id: true },
+      orderBy: { created_at: 'desc' },
+      take: parsedLimit,
+      select: {
+        id: true,
+        phase: true,
+        turn_type: true,
+        action: true,
+        section_index: true,
+        section_title: true,
+        teacher_brain_used: true,
+        student_memory_used: true,
+        lesson_plan_used: true,
+        relevant_material_used: true,
+        calculation_context_used: true,
+        diagram_context_used: true,
+        quality_guardrail_used: true,
+        quality_issues: true,
+        latency_ms: true,
+        ai_latency_ms: true,
+        response_chars: true,
+        prompt_tokens_estimate: true,
+        error_message: true,
+        metadata: true,
+        created_at: true,
+      },
+    });
+  }
+
+  async getTutorTraceSummary(
+    sessionId: string,
+    requester: { userId: string; email: string },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+
+    console.log('tutor_trace_debug_summary_requested', {
+      sessionId,
+      requesterUserId: requester.userId,
     });
 
-    if (existingAiMessage) return;
-
-    await prisma.message.create({
-      data: {
-        session_id: sessionId,
-        user_id: userId,
-        role: MessageRole.AI,
-        content: this.buildTutorKickoffMessage(material),
-        reply_mode: 'STUDY',
+    const traces = await prisma.tutorTurnTrace.findMany({
+      where: { session_id: sessionId },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        phase: true,
+        turn_type: true,
+        action: true,
+        section_index: true,
+        section_title: true,
+        teacher_brain_used: true,
+        student_memory_used: true,
+        lesson_plan_used: true,
+        relevant_material_used: true,
+        calculation_context_used: true,
+        diagram_context_used: true,
+        quality_guardrail_used: true,
+        quality_issues: true,
+        latency_ms: true,
+        ai_latency_ms: true,
+        response_chars: true,
+        prompt_tokens_estimate: true,
+        error_message: true,
+        metadata: true,
+        created_at: true,
       },
     });
+
+    const totalTurns = traces.length;
+    const withLatency = traces.filter((trace) => typeof trace.latency_ms === 'number');
+    const withAiLatency = traces.filter((trace) => typeof trace.ai_latency_ms === 'number');
+    const qualityIssueCounts = traces.reduce<Record<string, number>>((acc, trace) => {
+      const issues = Array.isArray(trace.quality_issues) ? trace.quality_issues : [];
+      issues.forEach((issue) => {
+        const key = String(issue || '').trim();
+        if (!key) return;
+        acc[key] = (acc[key] || 0) + 1;
+      });
+      return acc;
+    }, {});
+    const contextUsageCounts = traces.reduce(
+      (acc, trace) => {
+        acc.teacherBrainUsed += trace.teacher_brain_used ? 1 : 0;
+        acc.studentMemoryUsed += trace.student_memory_used ? 1 : 0;
+        acc.lessonPlanUsed += trace.lesson_plan_used ? 1 : 0;
+        acc.relevantMaterialUsed += trace.relevant_material_used ? 1 : 0;
+        acc.calculationContextUsed += trace.calculation_context_used ? 1 : 0;
+        acc.diagramContextUsed += trace.diagram_context_used ? 1 : 0;
+        acc.qualityGuardrailUsed += trace.quality_guardrail_used ? 1 : 0;
+        return acc;
+      },
+      {
+        teacherBrainUsed: 0,
+        studentMemoryUsed: 0,
+        lessonPlanUsed: 0,
+        relevantMaterialUsed: 0,
+        calculationContextUsed: 0,
+        diagramContextUsed: 0,
+        qualityGuardrailUsed: 0,
+      },
+    );
+    const phases = traces.reduce<Record<string, number>>((acc, trace) => {
+      acc[trace.phase] = (acc[trace.phase] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      totalTurns,
+      averageLatencyMs: withLatency.length
+        ? Math.round(withLatency.reduce((sum, trace) => sum + Number(trace.latency_ms || 0), 0) / withLatency.length)
+        : null,
+      averageAiLatencyMs: withAiLatency.length
+        ? Math.round(withAiLatency.reduce((sum, trace) => sum + Number(trace.ai_latency_ms || 0), 0) / withAiLatency.length)
+        : null,
+      slowestTurns: [...traces]
+        .sort((a, b) => Number(b.latency_ms || 0) - Number(a.latency_ms || 0))
+        .slice(0, 5)
+        .map((trace) => ({
+          id: trace.id,
+          phase: trace.phase,
+          turn_type: trace.turn_type,
+          action: trace.action,
+          section_index: trace.section_index,
+          section_title: trace.section_title,
+          latency_ms: trace.latency_ms,
+          ai_latency_ms: trace.ai_latency_ms,
+          error_message: trace.error_message,
+          created_at: trace.created_at,
+        })),
+      contextUsageCounts,
+      qualityIssueCounts,
+      errorCount: traces.filter((trace) => !!trace.error_message).length,
+      phases,
+    };
+  }
+
+  async getVisualPlan(
+    sessionId: string,
+    requester: { userId: string; email: string },
+  ) {
+    await this.assertTutorTraceAccess(sessionId, requester);
+    return studyCompanionService.getVisualPlan(sessionId);
   }
 
   private mapSessionTypeToFeature(type: SessionType): Feature {
     switch (type) {
       case SessionType.ASSIGNMENT:
         return Feature.ASSIGNMENT_SOLVING;
-      case SessionType.TUTOR:
-        return Feature.LIVE_TUTORING;
       case SessionType.EXAM_PREP:
         return Feature.EXAM_PREP;
       case SessionType.STUDY:
@@ -189,52 +334,6 @@ export class SessionsService {
 
     if (!user) throw new Error('User not found');
 
-    if (data.session_type === SessionType.TUTOR) {
-      if (!data.material_id) {
-        throw new Error('AI Tutor now requires a selected material');
-      }
-
-      const material = await this.resolveTutorMaterialAccess(userId, data.material_id);
-
-      const existingSession = await prisma.session.findFirst({
-        where: {
-          user_id: userId,
-          session_type: SessionType.TUTOR,
-          material_id: material.id,
-        },
-        orderBy: [{ started_at: 'desc' }, { created_at: 'desc' }],
-      });
-
-      if (existingSession) {
-        const reopenedSession = existingSession.ended_at
-          ? await prisma.session.update({
-              where: { id: existingSession.id },
-              data: { ended_at: null },
-            })
-          : existingSession;
-
-        await this.seedTutorKickoffMessage(reopenedSession.id, userId, material);
-        return reopenedSession;
-      }
-
-      const createdSession = await prisma.session.create({
-        data: {
-          user_id: userId,
-          session_type: data.session_type,
-          reply_mode: 'STUDY',
-          course_code: material.course_code?.trim() || null,
-          topic: material.title,
-          duration: data.duration || null,
-          material_id: material.id,
-          university: user.university,
-          department: user.department,
-        },
-      });
-
-      await this.seedTutorKickoffMessage(createdSession.id, userId, material);
-      return createdSession;
-    }
-
     return prisma.session.create({
       data: {
         user_id: userId,
@@ -244,6 +343,7 @@ export class SessionsService {
         topic: data.topic || null,
         duration: data.duration || null,
         material_id: data.material_id?.trim() || null,
+        metadata: (data.metadata || {}) as Prisma.InputJsonValue,
         university: user.university,
         department: user.department,
       },
@@ -309,7 +409,7 @@ export class SessionsService {
     const replyMode =
       data.reply_mode ||
       session.reply_mode ||
-      (session.session_type === SessionType.TUTOR ? 'STUDY' : 'DIRECT');
+      'DIRECT';
 
     // Save student message
     await prisma.message.create({
@@ -322,8 +422,24 @@ export class SessionsService {
       },
     });
 
-    // AI Orchestration Logic
-    const aiResponse = await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
+    const companionState = await studyCompanionService.ensureState(sessionId);
+    const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+    const shouldUseCompanion =
+      !!companionState || metadata.mode === 'ai-study-companion';
+
+    console.log('COMPANION CHECK', {
+      sessionId,
+      hasCompanionState: !!companionState,
+      mode: metadata.mode ?? null,
+      shouldUseCompanion,
+    });
+
+    const aiResponse =
+      shouldUseCompanion
+        ? await studyCompanionService.handleStudentReply(sessionId, data.content)
+        : await orchestrateAIResponse(userId, sessionId, data.content, replyMode);
 
     // Save AI message
     return prisma.message.create({
@@ -421,42 +537,206 @@ export class SessionsService {
       });
 
       return {
-          summary: session?.session_type === SessionType.TUTOR
-            ? `This tutor session stayed anchored to ${session.material?.title || session?.topic || 'the selected material'} and focused on teaching it progressively, one chunk at a time.`
-            : "This session covered key topics in the specified course code. The AI tutor helped the student understand fundamental concepts and addressed specific questions.",
-          key_points: session?.session_type === SessionType.TUTOR
-            ? ["Material-first teaching flow", "Chunked explanation with room for feedback", "Resumable lesson tied to one material"]
-            : ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
-          next_steps: session?.session_type === SessionType.TUTOR
-            ? ["Resume the same material session when you are ready", "Ask the tutor to restart from the beginning or continue from the last point", "Practice the new ideas against examples from the material"]
-            : ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
+          summary: "This session covered key topics in the specified course code and captured the student's study interaction.",
+          key_points: ["Discussion on core concepts", "Q&A session on course material", "Problem-solving walkthrough"],
+          next_steps: ["Review session notes", "Practice related mock exam questions", "Explore further reading materials"]
       };
   }
 
-  async getPlayableLesson(sessionId: string) {
-    const segments = await prisma.lessonSegment.findMany({
-      where: { session_id: sessionId },
-      orderBy: { order: 'asc' },
-      include: {
-        visual_cues: true,
+  async synthesizeTutorSpeech(text: string) {
+    const sanitized = sanitizeSpeechText(text || '');
+    if (!sanitized) {
+      throw new Error('Text is required for speech synthesis.');
+    }
+
+    if (!config.elevenLabsApiKey) {
+      throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
+    }
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenLabsVoiceId}?output_format=mp3_44100_128`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': config.elevenLabsApiKey,
+        },
+        body: JSON.stringify({
+          text: sanitized,
+          model_id: config.elevenLabsModelId,
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+            style: 0.15,
+            use_speaker_boost: true,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      let detail = '';
+      try {
+        detail = await response.text();
+      } catch {
+        detail = '';
+      }
+      throw new Error(parseElevenLabsError(response.status, detail));
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    if (!audioBuffer.length) {
+      throw new Error('ElevenLabs returned empty audio.');
+    }
+
+    return {
+      audioBase64: audioBuffer.toString('base64'),
+      mimeType: 'audio/mpeg',
+      provider: 'elevenlabs',
+    };
+  }
+
+  async createTutorSpeechStream(userId: string, sessionId: string, text: string) {
+    const session = await this.getSession(sessionId);
+    if (session.user_id !== userId) {
+      throw new Error('You do not have access to this session.');
+    }
+
+    return elevenLabsStreamService.createPendingStream(sessionId, userId, text);
+  }
+
+  async streamTutorSpeech(userId: string, sessionId: string, streamId: string, res: Response) {
+    const session = await this.getSession(sessionId);
+    if (session.user_id !== userId) {
+      throw new Error('You do not have access to this session.');
+    }
+
+    return elevenLabsStreamService.streamPendingAudio(sessionId, userId, streamId, res);
+  }
+
+  async getCompanionState(sessionId: string) {
+    return studyCompanionService.getPublicState(sessionId);
+  }
+
+  async startCompanion(sessionId: string, data: StartCompanionRequest) {
+    const session = await this.getSession(sessionId);
+    const kickoffText =
+      data.mode === 'roadmap'
+        ? 'Create my study roadmap first.'
+        : data.mode === 'specific'
+          ? `Start me from this section: ${data.section_title || 'selected section'}.`
+          : data.mode === 'continue'
+            ? 'Continue from where I stopped.'
+            : 'Start from the beginning.';
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.STUDENT,
+        content: kickoffText,
+        reply_mode: ReplyMode.STUDY,
+        metadata: {
+          study_companion_start: true,
+          mode: data.mode,
+          section_title: data.section_title || null,
+        } as Prisma.InputJsonValue,
       },
     });
 
-    if (segments.length === 0) {
-      // Logic to upgrade session if no segments exist
-      const session = await prisma.session.findUnique({
-        where: { id: sessionId },
-        include: { messages: { orderBy: { created_at: 'asc' } } },
-      });
+    const response = await studyCompanionService.start(sessionId, data.mode, data.section_title);
 
-      if (session && session.messages.length > 0) {
-        const lastAiMessage = [...session.messages].reverse().find(m => m.role === MessageRole.AI);
-        if (lastAiMessage) {
-          return await aiService.generateTeachingLesson(session.user_id, sessionId, lastAiMessage.content);
+    return prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.AI,
+        content: response.content,
+        reply_mode: ReplyMode.STUDY,
+        metadata: (response.metadata || {}) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async sendCompanionMessage(userId: string, sessionId: string, data: SendMessageRequest) {
+    return this.sendMessage(userId, sessionId, {
+      content: data.content,
+      reply_mode: ReplyMode.STUDY,
+    });
+  }
+
+  async handleCompanionTurn(userId: string, sessionId: string, data: CompanionTurnRequest) {
+    switch (data.action) {
+      case 'tutor:start':
+        if (!data.mode) {
+          throw new Error('A start mode is required to begin the tutor session.');
         }
+        return this.startCompanion(sessionId, {
+          mode: data.mode,
+          section_title: data.section_title,
+        });
+      case 'tutor:continue': {
+        const session = await this.getSession(sessionId);
+        const response = await studyCompanionService.handleTutorContinue(sessionId);
+        return prisma.message.create({
+          data: {
+            session_id: sessionId,
+            user_id: session.user_id,
+            role: MessageRole.AI,
+            content: response.content,
+            reply_mode: ReplyMode.STUDY,
+            metadata: (response.metadata || {}) as Prisma.InputJsonValue,
+          },
+        });
       }
+      case 'tutor:student_response':
+        if (!data.content?.trim()) {
+          throw new Error('A student response is required.');
+        }
+        return this.sendCompanionMessage(userId, sessionId, {
+          content: data.content,
+          reply_mode: ReplyMode.STUDY,
+        });
+      case 'tutor:interrupt':
+        if (!data.content?.trim()) {
+          throw new Error('An interruption transcript is required.');
+        }
+        return this.sendCompanionInterrupt(userId, sessionId, data.content.trim());
+      default:
+        throw new Error('Unsupported tutor action.');
     }
+  }
 
-    return segments;
+  async sendCompanionInterrupt(userId: string, sessionId: string, content: string) {
+    const session = await this.getSession(sessionId);
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: userId,
+        role: MessageRole.STUDENT,
+        content,
+        reply_mode: ReplyMode.STUDY,
+        metadata: {
+          tutor_interrupt: true,
+        } as Prisma.InputJsonValue,
+      },
+    });
+
+    const aiResponse = await studyCompanionService.handleStudentReply(sessionId, content, {
+      interrupted: true,
+    });
+
+    return prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: session.user_id,
+        role: MessageRole.AI,
+        content: aiResponse.content,
+        metadata: (aiResponse.metadata || {}) as Prisma.InputJsonValue,
+        reply_mode: ReplyMode.STUDY,
+      },
+    });
   }
 }

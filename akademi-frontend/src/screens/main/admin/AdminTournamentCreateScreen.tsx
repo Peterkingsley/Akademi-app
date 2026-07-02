@@ -6,6 +6,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,7 +17,7 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { CalendarDays, Check, ChevronDown, ImagePlus, Search, X } from "lucide-react-native";
+import { CalendarDays, Check, ChevronDown, ImagePlus, Plus, Search, Trash2, X } from "lucide-react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { Card } from "../../../components/ui/Card";
 import { Input } from "../../../components/ui/Input";
@@ -31,6 +32,14 @@ import api from "../../../services/api";
 type UniversityOption = { id: string; name: string; location?: string; type?: string };
 type DepartmentOption = { id: string; name: string; faculty: string };
 type AudienceScope = "EVERYONE" | "UNIVERSITY" | "FACULTY" | "DEPARTMENT";
+type CampaignType = "SIMPLE" | "MULTI_STAGE";
+type StageDraft = {
+  name: string;
+  starts_at: string;
+  duration_minutes: string;
+  question_count: string;
+  qualification_count: string;
+};
 type PickerMode =
   | "scope"
   | "university"
@@ -42,9 +51,10 @@ type DateField =
   | "registrationClosesAt"
   | "lateJoinCutoffAt"
   | "checkInOpensAt"
-  | "checkInClosesAt";
+  | "checkInClosesAt"
+  | "predictionClosesAt";
 
-const defaultAccent = "#16A34A";
+const defaultAccent = "#304000";
 
 export const AdminTournamentCreateScreen: React.FC = () => {
   const { colors, typography } = useTheme();
@@ -57,6 +67,20 @@ export const AdminTournamentCreateScreen: React.FC = () => {
   const [bannerFileName, setBannerFileName] = useState("");
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [campaignType, setCampaignType] = useState<CampaignType>("SIMPLE");
+  const [predictionEnabled, setPredictionEnabled] = useState(false);
+  const [predictionPrizeSummary, setPredictionPrizeSummary] = useState("");
+  const [predictionWinnerCount, setPredictionWinnerCount] = useState("1");
+  const [predictionClosesAt, setPredictionClosesAt] = useState<Date | null>(null);
+  const [stages, setStages] = useState<StageDraft[]>([
+    {
+      name: "Open Challenge",
+      starts_at: "",
+      duration_minutes: "30",
+      question_count: "10",
+      qualification_count: "1000",
+    },
+  ]);
 
   const [audienceScope, setAudienceScope] = useState<AudienceScope>("EVERYONE");
   const [universities, setUniversities] = useState<UniversityOption[]>([]);
@@ -253,6 +277,7 @@ export const AdminTournamentCreateScreen: React.FC = () => {
     if (field === "lateJoinCutoffAt") setLateJoinCutoffAt(value);
     if (field === "checkInOpensAt") setCheckInOpensAt(value);
     if (field === "checkInClosesAt") setCheckInClosesAt(value);
+    if (field === "predictionClosesAt") setPredictionClosesAt(value);
   };
 
   const openAndroidDateTimePicker = (field: DateField, initialValue: Date) => {
@@ -289,10 +314,12 @@ export const AdminTournamentCreateScreen: React.FC = () => {
         : field === "registrationClosesAt"
           ? registrationClosesAt
           : field === "lateJoinCutoffAt"
-            ? lateJoinCutoffAt
-            : field === "checkInOpensAt"
-              ? checkInOpensAt
-              : checkInClosesAt;
+              ? lateJoinCutoffAt
+              : field === "checkInOpensAt"
+                ? checkInOpensAt
+                : field === "checkInClosesAt"
+                  ? checkInClosesAt
+                  : predictionClosesAt;
     const nextValue = value || new Date();
 
     if (Platform.OS === "android") {
@@ -345,6 +372,27 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       setSelectedFaculty("");
       setSelectedDepartment("");
     }
+  };
+
+  const updateStage = (index: number, patch: Partial<StageDraft>) => {
+    setStages((current) => current.map((stage, stageIndex) => (stageIndex === index ? { ...stage, ...patch } : stage)));
+  };
+
+  const addStage = () => {
+    setStages((current) => [
+      ...current,
+      {
+        name: `Stage ${current.length + 1}`,
+        starts_at: "",
+        duration_minutes: "15",
+        question_count: "10",
+        qualification_count: current.length === 0 ? "200" : "10",
+      },
+    ]);
+  };
+
+  const removeStage = (index: number) => {
+    setStages((current) => (current.length <= 1 ? current : current.filter((_, stageIndex) => stageIndex !== index)));
   };
 
   const selectPickerItem = (item: any) => {
@@ -405,12 +453,39 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       Alert.alert("Select department", "Choose the department for this tournament.");
       return;
     }
+    const predictionWinnerTotal = Number(predictionWinnerCount);
+    if (predictionEnabled && predictionWinnerCount.trim() && (!Number.isFinite(predictionWinnerTotal) || predictionWinnerTotal < 1)) {
+      Alert.alert("Prediction setup", "Prediction winner count must be at least 1.");
+      return;
+    }
+    if (campaignType === "MULTI_STAGE") {
+      const invalidStage = stages.find((stage) => {
+        const startsAt = stage.starts_at.trim() || scheduledAt.toISOString();
+        const duration = Number(stage.duration_minutes);
+        const questionCount = Number(stage.question_count);
+        const qualificationCount = stage.qualification_count.trim() ? Number(stage.qualification_count) : null;
+        return (
+          !stage.name.trim() ||
+          !Number.isFinite(duration) ||
+          duration < 1 ||
+          !Number.isFinite(questionCount) ||
+          questionCount < 1 ||
+          (qualificationCount !== null && (!Number.isFinite(qualificationCount) || qualificationCount < 1)) ||
+          Number.isNaN(new Date(startsAt).getTime())
+        );
+      });
+      if (invalidStage) {
+        Alert.alert("Stage setup", "Each stage needs a name, valid start time, duration, question count, and qualification count.");
+        return;
+      }
+    }
 
     try {
       setSaving(true);
       await adminService.createTournament({
         title,
         description,
+        campaign_type: campaignType,
         scheduled_at: scheduledAt.toISOString(),
         registration_closes_at: registrationClosesAt?.toISOString(),
         late_join_cutoff_at: lateJoinCutoffAt?.toISOString(),
@@ -426,6 +501,21 @@ export const AdminTournamentCreateScreen: React.FC = () => {
         audience_faculty: selectedFaculty || undefined,
         audience_department: selectedDepartment || undefined,
         source_material_ids: selectedMaterials.map((item) => item.id),
+        prediction_enabled: predictionEnabled,
+        prediction_prize_summary: predictionEnabled ? predictionPrizeSummary || undefined : undefined,
+        prediction_winner_count: predictionEnabled ? Number(predictionWinnerCount) || 1 : undefined,
+        prediction_closes_at: predictionEnabled ? predictionClosesAt?.toISOString() : undefined,
+        stages:
+          campaignType === "MULTI_STAGE"
+            ? stages.map((stage, index) => ({
+                name: stage.name,
+                stage_order: index + 1,
+                starts_at: (stage.starts_at.trim() ? new Date(stage.starts_at.trim()) : scheduledAt).toISOString(),
+                duration_minutes: Number(stage.duration_minutes) || 10,
+                question_count: Number(stage.question_count) || 10,
+                qualification_count: stage.qualification_count.trim() ? Number(stage.qualification_count) : undefined,
+              }))
+            : undefined,
       });
 
       Alert.alert("Tournament created", "Your new tournament campaign has been saved as a draft.");
@@ -442,6 +532,20 @@ export const AdminTournamentCreateScreen: React.FC = () => {
       setLateJoinCutoffAt(null);
       setCheckInOpensAt(null);
       setCheckInClosesAt(null);
+      setCampaignType("SIMPLE");
+      setPredictionEnabled(false);
+      setPredictionPrizeSummary("");
+      setPredictionWinnerCount("1");
+      setPredictionClosesAt(null);
+      setStages([
+        {
+          name: "Open Challenge",
+          starts_at: "",
+          duration_minutes: "30",
+          question_count: "10",
+          qualification_count: "1000",
+        },
+      ]);
     } catch (error: any) {
       Alert.alert("Unable to create tournament", error?.response?.data?.message || "Please check the tournament setup.");
     } finally {
@@ -483,12 +587,45 @@ export const AdminTournamentCreateScreen: React.FC = () => {
 
   const formatDate = (value: Date | null) => (value ? value.toLocaleString() : "");
 
+  const SegmentButton = ({
+    label,
+    active,
+    onPress,
+  }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+  }) => (
+    <TouchableOpacity
+      style={[
+        styles.segmentButton,
+        {
+          borderColor: active ? colors.primary : colors.border,
+          backgroundColor: active ? `${colors.primary}18` : colors.surfaceElevated,
+        },
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[typography.bodySmall, { color: active ? colors.primary : colors.textSecondary, fontWeight: "800" }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
     <Screen title="Create Tournament" scrollable>
       <View style={styles.container}>
         <Card style={{ ...styles.formCard, backgroundColor: colors.surface, borderColor: colors.border }}>
           <Text style={[typography.h3, { color: colors.textPrimary }]}>Challenge Setup</Text>
           <Input label="Challenge Title" placeholder="National GST 101 Challenge" value={title} onChangeText={setTitle} />
+
+          <View style={styles.fieldWrap}>
+            <Text style={[typography.caption, styles.fieldLabel, { color: colors.textSecondary }]}>Campaign Type</Text>
+            <View style={styles.segmentRow}>
+              <SegmentButton label="Simple" active={campaignType === "SIMPLE"} onPress={() => setCampaignType("SIMPLE")} />
+              <SegmentButton label="Multi-stage" active={campaignType === "MULTI_STAGE"} onPress={() => setCampaignType("MULTI_STAGE")} />
+            </View>
+          </View>
 
           <View style={styles.fieldWrap}>
             <Text style={[typography.caption, styles.fieldLabel, { color: colors.textSecondary }]}>Campaign Description</Text>
@@ -571,6 +708,108 @@ export const AdminTournamentCreateScreen: React.FC = () => {
           <FieldButton label="Late Join Cutoff" value={formatDate(lateJoinCutoffAt)} placeholder="Choose late-join cutoff" onPress={() => openDatePicker("lateJoinCutoffAt")} />
           <FieldButton label="Check-in Opens" value={formatDate(checkInOpensAt)} placeholder="Choose check-in start" onPress={() => openDatePicker("checkInOpensAt")} />
           <FieldButton label="Check-in Closes" value={formatDate(checkInClosesAt)} placeholder="Choose check-in end" onPress={() => openDatePicker("checkInClosesAt")} />
+
+          <View style={styles.fieldWrap}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleCopy}>
+                <Text style={[typography.caption, styles.fieldLabel, { color: colors.textSecondary }]}>Predictions</Text>
+                <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>Allow spectators to predict a winner</Text>
+              </View>
+              <Switch
+                value={predictionEnabled}
+                onValueChange={setPredictionEnabled}
+                trackColor={{ false: colors.border, true: `${colors.primary}80` }}
+                thumbColor={predictionEnabled ? colors.primary : colors.textMuted}
+              />
+            </View>
+          </View>
+
+          {predictionEnabled ? (
+            <View style={styles.nestedPanel}>
+              <Input
+                label="Prediction Prize Summary"
+                placeholder="N20,000 prediction draw"
+                value={predictionPrizeSummary}
+                onChangeText={setPredictionPrizeSummary}
+              />
+              <FieldButton
+                label="Prediction Closes"
+                value={formatDate(predictionClosesAt)}
+                placeholder="Choose prediction cutoff"
+                onPress={() => openDatePicker("predictionClosesAt")}
+              />
+              <Input
+                label="Prediction Winner Count"
+                placeholder="1"
+                value={predictionWinnerCount}
+                onChangeText={setPredictionWinnerCount}
+                keyboardType="number-pad"
+              />
+            </View>
+          ) : null}
+
+          {campaignType === "MULTI_STAGE" ? (
+            <View style={styles.stageBuilder}>
+              <View style={styles.sectionHeaderRow}>
+                <View>
+                  <Text style={[typography.caption, styles.fieldLabel, { color: colors.textSecondary }]}>Stages</Text>
+                  <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>Build the qualification path</Text>
+                </View>
+                <TouchableOpacity style={[styles.smallActionButton, { borderColor: colors.border }]} onPress={addStage}>
+                  <Plus size={15} color={colors.primary} />
+                  <Text style={[typography.caption, { color: colors.primary, fontWeight: "800" }]}>Add</Text>
+                </TouchableOpacity>
+              </View>
+
+              {stages.map((stage, index) => (
+                <View key={`${stage.name}-${index}`} style={[styles.stageDraftCard, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
+                  <View style={styles.stageDraftHeader}>
+                    <Text style={[typography.bodySmall, { color: colors.primary, fontWeight: "800" }]}>Stage {index + 1}</Text>
+                    <TouchableOpacity onPress={() => removeStage(index)} disabled={stages.length <= 1} style={styles.stageRemoveButton}>
+                      <Trash2 size={15} color={stages.length <= 1 ? colors.textMuted : "#EF4444"} />
+                    </TouchableOpacity>
+                  </View>
+                  <Input
+                    label="Stage Name"
+                    placeholder="Open Challenge"
+                    value={stage.name}
+                    onChangeText={(value) => updateStage(index, { name: value })}
+                  />
+                  <Input
+                    label="Starts At"
+                    placeholder={scheduledAt ? scheduledAt.toISOString() : "2026-07-01T10:00:00.000Z"}
+                    value={stage.starts_at}
+                    onChangeText={(value) => updateStage(index, { starts_at: value })}
+                  />
+                  <View style={styles.stageDraftGrid}>
+                    <Input
+                      label="Duration (min)"
+                      placeholder="30"
+                      value={stage.duration_minutes}
+                      onChangeText={(value) => updateStage(index, { duration_minutes: value })}
+                      keyboardType="number-pad"
+                      style={styles.stageDraftInput}
+                    />
+                    <Input
+                      label="Questions"
+                      placeholder="10"
+                      value={stage.question_count}
+                      onChangeText={(value) => updateStage(index, { question_count: value })}
+                      keyboardType="number-pad"
+                      style={styles.stageDraftInput}
+                    />
+                  </View>
+                  <Input
+                    label="Qualification Count"
+                    placeholder={index === stages.length - 1 ? "Leave blank for final" : "1000"}
+                    value={stage.qualification_count}
+                    onChangeText={(value) => updateStage(index, { qualification_count: value })}
+                    keyboardType="number-pad"
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           <Input label="Prize Summary" placeholder="N50,000 scholarship prize" value={prize} onChangeText={setPrize} />
           <Input label="Campaign Preheader" placeholder="Fast-paced showdown for engineering students" value={preheader} onChangeText={setPreheader} />
@@ -754,6 +993,79 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     fontSize: 12,
   },
+  segmentRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  segmentButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  toggleCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  nestedPanel: {
+    marginBottom: 20,
+    borderLeftWidth: 2,
+    borderLeftColor: defaultAccent,
+    paddingLeft: 12,
+  },
+  stageBuilder: {
+    marginBottom: 20,
+    gap: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  smallActionButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  stageDraftCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  stageDraftHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  stageRemoveButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stageDraftGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  stageDraftInput: {
+    flex: 1,
+  },
   bannerUploadButton: {
     borderWidth: 1,
     borderRadius: 12,
@@ -882,3 +1194,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+
