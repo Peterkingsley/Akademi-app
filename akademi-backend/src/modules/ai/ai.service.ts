@@ -77,9 +77,31 @@ export class AIService {
   private readonly boardImperativeNotePattern =
     /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
 
+  private repairDoubleEscapedLatex(value: string) {
+    // Model output sometimes double-escapes backslashes inside its JSON (e.g. "\\to" -> two literal
+    // backslash characters instead of one). A LaTeX command's backslash always sits directly against
+    // its letters with no separator, so any run of 2+ backslashes immediately followed by a letter can
+    // only be an over-escaped command, never a real line break - collapse it back to one backslash.
+    return value.replace(/\\{2,}(?=[A-Za-z])/g, '\\');
+  }
+
+  private hasBalancedBraces(value: string) {
+    let depth = 0;
+    for (const char of value) {
+      if (char === '{') depth += 1;
+      else if (char === '}') {
+        depth -= 1;
+        if (depth < 0) return false;
+      }
+    }
+    return depth === 0;
+  }
+
   private splitEquationChain(math: string) {
-    const compact = math.replace(/\s+/g, ' ').trim();
+    const compact = this.repairDoubleEscapedLatex(math.replace(/\s+/g, ' ').trim());
     if (!compact) return [];
+    // If the whole expression already has unbalanced braces, splitting can only make it worse.
+    if (!this.hasBalancedBraces(compact)) return [compact];
 
     const multilineParts = compact
       .split(/\s*\\\\\s*/)
@@ -97,7 +119,11 @@ export class AIService {
       return chained;
     };
 
-    return multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+    const candidate = multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+    // Never emit fragments that split a command in half (e.g. an errant "\\" landing inside "\lim_{x").
+    // If any piece comes out unbalanced, keep the original expression whole instead.
+    const allSegmentsValid = candidate.length > 0 && candidate.every((part) => this.hasBalancedBraces(part));
+    return allSegmentsValid ? candidate : [compact];
   }
 
   private expandWideBoardSteps(steps: Array<{ id: string; type: string; text: string; math: string; note: string }>) {
@@ -117,9 +143,11 @@ export class AIService {
         expanded.push({
           ...step,
           id: `${step.id}-${index + 1}`,
-          text: index === 0 ? step.text : index === segments.length - 1 ? 'Continue the simplification.' : 'Next transformation.',
+          // Carry the real explanation onto every fragment instead of a generic filler line - a
+          // repeated sentence still teaches something, an empty "Continue the simplification." card doesn't.
+          text: step.text,
           math: segment,
-          note: index === segments.length - 1 ? step.note : '',
+          note: step.note,
         });
       });
     });
@@ -130,7 +158,7 @@ export class AIService {
   private normalizeLatexExpression(value: string) {
     if (!value) return '';
 
-    let normalized = value.trim();
+    let normalized = this.repairDoubleEscapedLatex(value.trim());
 
     normalized = normalized
       .replace(/\$\$?/g, '')
