@@ -2,16 +2,24 @@ import { Difficulty, Feature } from '@prisma/client';
 import prisma from '../../config/db';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
+import { stripQuestionAnswer, stripQuestionAnswers } from '../../shared/utils/sanitize-question';
 
 function normalizeAnswer(answer: string) {
   return answer.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 export class QuestionsService {
+  // Public listing: never expose the answer key before an attempt.
   async getQuestions(filter: any) {
-    return prisma.question.findMany({
+    const questions = await prisma.question.findMany({
       where: filter,
     });
+    return stripQuestionAnswers(questions);
+  }
+
+  // Public single fetch: sanitized. Internal scoring uses getQuestionInternal.
+  async getPublicQuestion(id: string) {
+    return stripQuestionAnswer(await this.getQuestion(id));
   }
 
   async getQuestion(id: string) {

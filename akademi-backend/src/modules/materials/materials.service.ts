@@ -11,6 +11,7 @@ import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
 import { queueMaterialIngestion } from './material-processing';
 import { backfillTeacherBrains, regenerateTeacherBrain } from './teacher-brain.service';
+import { stripQuestionAnswers } from '../../shared/utils/sanitize-question';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -946,7 +947,8 @@ export class MaterialsService {
       throw new Error('No CBT questions are available for this material yet.');
     }
 
-    return this.shuffleQuestions(availableQuestions).slice(0, take);
+    // Never return the answer key before the student attempts the question.
+    return stripQuestionAnswers(this.shuffleQuestions(availableQuestions).slice(0, take));
   }
 
   async submitQuestionAttempts(

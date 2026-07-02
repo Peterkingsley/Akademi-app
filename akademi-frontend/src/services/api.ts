@@ -1,7 +1,7 @@
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/useAuthStore";
 import { captureFrontendException } from "../lib/sentry";
+import { readAccessToken, readRefreshToken, saveTokens } from "./tokenStorage";
 
 const DEFAULT_API_URLS = [
   "https://akademi-app-1.onrender.com",
@@ -87,31 +87,12 @@ const api = axios.create({
 });
 
 const readStoredRefreshToken = async () => {
-  let refreshToken = await AsyncStorage.getItem("refreshToken");
-
-  if (!refreshToken) {
-    const authStorage = await AsyncStorage.getItem("auth-storage");
-    if (authStorage) {
-      const parsed = JSON.parse(authStorage);
-      refreshToken = parsed.state?.refreshToken || null;
-    }
-  }
-
-  return refreshToken;
+  return readRefreshToken();
 };
 
 const persistRotatedTokens = async (accessToken: string, refreshToken: string) => {
-  await AsyncStorage.setItem("accessToken", accessToken);
-  await AsyncStorage.setItem("refreshToken", refreshToken);
+  await saveTokens(accessToken, refreshToken);
   useAuthStore.getState().updateTokens(accessToken, refreshToken);
-
-  const authStorage = await AsyncStorage.getItem("auth-storage");
-  if (authStorage) {
-    const parsed = JSON.parse(authStorage);
-    parsed.state.accessToken = accessToken;
-    parsed.state.refreshToken = refreshToken;
-    await AsyncStorage.setItem("auth-storage", JSON.stringify(parsed));
-  }
 };
 
 const refreshAccessToken = async () => {
@@ -145,21 +126,7 @@ const refreshAccessToken = async () => {
 
 // Request interceptor — attach token
 api.interceptors.request.use(async (config) => {
-  // Try to get token from AsyncStorage first
-  let token = await AsyncStorage.getItem("accessToken");
-
-  // If not in AsyncStorage, try to find it in the persisted auth-storage
-  if (!token) {
-    const authStorage = await AsyncStorage.getItem("auth-storage");
-    if (authStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        token = parsed.state?.accessToken;
-      } catch (e) {
-        console.error("Failed to parse auth-storage", e);
-      }
-    }
-  }
+  const token = await readAccessToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

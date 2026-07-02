@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearTokens, readStoredTokens, saveTokens } from "../services/tokenStorage";
 
 interface User {
   id: string;
@@ -43,13 +44,15 @@ export const useAuthStore = create<AuthState>()(
       hasSeenOnboarding: false,
       hasHydrated: false,
       setAuth: (user, accessToken, refreshToken) => {
-        AsyncStorage.setItem("accessToken", accessToken);
-        AsyncStorage.setItem("refreshToken", refreshToken);
+        void saveTokens(accessToken, refreshToken).catch((error) => {
+          console.error("Failed to save auth tokens securely", error);
+        });
         set({ user, accessToken, refreshToken, isAuthenticated: true });
       },
       updateTokens: (accessToken, refreshToken) => {
-        AsyncStorage.setItem("accessToken", accessToken);
-        AsyncStorage.setItem("refreshToken", refreshToken);
+        void saveTokens(accessToken, refreshToken).catch((error) => {
+          console.error("Failed to rotate auth tokens securely", error);
+        });
         set({ accessToken, refreshToken, isAuthenticated: true });
       },
       updateUser: (updatedUser) => {
@@ -58,7 +61,10 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
       clearAuth: () => {
-        AsyncStorage.multiRemove(["accessToken", "refreshToken", "auth-storage"]);
+        void clearTokens().catch((error) => {
+          console.error("Failed to clear secure auth tokens", error);
+        });
+        AsyncStorage.removeItem("auth-storage");
         set({
           user: null,
           accessToken: null,
@@ -73,8 +79,19 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-storage",
       storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        hasSeenOnboarding: state.hasSeenOnboarding,
+      }),
+      onRehydrateStorage: () => async (state) => {
+        const { accessToken, refreshToken } = await readStoredTokens();
+        useAuthStore.setState({
+          accessToken,
+          refreshToken,
+          isAuthenticated: Boolean(state?.user && accessToken && refreshToken),
+          hasHydrated: true,
+        });
       },
     },
   ),

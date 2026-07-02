@@ -3,6 +3,7 @@ import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as Speech from "expo-speech";
 import api, { currentApiBaseUrl } from "./api";
+import { readAccessToken } from "./tokenStorage";
 
 const AI_VOICE_ENABLED_KEY = "ai-voice-enabled";
 
@@ -325,20 +326,7 @@ export const speakAiText = async (content: string) => {
 };
 
 const getAccessToken = async () => {
-  let token = await AsyncStorage.getItem("accessToken");
-  if (!token) {
-    const authStorage = await AsyncStorage.getItem("auth-storage");
-    if (authStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        token = parsed.state?.accessToken || null;
-      } catch {
-        token = null;
-      }
-    }
-  }
-
-  return token;
+  return readAccessToken();
 };
 
 export const speakAiTextStream = async (sessionId: string, content: string) => {
