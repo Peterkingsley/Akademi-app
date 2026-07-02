@@ -1,9 +1,11 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
+import { assembleSystemPrompt, whiteboardMathSystemPrompt, graphSystemPrompt } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
+import { sampleFunction, findRoots, findYIntercept, findTurningPoints, Point } from './expression-evaluator';
+import { GraphSpec, GraphMarker, RawGraphResponse } from './graph.types';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
   return messages
@@ -400,6 +402,152 @@ Create a board replay plan for this solution.`,
     }
   }
 
+  private isGraphEligibleQuestion(studentMessage: string, session: { session_type: string }) {
+    if (session.session_type !== 'ASSIGNMENT') return false;
+
+    const text = studentMessage.toLowerCase();
+    const graphSignals = [
+      'plot',
+      'graph',
+      'sketch',
+      'draw the graph',
+      'draw a graph',
+      'pie chart',
+      'bar chart',
+      'bar graph',
+      'histogram',
+      'cumulative frequency',
+      'ogive',
+      'scatter plot',
+      'scatter diagram',
+      'scatter graph',
+      'line graph',
+      'demand curve',
+      'supply curve',
+      'supply and demand',
+      'frequency distribution',
+      'chart showing',
+      'pictogram',
+    ];
+
+    return graphSignals.some((signal) => text.includes(signal));
+  }
+
+  private normalizeGraphResponse(raw: RawGraphResponse | null | undefined): GraphSpec | null {
+    if (!raw || raw.eligible !== true || !raw.kind) return null;
+
+    const title = String(raw.title || 'Graph').trim().slice(0, 120) || 'Graph';
+    const xAxisLabel = String(raw.x_axis_label || '').trim().slice(0, 60);
+    const yAxisLabel = String(raw.y_axis_label || '').trim().slice(0, 60);
+    const caption = String(raw.caption || '').trim().slice(0, 220);
+
+    if (raw.kind === 'function_plot') {
+      const expression = String(raw.expression || '').trim();
+      const domainMin = Number(raw.domain_min);
+      const domainMax = Number(raw.domain_max);
+
+      if (!expression || !Number.isFinite(domainMin) || !Number.isFinite(domainMax) || domainMin >= domainMax) {
+        return null;
+      }
+
+      let points: Point[];
+      try {
+        points = sampleFunction(expression, domainMin, domainMax);
+      } catch (error) {
+        console.error('Graph expression evaluation failed:', error);
+        return null;
+      }
+
+      if (points.length < 2) return null;
+
+      const markers: GraphMarker[] = [];
+      findRoots(points).forEach((root, index) => {
+        markers.push({ x: root.x, y: root.y, label: index === 0 ? 'Root' : `Root ${index + 1}` });
+      });
+      const yIntercept = findYIntercept(expression, domainMin, domainMax);
+      if (yIntercept) markers.push({ x: yIntercept.x, y: yIntercept.y, label: 'y-intercept' });
+      findTurningPoints(points).forEach((point) => {
+        markers.push({ x: point.x, y: point.y, label: 'Turning point' });
+      });
+
+      return {
+        kind: 'function_plot',
+        title,
+        x_axis: { label: xAxisLabel || 'x', min: domainMin, max: domainMax },
+        y_axis: { label: yAxisLabel || 'y' },
+        series: [{ label: expression, points }],
+        markers,
+        caption,
+      };
+    }
+
+    if (raw.kind === 'pie_chart' || raw.kind === 'bar_chart') {
+      const segments = (raw.segments || [])
+        .map((segment) => ({ label: String(segment?.label || '').trim(), value: Number(segment?.value) }))
+        .filter((segment) => segment.label && Number.isFinite(segment.value) && segment.value >= 0)
+        .slice(0, 12);
+
+      if (segments.length < 2) return null;
+
+      return {
+        kind: raw.kind,
+        title,
+        x_axis: { label: xAxisLabel },
+        y_axis: { label: yAxisLabel },
+        segments,
+        caption,
+      };
+    }
+
+    if (raw.kind === 'line_chart' || raw.kind === 'scatter_plot') {
+      const series = (raw.series || [])
+        .map((entry) => ({
+          label: String(entry?.label || '').trim() || 'Series',
+          points: (entry?.points || [])
+            .map((point) => ({ x: Number(point?.x), y: Number(point?.y) }))
+            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
+        }))
+        .filter((entry) => entry.points.length >= 2)
+        .slice(0, 4);
+
+      if (series.length === 0) return null;
+
+      return {
+        kind: raw.kind,
+        title,
+        x_axis: { label: xAxisLabel },
+        y_axis: { label: yAxisLabel },
+        series,
+        caption,
+      };
+    }
+
+    return null;
+  }
+
+  private async buildGraphPayload(studentMessage: string, answer: string): Promise<GraphSpec | null> {
+    try {
+      const raw = await aiProvider.generateResponse(
+        `Question: ${studentMessage}
+
+Reference solution:
+${answer}
+
+Decide whether this needs a graph or chart, and if so extract the raw data for it.`,
+        {
+          systemPrompt: graphSystemPrompt,
+          maxTokens: 500,
+        }
+      );
+
+      const parsed = JSON.parse(this.extractJsonObject(raw)) as RawGraphResponse;
+      return this.normalizeGraphResponse(parsed);
+    } catch (error) {
+      console.error('Graph payload generation failed:', error);
+      return null;
+    }
+  }
+
   async getOrchestratedResponse(
     userId: string,
     sessionId: string,
@@ -522,9 +670,11 @@ Important:
       maxTokens: 1000,
     });
 
-    const whiteboardPayload = isCalculationQuestion
-      ? await this.buildWhiteboardPayload(studentMessage, aiResponseText)
-      : null;
+    const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
+    const [whiteboardPayload, graphPayload] = await Promise.all([
+      isCalculationQuestion ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+      isGraphQuestion ? this.buildGraphPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+    ]);
 
     // 6. Cache response
     if (!isFollowUp) {
@@ -540,6 +690,14 @@ Important:
                 available: true,
                 subject_family: 'quantitative',
                 payload: whiteboardPayload,
+              },
+            }
+          : {}),
+        ...(graphPayload
+          ? {
+              graph: {
+                available: true,
+                payload: graphPayload,
               },
             }
           : {}),

@@ -1,4 +1,5 @@
 import api from "./api";
+import { GraphSpec } from "../components/graph/types";
 
 export interface Session {
   id: string;
@@ -54,6 +55,10 @@ export interface Message {
       };
     };
     study_companion?: StudyCompanionState | null;
+    graph?: {
+      available?: boolean;
+      payload?: GraphSpec;
+    };
   };
   reply_mode?: string;
   created_at: string;
