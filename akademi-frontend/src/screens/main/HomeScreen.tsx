@@ -56,7 +56,7 @@ const QUICK_ACTIONS = [
     label: "Library",
     description: "Study materials",
     icon: Library,
-    tint: colors.primary,
+    tint: colors.accent,
     screen: "Library",
   },
   {
@@ -347,7 +347,7 @@ export const HomeScreen: React.FC = () => {
         title: `Strengthen ${weakness.topic || weakness.subject}`,
         description: `Use exam prep or study mode to close this gap before your next test.`,
         type: "weakness",
-        color: colors.primary,
+        color: colors.accent,
         metadata: {
           duration: "25m",
           sections: 1,
@@ -483,7 +483,7 @@ export const HomeScreen: React.FC = () => {
         </Text>
         <View style={styles.sessionFooter}>
           <Text style={styles.sessionType}>{getSessionTypeLabel(item)}</Text>
-          <ChevronRight size={16} color={colors.primary} />
+          <ChevronRight size={16} color={colors.accent} />
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -544,12 +544,12 @@ export const HomeScreen: React.FC = () => {
 
   const getContinueAccent = (session: Session, index: number) => {
     const type = session.session_type || session.type || "";
-    if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.primary, icon: FileText };
-    return { color: ["#304000", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
+    if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.accent, icon: FileText };
+    return { color: [colors.accent, "#3B82F6", "#A855F7"][index % 3], icon: FileText };
   };
 
   const getUpcomingAccent = (index: number) => {
-    return ["#F59E0B", "#304000", "#3B82F6"][index % 3];
+    return ["#F59E0B", colors.accent, "#3B82F6"][index % 3];
   };
 
   return (
@@ -642,7 +642,7 @@ export const HomeScreen: React.FC = () => {
                           <Text style={styles.campaignCtaText}>
                             {campaign.campaign_cta_label || "Open event"}
                           </Text>
-                          <ChevronRight size={16} color={colors.background} />
+                          <ChevronRight size={16} color="#FFFFFF" />
                         </View>
                       </View>
                     </View>
@@ -795,7 +795,7 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recommended next</Text>
-            <Sparkles size={17} color={colors.primary} />
+            <Sparkles size={17} color={colors.accent} />
           </View>
           {loading ? (
             <View>
@@ -809,7 +809,7 @@ export const HomeScreen: React.FC = () => {
               style={styles.emptyRecommendationCard}
               onPress={() => navigation.navigate("Library")}
             >
-              <BookOpen size={20} color={colors.primary} />
+              <BookOpen size={20} color={colors.accent} />
               <View style={styles.emptyRecommendationText}>
                 <Text style={styles.recommendationTitle}>Start from your library</Text>
                 <Text style={styles.recommendationDescription}>
@@ -825,7 +825,7 @@ export const HomeScreen: React.FC = () => {
 
         <View style={styles.tipPanel}>
           <View style={styles.tipIcon}>
-            <Sparkles size={16} color={colors.primary} />
+            <Sparkles size={16} color={colors.accent} />
           </View>
           <Text style={styles.tipText}>{dailyTip}</Text>
         </View>
@@ -857,7 +857,7 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.tourNextText}>
                 {tourStepIndex === HOME_TOUR_STEPS.length - 1 ? "Finish tour" : "Next"}
               </Text>
-              <ChevronRight size={18} color={colors.background} />
+              <ChevronRight size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -1006,7 +1006,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignCtaText: {
     ...typography.h4,
-    color: colors.background,
+    color: "#FFFFFF",
     marginRight: 6,
   },
   campaignDots: {
@@ -1066,7 +1066,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     width: "48.5%",
   },
   actionTileTourTarget: {
-    borderColor: colors.primary,
+    borderColor: colors.accent,
     borderWidth: 2,
     backgroundColor: colors.surface,
   },
@@ -1134,7 +1134,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   seeAll: {
     ...typography.h4,
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 12,
   },
   dualPanelSkeleton: {
@@ -1169,7 +1169,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     alignSelf: "flex-start",
     backgroundColor: "rgba(34,197,94,0.14)",
     borderRadius: 8,
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 10,
     marginBottom: 4,
     overflow: "hidden",
@@ -1198,7 +1198,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   resumeButtonText: {
     ...typography.h4,
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 12,
   },
   upcomingRow: {
@@ -1274,7 +1274,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     ...typography.mono,
     backgroundColor: "rgba(34,197,94,0.1)",
     borderRadius: 5,
-    color: colors.primary,
+    color: colors.accent,
     fontSize: 9,
     overflow: "hidden",
     paddingHorizontal: 7,
@@ -1426,7 +1426,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   tourStep: {
     ...typography.label,
-    color: colors.primary,
+    color: colors.accent,
     letterSpacing: 0,
   },
   tourSkipButton: {
@@ -1478,7 +1478,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   tourNextText: {
     ...typography.h4,
-    color: colors.background,
+    color: "#FFFFFF",
     marginRight: 6,
   },
 });
