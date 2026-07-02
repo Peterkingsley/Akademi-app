@@ -93,9 +93,24 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, data: UpdateProfileRequest) {
+    // SECURITY: never spread raw request body into a Prisma update. Explicitly
+    // whitelist the fields a user is allowed to change on their own profile so
+    // sensitive columns (email, is_verified, is_banned, password_hash, etc.)
+    // can never be mass-assigned via PATCH /users/me.
+    const allowed: Record<string, unknown> = {};
+    if (typeof data.name === 'string') allowed.name = data.name;
+    if (typeof data.university === 'string') allowed.university = data.university;
+    if (typeof data.faculty === 'string') allowed.faculty = data.faculty;
+    if (typeof data.department === 'string') allowed.department = data.department;
+    if (typeof data.level === 'number') allowed.level = data.level;
+    if (typeof data.push_token === 'string') allowed.push_token = data.push_token;
+    if (Array.isArray(data.courses)) {
+      allowed.courses = data.courses.filter((code): code is string => typeof code === 'string');
+    }
+
     return prisma.user.update({
       where: { id: userId, is_deleted: false },
-      data,
+      data: allowed,
       select: {
         id: true,
         name: true,

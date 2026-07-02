@@ -14,16 +14,14 @@ export const adminAuthenticate = async (req: Request, res: Response, next: NextF
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as any;
+    const decoded = jwt.verify(token, config.jwtSecret) as Partial<AdminJwtPayload>;
 
-    // Look up admin by ID if present, otherwise fallback to email (to support user-flow login)
-    const admin = await prisma.admin.findFirst({
-      where: {
-        OR: [
-          { id: decoded.adminId || undefined },
-          { email: decoded.email }
-        ]
-      }
+    if (!decoded.adminId || typeof decoded.adminId !== 'string') {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const admin = await prisma.admin.findUnique({
+      where: { id: decoded.adminId }
     });
 
     if (!admin) {

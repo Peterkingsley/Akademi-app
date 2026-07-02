@@ -8,13 +8,43 @@ import { config } from '../../config/env';
 import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest, VerifyEmailRequest } from './auth.types';
 import { AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
+import redisClient from '../../config/redis';
 
 const resend = new Resend(config.resendApiKey);
 const googleClient = new OAuth2Client(config.googleOauthClientId);
 
+// Lock an account's verification code after this many failed attempts within
+// the window, so the 6-digit space cannot be brute-forced even across IPs.
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_LOCK_WINDOW_SECONDS = 15 * 60;
+
 export class AuthService {
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  // Cryptographically secure 6-digit code (crypto.randomInt, not Math.random).
+  private generateVerificationCode(): string {
+    return crypto.randomInt(100000, 1000000).toString();
+  }
+
+  private verifyAttemptKey(email: string): string {
+    return `verify-attempts:${email.trim().toLowerCase()}`;
+  }
+
+  private async assertVerifyAttemptsRemaining(email: string): Promise<void> {
+    const key = this.verifyAttemptKey(email);
+    const attempts = await redisClient.incr(key);
+    if (attempts === 1) {
+      await redisClient.expire(key, VERIFY_LOCK_WINDOW_SECONDS);
+    }
+    if (attempts > MAX_VERIFY_ATTEMPTS) {
+      throw new Error('Too many verification attempts. Request a new code and try again later.');
+    }
+  }
+
+  private async clearVerifyAttempts(email: string): Promise<void> {
+    await redisClient.del(this.verifyAttemptKey(email));
   }
 
   private generateAccessToken(payload: JwtPayload): string {
@@ -96,7 +126,7 @@ export class AuthService {
       passwordHash = await bcrypt.hash(data.password, 12);
     }
 
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = this.generateVerificationCode();
     const verificationTokenExpiresAt = new Date();
     verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 
@@ -177,8 +207,19 @@ export class AuthService {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<AuthResponse> {
+    if (!data.email || !data.token) {
+      throw new Error('Email and verification code are required');
+    }
+
+    // Throttle per-account attempts before doing any lookup so the 6-digit code
+    // cannot be brute-forced (even from many IPs) within its 15-minute TTL.
+    await this.assertVerifyAttemptsRemaining(data.email);
+
+    // Match the code against the specific account only — never look up a code
+    // globally across all users.
     const user = await prisma.user.findFirst({
       where: {
+        email: data.email,
         verification_token: data.token,
         verification_token_expires_at: { gt: new Date() },
         is_deleted: false,
@@ -188,6 +229,8 @@ export class AuthService {
     if (!user) {
       throw new Error('Invalid or expired verification token');
     }
+
+    await this.clearVerifyAttempts(data.email);
 
     const verifiedUser = await prisma.user.update({
       where: { id: user.id },
@@ -366,7 +409,7 @@ export class AuthService {
           from: 'Akademi <onboarding@resend.dev>',
           to: user.email,
           subject: 'Reset your password',
-          html: `<p>Click <a href="https://onboarding@resend.dev/reset-password?token=${resetToken}">here</a> to reset your password.</p>`,
+          html: `<p>Click <a href="${config.passwordResetUrl}?token=${encodeURIComponent(resetToken)}">here</a> to reset your password.</p>`,
         });
       } catch (emailError) {
         console.error('Failed to send forgot password email:', emailError);
@@ -408,11 +451,14 @@ export class AuthService {
 
   async resendVerification(email: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { email, is_deleted: false } });
+    // Do not reveal whether the account exists or is already verified — mirror
+    // forgotPassword's behaviour so this endpoint can't be used to enumerate
+    // registered accounts. Silently succeed in the no-op cases.
     if (!user || user.is_verified) {
-      throw new Error('User not found or already verified');
+      return;
     }
 
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = this.generateVerificationCode();
     const verificationTokenExpiresAt = new Date();
     verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 

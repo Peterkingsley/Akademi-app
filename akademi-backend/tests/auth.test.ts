@@ -64,7 +64,10 @@ describe('Auth Module', () => {
     await request(app).post('/auth/register').send(registerData);
     let user = await prisma.user.findUnique({ where: { email: registerData.email } });
 
-    await request(app).post('/auth/verify-email').send({ token: user?.verification_token });
+    await request(app).post('/auth/verify-email').send({
+      email: registerData.email,
+      token: user?.verification_token,
+    });
 
     const res = await request(app).post('/auth/login').send(loginData);
     expect(res.status).toBe(200);
@@ -78,7 +81,10 @@ describe('Auth Module', () => {
     if (!process.env.DATABASE_URL) return;
     await request(app).post('/auth/register').send(registerData);
     const user = await prisma.user.findUnique({ where: { email: registerData.email } });
-    await request(app).post('/auth/verify-email').send({ token: user?.verification_token });
+    await request(app).post('/auth/verify-email').send({
+      email: registerData.email,
+      token: user?.verification_token,
+    });
 
     const loginRes = await request(app).post('/auth/login').send(loginData);
     const { refreshToken } = loginRes.body;
@@ -95,7 +101,10 @@ describe('Auth Module', () => {
     if (!process.env.DATABASE_URL) return;
     await request(app).post('/auth/register').send(registerData);
     const user = await prisma.user.findUnique({ where: { email: registerData.email } });
-    await request(app).post('/auth/verify-email').send({ token: user?.verification_token });
+    await request(app).post('/auth/verify-email').send({
+      email: registerData.email,
+      token: user?.verification_token,
+    });
 
     const loginRes = await request(app).post('/auth/login').send(loginData);
     const { accessToken, refreshToken } = loginRes.body;

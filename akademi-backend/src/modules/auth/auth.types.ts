@@ -42,6 +42,7 @@ export interface LoginRequest {
 }
 
 export interface VerifyEmailRequest {
+  email: string;
   token: string;
   deviceInfo?: {
     name: string;
