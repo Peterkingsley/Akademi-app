@@ -14,7 +14,10 @@ const AKADEMI_PUBLIC_ORIGINS = [
 ];
 
 export const getAllowedOrigins = (): string[] => {
-  const configured = config.corsAllowedOrigins;
+  const configured = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   const publicOrigins = [...new Set([...configured, ...AKADEMI_PUBLIC_ORIGINS])];
   if (config.nodeEnv === 'production' || config.nodeEnv === 'staging') {
     return publicOrigins;
