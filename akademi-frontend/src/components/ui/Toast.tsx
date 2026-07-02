@@ -1,14 +1,16 @@
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet, ViewStyle } from "react-native";
+import { Text, StyleSheet } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withDelay,
   withSequence,
+  withSpring,
   runOnJS,
 } from "react-native-reanimated";
-import { colors } from "../../theme/colors";
+import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react-native";
+import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 
 interface ToastProps {
@@ -24,15 +26,18 @@ export const Toast: React.FC<ToastProps> = ({
   onHide,
   duration = 3000,
 }) => {
+  const { colors } = useTheme();
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const translateY = useSharedValue(30);
+  const scale = useSharedValue(0.85);
+  const iconScale = useSharedValue(0);
 
   useEffect(() => {
     opacity.value = withSequence(
-      withTiming(1, { duration: 300 }),
+      withTiming(1, { duration: 180 }),
       withDelay(
         duration,
-        withTiming(0, { duration: 300 }, (finished) => {
+        withTiming(0, { duration: 220 }, (finished) => {
           if (finished && onHide) {
             runOnJS(onHide)();
           }
@@ -40,14 +45,23 @@ export const Toast: React.FC<ToastProps> = ({
       ),
     );
     translateY.value = withSequence(
-      withTiming(0, { duration: 300 }),
-      withDelay(duration, withTiming(20, { duration: 300 })),
+      withSpring(0, { damping: 11, stiffness: 220, mass: 0.6 }),
+      withDelay(duration, withTiming(24, { duration: 220 })),
     );
+    scale.value = withSequence(
+      withSpring(1, { damping: 9, stiffness: 240, mass: 0.6 }),
+      withDelay(duration, withTiming(0.9, { duration: 220 })),
+    );
+    iconScale.value = withDelay(90, withSpring(1, { damping: 7, stiffness: 260 }));
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const containerStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+  }));
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
   }));
 
   const getBackgroundColor = () => {
@@ -62,14 +76,19 @@ export const Toast: React.FC<ToastProps> = ({
     }
   };
 
+  const Icon = type === "error" ? XCircle : type === "warning" ? AlertTriangle : CheckCircle2;
+
   return (
     <Animated.View
       style={[
         styles.container,
         { backgroundColor: getBackgroundColor() },
-        animatedStyle,
+        containerStyle,
       ]}
     >
+      <Animated.View style={iconStyle}>
+        <Icon size={18} color="#FFFFFF" />
+      </Animated.View>
       <Text style={[styles.text, typography.bodySmall, { fontWeight: "600" }]}>
         {message}
       </Text>
@@ -88,6 +107,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
     zIndex: 9999,
   },
   text: {

@@ -8,14 +8,11 @@ import {
   TextStyle,
   View,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+import { usePressBounce } from "../../hooks/usePressBounce";
 
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
@@ -44,21 +41,26 @@ export const Button: React.FC<ButtonProps> = ({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const displayLabel = label || title || "";
-  const scale = useSharedValue(1);
+  const { animatedStyle, onPressIn, onPressOut } = usePressBounce(0.93);
+  const shade = useSharedValue(0);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+  const shadeStyle = useAnimatedStyle(() => ({
+    opacity: shade.value,
   }));
 
   const handlePressIn = () => {
     if (!disabled && !loading) {
-      scale.value = withSpring(0.97);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPressIn();
+      shade.value = withTiming(0.14, { duration: 80 });
+      Haptics.impactAsync(
+        variant === "primary" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+      );
     }
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1);
+    onPressOut();
+    shade.value = withTiming(0, { duration: 220 });
   };
 
   const getVariantStyle = (): ViewStyle => {
@@ -97,16 +99,18 @@ export const Button: React.FC<ButtonProps> = ({
         styles.base,
         getVariantStyle(),
         style,
+        animatedStyle,
         (disabled || loading) && styles.disabled,
       ]}
       accessibilityRole="button"
       accessibilityLabel={displayLabel}
     >
+      <Animated.View pointerEvents="none" style={[styles.shade, shadeStyle]} />
       <View style={styles.content}>
         {loading ? (
           <ActivityIndicator color={variant === "outline" ? colors.primary : "#FFFFFF"} size="small" />
         ) : (
-          <Animated.View style={[styles.innerContent, animatedStyle]}>
+          <View style={styles.innerContent}>
             {icon && (
               <View style={styles.iconContainer}>{icon}</View>
             )}
@@ -115,7 +119,7 @@ export const Button: React.FC<ButtonProps> = ({
             >
               {displayLabel}
             </Text>
-          </Animated.View>
+          </View>
         )}
       </View>
     </AnimatedTouchableOpacity>
@@ -129,6 +133,11 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
+    overflow: "hidden",
+  },
+  shade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
   },
   primary: {
     backgroundColor: colors.primary,
