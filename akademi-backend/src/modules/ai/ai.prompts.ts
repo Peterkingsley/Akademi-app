@@ -280,4 +280,8 @@ Rules:
 - "final_answer" should state the answer plainly in student-friendly language.
 - "final_answer_math" should show the concise final result in math form where useful.
 - "summary" must end with one short, concrete self-check question the student can use immediately, such as checking the sign, plugging the answer back in, or judging whether the magnitude is reasonable.
-- The replay should feel useful even if the student opens it later without the original conversation.`;
+- The replay should feel useful even if the student opens it later without the original conversation.
+- Every backslash in "math" must be a single backslash (\\to, \\lim, \\frac, \\sqrt). Never write a doubled backslash like \\\\to or \\\\text - that is invalid and will fail to render.
+- Only use "\\\\" (double backslash) inside "math" if you genuinely mean a new display line within that one step, and only with a space on both sides of it. Do not let it land in the middle of a command.
+- Never wrap part of "math" in \\color{...} or any other manual styling macro to draw attention to it. If a step needs emphasis, set that step's "type" to "highlight" instead - the app already renders highlighted steps with their own visual treatment.
+- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.`;

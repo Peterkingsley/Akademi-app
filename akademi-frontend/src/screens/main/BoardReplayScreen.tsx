@@ -27,6 +27,25 @@ type BoardStep = {
   note: string;
 };
 
+// Defense in depth: even if a malformed LaTeX fragment slips through the backend, never show its raw
+// broken source to the student - KaTeX renders unbalanced braces as visible red error text.
+const hasBalancedBraces = (value: string) => {
+  let depth = 0;
+  for (const char of value) {
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+};
+
+const isRenderableMath = (value?: string) => !!value && !!value.trim() && hasBalancedBraces(value);
+
+const isMeaningfulStep = (step: BoardStep) =>
+  !!step.text.trim() || isRenderableMath(step.math) || !!step.note.trim();
+
 export const BoardReplayScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -72,7 +91,7 @@ export const BoardReplayScreen: React.FC = () => {
         const payload = firstAiWithBoard.metadata.whiteboard.payload;
         setQuestion(studentMessage?.content || "");
         setTitle(payload.title || "Board walkthrough");
-        setSteps(payload.steps || []);
+        setSteps((payload.steps || []).filter(isMeaningfulStep));
         setFinalAnswer(payload.final_answer || "");
         setFinalAnswerMath(payload.final_answer_math || "");
         setSummary(payload.summary || "");
@@ -172,9 +191,9 @@ export const BoardReplayScreen: React.FC = () => {
                 {!!step.text && (
                   <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
                 )}
-                {!!step.math && (
+                {isRenderableMath(step.math) && (
                   <View style={styles.mathBlock}>
-                    <MathFormula latex={step.math} fontSize={17} />
+                    <MathFormula latex={step.math!} fontSize={17} />
                   </View>
                 )}
                 {!!step.note && (
@@ -193,7 +212,7 @@ export const BoardReplayScreen: React.FC = () => {
         {currentStep >= steps.length && (
           <View style={styles.answerCard}>
             <Text style={styles.answerLabel}>Worked answer</Text>
-            {!!finalAnswerMath ? (
+            {isRenderableMath(finalAnswerMath) ? (
               <View style={styles.finalMathBlock}>
                 <MathFormula latex={finalAnswerMath} fontSize={21} />
               </View>
