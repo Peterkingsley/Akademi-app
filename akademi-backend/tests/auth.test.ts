@@ -46,9 +46,45 @@ describe('Auth Module', () => {
     expect(user).toBeDefined();
     expect(user?.is_verified).toBe(false);
     expect(user?.verification_token?.length).toBe(6); // New OTP length
+    expect(user?.courses).toEqual([]);
 
     const profile = await prisma.learningProfile.findUnique({ where: { user_id: user?.id } });
     expect(profile).toBeDefined();
+  });
+
+  it('should register a new user who provides course codes and semester dates', async () => {
+    if (!process.env.DATABASE_URL) return;
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        ...registerData,
+        email: 'withcourses@example.com',
+        semester: 1,
+        semesterStart: '2026-01-01',
+        semesterEnd: '2026-05-01',
+        courses: ['CSC 101'],
+      });
+    expect(res.status).toBe(201);
+
+    const user = await prisma.user.findUnique({ where: { email: 'withcourses@example.com' } });
+    expect(user?.courses).toEqual(['CSC 101']);
+
+    const studentCourses = await prisma.studentCourse.findMany({ where: { user_id: user?.id } });
+    expect(studentCourses).toHaveLength(1);
+    expect(studentCourses[0].code).toBe('CSC 101');
+  });
+
+  it('should reject a registration that provides a course code but no semester dates', async () => {
+    if (!process.env.DATABASE_URL) return;
+    const res = await request(app)
+      .post('/auth/register')
+      .send({
+        ...registerData,
+        email: 'missingdates@example.com',
+        courses: ['CSC 101'],
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('Semester is required');
   });
 
   it('should not login if email is not verified', async () => {

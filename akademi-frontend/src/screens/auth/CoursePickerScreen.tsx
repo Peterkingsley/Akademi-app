@@ -148,6 +148,18 @@ export const CoursePickerScreen: React.FC = () => {
     });
   };
 
+  const handleSkip = () => {
+    // Course codes and semester dates aren't required to create an account —
+    // a student may not have them on hand right now. They can add this later
+    // from their profile, so we just carry the school details forward.
+    navigation.navigate("Register", {
+      university,
+      faculty,
+      department,
+      level,
+    });
+  };
+
   const renderSuggestion = ({ item }: { item: CourseSuggestion }) => {
     const isSelected = selectedCodes.has(item.code);
     return (
@@ -195,7 +207,7 @@ export const CoursePickerScreen: React.FC = () => {
               <Text style={styles.stepText}>STEP 3 OF 4</Text>
               <Text style={styles.headline}>Add your course codes</Text>
               <Text style={styles.subtext}>
-                Course codes are required. Pick suggestions from your department or type your own.
+                Pick suggestions from your department or type your own. Don't have them handy? You can skip this and add them later from your profile.
               </Text>
 
               <View style={styles.contextCard}>
@@ -314,10 +326,15 @@ export const CoursePickerScreen: React.FC = () => {
         />
 
         <View style={styles.bottomBar}>
-          <View style={styles.countPill}>
-            <Text style={styles.countText}>{selectedCourses.length} ADDED</Text>
+          <View style={styles.bottomBarRow}>
+            <View style={styles.countPill}>
+              <Text style={styles.countText}>{selectedCourses.length} ADDED</Text>
+            </View>
+            <Button label="Continue" onPress={handleDone} disabled={loading} style={styles.doneButton} />
           </View>
-          <Button label="Continue" onPress={handleDone} disabled={loading} style={styles.doneButton} />
+          <TouchableOpacity onPress={handleSkip} activeOpacity={0.85} style={styles.skipButton}>
+            <Text style={styles.skipButtonText}>Skip for now — I'll add this later</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Screen>
@@ -331,7 +348,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     flexGrow: 1,
-    paddingBottom: 154,
+    paddingBottom: 190,
   },
   stepText: {
     ...typography.label,
@@ -590,17 +607,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   bottomBar: {
-    alignItems: "center",
     backgroundColor: colors.background,
     borderTopColor: colors.border,
     borderTopWidth: 1,
     bottom: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
     left: 0,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
     position: "absolute",
     right: 0,
+  },
+  bottomBarRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  skipButton: {
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  skipButtonText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   countPill: {
     backgroundColor: colors.surfaceElevated,

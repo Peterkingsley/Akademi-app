@@ -85,35 +85,43 @@ export class AuthService {
       throw new Error("Invalid email format");
     }
 
-    const semester = Number(data.semester);
-    if (![1, 2].includes(semester)) {
-      throw new Error("Semester is required");
-    }
-
-    if (!data.semesterStart || !data.semesterEnd) {
-      throw new Error("Semester start and end dates are required");
-    }
-
-    const semesterStart = new Date(data.semesterStart);
-    const semesterEnd = new Date(data.semesterEnd);
-    if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime()) || semesterEnd <= semesterStart) {
-      throw new Error("Enter valid semester start and end dates");
-    }
-
     const rawAcademicCourses: Array<{ code: string; name?: string; level?: number; semester?: number }> =
       data.academicCourses || data.courses?.map((code) => ({ code })) || [];
 
-    const academicCourses = rawAcademicCourses
-      .map((course) => ({
-        code: course.code?.trim().toUpperCase(),
-        name: course.name?.trim() || null,
-        level: course.level || data.level,
-        semester: course.semester || semester,
-      }))
-      .filter((course) => !!course.code);
+    // Course codes and semester dates are optional at sign-up — a student may
+    // not have them on hand (e.g. away from their course form). They can add
+    // this later from their profile, so we only enforce it when they did
+    // provide at least one course code.
+    let semester: number | null = null;
+    let semesterStart: Date | null = null;
+    let semesterEnd: Date | null = null;
+    let academicCourses: Array<{ code: string; name: string | null; level: number; semester: number }> = [];
 
-    if (academicCourses.length === 0) {
-      throw new Error("At least one course code is required");
+    if (rawAcademicCourses.length > 0) {
+      semester = Number(data.semester);
+      if (![1, 2].includes(semester)) {
+        throw new Error("Semester is required");
+      }
+
+      if (!data.semesterStart || !data.semesterEnd) {
+        throw new Error("Semester start and end dates are required");
+      }
+
+      semesterStart = new Date(data.semesterStart);
+      semesterEnd = new Date(data.semesterEnd);
+      if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime()) || semesterEnd <= semesterStart) {
+        throw new Error("Enter valid semester start and end dates");
+      }
+
+      const resolvedSemester = semester;
+      academicCourses = rawAcademicCourses
+        .map((course) => ({
+          code: course.code?.trim().toUpperCase() || "",
+          name: course.name?.trim() || null,
+          level: course.level || data.level,
+          semester: course.semester || resolvedSemester,
+        }))
+        .filter((course) => !!course.code);
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
@@ -162,19 +170,21 @@ export class AuthService {
         },
       });
 
-      await tx.studentCourse.createMany({
-        data: academicCourses.map((course) => ({
-          user_id: createdUser.id,
-          department_id: department.id,
-          code: course.code,
-          name: course.name,
-          level: course.level,
-          semester: course.semester,
-          semester_start: semesterStart,
-          semester_end: semesterEnd,
-        })),
-        skipDuplicates: true,
-      });
+      if (academicCourses.length > 0 && semesterStart && semesterEnd) {
+        await tx.studentCourse.createMany({
+          data: academicCourses.map((course) => ({
+            user_id: createdUser.id,
+            department_id: department.id,
+            code: course.code,
+            name: course.name,
+            level: course.level,
+            semester: course.semester,
+            semester_start: semesterStart,
+            semester_end: semesterEnd,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       await tx.learningProfile.create({
         data: {
