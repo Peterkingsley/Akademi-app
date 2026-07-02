@@ -147,6 +147,33 @@ export interface DepartmentCoverage {
   lastUpdated?: string;
 }
 
+export interface SchoolCoverageAudit {
+  generatedAt: string;
+  summary: {
+    totalSchools: number;
+    completeSchools: number;
+    incompleteSchools: number;
+    needsEnrichmentSchools: number;
+    placeholderOnlySchools: number;
+    missingDepartmentSchools: number;
+    lowDepartmentSchools: number;
+    totalDepartments: number;
+    totalFaculties: number;
+  };
+  schools: Array<{
+    id: string;
+    name: string;
+    location?: string | null;
+    departmentCount: number;
+    facultyCount: number;
+    hasPlaceholderDepartment: boolean;
+    hasPlaceholderFaculty: boolean;
+    isPlaceholderOnly: boolean;
+    status: 'complete' | 'needs_enrichment' | 'placeholder_only' | 'missing_departments';
+    recommendedAction: string;
+  }>;
+}
+
 export interface AdminAccount {
   id: string;
   name: string;
@@ -204,6 +231,7 @@ export interface WaitlistResponse {
     invitedCount: number;
     neverSentCount: number;
     byNeed: { need: string; count: number }[];
+    topUniversity?: { name: string; count: number; share: number } | null;
     byUniversity: { name: string; count: number }[];
     byFaculty: { name: string; count: number }[];
     byDepartment: { name: string; count: number }[];
@@ -537,6 +565,11 @@ export const adminService = {
 
   getDepartmentCoverage: async (): Promise<DepartmentCoverage[]> => {
     const { data } = await api.get("/admin/documents/coverage");
+    return data;
+  },
+
+  getSchoolCoverageAudit: async (): Promise<SchoolCoverageAudit> => {
+    const { data } = await api.get("/admin/schools/coverage-audit");
     return data;
   },
 

@@ -438,6 +438,15 @@ export class AdminController {
     }
   }
 
+  async getSchoolCoverageAudit(req: Request, res: Response) {
+    try {
+      const audit = await adminService.getSchoolCoverageAudit();
+      res.json(audit);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   // Pillar 5: Platform Analytics
   async getOverviewAnalytics(req: Request, res: Response) {
     try {

@@ -481,6 +481,14 @@ export class AdminService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
+    const universitySummary = mapSummary(byUniversity as any, 'university');
+    const topUniversity = universitySummary[0]
+      ? {
+          ...universitySummary[0],
+          share: total > 0 ? Math.round((universitySummary[0].count / total) * 100) : 0,
+        }
+      : null;
+
     return {
       entries,
       total,
@@ -498,7 +506,8 @@ export class AdminService {
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 6),
-        byUniversity: mapSummary(byUniversity as any, 'university'),
+        topUniversity,
+        byUniversity: universitySummary,
         byFaculty: mapSummary(byFaculty as any, 'faculty'),
         byDepartment: mapSummary(byDepartment as any, 'department'),
       },
@@ -1226,6 +1235,102 @@ export class AdminService {
     });
 
     return coverage;
+  }
+
+
+  private readonly placeholderFaculties = new Set(['General Studies', 'Technical and Vocational Studies', 'Education']);
+  private readonly placeholderDepartments = new Set(['General Studies', 'General Technical Studies', 'General Education']);
+
+  private assessSchoolCoverage(university: { departments: Array<{ name: string; faculty: string }> }) {
+    const departmentCount = university.departments.length;
+    const faculties = new Set(university.departments.map((dept) => dept.faculty).filter(Boolean));
+    const placeholderDepartmentCount = university.departments.filter((dept) => this.placeholderDepartments.has(dept.name)).length;
+    const placeholderFacultyCount = university.departments.filter((dept) => this.placeholderFaculties.has(dept.faculty)).length;
+    const hasPlaceholderDepartment = placeholderDepartmentCount > 0;
+    const hasPlaceholderFaculty = placeholderFacultyCount > 0;
+    const isPlaceholderOnly = departmentCount > 0 && placeholderDepartmentCount === departmentCount;
+
+    let status: 'complete' | 'needs_enrichment' | 'placeholder_only' | 'missing_departments' = 'complete';
+    let recommendedAction = 'Keep monitoring and refresh against official school sources periodically.';
+
+    if (departmentCount === 0) {
+      status = 'missing_departments';
+      recommendedAction = 'Add faculties and departments from the school website or regulator programme list.';
+    } else if (isPlaceholderOnly) {
+      status = 'placeholder_only';
+      recommendedAction = 'Replace placeholder faculty/department with real faculties and departments.';
+    } else if (departmentCount <= 1 || faculties.size <= 1 || hasPlaceholderDepartment || hasPlaceholderFaculty) {
+      status = 'needs_enrichment';
+      recommendedAction = 'Review this school for missing faculties/departments and merge in verified data.';
+    }
+
+    return {
+      departmentCount,
+      facultyCount: faculties.size,
+      hasPlaceholderDepartment,
+      hasPlaceholderFaculty,
+      isPlaceholderOnly,
+      status,
+      recommendedAction,
+    };
+  }
+
+  async getSchoolCoverageAudit() {
+    const universities = await prisma.university.findMany({
+      include: {
+        departments: {
+          select: { name: true, faculty: true },
+          orderBy: [{ faculty: 'asc' }, { name: 'asc' }],
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const schools = universities.map((university) => {
+      const assessment = this.assessSchoolCoverage(university);
+
+      return {
+        id: university.id,
+        name: university.name,
+        location: university.location,
+        ...assessment,
+      };
+    });
+
+    const summary = schools.reduce(
+      (acc, school) => {
+        acc.totalSchools += 1;
+        acc.totalDepartments += school.departmentCount;
+        acc.totalFaculties += school.facultyCount;
+        if (school.status === 'complete') acc.completeSchools += 1;
+        if (school.status === 'needs_enrichment') acc.needsEnrichmentSchools += 1;
+        if (school.status === 'placeholder_only') acc.placeholderOnlySchools += 1;
+        if (school.status === 'missing_departments') acc.missingDepartmentSchools += 1;
+        if (school.departmentCount <= 1) acc.lowDepartmentSchools += 1;
+        return acc;
+      },
+      {
+        totalSchools: 0,
+        completeSchools: 0,
+        needsEnrichmentSchools: 0,
+        placeholderOnlySchools: 0,
+        missingDepartmentSchools: 0,
+        lowDepartmentSchools: 0,
+        totalDepartments: 0,
+        totalFaculties: 0,
+      }
+    );
+
+    const incompleteSchools = schools.filter((school) => school.status !== 'complete').length;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      summary: {
+        ...summary,
+        incompleteSchools,
+      },
+      schools,
+    };
   }
 
   // Pillar 5: Platform Analytics
