@@ -76,7 +76,7 @@ const statusColors = {
   NOT_STARTED: "#52525B",
   IN_PROGRESS: "#3B82F6",
   NEEDS_REVIEW: "#F59E0B",
-  MASTERED: "#AFE607",
+  MASTERED: "#304000",
 } as const;
 
 const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {

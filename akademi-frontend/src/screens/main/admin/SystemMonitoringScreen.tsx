@@ -52,7 +52,7 @@ export const SystemMonitoringScreen: React.FC = () => {
   const HealthRow = ({ name, status, icon: Icon }: any) => {
     const color =
       status === 'online'
-        ? '#AFE607'
+        ? '#304000'
         : status === 'degraded'
           ? '#F59E0B'
           : status === 'disabled'
@@ -198,7 +198,7 @@ export const SystemMonitoringScreen: React.FC = () => {
             ) : (
               <View style={styles.alertsEmptyState}>
                 <View style={[styles.alertIcon, { backgroundColor: "rgba(34, 197, 94, 0.12)" }]}>
-                  <Activity size={18} color="#AFE607" />
+                  <Activity size={18} color="#304000" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700" }]}>No abuse alerts right now</Text>

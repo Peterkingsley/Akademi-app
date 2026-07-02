@@ -545,11 +545,11 @@ export const HomeScreen: React.FC = () => {
   const getContinueAccent = (session: Session, index: number) => {
     const type = session.session_type || session.type || "";
     if (type.includes("ASSIGNMENT") || type.includes("CHALLENGE")) return { color: colors.primary, icon: FileText };
-    return { color: ["#AFE607", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
+    return { color: ["#304000", "#3B82F6", "#A855F7"][index % 3], icon: FileText };
   };
 
   const getUpcomingAccent = (index: number) => {
-    return ["#F59E0B", "#AFE607", "#3B82F6"][index % 3];
+    return ["#F59E0B", "#304000", "#3B82F6"][index % 3];
   };
 
   return (

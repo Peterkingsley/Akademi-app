@@ -46,7 +46,7 @@ export const RootNavigator = () => {
           name: "default",
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#AFE607",
+          lightColor: "#304000",
         });
       }
 
