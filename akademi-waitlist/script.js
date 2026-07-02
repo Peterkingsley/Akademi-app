@@ -58,6 +58,23 @@ let latestSchoolSearchRequestId = 0;
 const schoolSearchCache = new Map();
 const schoolSearchCacheTtlMs = 5 * 60 * 1000;
 const schoolSearchCacheMaxEntries = 80;
+const analyticsSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const analyticsStorageKey = "akademi_waitlist_visitor_id";
+const firedAnalyticsEvents = new Set();
+
+function getVisitorId() {
+  try {
+    const existing = window.localStorage.getItem(analyticsStorageKey);
+    if (existing) return existing;
+    const created = `awv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem(analyticsStorageKey, created);
+    return created;
+  } catch {
+    return `awv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+const analyticsVisitorId = getVisitorId();
 
 function normalizeLookupValue(value) {
   return String(value || "")
@@ -135,6 +152,67 @@ function scoreSchoolMatch(query, school) {
   });
 
   return tokenHits > 0 ? tokenHits * 80 : 0;
+}
+
+function getWaitlistAttribution() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    page_url: window.location.href,
+    page_path: window.location.pathname,
+    referrer: document.referrer || "",
+    utm_source: params.get("utm_source") || "",
+    utm_medium: params.get("utm_medium") || "",
+    utm_campaign: params.get("utm_campaign") || "",
+    utm_content: params.get("utm_content") || "",
+    utm_term: params.get("utm_term") || "",
+  };
+}
+
+async function trackWaitlistEvent(eventName, extra = {}, options = {}) {
+  const { once = false, keepalive = false } = options;
+  const dedupeKey = once ? eventName : null;
+  if (dedupeKey && firedAnalyticsEvents.has(dedupeKey)) {
+    return;
+  }
+
+  const payload = {
+    event_name: eventName,
+    visitor_id: analyticsVisitorId,
+    session_id: analyticsSessionId,
+    ...getWaitlistAttribution(),
+    ...extra,
+  };
+
+  let lastError = null;
+  for (const baseUrl of API_CANDIDATE_URLS) {
+    try {
+      const response = await fetch(`${baseUrl}/waitlist/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive,
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Could not track event.");
+      }
+
+      currentApiBaseUrl = baseUrl;
+      if (dedupeKey) {
+        firedAnalyticsEvents.add(dedupeKey);
+      }
+      return true;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (window.console && lastError) {
+    console.warn("Waitlist tracking failed:", lastError);
+  }
+
+  return false;
 }
 
 function setStatus(message, type) {
@@ -302,6 +380,13 @@ async function selectSchool(school) {
   schoolResults.classList.remove("open");
   resetFaculty();
   setStatus("School selected. Pick your faculty next.", "");
+  void trackWaitlistEvent("waitlist_school_selected", {
+    school_name: school.name,
+    metadata: {
+      school_id: school.id,
+      location: school.location || null,
+    },
+  });
 
   try {
     faculties = await fetchJson(`/universities/${encodeURIComponent(school.id)}/faculties`);
@@ -343,6 +428,9 @@ schoolSearch.addEventListener("input", () => {
   }
 
   schoolSearchTimer = setTimeout(async () => {
+    void trackWaitlistEvent("waitlist_school_search", {
+      school_query: query,
+    });
     try {
       const schools = await fetchUniversitySuggestions(query);
       if (requestId !== latestSchoolSearchRequestId || normalizeLookupValue(schoolSearch.value) !== query) {
@@ -478,6 +566,16 @@ form.addEventListener("submit", async (event) => {
       throw lastError || new Error("Could not join waitlist.");
     }
 
+    await trackWaitlistEvent("waitlist_submit_success", {
+      school_name: selectedSchool?.name || "",
+      metadata: {
+        school_id: schoolId.value,
+        faculty: facultyValue.value,
+        department: departmentValue.value,
+        main_struggle: payload.main_struggle || null,
+      },
+    });
+
     setStatus(
       "You have joined the waitlist and you will be redirected to our WhatsApp channel to stay updated.",
       "success"
@@ -486,7 +584,16 @@ form.addEventListener("submit", async (event) => {
     selectedSchool = null;
     schoolId.value = "";
     resetFaculty();
-    setTimeout(() => {
+    setTimeout(async () => {
+      await trackWaitlistEvent(
+        "waitlist_redirect_whatsapp",
+        {
+          metadata: {
+            destination: WHATSAPP_CHANNEL_URL,
+          },
+        },
+        { keepalive: true }
+      );
       window.location.href = WHATSAPP_CHANNEL_URL;
     }, 1600);
   } catch (error) {
@@ -496,3 +603,13 @@ form.addEventListener("submit", async (event) => {
     submitButton.textContent = "Join the waitlist";
   }
 });
+
+form.addEventListener(
+  "focusin",
+  () => {
+    void trackWaitlistEvent("waitlist_form_started", {}, { once: true });
+  },
+  { passive: true }
+);
+
+void trackWaitlistEvent("waitlist_page_view", {}, { once: true });

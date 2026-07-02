@@ -225,6 +225,14 @@ export const waitlistJoinRateLimiter = createRateLimiter({
   message: 'Too many waitlist requests. Please try again later.',
 });
 
+export const waitlistEventRateLimiter = createRateLimiter({
+  namespace: 'waitlist-event',
+  windowMs: 60 * 1000,
+  max: 180,
+  strategy: 'ip',
+  message: 'Too many waitlist tracking events. Please try again shortly.',
+});
+
 export const adminLoginRateLimiter = createRateLimiter({
   namespace: 'admin-login',
   windowMs: 10 * 60 * 1000,

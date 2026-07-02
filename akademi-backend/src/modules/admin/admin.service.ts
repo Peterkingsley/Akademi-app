@@ -440,7 +440,7 @@ export class AdminService {
     const limit = Math.min(Number(filter.limit) || 50, 100);
     const page = Math.max(Number(filter.page) || 1, 1);
 
-    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, invitedCount, neverSentCount] = await Promise.all([
+    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, invitedCount, neverSentCount, waitlistEvents] = await Promise.all([
       prisma.waitlistEntry.findMany({
         where,
         orderBy: { created_at: 'desc' },
@@ -470,6 +470,18 @@ export class AdminService {
       }),
       prisma.waitlistEntry.count({ where: { ...where, invite_count: { gt: 0 } } }),
       prisma.waitlistEntry.count({ where: { ...where, invite_count: 0 } }),
+      prisma.waitlistEvent.findMany({
+        orderBy: { created_at: 'desc' },
+        take: 5000,
+        select: {
+          event_name: true,
+          visitor_id: true,
+          referrer: true,
+          utm_source: true,
+          school_query: true,
+          school_name: true,
+        },
+      }),
     ]);
 
     const mapSummary = (items: Array<{ _count: { _all: number } } & Record<string, string | null>>, key: 'university' | 'faculty' | 'department') =>
@@ -488,6 +500,55 @@ export class AdminService {
           share: total > 0 ? Math.round((universitySummary[0].count / total) * 100) : 0,
         }
       : null;
+
+    const eventCounts = new Map<string, number>();
+    const sourceCounts = new Map<string, number>();
+    const schoolSearchCounts = new Map<string, number>();
+    const schoolSelectionCounts = new Map<string, number>();
+    const uniqueVisitors = new Set<string>();
+
+    waitlistEvents.forEach((event) => {
+      eventCounts.set(event.event_name, (eventCounts.get(event.event_name) || 0) + 1);
+      if (event.visitor_id) uniqueVisitors.add(event.visitor_id);
+
+      const rawSource = String(event.utm_source || event.referrer || 'direct').trim();
+      const source = rawSource.length > 0 ? rawSource : 'direct';
+      sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+
+      if (event.school_query) {
+        const query = event.school_query.trim();
+        if (query) {
+          schoolSearchCounts.set(query, (schoolSearchCounts.get(query) || 0) + 1);
+        }
+      }
+
+      if (event.school_name) {
+        const schoolName = event.school_name.trim();
+        if (schoolName) {
+          schoolSelectionCounts.set(schoolName, (schoolSelectionCounts.get(schoolName) || 0) + 1);
+        }
+      }
+    });
+
+    const pageViews = eventCounts.get('waitlist_page_view') || 0;
+    const formStarts = eventCounts.get('waitlist_form_started') || 0;
+    const submitSuccesses = eventCounts.get('waitlist_submit_success') || 0;
+    const whatsappRedirects = eventCounts.get('waitlist_redirect_whatsapp') || 0;
+
+    const topSources = Array.from(sourceCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const topSchoolQueries = Array.from(schoolSearchCounts.entries())
+      .map(([query, count]) => ({ query, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const topSelectedSchools = Array.from(schoolSelectionCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     return {
       entries,
@@ -510,6 +571,20 @@ export class AdminService {
         byUniversity: universitySummary,
         byFaculty: mapSummary(byFaculty as any, 'faculty'),
         byDepartment: mapSummary(byDepartment as any, 'department'),
+        traffic: {
+          pageViews,
+          uniqueVisitors: uniqueVisitors.size,
+          formStarts,
+          schoolSearches: eventCounts.get('waitlist_school_search') || 0,
+          schoolSelections: eventCounts.get('waitlist_school_selected') || 0,
+          submitSuccesses,
+          whatsappRedirects,
+          submitConversionRate: pageViews > 0 ? Math.round((submitSuccesses / pageViews) * 100) : 0,
+          whatsappRedirectRate: submitSuccesses > 0 ? Math.round((whatsappRedirects / submitSuccesses) * 100) : 0,
+          topSources,
+          topSchoolQueries,
+          topSelectedSchools,
+        },
       },
     };
   }

@@ -208,6 +208,20 @@ export interface WaitlistResponse {
     byUniversity: { name: string; count: number }[];
     byFaculty: { name: string; count: number }[];
     byDepartment: { name: string; count: number }[];
+    traffic?: {
+      pageViews: number;
+      uniqueVisitors: number;
+      formStarts: number;
+      schoolSearches: number;
+      schoolSelections: number;
+      submitSuccesses: number;
+      whatsappRedirects: number;
+      submitConversionRate: number;
+      whatsappRedirectRate: number;
+      topSources: { name: string; count: number }[];
+      topSchoolQueries: { query: string; count: number }[];
+      topSelectedSchools: { name: string; count: number }[];
+    };
   };
 }
 

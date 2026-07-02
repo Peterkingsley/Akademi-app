@@ -19,6 +19,7 @@ import { adminService, WaitlistEntry, WaitlistResponse } from "../../../services
 type InviteStatus = "all" | "never_sent" | "sent_before";
 
 type SummaryBucket = { name: string; count: number };
+type TopUniversityBucket = SummaryBucket & { share?: number };
 
 const buildEntrySummary = (
   entries: WaitlistEntry[],
@@ -246,8 +247,26 @@ export const AdminWaitlistScreen: React.FC = () => {
     () => (data?.summary?.byDepartment?.length ? data.summary.byDepartment : buildEntrySummary(data?.entries || [], "department")),
     [data?.entries, data?.summary?.byDepartment]
   );
-  const topUniversity: { name: string; count: number; share?: number } | null = useMemo(() => {
-    const top = data?.summary?.topUniversity || universitySummary[0] || null;
+  const traffic = useMemo(
+    () =>
+      data?.summary?.traffic || {
+        pageViews: 0,
+        uniqueVisitors: 0,
+        formStarts: 0,
+        schoolSearches: 0,
+        schoolSelections: 0,
+        submitSuccesses: 0,
+        whatsappRedirects: 0,
+        submitConversionRate: 0,
+        whatsappRedirectRate: 0,
+        topSources: [],
+        topSchoolQueries: [],
+        topSelectedSchools: [],
+      },
+    [data?.summary?.traffic]
+  );
+  const topUniversity: TopUniversityBucket | null = useMemo(() => {
+    const top: TopUniversityBucket | null = (data?.summary?.topUniversity as TopUniversityBucket | null) || universitySummary[0] || null;
     if (!top) return null;
     const total = data?.summary?.total || data?.total || data?.entries?.length || 0;
 
@@ -347,6 +366,63 @@ export const AdminWaitlistScreen: React.FC = () => {
                 <RefreshCw size={16} color={colors.primary} />
                 <Text style={[typography.caption, { color: colors.primary, fontWeight: "700" }]}>Refresh</Text>
               </TouchableOpacity>
+            </View>
+
+            <View style={[styles.analyticsPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.emailHeader}>
+                <BarChart3 size={20} color={colors.primary} />
+                <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>Traffic and conversion</Text>
+              </View>
+              <View style={styles.trafficGrid}>
+                {[
+                  { label: "Page views", value: traffic.pageViews },
+                  { label: "Unique visitors", value: traffic.uniqueVisitors },
+                  { label: "Form starts", value: traffic.formStarts },
+                  { label: "School searches", value: traffic.schoolSearches },
+                  { label: "School picks", value: traffic.schoolSelections },
+                  { label: "Joined waitlist", value: traffic.submitSuccesses },
+                  { label: "WhatsApp redirects", value: traffic.whatsappRedirects },
+                  { label: "Submit rate", value: `${traffic.submitConversionRate}%` },
+                ].map((item) => (
+                  <View key={item.label} style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.label}</Text>
+                    <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>{item.value}</Text>
+                  </View>
+                ))}
+              </View>
+              {traffic.topSources.length > 0 && (
+                <View style={styles.metricBlock}>
+                  <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.sm }]}>Top traffic sources</Text>
+                  <View style={styles.topSchoolsHeroList}>
+                    {traffic.topSources.map((item, index) => (
+                      <View key={`source-${item.name}-${index}`} style={[styles.topSchoolHeroChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={[typography.caption, { color: colors.textMuted }]}>{String(index + 1).padStart(2, "0")}</Text>
+                        <View style={styles.topSchoolHeroContent}>
+                          <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: "800" }]} numberOfLines={2}>
+                            {item.name}
+                          </Text>
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.count} visit{item.count === 1 ? "" : "s"}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+              {traffic.topSchoolQueries.length > 0 && (
+                <View style={styles.metricBlock}>
+                  <Text style={[typography.label, { color: colors.textMuted, marginBottom: spacing.sm }]}>Top school searches</Text>
+                  <View style={styles.needWrap}>
+                    {traffic.topSchoolQueries.slice(0, 8).map((item) => (
+                      <View key={`query-${item.query}`} style={[styles.summaryChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                        <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
+                          {item.query}
+                        </Text>
+                        <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>{item.count}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={[styles.filterPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -657,6 +733,11 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   needWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  trafficGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,

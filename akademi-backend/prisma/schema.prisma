@@ -1388,3 +1388,35 @@ model WaitlistEntry {
   @@index([created_at])
   @@map("waitlist_entries")
 }
+
+model WaitlistEvent {
+  id           String   @id @default(uuid())
+  event_name   String
+  visitor_id   String
+  session_id   String?
+  page_url     String?
+  page_path    String?
+  referrer     String?
+  utm_source   String?
+  utm_medium   String?
+  utm_campaign String?
+  utm_content  String?
+  utm_term     String?
+  school_query String?
+  school_name  String?
+  ip_hash      String?
+  user_agent   String?
+  device_type  String?
+  metadata     Json     @default("{}")
+  created_at   DateTime @default(now())
+
+  @@index([event_name])
+  @@index([visitor_id])
+  @@index([session_id])
+  @@index([page_path])
+  @@index([utm_source])
+  @@index([school_query])
+  @@index([school_name])
+  @@index([created_at])
+  @@map("waitlist_events")
+}
