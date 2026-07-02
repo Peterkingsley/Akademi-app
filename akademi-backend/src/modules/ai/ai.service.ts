@@ -477,12 +477,14 @@ Important:
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
+    const isCalculationQuestion = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
       disciplineDocument,
       learningProfile,
       relevantCommunityPatterns,
       effectiveReplyMode,
+      isCalculationQuestion,
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
@@ -492,7 +494,7 @@ Important:
       maxTokens: 1000,
     });
 
-    const whiteboardPayload = this.isBoardEligibleQuestion(studentMessage, session)
+    const whiteboardPayload = isCalculationQuestion
       ? await this.buildWhiteboardPayload(studentMessage, aiResponseText)
       : null;
 

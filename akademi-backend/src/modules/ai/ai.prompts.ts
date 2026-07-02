@@ -13,7 +13,8 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   Show the bridge between the formula and the real numbers.
   Break the work into small manageable chunks so the student can follow it without overload.
   Put the final answer in a clear, easy-to-read format at the end.
-  End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.`,
+  End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.
+  This is the "Quick Solve" path: give the full working, never skip a step or jump straight to the final number, but keep each line's explanation as short as possible (a phrase, not a paragraph).`,
 
   STUDY: `Do not give the answer immediately. Teach the topic behind this
   question from the ground up. Use analogies appropriate for a Nigerian
@@ -40,7 +41,8 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   - Why this step
   Normalize struggle lightly when needed, for example by saying that a confusing step is common.
   Ask one guided follow-up question during or after the explanation when it helps the student feel involved.
-  End with a self-check that helps the student test whether the answer is reasonable.`,
+  End with a self-check that helps the student test whether the answer is reasonable.
+  This is the "Learn Step-by-Step" path, so this is the deepest teaching mode Akademi has.`,
 
   QUESTION: `Do not answer the question. Reframe it and ask the student to
   attempt it first. Evaluate their response when they reply. Guide them to
@@ -152,7 +154,22 @@ Library usage rules:
 - In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.`;
 }
 
-export function buildSessionInstruction(replyMode: ReplyMode): string {
+export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
+  const depthRule = replyMode === ReplyMode.DIRECT
+    ? `Keep each step's explanation to one short phrase or sentence — simplify the wording as much as possible, but do not remove or merge steps. Every line of working must still say, in a few plain words, what is being done.`
+    : `Explain every single line of working in full, plain-English text. Do not show a formula, substitution, or computed line without explaining, in text right before or beside it, what we are about to do and why we are doing it.`;
+
+  return `Calculation Teaching Mode (this question involves an actual calculation, computation, or worked procedure — maths, statistics, physics, economics, accounting, or any other numeric/quantitative reasoning):
+- Assume the student has never seen this topic or this type of question before, no matter how advanced the course actually is. Treat a 400-level or postgraduate calculation exactly like you would explain it to someone meeting the idea for the very first time. Do not assume familiarity with notation, jargon, or "obvious" shortcuts.
+- Never present a bare line of maths/working on its own. Every step needs a text explanation stating what we are doing right now and why we are doing it, in everyday language, before or alongside the calculation itself.
+- ${depthRule}
+- Do not skip steps to save space, even ones that feel trivial to an expert (e.g. "cross multiply here", "find the LCM first", "convert this to a decimal"). State each move and the reason for it.
+- Simplify vocabulary aggressively. Prefer short sentences and everyday words over academic phrasing. If a technical term is unavoidable, explain it in one plain clause the first time it appears.
+- Where it genuinely helps make an abstract step click, you may anchor an explanation in something Nigerian students would recognize right now — a trending TikTok/Instagram moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, okada fare-splitting, POS/transfer charges, and similar everyday or trending references. Use this only when it fits naturally and stays brief — never force it, and never let it replace the actual maths explanation.
+- This mode applies only to the calculation itself. If part of the same answer is theoretical or conceptual (no computation involved), explain that part normally without forcing the beginner-simplification style onto it.`;
+}
+
+export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
   return `Current Reply Mode: ${replyMode}
 ${replyModeInstructions[replyMode]}
 
@@ -168,7 +185,8 @@ Learning System Rules:
 9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
 10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.
 11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
-12. Use the Worked Example Operation Library whenever it fits the current step.`;
+12. Use the Worked Example Operation Library whenever it fits the current step.
+${isCalculationQuestion ? `13. This question involves a calculation, so rule 3's difficulty adaptation is overridden for the calculation portion: follow the Calculation Teaching Mode instructions below regardless of the student's stated level.\n\n${buildCalculationTeachingRules(replyMode)}` : ''}`;
 }
 
 export function assembleSystemPrompt(
@@ -176,13 +194,14 @@ export function assembleSystemPrompt(
   learningProfile: any,
   communityPatterns: any[],
   replyMode: ReplyMode,
+  isCalculationQuestion: boolean = false,
 ): string {
   return [
     buildDisciplinaryContext(disciplineDocument),
     buildStudentProfile(learningProfile),
     buildCommunityContext(communityPatterns),
     buildSolveOperationGuidance(),
-    buildSessionInstruction(replyMode),
+    buildSessionInstruction(replyMode, isCalculationQuestion),
   ].join('\n\n---\n\n');
 }
 
@@ -194,6 +213,8 @@ Board replay purpose:
 - Do not just replay the answer.
 - Teach the student in a worked-example style so they can solve a similar question next time.
 - Reduce cognitive overload by showing one move at a time.
+- Assume the student has never encountered this topic before, no matter how advanced the course actually is (100 level through postgraduate). Write "text" and "note" as if this is the first time they have ever seen this kind of question. Never assume familiarity with notation, jargon, or steps that feel "obvious" to an expert.
+- Where it genuinely helps a step click, "note" may lightly anchor the idea in something Nigerian students would recognize right now (a trending TikTok/social-media moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, POS/transfer charges, splitting an okada fare, etc.). Use this rarely, only when it truly fits, and never let it replace the real mathematical reason.
 
 Worked-example backbone for every step:
 - Step title
