@@ -919,6 +919,8 @@ model DisciplineDocument {
 model University {
   id          String       @id @default(uuid())
   name        String       @unique
+  source      String?
+  source_url  String?
   location    String?
   departments Department[]
   created_at  DateTime     @default(now())
@@ -931,6 +933,8 @@ model Department {
   name            String
   university_id   String
   university      University      @relation(fields: [university_id], references: [id])
+  source          String?
+  source_url      String?
   faculty         String
   courses         Course[]
   student_courses StudentCourse[]

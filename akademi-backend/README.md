@@ -69,3 +69,22 @@ Akademi is an AI-powered personalized academic companion app built specifically 
 ## Manual Migration Resolution
 A manual database fix script (`fix-db.js`) has been added to resolve a Prisma migration conflict.
 This script cleans up failed migration records in the `_prisma_migrations` table to allow `prisma migrate deploy` to proceed.
+
+## Data Pipeline (Regulatory Sources)
+
+Akademi uses a strict School → Faculty → Department hierarchy based on official Nigerian regulatory data.
+
+### Importer Commands
+
+- `npm run import:regulatory`: Runs the regulatory data synchronization in **apply** mode (writes to database).
+- `npx tsx prisma/import-regulatory-data.ts --dry-run`: Performs a dry run of the importer, showing matched schools and intended department structures without modifying the database.
+
+### Data Sources
+- **Universities**: Mapped via NUC (National Universities Commission) standards.
+- **Polytechnics/Monotechnics**: Mapped via NBTE (National Board for Technical Education) standards.
+- **Colleges of Education**: Mapped via NCCE (National Commission for Colleges of Education) standards.
+
+### Features
+- **Name Normalization**: Automatically handles variations in institution names (e.g., "UNI" to "University", "FED" to "Federal").
+- **Idempotency**: Uses Prisma `upsert` to ensure multiple runs do not create duplicate departments.
+- **Hierarchy Enforcement**: Excludes individual course names from the department field, strictly adhering to regulatory programme lists.
