@@ -141,6 +141,12 @@ export function buildSolveOperationGuidance(): string {
 - rearrange_equation
   Why: We rearrange to isolate the quantity we are trying to find.
   When: Use this when the target variable is buried inside a larger equation.
+  How: Never jump straight from the starting equation to the rearranged result. When you move a
+  term across the equals sign or apply an operation to cancel a term (subtracting, adding,
+  multiplying, or dividing), first show that exact operation applied identically to both sides as
+  its own line, then show the simplified result as the next line. For example, to clear the "11"
+  from \(4x^2 + 3x = 11\), show \(4x^2 + 3x - 11 = 11 - 11\) first, then \(4x^2 + 3x - 11 = 0\) on
+  the line after it - do not skip straight to the second line.
 - check_final_answer
   Why: We verify the result so we catch sign errors, unreasonable magnitudes, or mismatch with the question.
   When: Use this after obtaining a final answer, especially in maths, physics, economics, chemistry, or statistics.
@@ -151,7 +157,8 @@ Library usage rules:
 - If a step does not match any library item well, generate a fresh "why this step" line.
 - Keep "why this step" to one plain-English sentence, then optionally add one short "when this applies" sentence if that helps the student.
 - In DIRECT mode, use shorter explanations from the library.
-- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.`;
+- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.
+- Whenever you balance an equation (moving a term across the equals sign, or applying the same operation to both sides to cancel something out), always show the "apply the operation to both sides" line before the simplified result line. Never present only the simplified result - the student needs to see the operation actually happening on both sides, not just its outcome.`;
 }
 
 export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
@@ -261,6 +268,7 @@ Rules:
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
 - Every calculation-based step must show the actual substituted values, terms, or exact symbolic transformation. Never skip straight from a named rule to the answer.
+- When you balance an equation by applying the same operation to both sides (subtracting, adding, multiplying, dividing, or moving a term across the equals sign), that operation gets its own step showing it applied to both sides (e.g. \(4x^2 + 3x - 11 = 11 - 11\)) before the following step shows the simplified result (e.g. \(4x^2 + 3x - 11 = 0\)). Never merge these into one step or skip straight to the simplified result.
 - Keep each "math" line short enough for a phone screen.
 - If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
 - Prefer one displayed equation per step, or at most one short carry-forward transformation.
