@@ -75,6 +75,9 @@ function getVisitorId() {
 }
 
 const analyticsVisitorId = getVisitorId();
+const LOOKUP_FETCH_TIMEOUT_MS = 7000;
+const ANALYTICS_FETCH_TIMEOUT_MS = 3500;
+const SUBMIT_FETCH_TIMEOUT_MS = 15000;
 
 function normalizeLookupValue(value) {
   return String(value || "")
@@ -154,6 +157,20 @@ function scoreSchoolMatch(query, school) {
   return tokenHits > 0 ? tokenHits * 80 : 0;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = LOOKUP_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function getWaitlistAttribution() {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -186,12 +203,16 @@ async function trackWaitlistEvent(eventName, extra = {}, options = {}) {
   let lastError = null;
   for (const baseUrl of API_CANDIDATE_URLS) {
     try {
-      const response = await fetch(`${baseUrl}/waitlist/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive,
-      });
+      const response = await fetchWithTimeout(
+        `${baseUrl}/waitlist/events`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive,
+        },
+        ANALYTICS_FETCH_TIMEOUT_MS
+      );
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -268,7 +289,7 @@ async function fetchJson(path) {
 
   for (const baseUrl of orderedBaseUrls) {
     try {
-      const response = await fetch(`${baseUrl}${path}`);
+      const response = await fetchWithTimeout(`${baseUrl}${path}`);
       const data = await response.json().catch(() => []);
 
       if (!response.ok) {
@@ -310,7 +331,7 @@ async function fetchUniversitySuggestions(query) {
   for (const baseUrl of orderedBaseUrls) {
     try {
       for (const candidateQuery of fallbackQueries) {
-        const response = await fetch(`${baseUrl}/universities?search=${encodeURIComponent(candidateQuery)}&limit=12`);
+        const response = await fetchWithTimeout(`${baseUrl}/universities?search=${encodeURIComponent(candidateQuery)}&limit=12`);
         const data = await response.json().catch(() => []);
 
         if (!response.ok) {
@@ -539,11 +560,15 @@ form.addEventListener("submit", async (event) => {
 
     for (const baseUrl of API_CANDIDATE_URLS) {
       try {
-        const response = await fetch(`${baseUrl}/waitlist`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        const response = await fetchWithTimeout(
+          `${baseUrl}/waitlist`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+          SUBMIT_FETCH_TIMEOUT_MS
+        );
 
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
