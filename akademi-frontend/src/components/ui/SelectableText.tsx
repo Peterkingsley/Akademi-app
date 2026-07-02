@@ -48,13 +48,19 @@ const looksLikeStandaloneMath = (line: string) => {
   if (!trimmed) return false;
   if (isBulletLine(trimmed)) return false;
   if (/^\d+\.\s/.test(trimmed)) return false;
+  if (/[.!?]$/.test(trimmed)) return false;
   if (trimmed.split(/\s+/).length > 15) return false;
 
   const mathSignals =
     /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥×÷]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|n\([^)]+\)|[A-Z]\s*=\s*[A-Z0-9]|[0-9]+\s*[A-Za-z]\s*[=×]|[A-Za-z]\([^)]+\)\s*=|²|³|μ|λ|θ|α|β|γ|δ|ω|σ/;
-  const wordMatches = trimmed.match(/[A-Za-z]{4,}/g) || [];
+  // Count every 2+ letter word, not just long ones - a real sentence is stuffed with short
+  // connector words ("is", "we", "by", "to"...) that a length->=4 filter quietly ignores,
+  // which is how whole English sentences ("Now, let's solve your equation: ...") and plain
+  // headings ("Step-by-Step Solution") were slipping past this check and getting wrapped as
+  // math, which KaTeX then fails to parse and renders as raw red error text.
+  const wordMatches = trimmed.match(/[A-Za-z]{2,}/g) || [];
 
-  return trimmed.length <= 150 && mathSignals.test(trimmed) && wordMatches.length <= 8;
+  return trimmed.length <= 150 && mathSignals.test(trimmed) && wordMatches.length <= 3;
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
@@ -138,7 +144,13 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   fixedHeight,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
-  const contentWidth = Math.max(windowWidth - 32, 240);
+  // This renders inside cards/screens with their own horizontal padding, which varies by
+  // screen. Guessing a single fixed inset here (it used to hardcode windowWidth - 32) made the
+  // WebView wider than the space its parent actually gives it, so every line got clipped at a
+  // hard right edge once the real padding exceeded that guess. Measure the actual parent width
+  // instead and only fall back to a window-based estimate until that measurement lands.
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const contentWidth = measuredWidth ?? Math.max(windowWidth - 32, 240);
   const shouldLoadKatex = useMemo(() => contentHasMath(content), [content]);
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -363,7 +375,13 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onLayout={(event) => {
+        const nextWidth = Math.floor(event.nativeEvent.layout.width);
+        if (nextWidth > 0 && nextWidth !== measuredWidth) setMeasuredWidth(nextWidth);
+      }}
+    >
       <WebView
         ref={webViewRef}
         originWhitelist={["*"]}
