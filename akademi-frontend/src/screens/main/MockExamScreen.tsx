@@ -212,15 +212,8 @@ export const MockExamScreen: React.FC = () => {
           </Text>
         </View>
 
-        <View style={styles.questionTitleWrap}>
-          <RichMathText content={currentQuestion.text} fontSize={24} lineHeight={1.35} />
-        </View>
-
         <Card style={styles.questionCard}>
-          <View style={styles.questionTag}>
-            <Text style={[styles.questionTagText, typography.caption]}>Q{currentIndex + 1}</Text>
-          </View>
-          <RichMathText content={currentQuestion.text} />
+          <RichMathText content={currentQuestion.text} fontSize={20} lineHeight={1.35} />
           {currentQuestion.formula && (
             <View style={styles.formulaBox}>
               <RichMathText content={currentQuestion.formula} textColor={colors.primary} />
@@ -313,8 +306,8 @@ export const MockExamScreen: React.FC = () => {
           <X size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, typography.body, { fontWeight: '700' }]}>
-          {examId} Mock Exam
+        <Text style={[styles.headerTitle, typography.body, { fontWeight: '700' }]} numberOfLines={1}>
+          {exam?.title || "Mock Exam"}
         </Text>
 
         <View style={styles.timerPill}>
@@ -402,6 +395,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.textPrimary,
+    flex: 1,
+    flexShrink: 1,
+    textAlign: "center",
+    marginHorizontal: 8,
   },
   timerPill: {
     flexDirection: "row",
@@ -472,33 +469,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 9,
   },
-  questionTitle: {
-    color: colors.textPrimary,
-    marginBottom: 24,
-  },
-  questionTitleWrap: {
-    marginBottom: 24,
-  },
   questionCard: {
     padding: 20,
     backgroundColor: colors.surface,
     marginBottom: 32,
-  },
-  questionTag: {
-    backgroundColor: colors.primary + '20',
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  questionTagText: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  mainQuestionText: {
-    color: colors.textPrimary,
-    lineHeight: 24,
   },
   formulaBox: {
     backgroundColor: colors.background,

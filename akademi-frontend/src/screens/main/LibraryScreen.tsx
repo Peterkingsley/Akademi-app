@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   RefreshControl,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import BottomSheet, { BottomSheetFlatList, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import * as DocumentPicker from "expo-document-picker";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import Animated, { FadeInUp, Layout } from "react-native-reanimated";
 import { AlertCircle, BookOpen, FileUp, Plus, RefreshCw, Upload } from "lucide-react-native";
 
@@ -38,6 +38,7 @@ const settle = async <T,>(promise: Promise<T>) => {
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
@@ -175,6 +176,18 @@ export const LibraryScreen: React.FC = () => {
     const materialCourses = materials.map((material) => material.course_code || "General");
     return Array.from(new Set([...userCourses, ...materialCourses])).sort();
   }, [materials, userCourses]);
+
+  // Exam Prep's "Study Now" navigates here with a course_code param scoped to that course.
+  // Library is a persistent tab screen (not remounted per navigation), so re-apply the filter
+  // on every focus rather than only on mount.
+  useFocusEffect(
+    useCallback(() => {
+      const courseCode = route.params?.course_code;
+      if (courseCode) {
+        setSelectedCourse(courseCode);
+      }
+    }, [route.params?.course_code]),
+  );
 
   const handleSelectFile = async () => {
     try {

@@ -131,6 +131,7 @@ export async function generateQuestionsJob(materialId: string, options: Generate
         data: {
           material_id: materialId,
           course_code: material.course_code,
+          course_id: material.course_id,
           university: material.university,
           department: material.department,
           level: material.level,
