@@ -21,6 +21,8 @@ import { Avatar } from "../../components/ui/Avatar";
 import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { RichMathText } from "../../components/ui/RichMathText";
+import { GraphRenderer } from "../../components/graph/GraphRenderer";
+import { GraphSpec } from "../../components/graph/types";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
 import { useVoiceComposer } from "../../hooks/useVoiceComposer";
@@ -37,6 +39,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const [loadFailed, setLoadFailed] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
   const [replyMode, setReplyMode] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [initialAiMessageId, setInitialAiMessageId] = useState<string | null>(null);
@@ -94,6 +97,7 @@ export const AssignmentResultScreen: React.FC = () => {
       setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
       if (studentMsg) setQuestion(studentMsg.content);
       if (firstAiMsg) setAnswer(firstAiMsg.content);
+      setGraphSpec(firstAiMsg?.metadata?.graph?.payload || null);
       setLoadFailed(false);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -232,6 +236,12 @@ export const AssignmentResultScreen: React.FC = () => {
               }}
             />
           </View>
+
+          {graphSpec && (
+            <View style={styles.graphContainer}>
+              <GraphRenderer spec={graphSpec} />
+            </View>
+          )}
         </Card>
 
         {threadMessages.length > 0 && (
@@ -420,6 +430,9 @@ const styles = StyleSheet.create({
   },
   answerContainer: {
     marginTop: 8,
+  },
+  graphContainer: {
+    marginTop: 16,
   },
   threadCard: {
     backgroundColor: colors.surface,
