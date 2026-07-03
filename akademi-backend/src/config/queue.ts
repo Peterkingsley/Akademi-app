@@ -17,6 +17,7 @@ type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
 type JobPayload = {
   materialId?: string;
+  count?: number;
   sessionId?: string;
   companionStateId?: string;
   userId?: string;
@@ -79,6 +80,7 @@ const markQueueFailure = (error: unknown) => {
 const BACKGROUND_JOB_NAMES = new Set<JobName>([
   JOB_NAMES.INGEST_MATERIAL,
   JOB_NAMES.ASSEMBLE_CHUNKS,
+  JOB_NAMES.GENERATE_QUESTIONS,
   JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE,
 ]);
 
@@ -88,6 +90,12 @@ const backgroundJobKeys = new Set<string>();
 let activeBackgroundJobs = 0;
 
 const getBackgroundJobKey = (name: JobName, payload: JobPayload) => {
+  // GENERATE_QUESTIONS requests can carry a different `count` per caller (e.g. two requests
+  // topping up the same material's buffer at slightly different shortfalls) - key on
+  // materialId alone so those still dedupe to a single in-flight job per material.
+  if (name === JOB_NAMES.GENERATE_QUESTIONS) {
+    return `${name}:${payload.materialId}`;
+  }
   return `${name}:${JSON.stringify(payload)}`;
 };
 
@@ -139,7 +147,7 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.GENERATE_QUESTIONS: {
       if (!payload.materialId) throw new Error('GENERATE_QUESTIONS requires materialId');
       const { generateQuestionsJob } = await import('../jobs/generateQuestions.job');
-      await generateQuestionsJob(payload.materialId);
+      await generateQuestionsJob(payload.materialId, { count: payload.count });
       return;
     }
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {

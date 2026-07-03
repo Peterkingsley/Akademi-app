@@ -4,9 +4,8 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
 import { AdminRole, Feature, FileType, VerificationStatus } from '@prisma/client';
-import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
-import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+import { generateQuestionsJob, ensureQuestionBuffer, QUESTION_BUFFER_TARGET } from '../../jobs/generateQuestions.job';
 import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
 import { queueMaterialIngestion } from './material-processing';
@@ -897,22 +896,22 @@ export class MaterialsService {
 
     let availableQuestions = await loadAvailableQuestions();
 
-    if (availableQuestions.length < take) {
-      const existingQuestions = await prisma.question.findMany({
-        where: { material_id: id },
-        select: { question_text: true },
-      });
+    // Keep the bank well ahead of consumption: top up in the background as soon as this
+    // material's total pool dips under the buffer target, so it's rare for anyone to ever
+    // actually hit zero. This never blocks the request.
+    ensureQuestionBuffer(id).catch((error) => {
+      console.error(`Failed to queue question buffer top-up for material ${id}:`, error);
+    });
 
-      const generationTarget = Math.max(take - availableQuestions.length + 5, 10);
+    // Last-resort synchronous fallback: only if there's truly nothing left to serve right now
+    // (e.g. a brand new material whose background buffer hasn't landed yet), generate just
+    // enough for this one request rather than returning a hard error.
+    if (availableQuestions.length === 0) {
       try {
-        await generateQuestionsJob(id, {
-          count: generationTarget,
-          excludeQuestionTexts: existingQuestions.map((question) => question.question_text),
-        });
+        await generateQuestionsJob(id, { count: Math.max(take, 10) });
       } catch (error) {
-        console.error(`Failed to generate additional CBT questions for material ${id}:`, error);
+        console.error(`Failed to generate CBT questions on demand for material ${id}:`, error);
       }
-
       availableQuestions = await loadAvailableQuestions();
     }
 
@@ -1071,7 +1070,7 @@ export class MaterialsService {
 
     // Trigger question generation job
     try {
-      await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
+      await ensureQuestionBuffer(id, QUESTION_BUFFER_TARGET);
       return {
         ...material,
         processingNotice: {

@@ -20,14 +20,15 @@ import { typography } from "../../theme/typography";
 import { SafeArea } from "../../components/layout/SafeArea";
 import { Header } from "../../components/layout/Header";
 import { Card } from "../../components/ui/Card";
-import { ProgressBar } from "../../components/ui/ProgressBar";
-import { Badge } from "../../components/ui/Badge";
 import examPrepService, { ExamPrepPlan, MockHistoryItem } from "../../services/examPrep";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { Button } from "../../components/ui/Button";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
+// This is the course's detail/history view - reached by tapping a course card on the Exam Prep
+// hub. Study Now and Mock Exam are both directly usable from the hub card itself; this screen
+// exists for the extra detail (full mock format + history) that doesn't fit on the compact card.
 export const PrepPlanScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
@@ -39,19 +40,18 @@ export const PrepPlanScreen: React.FC = () => {
   const [historyError, setHistoryError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const readinessGrade = plan?.readiness_grade || plan?.readinessGrade || "N/A";
-  const readinessScore = plan?.readiness_score ?? plan?.readinessScore ?? 0;
+  const [starting, setStarting] = useState(false);
   const aiSuggestion = useMemo(() => {
     if (!plan) return "";
 
     const courseLabel = plan.course_code || plan.course_name || plan.subject || "this course";
     const prepLabel = plan.assessment_label || "Exam";
 
-    if (plan.progress < 60) {
-      return `AI SUGGESTION: ${courseLabel} - keep practicing in the Library to raise your Mastery Level above 60% and unlock the mock ${prepLabel.toLowerCase()}.`;
+    if (plan.last_mock_score !== null && plan.last_mock_score !== undefined) {
+      return `AI SUGGESTION: ${courseLabel} - your last mock scored ${plan.last_mock_score}%. Practice in the Library, then try again to beat it.`;
     }
 
-    return `AI SUGGESTION: ${courseLabel} - your Mastery Level is strong. Take a mock ${prepLabel.toLowerCase()} to check your readiness.`;
+    return `AI SUGGESTION: ${courseLabel} - take a mock ${prepLabel.toLowerCase()} anytime to see where you stand, or study the materials first in the Library.`;
   }, [plan]);
 
   const fetchPlan = useCallback(async () => {
@@ -90,13 +90,7 @@ export const PrepPlanScreen: React.FC = () => {
 
   const startMockExam = async () => {
     if (!plan) return;
-    if (plan.progress < 60) {
-      Alert.alert(
-        "Mock exam locked",
-        "Reach at least 60% Mastery Level to unlock this mock exam."
-      );
-      return;
-    }
+    setStarting(true);
     try {
       const mockExam = await examPrepService.startMockExam(examId);
       navigation.navigate("MockExam", { examId, mockExamId: mockExam.id });
@@ -106,24 +100,9 @@ export const PrepPlanScreen: React.FC = () => {
         "Mock exam unavailable",
         error?.response?.data?.message || "No scored questions are available for this course yet."
       );
+    } finally {
+      setStarting(false);
     }
-  };
-
-  const renderProgressCard = () => {
-    if (!plan) return null;
-
-    return (
-      <Card style={styles.progressCard}>
-        <Text style={[styles.progressLabel, typography.caption]}>Mastery Level</Text>
-        <View style={styles.progressValueRow}>
-          <Text style={[styles.progressValue, typography.h2]}>
-            {readinessGrade} grade
-          </Text>
-          <Text style={[styles.progressPercent, typography.h2]}>{plan.progress}%</Text>
-        </View>
-        <ProgressBar progress={plan.progress} style={styles.progressBar} />
-      </Card>
-    );
   };
 
   const renderMockFormatCard = () => {
@@ -142,15 +121,13 @@ export const PrepPlanScreen: React.FC = () => {
               What this {plan.assessment_label || "exam"} will look like
             </Text>
           </View>
-          <Badge
-            label={`${durationMinutes} mins`}
-            variant="blue"
-            style={styles.mockFormatBadge}
-          />
+          <View style={styles.durationPill}>
+            <Text style={[styles.durationPillText, typography.bodySmall]}>{durationMinutes} mins</Text>
+          </View>
         </View>
 
         <Text style={[styles.mockFormatDescription, typography.bodySmall]}>
-          Akademi will pull questions from all approved materials in {plan.course_code} and build the mock in this format. Once you answer a question, it will never repeat.
+          Akademi pulls questions from every approved material in {plan.course_code}. Once you answer a question, it will never repeat.
         </Text>
 
         <View style={styles.mockStatsRow}>
@@ -249,7 +226,6 @@ export const PrepPlanScreen: React.FC = () => {
           </View>
         ) : (
           <Animated.View entering={FadeInUp}>
-            {renderProgressCard()}
             {renderMockFormatCard()}
             {renderMockHistory()}
           </Animated.View>
@@ -264,18 +240,12 @@ export const PrepPlanScreen: React.FC = () => {
           </View>
 
           <View style={styles.bottomBar}>
-            <View style={styles.readinessContainer}>
-              <Text style={[styles.readinessLabel, typography.caption]}>MASTERY LEVEL</Text>
-              <Text style={[styles.readinessValue, typography.h2]}>
-                {readinessGrade} ({readinessScore}%)
-              </Text>
-            </View>
             <Button
               label={`Take Mock ${plan.assessment_label || "Exam"}`}
               icon={<TrendingUp size={18} color="white" />}
               onPress={startMockExam}
-              disabled={plan.progress < 60}
-              style={StyleSheet.flatten([styles.mockBtn, plan.progress < 60 ? styles.disabledBtn : undefined])}
+              loading={starting}
+              style={styles.mockBtn}
             />
           </View>
         </View>
@@ -295,31 +265,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 160,
-  },
-  progressCard: {
-    padding: 20,
-    marginBottom: 32,
-  },
-  progressLabel: {
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  progressValueRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-    marginBottom: 16,
-  },
-  progressValue: {
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  progressPercent: {
-    color: colors.primary,
-    marginLeft: 8,
-  },
-  progressBar: {
-    height: 8,
   },
   mockFormatCard: {
     padding: 18,
@@ -341,8 +286,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flexShrink: 1,
   },
-  mockFormatBadge: {
+  durationPill: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     alignSelf: "flex-start",
+  },
+  durationPillText: {
+    color: colors.textSecondary,
+    fontWeight: "600",
   },
   mockFormatDescription: {
     color: colors.textSecondary,
@@ -452,27 +407,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     padding: 20,
   },
-  readinessContainer: {
-    flex: 1,
-    marginRight: 20,
-  },
-  readinessLabel: {
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  readinessValue: {
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
   mockBtn: {
-    flex: 1,
-  },
-  disabledBtn: {
-    opacity: 0.5,
+    width: "100%",
   },
 });

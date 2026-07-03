@@ -1,7 +1,7 @@
 import prisma from '../../config/db';
-import { Difficulty, VerificationStatus } from '@prisma/client';
+import { VerificationStatus } from '@prisma/client';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
-import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+import { generateQuestionsJob, ensureQuestionBuffer } from '../../jobs/generateQuestions.job';
 import { resolveDepartmentId, findOrCreateCourse } from '../../shared/utils/department-resolver';
 import { UsersService } from '../users/users.service';
 
@@ -28,8 +28,6 @@ function shuffle<T>(items: T[]) {
   return copy;
 }
 
-const DIFFICULTY_WEIGHTS = { [Difficulty.EASY]: 1, [Difficulty.MEDIUM]: 2, [Difficulty.HARD]: 3 };
-
 export class ExamPrepService {
   private usersService = new UsersService();
 
@@ -47,50 +45,13 @@ export class ExamPrepService {
     return Math.max(0, Math.ceil((examDate.getTime() - Date.now()) / msPerDay));
   }
 
-  private getReadinessGrade(score: number) {
-    if (score >= 80) return 'A';
-    if (score >= 70) return 'B';
-    if (score >= 60) return 'C';
-    if (score >= 50) return 'D';
-    return 'Needs work';
-  }
-
-  /**
-   * Difficulty-weighted correctness % across a user's full QuestionAttempt history for a course.
-   * This is the single source of truth for "Mastery Level" (hub cards, plan progress, and the
-   * Mock Exam unlock gate) - no more fake task-completion ratios.
-   */
-  async getMasteryLevel(userId: string, courseRef: { courseId?: string | null; courseCode?: string | null }) {
-    const orConditions: any[] = [];
-    if (courseRef.courseCode) orConditions.push({ course_code: courseRef.courseCode });
-    if (courseRef.courseId) orConditions.push({ course_id: courseRef.courseId });
-    if (orConditions.length === 0) return 0;
-
-    const attempts = await prisma.questionAttempt.findMany({
-      where: { user_id: userId, question: { OR: orConditions } },
-      include: { question: { select: { difficulty: true } } },
-    });
-
-    if (attempts.length === 0) return 0;
-
-    let totalWeightedScore = 0;
-    let totalWeight = 0;
-
-    attempts.forEach((a) => {
-      const weight = DIFFICULTY_WEIGHTS[a.question.difficulty];
-      totalWeight += weight;
-      if (a.is_correct) {
-        totalWeightedScore += weight;
-      }
-    });
-
-    return Math.round((totalWeightedScore / totalWeight) * 100);
-  }
-
   private async formatPlan(plan: any) {
-    const masteryLevel = await this.getMasteryLevel(plan.user_id, {
-      courseId: plan.course_id,
-      courseCode: plan.course_code,
+    const lastAttempt = await prisma.mockAttempt.findFirst({
+      where: { user_id: plan.user_id, mock_exam: { plan_id: plan.id }, completed_at: { not: null } },
+      orderBy: { completed_at: 'desc' },
+    });
+    const mockCount = await prisma.mockAttempt.count({
+      where: { user_id: plan.user_id, mock_exam: { plan_id: plan.id }, completed_at: { not: null } },
     });
 
     return {
@@ -104,11 +65,8 @@ export class ExamPrepService {
       duration_minutes: plan.duration_minutes,
       objective_question_count: plan.objective_question_count,
       theory_question_count: plan.theory_question_count,
-      progress: masteryLevel,
-      readiness_score: masteryLevel,
-      readinessScore: masteryLevel,
-      readiness_grade: this.getReadinessGrade(masteryLevel),
-      readinessGrade: this.getReadinessGrade(masteryLevel),
+      last_mock_score: lastAttempt ? Math.round(lastAttempt.score) : null,
+      mock_count: mockCount,
     };
   }
 
@@ -172,9 +130,10 @@ export class ExamPrepService {
   }
 
   /**
-   * Get-or-create a plan for this user+course. Plans are now a lightweight per-course settings
-   * record (exam date, duration, question mix) rather than a mandatory gate before Study Now /
-   * Mock Exam are usable - the hub lists courses directly from the user's academic profile.
+   * Get-or-create a plan for this user+course. Plans are a lightweight per-course settings
+   * record (exam date, duration, question mix) - the hub lists courses directly from the
+   * user's academic profile, so a plan only needs to exist once a course is customized or a
+   * mock exam is started.
    */
   async getOrCreatePlanForCourse(userId: string, courseCode: string) {
     const normalizedCourseCode = courseCode?.trim().toUpperCase();
@@ -214,10 +173,13 @@ export class ExamPrepService {
     }
   }
 
+  async getOrCreateFormattedPlanForCourse(userId: string, courseCode: string) {
+    const plan = await this.getOrCreatePlanForCourse(userId, courseCode);
+    return this.formatPlan(plan);
+  }
+
   /**
-   * Creates or updates a course's prep settings (exam date, duration, question mix). Replaces
-   * the old mandatory "create a plan first" flow - AddExamScreen now calls this to customize an
-   * auto-provisioned plan rather than gating Study Now / Mock Exam behind it.
+   * Creates or updates a course's prep settings (exam date, duration, question mix).
    */
   async upsertPlanSettings(
     userId: string,
@@ -251,8 +213,8 @@ export class ExamPrepService {
 
   /**
    * The Exam Prep hub: lists every course the user is currently offering (from their academic
-   * profile, not from pre-existing plans) with a real Mastery Level and any existing plan's
-   * exam-date/countdown, computed in one batched pass (no N+1 per course).
+   * profile, not from pre-existing plans), with each course's exam-date/countdown and last mock
+   * score if one exists, computed in one batched pass (no N+1 per course).
    */
   async listCourseHub(userId: string) {
     const courseOptions = await this.usersService.getCourseOptions(userId);
@@ -267,44 +229,40 @@ export class ExamPrepService {
     }
     const courseCodes = [...uniqueByCode.keys()];
 
-    const [attempts, plans] = await Promise.all([
-      prisma.questionAttempt.findMany({
-        where: { user_id: userId, question: { course_code: { in: courseCodes } } },
-        select: { is_correct: true, question: { select: { course_code: true, difficulty: true } } },
-      }),
-      prisma.examPrepPlan.findMany({
-        where: { user_id: userId, course_code: { in: courseCodes } },
-      }),
-    ]);
+    const plans = await prisma.examPrepPlan.findMany({
+      where: { user_id: userId, course_code: { in: courseCodes } },
+    });
+    const planIds = plans.map((plan) => plan.id);
 
-    const byCourse = new Map<string, { weighted: number; total: number }>();
-    for (const attempt of attempts) {
-      const code = attempt.question.course_code?.toUpperCase();
-      if (!code) continue;
-      const weight = DIFFICULTY_WEIGHTS[attempt.question.difficulty];
-      const entry = byCourse.get(code) || { weighted: 0, total: 0 };
-      entry.total += weight;
-      if (attempt.is_correct) entry.weighted += weight;
-      byCourse.set(code, entry);
+    const lastAttempts = planIds.length
+      ? await prisma.mockAttempt.findMany({
+          where: { user_id: userId, mock_exam: { plan_id: { in: planIds } }, completed_at: { not: null } },
+          orderBy: { completed_at: 'desc' },
+          include: { mock_exam: { select: { plan_id: true } } },
+        })
+      : [];
+    const lastScoreByPlanId = new Map<string, number>();
+    for (const attempt of lastAttempts) {
+      const planId = attempt.mock_exam.plan_id;
+      if (!lastScoreByPlanId.has(planId)) {
+        lastScoreByPlanId.set(planId, Math.round(attempt.score));
+      }
     }
 
     const planByCourse = new Map(plans.map((plan) => [plan.course_code!.toUpperCase(), plan]));
 
     return courseCodes.map((code) => {
-      const entry = byCourse.get(code);
-      const masteryLevel = entry && entry.total > 0 ? Math.round((entry.weighted / entry.total) * 100) : 0;
       const plan = planByCourse.get(code);
       const examDate = plan?.exam_date || null;
 
       return {
         course_code: code,
         course_name: uniqueByCode.get(code)?.name || code,
-        mastery_level: masteryLevel,
-        readiness_grade: this.getReadinessGrade(masteryLevel),
         assessment_label: plan ? this.getAssessmentLabel(plan.assessment_type) : 'Exam',
         exam_date: examDate,
         days_left: this.getDaysLeft(examDate),
         plan_id: plan?.id || null,
+        last_mock_score: plan ? lastScoreByPlanId.get(plan.id) ?? null : null,
       };
     });
   }
@@ -348,17 +306,12 @@ export class ExamPrepService {
     return attempts.map((attempt) => this.formatMockAttempt(attempt));
   }
 
-  async getReadinessScore(userId: string, planId: string) {
-    const plan = await prisma.examPrepPlan.findFirst({ where: { id: planId, user_id: userId } });
-    if (!plan) throw new Error('Plan not found');
-    return this.getMasteryLevel(userId, { courseId: plan.course_id, courseCode: plan.course_code });
-  }
-
   /**
    * Course-wide question pool for a mock exam: unions questions across every verified material
    * under the plan's course, permanently excludes any question the user has ever attempted
-   * (regardless of which past mock/session it came from), and tops up generation for whichever
-   * sub-pool (objective/theory) is short, before splitting to the plan's configured counts.
+   * (regardless of which past mock/session it came from), keeps every underlying material's
+   * bank topped up in the background (see QUESTION_BUFFER_TARGET), and falls back to a
+   * synchronous top-up only if this specific request would otherwise come up short right now.
    */
   private async getEligibleCourseQuestions(
     userId: string,
@@ -371,6 +324,13 @@ export class ExamPrepService {
     const materials = await prisma.material.findMany({ where: materialWhere, select: { id: true } });
     const materialIds = materials.map((m) => m.id);
     if (materialIds.length === 0) return [];
+
+    // Keep every underlying material's bank well ahead of consumption; never blocks this request.
+    for (const materialId of materialIds) {
+      ensureQuestionBuffer(materialId).catch((error) => {
+        console.error(`Failed to queue question buffer top-up for material ${materialId}:`, error);
+      });
+    }
 
     const attemptedIds = await prisma.questionAttempt.findMany({
       where: { user_id: userId, question: { material_id: { in: materialIds } } },
@@ -404,10 +364,13 @@ export class ExamPrepService {
 
     const targetObjective = plan.objective_question_count || 40;
     const targetTheory = plan.theory_question_count || 5;
-    const objectiveShortfall = Math.max(targetObjective - objective.length, 0);
-    const theoryShortfall = Math.max(targetTheory - theory.length, 0);
+    const requestedTotal = targetObjective + targetTheory;
+    const availableTotal = objective.length + theory.length;
 
-    if (objectiveShortfall > 0 || theoryShortfall > 0) {
+    if (availableTotal < requestedTotal) {
+      // Last-resort synchronous fill so *this* request still gets its full question count even
+      // if the background buffer hasn't caught up yet (e.g. right after a course's first
+      // material was uploaded, before any buffering has had a chance to run).
       const remainingByMaterial = new Map<string, number>();
       for (const id of materialIds) remainingByMaterial.set(id, 0);
       for (const q of pool) remainingByMaterial.set(q.material_id, (remainingByMaterial.get(q.material_id) || 0) + 1);
@@ -415,19 +378,12 @@ export class ExamPrepService {
         .sort((a, b) => a[1] - b[1])
         .map(([materialId]) => materialId);
 
-      let stillNeeded = objectiveShortfall + theoryShortfall;
+      let stillNeeded = requestedTotal - availableTotal;
       for (const materialId of materialsNeedingMore) {
         if (stillNeeded <= 0) break;
         try {
-          const existingTexts = await prisma.question.findMany({
-            where: { material_id: materialId },
-            select: { question_text: true },
-          });
           const generationTarget = Math.max(Math.ceil(stillNeeded / materialsNeedingMore.length) + 5, 10);
-          const createdCount = await generateQuestionsJob(materialId, {
-            count: generationTarget,
-            excludeQuestionTexts: existingTexts.map((q) => q.question_text),
-          });
+          const createdCount = await generateQuestionsJob(materialId, { count: generationTarget });
           stillNeeded -= createdCount;
         } catch (error) {
           console.error(`Failed to top up course-wide questions for material ${materialId}:`, error);
@@ -444,11 +400,6 @@ export class ExamPrepService {
   async startMockExam(userId: string, planId: string) {
     const plan = await prisma.examPrepPlan.findUnique({ where: { id: planId } });
     if (!plan || plan.user_id !== userId) throw new Error('Plan not found');
-
-    const masteryLevel = await this.getMasteryLevel(userId, { courseId: plan.course_id, courseCode: plan.course_code });
-    if (masteryLevel < 60) {
-      throw new Error('Reach 60% Mastery to unlock Mock Exam');
-    }
 
     const selectedQuestions = await this.getEligibleCourseQuestions(userId, plan);
 
