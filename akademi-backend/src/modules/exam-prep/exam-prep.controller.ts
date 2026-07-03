@@ -4,6 +4,55 @@ import { ExamPrepService } from './exam-prep.service';
 const examPrepService = new ExamPrepService();
 
 export class ExamPrepController {
+  async getCourseHub(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const courses = await examPrepService.listCourseHub(userId);
+      res.status(200).json(courses);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to load exam prep courses' });
+    }
+  }
+
+  async upsertPlanSettings(req: Request, res: Response) {
+    try {
+      const { courseCode } = req.params;
+      const {
+        exam_date,
+        assessment_type,
+        duration_minutes,
+        objective_question_count,
+        theory_question_count,
+      } = req.body;
+      const userId = (req.user as any).userId;
+      const plan = await examPrepService.upsertPlanSettings(
+        userId,
+        courseCode,
+        exam_date,
+        assessment_type,
+        duration_minutes,
+        objective_question_count,
+        theory_question_count,
+      );
+      res.status(200).json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to save prep plan settings' });
+    }
+  }
+
+  async startMockForCourse(req: Request, res: Response) {
+    try {
+      const { courseCode } = req.params;
+      const userId = (req.user as any).userId;
+      const mockExam = await examPrepService.startMockExamForCourse(userId, courseCode);
+      res.status(201).json(mockExam);
+    } catch (error: any) {
+      res.status(403).json({ message: error.message });
+    }
+  }
+
+  // Legacy create-plan endpoint - AddExamScreen historically called this to create a plan up
+  // front; now it upserts the same get-or-create-by-course settings record.
   async createPlan(req: Request, res: Response) {
     try {
       const {
@@ -15,7 +64,7 @@ export class ExamPrepController {
         theory_question_count,
       } = req.body;
       const userId = (req.user as any).userId;
-      const plan = await examPrepService.createPlan(
+      const plan = await examPrepService.upsertPlanSettings(
         userId,
         course_code,
         exam_date,
@@ -48,18 +97,6 @@ export class ExamPrepController {
       res.status(200).json(plan);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
-    }
-  }
-
-  async updateProgress(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const { taskId, completed } = req.body;
-      const userId = (req.user as any).userId;
-      const result = await examPrepService.updateProgress(userId, id, taskId, completed);
-      res.status(200).json(result);
-    } catch (error: any) {
-      res.status(400).json({ message: error.message });
     }
   }
 
