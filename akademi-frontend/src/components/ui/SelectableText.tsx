@@ -58,12 +58,17 @@ const looksLikeStandaloneMath = (line: string) => {
   // which is how whole English sentences ("Now, let's solve your equation: ...") and plain
   // headings ("Step-by-Step Solution") were slipping past this check and getting wrapped as
   // math, which KaTeX then fails to parse and renders as raw red error text.
-  const wordMatches = trimmed.match(/[A-Za-z]{2,}/g) || [];
+  // LaTeX command names (\frac, \sqrt, \pm...) are symbolic vocabulary, not prose - without
+  // excluding them, a genuine equation with several named commands (e.g. the quadratic formula,
+  // which has frac/pm/sqrt) reads as "too many words" and gets left as unrendered raw text.
+  const commandNames = new Set((trimmed.match(/\\([a-zA-Z]+)/g) || []).map((match) => match.slice(1).toLowerCase()));
+  const wordMatches = (trimmed.match(/[A-Za-z]{2,}/g) || []).filter((word) => !commandNames.has(word.toLowerCase()));
 
   return trimmed.length <= 150 && mathSignals.test(trimmed) && wordMatches.length <= 3;
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
+const containsExplicitMathDelimiter = (line: string) => /\\\(|\\\[/.test(line);
 
 const getRenderedLine = (line: string) => {
   const trimmed = line.trim();
@@ -77,6 +82,15 @@ const getRenderedLine = (line: string) => {
       return `<div class="math-line">${escapeHtml(trimmed)}</div>`;
     }
     return `<div class="paragraph">${escapeHtml(inner)}</div>`;
+  }
+
+  // A line can carry an explicit \(...\) or \[...\] delimiter as part of a longer sentence
+  // ("First, calculate \((-4)^2\):") rather than as the whole line. Wrapping the whole thing
+  // in our own \[...\] on top of that already-delimited fragment is what caused mixed
+  // sentences to be swallowed whole and fail to parse. Leave it as plain text instead and let
+  // KaTeX's auto-render find and render just the delimited part in place.
+  if (containsExplicitMathDelimiter(trimmed)) {
+    return `<div class="paragraph">${escapeHtml(trimmed)}</div>`;
   }
 
   const safeLine = escapeHtml(trimmed);
@@ -102,7 +116,7 @@ const buildHtmlContent = (content: string) => {
         const items = lines
           .map((line) => {
             const itemText = line.replace(/^(?:\u2022|[-*])\s+/, "");
-            const itemContent = looksLikeStandaloneMath(itemText)
+            const itemContent = !containsExplicitMathDelimiter(itemText) && looksLikeStandaloneMath(itemText)
               ? wrapDisplayMath(escapeHtml(itemText))
               : escapeHtml(itemText);
             return `<li>${itemContent}</li>`;
