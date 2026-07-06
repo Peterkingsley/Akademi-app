@@ -184,6 +184,9 @@ export interface WaitlistEntry {
   level?: number | null;
   main_struggle?: string | null;
   source: string;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
   status: string;
   first_invited_at?: string | null;
   last_invited_at?: string | null;
@@ -208,6 +211,7 @@ export interface WaitlistResponse {
     byUniversity: { name: string; count: number }[];
     byFaculty: { name: string; count: number }[];
     byDepartment: { name: string; count: number }[];
+    bySource: { name: string; count: number }[];
     traffic?: {
       pageViews: number;
       uniqueVisitors: number;

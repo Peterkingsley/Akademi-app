@@ -1389,6 +1389,9 @@ model WaitlistEntry {
   level            Int?
   main_struggle    String?
   source           String    @default("landing_page")
+  utm_source       String?
+  utm_medium       String?
+  utm_campaign     String?
   status           String    @default("WAITLISTED")
   first_invited_at DateTime?
   last_invited_at  DateTime?
@@ -1404,6 +1407,7 @@ model WaitlistEntry {
   @@index([department])
   @@index([invite_count])
   @@index([created_at])
+  @@index([utm_source])
   @@map("waitlist_entries")
 }
 

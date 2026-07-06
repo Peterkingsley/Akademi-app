@@ -424,6 +424,7 @@ export class AdminService {
     if (filter.department) where.department = { contains: filter.department, mode: 'insensitive' };
     if (filter.status) where.status = String(filter.status).trim().toUpperCase();
     if (filter.mainStruggle) where.main_struggle = String(filter.mainStruggle).trim();
+    if (filter.utmSource) where.utm_source = { equals: String(filter.utmSource).trim(), mode: 'insensitive' };
     if (filter.inviteStatus === 'never_sent') where.invite_count = 0;
     if (filter.inviteStatus === 'sent_before') where.invite_count = { gt: 0 };
 
@@ -441,7 +442,7 @@ export class AdminService {
     const limit = Math.min(Number(filter.limit) || 50, 100);
     const page = Math.max(Number(filter.page) || 1, 1);
 
-    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, invitedCount, neverSentCount, waitlistEvents] = await Promise.all([
+    const [entries, total, byNeed, byUniversity, byFaculty, byDepartment, byUtmSource, invitedCount, neverSentCount, waitlistEvents] = await Promise.all([
       prisma.waitlistEntry.findMany({
         where,
         orderBy: { created_at: 'desc' },
@@ -469,6 +470,11 @@ export class AdminService {
         where,
         _count: { _all: true },
       }),
+      prisma.waitlistEntry.groupBy({
+        by: ['utm_source'],
+        where,
+        _count: { _all: true },
+      }),
       prisma.waitlistEntry.count({ where: { ...where, invite_count: { gt: 0 } } }),
       prisma.waitlistEntry.count({ where: { ...where, invite_count: 0 } }),
       prisma.waitlistEvent.findMany({
@@ -485,7 +491,7 @@ export class AdminService {
       }),
     ]);
 
-    const mapSummary = (items: Array<{ _count: { _all: number } } & Record<string, string | null>>, key: 'university' | 'faculty' | 'department') =>
+    const mapSummary = (items: Array<{ _count: { _all: number } } & Record<string, string | null>>, key: 'university' | 'faculty' | 'department' | 'utm_source') =>
       items
         .map((item) => ({
           name: (item[key] as string | null) || 'not_set',
@@ -572,6 +578,7 @@ export class AdminService {
         byUniversity: universitySummary,
         byFaculty: mapSummary(byFaculty as any, 'faculty'),
         byDepartment: mapSummary(byDepartment as any, 'department'),
+        bySource: mapSummary(byUtmSource as any, 'utm_source').filter((item) => item.name !== 'not_set'),
         traffic: {
           pageViews,
           uniqueVisitors: uniqueVisitors.size,
