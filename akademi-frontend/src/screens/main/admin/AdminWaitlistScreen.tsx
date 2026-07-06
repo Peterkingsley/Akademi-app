@@ -11,10 +11,21 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { BarChart3, Mail, RefreshCw, Send, Users } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Clipboard from "expo-clipboard";
+import { BarChart3, Copy, Link2, Mail, RefreshCw, Send, Users } from "lucide-react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, WaitlistEntry, WaitlistResponse } from "../../../services/adminService";
+
+const WAITLIST_SITE_URL_STORAGE_KEY = "akademi_admin_waitlist_site_url";
+
+const slugify = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 type InviteStatus = "all" | "never_sent" | "sent_before";
 
@@ -61,8 +72,20 @@ export const AdminWaitlistScreen: React.FC = () => {
     university: "",
     faculty: "",
     department: "",
+    utmSource: "",
     inviteStatus: "all" as InviteStatus,
   });
+  const [siteUrl, setSiteUrl] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
+  const [linkCampaign, setLinkCampaign] = useState("waitlist_referral");
+  const [generatedLink, setGeneratedLink] = useState<{ code: string; url: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(WAITLIST_SITE_URL_STORAGE_KEY).then((stored) => {
+      if (stored) setSiteUrl(stored);
+    });
+  }, []);
 
   const buildQuery = useCallback(
     () => ({
@@ -71,6 +94,7 @@ export const AdminWaitlistScreen: React.FC = () => {
       ...(filters.university.trim() ? { university: filters.university.trim() } : {}),
       ...(filters.faculty.trim() ? { faculty: filters.faculty.trim() } : {}),
       ...(filters.department.trim() ? { department: filters.department.trim() } : {}),
+      ...(filters.utmSource.trim() ? { utmSource: filters.utmSource.trim() } : {}),
       ...(filters.inviteStatus !== "all" ? { inviteStatus: filters.inviteStatus } : {}),
     }),
     [filters]
@@ -88,6 +112,7 @@ export const AdminWaitlistScreen: React.FC = () => {
           ...(activeFilters.university.trim() ? { university: activeFilters.university.trim() } : {}),
           ...(activeFilters.faculty.trim() ? { faculty: activeFilters.faculty.trim() } : {}),
           ...(activeFilters.department.trim() ? { department: activeFilters.department.trim() } : {}),
+          ...(activeFilters.utmSource.trim() ? { utmSource: activeFilters.utmSource.trim() } : {}),
           ...(activeFilters.inviteStatus !== "all" ? { inviteStatus: activeFilters.inviteStatus } : {}),
         });
         setData(response);
@@ -113,11 +138,42 @@ export const AdminWaitlistScreen: React.FC = () => {
     { key: "sent_before", label: "Sent before" },
   ];
 
-  const applyBucketFilter = (type: "university" | "faculty" | "department", value: string) => {
+  const applyBucketFilter = (type: "university" | "faculty" | "department" | "utmSource", value: string) => {
     setFilters((current) => ({
       ...current,
       [type]: value === "not_set" ? "" : value,
     }));
+  };
+
+  const persistSiteUrl = (value: string) => {
+    setSiteUrl(value);
+    AsyncStorage.setItem(WAITLIST_SITE_URL_STORAGE_KEY, value).catch(() => {});
+  };
+
+  const generateLink = () => {
+    const code = slugify(linkLabel);
+    if (!code) {
+      Alert.alert("Add a label", "Give this link a name first, e.g. \"Instagram bio\" or \"Ada's link\".");
+      return;
+    }
+    const base = siteUrl.trim().replace(/\/+$/, "");
+    if (!base) {
+      Alert.alert("Add your waitlist site URL", "Paste the public waitlist site URL once so links can be generated.");
+      return;
+    }
+    const params = new URLSearchParams({
+      utm_source: code,
+      utm_medium: "referral",
+      ...(linkCampaign.trim() ? { utm_campaign: linkCampaign.trim() } : {}),
+    });
+    setGeneratedLink({ code, url: `${base}/?${params.toString()}` });
+    setCopied(false);
+  };
+
+  const copyGeneratedLink = async () => {
+    if (!generatedLink) return;
+    await Clipboard.setStringAsync(generatedLink.url);
+    setCopied(true);
   };
 
   const previewCampaign = async () => {
@@ -170,7 +226,7 @@ export const AdminWaitlistScreen: React.FC = () => {
     );
   };
 
-  const renderMetricRow = (title: string, items: Array<{ name: string; count: number }>, type: "university" | "faculty" | "department") => {
+  const renderMetricRow = (title: string, items: Array<{ name: string; count: number }>, type: "university" | "faculty" | "department" | "utmSource") => {
     if (!items.length) return null;
 
     return (
@@ -247,6 +303,7 @@ export const AdminWaitlistScreen: React.FC = () => {
     () => (data?.summary?.byDepartment?.length ? data.summary.byDepartment : buildEntrySummary(data?.entries || [], "department")),
     [data?.entries, data?.summary?.byDepartment]
   );
+  const sourceSummary = useMemo(() => data?.summary?.bySource || [], [data?.summary?.bySource]);
   const traffic = useMemo(
     () =>
       data?.summary?.traffic || {
@@ -368,6 +425,64 @@ export const AdminWaitlistScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
+            <View style={[styles.filterPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.emailHeader}>
+                <Link2 size={20} color={colors.primary} />
+                <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "800" }]}>Generate a trackable link</Text>
+              </View>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>
+                Give each person or channel their own link. Every signup that comes through it is tagged, so you can see
+                exactly who it converted below.
+              </Text>
+              <TextInput
+                style={[styles.input, { borderColor: colors.border, color: colors.textPrimary }]}
+                placeholder="Your waitlist site URL (e.g. https://waitlist.akademi.app)"
+                placeholderTextColor={colors.textMuted}
+                value={siteUrl}
+                onChangeText={persistSiteUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <View style={styles.twoUp}>
+                <TextInput
+                  style={[styles.input, styles.twoUpInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="Label (e.g. Ada, Instagram bio)"
+                  placeholderTextColor={colors.textMuted}
+                  value={linkLabel}
+                  onChangeText={setLinkLabel}
+                />
+                <TextInput
+                  style={[styles.input, styles.twoUpInput, { borderColor: colors.border, color: colors.textPrimary }]}
+                  placeholder="Campaign (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  value={linkCampaign}
+                  onChangeText={setLinkCampaign}
+                />
+              </View>
+              <TouchableOpacity style={[styles.sendButton, { backgroundColor: colors.primary }]} onPress={generateLink}>
+                <Link2 size={16} color="#020403" />
+                <Text style={[typography.caption, { color: "#020403", fontWeight: "900" }]}>Generate link</Text>
+              </TouchableOpacity>
+              {generatedLink && (
+                <View style={[styles.generatedLinkCard, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>Code: {generatedLink.code}</Text>
+                  <Text style={[typography.body, { color: colors.textPrimary }]} selectable numberOfLines={3}>
+                    {generatedLink.url}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.secondaryButton, { borderColor: colors.border, flexDirection: "row" }]}
+                    onPress={copyGeneratedLink}
+                  >
+                    <Copy size={16} color={colors.primary} />
+                    <Text style={[typography.caption, { color: colors.textPrimary, fontWeight: "800", marginLeft: 8 }]}>
+                      {copied ? "Copied!" : "Copy link"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {renderMetricRow("Signups by link", sourceSummary, "utmSource")}
+            </View>
+
             <View style={[styles.analyticsPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.emailHeader}>
                 <BarChart3 size={20} color={colors.primary} />
@@ -484,7 +599,7 @@ export const AdminWaitlistScreen: React.FC = () => {
                 <TouchableOpacity
                   style={[styles.secondaryButton, { borderColor: colors.border }]}
                   onPress={() => {
-                    const cleared = { search: "", university: "", faculty: "", department: "", inviteStatus: "all" as InviteStatus };
+                    const cleared = { search: "", university: "", faculty: "", department: "", utmSource: "", inviteStatus: "all" as InviteStatus };
                     setFilters(cleared);
                     loadWaitlist(true, cleared);
                   }}
@@ -705,6 +820,12 @@ const styles = StyleSheet.create({
   },
   inviteStatusRow: {
     gap: 10,
+  },
+  generatedLinkCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
+    padding: 14,
   },
   inviteStatusChip: {
     borderRadius: 999,

@@ -32,3 +32,12 @@ The site now sends first-party waitlist events directly to the Akademi backend:
 These are stored in the backend and surfaced inside the admin waitlist screen so
 you can track traffic, conversion, search demand, and WhatsApp redirect follow-through
 without adding a third-party analytics script.
+
+## Trackable links
+
+Any link to this site that includes `?utm_source=<code>` (optionally with
+`utm_medium` and `utm_campaign`) is captured on page load and saved on the
+waitlist signup itself if the visitor joins, not just on the page view event.
+The admin waitlist screen has a "Generate a trackable link" tool that builds
+these URLs and shows a "Signups by link" breakdown so you can see how many
+people each link actually converted.

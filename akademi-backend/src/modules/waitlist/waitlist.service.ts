@@ -75,6 +75,9 @@ export class WaitlistService {
         level: parseLevel(data.level),
         main_struggle: clean(data.main_struggle) || null,
         source: clean(data.source) || 'landing_page',
+        utm_source: clean(data.utm_source) || null,
+        utm_medium: clean(data.utm_medium) || null,
+        utm_campaign: clean(data.utm_campaign) || null,
         metadata,
       },
       update: {

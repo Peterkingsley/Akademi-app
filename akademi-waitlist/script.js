@@ -541,7 +541,11 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const attribution = getWaitlistAttribution();
   payload.source = "akademi_waitlist_static_site";
+  payload.utm_source = attribution.utm_source || "";
+  payload.utm_medium = attribution.utm_medium || "";
+  payload.utm_campaign = attribution.utm_campaign || "";
   payload.metadata = {
     page: window.location.href,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
