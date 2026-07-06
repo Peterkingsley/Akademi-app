@@ -1,3 +1,5 @@
+/// <reference types="jest" />
+
 import request from 'supertest';
 import { app } from '../src/app';
 import prisma from '../src/config/db';
@@ -99,15 +101,37 @@ describe('Users Module', () => {
     (prisma.user.update as jest.Mock).mockResolvedValue({
       id: userId,
       name: 'John Updated',
+      email: 'john@example.com',
     });
 
     const res = await request(app)
       .patch('/users/me')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ name: 'John Updated' });
+      .send({
+        name: 'John Updated',
+        email: 'super@akademi.ng',
+        password_hash: 'attacker-controlled',
+        is_verified: true,
+        is_banned: false,
+      });
 
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('John Updated');
+    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: userId, is_deleted: false },
+      data: { name: 'John Updated' },
+    }));
+  });
+
+  it('should reject normal user tokens on admin routes even when email matches an admin', async () => {
+    const forgedUserToken = jwt.sign({ userId, email: 'super@akademi.ng' }, config.jwtSecret);
+
+    const res = await request(app)
+      .get('/admin/dashboard/stats')
+      .set('Authorization', `Bearer ${forgedUserToken}`);
+
+    expect(res.status).toBe(401);
+    expect(prisma.admin.findUnique).not.toHaveBeenCalled();
   });
 
   it('should soft delete account', async () => {

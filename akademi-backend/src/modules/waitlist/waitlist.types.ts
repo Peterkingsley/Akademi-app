@@ -8,6 +8,9 @@ export interface JoinWaitlistRequest {
   level?: number | string;
   main_struggle?: string;
   source?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
   metadata?: Record<string, unknown>;
 }
 

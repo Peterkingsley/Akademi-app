@@ -33,7 +33,11 @@ export const RegisterScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasAcademicProfile = !!university && !!department && !!semester && !!semesterStart && !!semesterEnd && selectedCourses.length > 0;
+  // University/department/level always come from the earlier onboarding
+  // steps. Course codes and semester dates are optional — a student can
+  // skip them at sign-up and add them later from their profile.
+  const hasAcademicProfile = !!university && !!department && !!level;
+  const hasCourses = selectedCourses.length > 0;
 
   useEffect(() => {
     if (!hasAcademicProfile) {
@@ -127,12 +131,16 @@ export const RegisterScreen: React.FC = () => {
           <View style={styles.summaryCopy}>
             <Text style={styles.summaryLabel}>Current profile</Text>
             <Text style={styles.summaryTitle} numberOfLines={2}>
-              {hasAcademicProfile ? `${department} / ${level || "Level"} / Semester ${semester}` : "Academic profile missing"}
+              {hasAcademicProfile
+                ? `${department} / ${level || "Level"}${hasCourses ? ` / Semester ${semester}` : ""}`
+                : "Academic profile missing"}
             </Text>
             <Text style={styles.summaryMeta} numberOfLines={2}>
-              {hasAcademicProfile
-                ? `${university} · ${selectedCourses.length} courses · ${semesterStart} to ${semesterEnd}`
-                : "Go back and choose your school details before creating your account."}
+              {!hasAcademicProfile
+                ? "Go back and choose your school details before creating your account."
+                : hasCourses
+                  ? `${university} · ${selectedCourses.length} courses · ${semesterStart} to ${semesterEnd}`
+                  : `${university} · No course codes yet — add them anytime from your profile.`}
             </Text>
           </View>
         </View>

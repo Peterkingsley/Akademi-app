@@ -40,9 +40,12 @@ const looksLikeStandaloneMath = (line: string) => {
 
   const mathSignals =
     /\\[a-zA-Z]+|[=<>+\-*/^√∫∑π∞≈≤≥]|[A-Za-z]\s*_[A-Za-z0-9]+|[A-Za-z]\s*\^|\d+\s*[A-Za-z]|[A-Za-z]\([^)]+\)/;
-  const wordMatches = trimmed.match(/[A-Za-z]{3,}/g) || [];
+  // Count every 2+ letter word, not just long ones - short connector words ("is", "we", "by",
+  // "to"...) are exactly what mark a real sentence, and a length->=3 filter let them slip
+  // through uncounted, letting whole sentences get wrapped as display math and fail to parse.
+  const wordMatches = trimmed.match(/[A-Za-z]{2,}/g) || [];
 
-  return trimmed.length <= 120 && mathSignals.test(trimmed) && wordMatches.length <= 6;
+  return trimmed.length <= 120 && mathSignals.test(trimmed) && wordMatches.length <= 3;
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;

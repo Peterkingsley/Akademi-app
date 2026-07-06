@@ -27,7 +27,10 @@ describe('Sessions Module', () => {
     await request(app).post('/auth/register').send(registerData);
     const user = await prisma.user.findUnique({ where: { email: registerData.email } });
     userId = user!.id;
-    await request(app).post('/auth/verify-email').send({ token: user?.verification_token });
+    await request(app).post('/auth/verify-email').send({
+      email: registerData.email,
+      token: user?.verification_token,
+    });
 
     const loginRes = await request(app).post('/auth/login').send({
       email: registerData.email,

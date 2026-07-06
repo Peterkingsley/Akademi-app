@@ -40,8 +40,8 @@ export const LoginScreen: React.FC = () => {
         },
       });
 
-      const { user, accessToken, refreshToken } = response.data;
-      setAuth(user, accessToken, refreshToken);
+      const { user, accessToken, refreshToken, adminAccessToken } = response.data;
+      setAuth(user, accessToken, refreshToken, adminAccessToken);
     } catch (err: any) {
       setError(err.response?.data?.message || "Invalid email or password.");
     } finally {

@@ -6,19 +6,73 @@ import { OAuth2Client } from 'google-auth-library';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePasswordRequest, VerifyEmailRequest } from './auth.types';
-import { AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
+import { AdminRole, AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
+import redisClient from '../../config/redis';
 
 const resend = new Resend(config.resendApiKey);
 const googleClient = new OAuth2Client(config.googleOauthClientId);
+
+// Lock an account's verification code after this many failed attempts within
+// the window, so the 6-digit space cannot be brute-forced even across IPs.
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_LOCK_WINDOW_SECONDS = 15 * 60;
 
 export class AuthService {
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  // Cryptographically secure 6-digit code (crypto.randomInt, not Math.random).
+  private generateVerificationCode(): string {
+    return crypto.randomInt(100000, 1000000).toString();
+  }
+
+  private verifyAttemptKey(email: string): string {
+    return `verify-attempts:${email.trim().toLowerCase()}`;
+  }
+
+  private async assertVerifyAttemptsRemaining(email: string): Promise<void> {
+    const key = this.verifyAttemptKey(email);
+    const attempts = await redisClient.incr(key);
+    if (attempts === 1) {
+      await redisClient.expire(key, VERIFY_LOCK_WINDOW_SECONDS);
+    }
+    if (attempts > MAX_VERIFY_ATTEMPTS) {
+      throw new Error('Too many verification attempts. Request a new code and try again later.');
+    }
+  }
+
+  private async clearVerifyAttempts(email: string): Promise<void> {
+    await redisClient.del(this.verifyAttemptKey(email));
+  }
+
   private generateAccessToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwtSecret, { expiresIn: '15m' });
+  }
+
+  private generateAdminAccessToken(admin: { id: string; email: string; role: AdminRole }): string {
+    return jwt.sign(
+      { adminId: admin.id, email: admin.email, role: admin.role },
+      config.jwtSecret,
+      { expiresIn: '24h' },
+    );
+  }
+
+  private async getAdminAuthForEmail(email: string): Promise<{ adminRole: AdminRole | null; adminAccessToken: string | null }> {
+    const admin = await prisma.admin.findUnique({
+      where: { email },
+      select: { id: true, email: true, role: true, status: true },
+    });
+
+    if (!admin || admin.status === 'suspended') {
+      return { adminRole: null, adminAccessToken: null };
+    }
+
+    return {
+      adminRole: admin.role,
+      adminAccessToken: this.generateAdminAccessToken(admin),
+    };
   }
 
   private async generateRefreshToken(userId: string, deviceInfo: { name: string; type: any }): Promise<string> {
@@ -55,35 +109,43 @@ export class AuthService {
       throw new Error("Invalid email format");
     }
 
-    const semester = Number(data.semester);
-    if (![1, 2].includes(semester)) {
-      throw new Error("Semester is required");
-    }
-
-    if (!data.semesterStart || !data.semesterEnd) {
-      throw new Error("Semester start and end dates are required");
-    }
-
-    const semesterStart = new Date(data.semesterStart);
-    const semesterEnd = new Date(data.semesterEnd);
-    if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime()) || semesterEnd <= semesterStart) {
-      throw new Error("Enter valid semester start and end dates");
-    }
-
     const rawAcademicCourses: Array<{ code: string; name?: string; level?: number; semester?: number }> =
       data.academicCourses || data.courses?.map((code) => ({ code })) || [];
 
-    const academicCourses = rawAcademicCourses
-      .map((course) => ({
-        code: course.code?.trim().toUpperCase(),
-        name: course.name?.trim() || null,
-        level: course.level || data.level,
-        semester: course.semester || semester,
-      }))
-      .filter((course) => !!course.code);
+    // Course codes and semester dates are optional at sign-up — a student may
+    // not have them on hand (e.g. away from their course form). They can add
+    // this later from their profile, so we only enforce it when they did
+    // provide at least one course code.
+    let semester: number | null = null;
+    let semesterStart: Date | null = null;
+    let semesterEnd: Date | null = null;
+    let academicCourses: Array<{ code: string; name: string | null; level: number; semester: number }> = [];
 
-    if (academicCourses.length === 0) {
-      throw new Error("At least one course code is required");
+    if (rawAcademicCourses.length > 0) {
+      semester = Number(data.semester);
+      if (![1, 2].includes(semester)) {
+        throw new Error("Semester is required");
+      }
+
+      if (!data.semesterStart || !data.semesterEnd) {
+        throw new Error("Semester start and end dates are required");
+      }
+
+      semesterStart = new Date(data.semesterStart);
+      semesterEnd = new Date(data.semesterEnd);
+      if (Number.isNaN(semesterStart.getTime()) || Number.isNaN(semesterEnd.getTime()) || semesterEnd <= semesterStart) {
+        throw new Error("Enter valid semester start and end dates");
+      }
+
+      const resolvedSemester = semester;
+      academicCourses = rawAcademicCourses
+        .map((course) => ({
+          code: course.code?.trim().toUpperCase() || "",
+          name: course.name?.trim() || null,
+          level: course.level || data.level,
+          semester: course.semester || resolvedSemester,
+        }))
+        .filter((course) => !!course.code);
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
@@ -96,7 +158,7 @@ export class AuthService {
       passwordHash = await bcrypt.hash(data.password, 12);
     }
 
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = this.generateVerificationCode();
     const verificationTokenExpiresAt = new Date();
     verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 
@@ -132,19 +194,21 @@ export class AuthService {
         },
       });
 
-      await tx.studentCourse.createMany({
-        data: academicCourses.map((course) => ({
-          user_id: createdUser.id,
-          department_id: department.id,
-          code: course.code,
-          name: course.name,
-          level: course.level,
-          semester: course.semester,
-          semester_start: semesterStart,
-          semester_end: semesterEnd,
-        })),
-        skipDuplicates: true,
-      });
+      if (academicCourses.length > 0 && semesterStart && semesterEnd) {
+        await tx.studentCourse.createMany({
+          data: academicCourses.map((course) => ({
+            user_id: createdUser.id,
+            department_id: department.id,
+            code: course.code,
+            name: course.name,
+            level: course.level,
+            semester: course.semester,
+            semester_start: semesterStart,
+            semester_end: semesterEnd,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       await tx.learningProfile.create({
         data: {
@@ -177,8 +241,19 @@ export class AuthService {
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<AuthResponse> {
+    if (!data.email || !data.token) {
+      throw new Error('Email and verification code are required');
+    }
+
+    // Throttle per-account attempts before doing any lookup so the 6-digit code
+    // cannot be brute-forced (even from many IPs) within its 15-minute TTL.
+    await this.assertVerifyAttemptsRemaining(data.email);
+
+    // Match the code against the specific account only — never look up a code
+    // globally across all users.
     const user = await prisma.user.findFirst({
       where: {
+        email: data.email,
         verification_token: data.token,
         verification_token_expires_at: { gt: new Date() },
         is_deleted: false,
@@ -188,6 +263,8 @@ export class AuthService {
     if (!user) {
       throw new Error('Invalid or expired verification token');
     }
+
+    await this.clearVerifyAttempts(data.email);
 
     const verifiedUser = await prisma.user.update({
       where: { id: user.id },
@@ -202,16 +279,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: verifiedUser.id, email: verifiedUser.email });
     const refreshToken = await this.generateRefreshToken(verifiedUser.id, deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: verifiedUser.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(verifiedUser.email);
 
     const { password_hash, ...userWithoutPassword } = verifiedUser;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -237,16 +312,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, data.deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(user.email);
 
     const { password_hash, ...userWithoutPassword } = user;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -269,16 +342,14 @@ export class AuthService {
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
     const refreshToken = await this.generateRefreshToken(user.id, deviceInfo);
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(user.email);
 
     const { password_hash, ...userWithoutPassword } = user;
     return {
       accessToken,
       refreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -311,16 +382,14 @@ export class AuthService {
       type: refreshTokenRecord.device_type,
     });
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: refreshTokenRecord.user.email },
-      select: { role: true }
-    });
+    const adminAuth = await this.getAdminAuthForEmail(refreshTokenRecord.user.email);
 
     const { password_hash, ...userWithoutPassword } = refreshTokenRecord.user;
     return {
       accessToken,
       refreshToken: newRefreshToken,
-      user: { ...userWithoutPassword, admin_role: admin?.role || null }
+      adminAccessToken: adminAuth.adminAccessToken,
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
     };
   }
 
@@ -366,7 +435,7 @@ export class AuthService {
           from: 'Akademi <onboarding@resend.dev>',
           to: user.email,
           subject: 'Reset your password',
-          html: `<p>Click <a href="https://onboarding@resend.dev/reset-password?token=${resetToken}">here</a> to reset your password.</p>`,
+          html: `<p>Click <a href="${config.passwordResetUrl}?token=${encodeURIComponent(resetToken)}">here</a> to reset your password.</p>`,
         });
       } catch (emailError) {
         console.error('Failed to send forgot password email:', emailError);
@@ -408,11 +477,14 @@ export class AuthService {
 
   async resendVerification(email: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { email, is_deleted: false } });
+    // Do not reveal whether the account exists or is already verified — mirror
+    // forgotPassword's behaviour so this endpoint can't be used to enumerate
+    // registered accounts. Silently succeed in the no-op cases.
     if (!user || user.is_verified) {
-      throw new Error('User not found or already verified');
+      return;
     }
 
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationToken = this.generateVerificationCode();
     const verificationTokenExpiresAt = new Date();
     verificationTokenExpiresAt.setMinutes(verificationTokenExpiresAt.getMinutes() + 15);
 

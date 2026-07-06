@@ -71,7 +71,7 @@ export const SetupCompleteScreen: React.FC = () => {
   const handleGoHome = async () => {
     if (authPayload.user && authPayload.accessToken && authPayload.refreshToken) {
       await AsyncStorage.setItem(HOME_TOUR_PENDING_KEY, "true");
-      setAuth(authPayload.user, authPayload.accessToken, authPayload.refreshToken);
+      setAuth(authPayload.user, authPayload.accessToken, authPayload.refreshToken, authPayload.adminAccessToken);
     } else {
       navigation.navigate("Login");
     }

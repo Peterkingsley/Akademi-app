@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearTokens, readStoredTokens, saveTokens } from "../services/tokenStorage";
 
 interface User {
   id: string;
@@ -22,11 +23,12 @@ interface AuthState {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  adminAccessToken: string | null;
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
   hasHydrated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
-  updateTokens: (accessToken: string, refreshToken: string) => void;
+  setAuth: (user: User, accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
+  updateTokens: (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
   updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
   setOnboardingComplete: (complete: boolean) => void;
@@ -39,18 +41,21 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
+      adminAccessToken: null,
       isAuthenticated: false,
       hasSeenOnboarding: false,
       hasHydrated: false,
-      setAuth: (user, accessToken, refreshToken) => {
-        AsyncStorage.setItem("accessToken", accessToken);
-        AsyncStorage.setItem("refreshToken", refreshToken);
-        set({ user, accessToken, refreshToken, isAuthenticated: true });
+      setAuth: (user, accessToken, refreshToken, adminAccessToken = null) => {
+        void saveTokens(accessToken, refreshToken, adminAccessToken).catch((error) => {
+          console.error("Failed to save auth tokens securely", error);
+        });
+        set({ user, accessToken, refreshToken, adminAccessToken, isAuthenticated: true });
       },
-      updateTokens: (accessToken, refreshToken) => {
-        AsyncStorage.setItem("accessToken", accessToken);
-        AsyncStorage.setItem("refreshToken", refreshToken);
-        set({ accessToken, refreshToken, isAuthenticated: true });
+      updateTokens: (accessToken, refreshToken, adminAccessToken = null) => {
+        void saveTokens(accessToken, refreshToken, adminAccessToken).catch((error) => {
+          console.error("Failed to rotate auth tokens securely", error);
+        });
+        set({ accessToken, refreshToken, adminAccessToken, isAuthenticated: true });
       },
       updateUser: (updatedUser) => {
         set((state) => ({
@@ -58,11 +63,15 @@ export const useAuthStore = create<AuthState>()(
         }));
       },
       clearAuth: () => {
-        AsyncStorage.multiRemove(["accessToken", "refreshToken", "auth-storage"]);
+        void clearTokens().catch((error) => {
+          console.error("Failed to clear secure auth tokens", error);
+        });
+        AsyncStorage.removeItem("auth-storage");
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
+          adminAccessToken: null,
           isAuthenticated: false,
           hasSeenOnboarding: true,
         });
@@ -73,8 +82,20 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "auth-storage",
       storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        hasSeenOnboarding: state.hasSeenOnboarding,
+      }),
+      onRehydrateStorage: () => async (state) => {
+        const { accessToken, refreshToken, adminAccessToken } = await readStoredTokens();
+        useAuthStore.setState({
+          accessToken,
+          refreshToken,
+          adminAccessToken,
+          isAuthenticated: Boolean(state?.user && accessToken && refreshToken),
+          hasHydrated: true,
+        });
       },
     },
   ),

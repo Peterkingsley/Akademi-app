@@ -8,6 +8,7 @@ export interface JwtPayload {
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
+  adminAccessToken?: string | null;
   user: Partial<User> & { admin_role?: string | null };
 }
 
@@ -42,6 +43,7 @@ export interface LoginRequest {
 }
 
 export interface VerifyEmailRequest {
+  email: string;
   token: string;
   deviceInfo?: {
     name: string;

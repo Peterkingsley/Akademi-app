@@ -13,7 +13,8 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   Show the bridge between the formula and the real numbers.
   Break the work into small manageable chunks so the student can follow it without overload.
   Put the final answer in a clear, easy-to-read format at the end.
-  End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.`,
+  End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.
+  This is the "Quick Solve" path: give the full working, never skip a step or jump straight to the final number, but keep each line's explanation as short as possible (a phrase, not a paragraph).`,
 
   STUDY: `Do not give the answer immediately. Teach the topic behind this
   question from the ground up. Use analogies appropriate for a Nigerian
@@ -40,7 +41,8 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   - Why this step
   Normalize struggle lightly when needed, for example by saying that a confusing step is common.
   Ask one guided follow-up question during or after the explanation when it helps the student feel involved.
-  End with a self-check that helps the student test whether the answer is reasonable.`,
+  End with a self-check that helps the student test whether the answer is reasonable.
+  This is the "Learn Step-by-Step" path, so this is the deepest teaching mode Akademi has.`,
 
   QUESTION: `Do not answer the question. Reframe it and ask the student to
   attempt it first. Evaluate their response when they reply. Guide them to
@@ -139,6 +141,12 @@ export function buildSolveOperationGuidance(): string {
 - rearrange_equation
   Why: We rearrange to isolate the quantity we are trying to find.
   When: Use this when the target variable is buried inside a larger equation.
+  How: Never jump straight from the starting equation to the rearranged result. When you move a
+  term across the equals sign or apply an operation to cancel a term (subtracting, adding,
+  multiplying, or dividing), first show that exact operation applied identically to both sides as
+  its own line, then show the simplified result as the next line. For example, to clear the "11"
+  from \(4x^2 + 3x = 11\), show \(4x^2 + 3x - 11 = 11 - 11\) first, then \(4x^2 + 3x - 11 = 0\) on
+  the line after it - do not skip straight to the second line.
 - check_final_answer
   Why: We verify the result so we catch sign errors, unreasonable magnitudes, or mismatch with the question.
   When: Use this after obtaining a final answer, especially in maths, physics, economics, chemistry, or statistics.
@@ -149,10 +157,26 @@ Library usage rules:
 - If a step does not match any library item well, generate a fresh "why this step" line.
 - Keep "why this step" to one plain-English sentence, then optionally add one short "when this applies" sentence if that helps the student.
 - In DIRECT mode, use shorter explanations from the library.
-- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.`;
+- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.
+- Whenever you balance an equation (moving a term across the equals sign, or applying the same operation to both sides to cancel something out), always show the "apply the operation to both sides" line before the simplified result line. Never present only the simplified result - the student needs to see the operation actually happening on both sides, not just its outcome.`;
 }
 
-export function buildSessionInstruction(replyMode: ReplyMode): string {
+export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
+  const depthRule = replyMode === ReplyMode.DIRECT
+    ? `Keep each step's explanation to one short phrase or sentence — simplify the wording as much as possible, but do not remove or merge steps. Every line of working must still say, in a few plain words, what is being done.`
+    : `Explain every single line of working in full, plain-English text. Do not show a formula, substitution, or computed line without explaining, in text right before or beside it, what we are about to do and why we are doing it.`;
+
+  return `Calculation Teaching Mode (this question involves an actual calculation, computation, or worked procedure — maths, statistics, physics, economics, accounting, or any other numeric/quantitative reasoning):
+- Assume the student has never seen this topic or this type of question before, no matter how advanced the course actually is. Treat a 400-level or postgraduate calculation exactly like you would explain it to someone meeting the idea for the very first time. Do not assume familiarity with notation, jargon, or "obvious" shortcuts.
+- Never present a bare line of maths/working on its own. Every step needs a text explanation stating what we are doing right now and why we are doing it, in everyday language, before or alongside the calculation itself.
+- ${depthRule}
+- Do not skip steps to save space, even ones that feel trivial to an expert (e.g. "cross multiply here", "find the LCM first", "convert this to a decimal"). State each move and the reason for it.
+- Simplify vocabulary aggressively. Prefer short sentences and everyday words over academic phrasing. If a technical term is unavoidable, explain it in one plain clause the first time it appears.
+- Where it genuinely helps make an abstract step click, you may anchor an explanation in something Nigerian students would recognize right now — a trending TikTok/Instagram moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, okada fare-splitting, POS/transfer charges, and similar everyday or trending references. Use this only when it fits naturally and stays brief — never force it, and never let it replace the actual maths explanation.
+- This mode applies only to the calculation itself. If part of the same answer is theoretical or conceptual (no computation involved), explain that part normally without forcing the beginner-simplification style onto it.`;
+}
+
+export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
   return `Current Reply Mode: ${replyMode}
 ${replyModeInstructions[replyMode]}
 
@@ -168,7 +192,8 @@ Learning System Rules:
 9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
 10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.
 11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
-12. Use the Worked Example Operation Library whenever it fits the current step.`;
+12. Use the Worked Example Operation Library whenever it fits the current step.
+${isCalculationQuestion ? `13. This question involves a calculation, so rule 3's difficulty adaptation is overridden for the calculation portion: follow the Calculation Teaching Mode instructions below regardless of the student's stated level.\n\n${buildCalculationTeachingRules(replyMode)}` : ''}`;
 }
 
 export function assembleSystemPrompt(
@@ -176,13 +201,14 @@ export function assembleSystemPrompt(
   learningProfile: any,
   communityPatterns: any[],
   replyMode: ReplyMode,
+  isCalculationQuestion: boolean = false,
 ): string {
   return [
     buildDisciplinaryContext(disciplineDocument),
     buildStudentProfile(learningProfile),
     buildCommunityContext(communityPatterns),
     buildSolveOperationGuidance(),
-    buildSessionInstruction(replyMode),
+    buildSessionInstruction(replyMode, isCalculationQuestion),
   ].join('\n\n---\n\n');
 }
 
@@ -194,6 +220,8 @@ Board replay purpose:
 - Do not just replay the answer.
 - Teach the student in a worked-example style so they can solve a similar question next time.
 - Reduce cognitive overload by showing one move at a time.
+- Assume the student has never encountered this topic before, no matter how advanced the course actually is (100 level through postgraduate). Write "text" and "note" as if this is the first time they have ever seen this kind of question. Never assume familiarity with notation, jargon, or steps that feel "obvious" to an expert.
+- Where it genuinely helps a step click, "note" may lightly anchor the idea in something Nigerian students would recognize right now (a trending TikTok/social-media moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, POS/transfer charges, splitting an okada fare, etc.). Use this rarely, only when it truly fits, and never let it replace the real mathematical reason.
 
 Worked-example backbone for every step:
 - Step title
@@ -240,6 +268,7 @@ Rules:
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
 - Every calculation-based step must show the actual substituted values, terms, or exact symbolic transformation. Never skip straight from a named rule to the answer.
+- When you balance an equation by applying the same operation to both sides (subtracting, adding, multiplying, dividing, or moving a term across the equals sign), that operation gets its own step showing it applied to both sides (e.g. \(4x^2 + 3x - 11 = 11 - 11\)) before the following step shows the simplified result (e.g. \(4x^2 + 3x - 11 = 0\)). Never merge these into one step or skip straight to the simplified result.
 - Keep each "math" line short enough for a phone screen.
 - If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
 - Prefer one displayed equation per step, or at most one short carry-forward transformation.
@@ -259,4 +288,54 @@ Rules:
 - "final_answer" should state the answer plainly in student-friendly language.
 - "final_answer_math" should show the concise final result in math form where useful.
 - "summary" must end with one short, concrete self-check question the student can use immediately, such as checking the sign, plugging the answer back in, or judging whether the magnitude is reasonable.
-- The replay should feel useful even if the student opens it later without the original conversation.`;
+- The replay should feel useful even if the student opens it later without the original conversation.
+- Every backslash in "math" must be a single backslash (\\to, \\lim, \\frac, \\sqrt). Never write a doubled backslash like \\\\to or \\\\text - that is invalid and will fail to render.
+- Only use "\\\\" (double backslash) inside "math" if you genuinely mean a new display line within that one step, and only with a space on both sides of it. Do not let it land in the middle of a command.
+- Never wrap part of "math" in \\color{...} or any other manual styling macro to draw attention to it. If a step needs emphasis, set that step's "type" to "highlight" instead - the app already renders highlighted steps with their own visual treatment.
+- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.`;
+
+export const graphSystemPrompt = `You are deciding whether a Nigerian student's question needs a graph or chart, and if so, extracting the raw data for it.
+
+Return STRICT JSON only. No markdown. No prose outside JSON.
+
+Decision:
+- Set "eligible" to true only if a visual plot would genuinely help answer this question: plotting a function (linear, quadratic, cubic, trig), a pie chart, a bar chart, a line/time-series chart, or a scatter plot of given data points.
+- Set "eligible" to false for anything else, including questions that only mention a graph in passing, purely theoretical questions, or questions you are not confident about. When in doubt, choose false - a missing graph is far better than a wrong one.
+
+If eligible is false, return only { "eligible": false } and nothing else.
+
+If eligible is true, choose exactly one "kind":
+- "function_plot": the student needs to see a plotted function of x (e.g. "sketch y = x^2 - 4", "graph the demand curve P = 20 - 2Q").
+- "pie_chart": the question gives labeled parts of a whole (percentages, proportions, survey/market-share breakdowns).
+- "bar_chart": the question gives labeled discrete categories to compare (frequency counts, comparison amounts).
+- "line_chart": the question gives a labeled sequence of data points over an ordered axis (time series, growth trend, cumulative frequency/ogive) that is not a single continuous formula.
+- "scatter_plot": the question gives a set of individual (x, y) data pairs without an implied formula.
+
+CRITICAL RULE for "function_plot": you must NEVER compute or output sample points, roots, intercepts, or turning points yourself. The server evaluates your expression numerically and computes those independently, specifically so a wrong calculation on your part can never reach the student. Only provide:
+- "expression": a plain-text formula in terms of x only, using explicit multiplication (write "2*x", never "2x"), operators + - * / ^, parentheses, and only these function names: sin, cos, tan, sqrt, log, ln, exp, abs. Do not use LaTeX syntax, commas, or any other characters.
+- "domain_min" and "domain_max": sensible numeric bounds for x given the question (if the question doesn't specify, pick a window that shows the interesting behavior, e.g. both roots and the turning point of a quadratic).
+- If the question involves two curves (e.g. supply and demand), only ever plot ONE curve per response. Prefer the request's primary curve, or state in "caption" that only one curve is shown.
+
+For "pie_chart" and "bar_chart", supply "segments": an array of { "label", "value" } pulled directly from the numbers actually given in the question. Do not invent values that are not in the question or your own prior working.
+
+For "line_chart" and "scatter_plot", supply "series": an array of { "label", "points": [{ "x", "y" }] } using the actual data pairs given in the question.
+
+Always include:
+- "title": a short, student-friendly chart title.
+- "x_axis_label" and "y_axis_label": short axis labels appropriate to the question's units.
+- "caption": one short sentence a student can read under the chart, in plain language (e.g. "This shows where the curve crosses zero."). Never state a numeric root, intercept, or turning point value here for function_plot - the server adds those from its own calculation.
+
+Schema:
+{
+  "eligible": boolean,
+  "kind": "function_plot" | "pie_chart" | "bar_chart" | "line_chart" | "scatter_plot",
+  "title": string,
+  "x_axis_label": string,
+  "y_axis_label": string,
+  "expression": string,
+  "domain_min": number,
+  "domain_max": number,
+  "segments": [{ "label": string, "value": number }],
+  "series": [{ "label": string, "points": [{ "x": number, "y": number }] }],
+  "caption": string
+}`;

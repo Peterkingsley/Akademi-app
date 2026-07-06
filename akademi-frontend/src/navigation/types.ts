@@ -46,6 +46,7 @@ export type AuthStackParamList = {
     };
     accessToken: string;
     refreshToken: string;
+    adminAccessToken?: string | null;
   };
   Login: undefined;
   ForgotPassword: { email?: string };
@@ -55,7 +56,7 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Home: undefined;
   Solve: undefined;
-  Library: undefined;
+  Library: { course_code?: string } | undefined;
   Profile: undefined;
 };
 
@@ -99,8 +100,7 @@ export type MainStackParamList = {
   AIProcessing: { type: "assignment"; sessionId?: string; reply_mode?: string };
   BoardReplay: { sessionId: string };
   ExamPrep: undefined;
-  AddExam: undefined;
-  AcademicTimeline: undefined;
+  AddExam: { courseCode?: string };
   PrepPlan: { examId: string };
   MockExam: { examId: string; mockExamId?: string };
   MockExamResults: { examId: string; mockExamId: string };

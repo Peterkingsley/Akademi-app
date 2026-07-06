@@ -14,9 +14,30 @@ type RateLimiterOptions = {
   skip?: (req: Request) => boolean;
 };
 
-const ENFORCED_ENVS = new Set(['production', 'staging']);
+// Fail-safe by default: rate limiting is ENFORCED in every environment unless
+// explicitly opted out (RATE_LIMIT_DISABLED=true) or running the test suite.
+// A missing/misconfigured NODE_ENV can no longer silently disable abuse
+// protection (previously it only enforced for an opt-in allow-list of envs).
+const shouldEnforceRateLimit = () =>
+  config.nodeEnv !== 'test' && process.env.RATE_LIMIT_DISABLED !== 'true';
 
-const shouldEnforceRateLimit = () => ENFORCED_ENVS.has(config.nodeEnv);
+// Per-process in-memory fallback used when Redis is unavailable. This keeps the
+// limiter failing CLOSED (still counting) instead of the previous behaviour of
+// waving every request through when Redis could not be reached.
+type MemoryBucket = { count: number; resetAt: number };
+const memoryBuckets = new Map<string, MemoryBucket>();
+
+const incrMemory = (key: string, windowMs: number) => {
+  const now = Date.now();
+  const existing = memoryBuckets.get(key);
+  if (!existing || existing.resetAt <= now) {
+    const bucket: MemoryBucket = { count: 1, resetAt: now + windowMs };
+    memoryBuckets.set(key, bucket);
+    return { count: 1, resetSeconds: Math.ceil(windowMs / 1000) };
+  }
+  existing.count += 1;
+  return { count: existing.count, resetSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)) };
+};
 
 const sanitizeIdentifier = (value: string) => value.replace(/[^a-zA-Z0-9:._-]/g, '_');
 
@@ -69,47 +90,58 @@ export const createRateLimiter = ({
     const identifier = sanitizeIdentifier(getClientIdentifier(req, strategy));
     const key = `rate-limit:${namespace}:${identifier}`;
 
+    let count: number;
+    let resetSeconds: number;
+
     try {
-      const count = await redisClient.incr(key);
-      if (count === 0) {
-        return next();
+      const redisCount = await redisClient.incr(key);
+      if (redisCount === 0) {
+        // redisClient returns the fallback value 0 when Redis is unavailable.
+        // Degrade to the in-memory limiter rather than waving the request
+        // through (fail closed).
+        const mem = incrMemory(key, windowMs);
+        count = mem.count;
+        resetSeconds = mem.resetSeconds;
+      } else {
+        if (redisCount === 1) {
+          await redisClient.expire(key, windowSeconds);
+        }
+        const ttl = await redisClient.ttl(key);
+        count = redisCount;
+        resetSeconds = ttl > 0 ? ttl : windowSeconds;
       }
-      if (count === 1) {
-        await redisClient.expire(key, windowSeconds);
-      }
-
-      const ttl = await redisClient.ttl(key);
-      const resetSeconds = ttl > 0 ? ttl : windowSeconds;
-      const remaining = max - count;
-
-      setRateLimitHeaders(res, max, remaining, resetSeconds);
-
-      if (count > max) {
-        res.setHeader('Retry-After', String(resetSeconds));
-        recordHttpRateLimitEvent({
-          namespace,
-          path: req.originalUrl,
-          method: req.method,
-          ip: req.ip,
-          userId: req.user?.userId ?? req.admin?.adminId ?? null,
-          retryAfterSeconds: resetSeconds,
-        });
-        console.warn('HTTP rate limit exceeded', {
-          namespace,
-          path: req.originalUrl,
-          method: req.method,
-          ip: req.ip,
-          userId: req.user?.userId ?? req.admin?.adminId ?? null,
-          retryAfterSeconds: resetSeconds,
-        });
-        return res.status(429).json({ message });
-      }
-
-      return next();
     } catch (error) {
-      console.error(`Rate limiter failed for namespace ${namespace}:`, error);
-      return next();
+      console.error(`Rate limiter falling back to in-memory for namespace ${namespace}:`, error);
+      const mem = incrMemory(key, windowMs);
+      count = mem.count;
+      resetSeconds = mem.resetSeconds;
     }
+
+    const remaining = max - count;
+    setRateLimitHeaders(res, max, remaining, resetSeconds);
+
+    if (count > max) {
+      res.setHeader('Retry-After', String(resetSeconds));
+      recordHttpRateLimitEvent({
+        namespace,
+        path: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+        userId: req.user?.userId ?? req.admin?.adminId ?? null,
+        retryAfterSeconds: resetSeconds,
+      });
+      console.warn('HTTP rate limit exceeded', {
+        namespace,
+        path: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+        userId: req.user?.userId ?? req.admin?.adminId ?? null,
+        retryAfterSeconds: resetSeconds,
+      });
+      return res.status(429).json({ message });
+    }
+
+    return next();
   };
 };
 
@@ -156,6 +188,30 @@ export const authForgotPasswordRateLimiter = createRateLimiter({
   max: 3,
   strategy: 'ip',
   message: 'Too many password reset requests. Please try again later.',
+});
+
+export const authVerifyEmailRateLimiter = createRateLimiter({
+  namespace: 'auth-verify-email',
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  strategy: 'ip',
+  message: 'Too many verification attempts. Please try again later.',
+});
+
+export const authResetPasswordRateLimiter = createRateLimiter({
+  namespace: 'auth-reset-password',
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  strategy: 'ip',
+  message: 'Too many password reset attempts. Please try again later.',
+});
+
+export const authResendVerificationRateLimiter = createRateLimiter({
+  namespace: 'auth-resend-verification',
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  strategy: 'ip',
+  message: 'Too many verification email requests. Please try again later.',
 });
 
 export const authRefreshRateLimiter = createRateLimiter({

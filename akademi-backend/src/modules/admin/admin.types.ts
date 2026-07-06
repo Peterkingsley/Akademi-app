@@ -100,6 +100,7 @@ export interface WaitlistFilter {
   department?: string;
   status?: string;
   mainStruggle?: string;
+  utmSource?: string;
   inviteStatus?: 'never_sent' | 'sent_before';
   startDate?: string;
   endDate?: string;

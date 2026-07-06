@@ -11,6 +11,8 @@ import { buildReaderStructure } from './reader-structure';
 import { ingestMaterialJob } from '../../jobs/ingestMaterial.job';
 import { queueMaterialIngestion } from './material-processing';
 import { backfillTeacherBrains, regenerateTeacherBrain } from './teacher-brain.service';
+import { stripQuestionAnswers } from '../../shared/utils/sanitize-question';
+import { upsertDepartment, findOrCreateCourse } from '../../shared/utils/department-resolver';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -240,27 +242,10 @@ export class MaterialsService {
       return null;
     }
 
-    const departmentUniversity = await prisma.university.upsert({
-      where: { name: payload.university },
-      update: {},
-      create: { name: payload.university, location: 'Nigeria' },
-      select: { id: true },
-    });
-
-    const department = await prisma.department.upsert({
-      where: {
-        name_university_id: {
-          name: payload.department,
-          university_id: departmentUniversity.id,
-        },
-      },
-      update: { faculty: payload.faculty },
-      create: {
-        name: payload.department,
-        faculty: payload.faculty,
-        university_id: departmentUniversity.id,
-      },
-      select: { id: true },
+    const department = await upsertDepartment({
+      universityName: payload.university,
+      departmentName: payload.department,
+      faculty: payload.faculty,
     });
 
     const fallbackStudentCourse = await prisma.studentCourse.findFirst({
@@ -284,25 +269,13 @@ export class MaterialsService {
       ? new Date(payload.semester_end)
       : fallbackStudentCourse?.semester_end || null;
 
-    await prisma.course.upsert({
-      where: {
-        code_department_id: {
-          code: payload.courseCode,
-          department_id: department.id,
-        },
-      },
-      update: {
-        level: payload.level,
-        semester,
-      },
-      create: {
-        code: payload.courseCode,
-        name: payload.courseCode,
-        level: payload.level,
-        semester,
-        source: 'student_upload',
-        department_id: department.id,
-      },
+    const course = await findOrCreateCourse({
+      departmentId: department.id,
+      code: payload.courseCode,
+      level: payload.level,
+      semester,
+      name: payload.courseCode,
+      source: 'student_upload',
     });
 
     if (semesterStart && semesterEnd) {
@@ -350,7 +323,7 @@ export class MaterialsService {
       },
     });
 
-    return { departmentId: department.id, semester, semesterStart, semesterEnd };
+    return { departmentId: department.id, courseId: course.id, semester, semesterStart, semesterEnd };
   }
 
   async getMaterial(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
@@ -820,6 +793,7 @@ export class MaterialsService {
       data: {
         title: validated.title,
         course_code: courseCode,
+        course_id: ensuredCourse?.courseId ?? null,
         university: validated.university,
         faculty: validated.faculty,
         department: validated.department,
@@ -946,7 +920,8 @@ export class MaterialsService {
       throw new Error('No CBT questions are available for this material yet.');
     }
 
-    return this.shuffleQuestions(availableQuestions).slice(0, take);
+    // Never return the answer key before the student attempts the question.
+    return stripQuestionAnswers(this.shuffleQuestions(availableQuestions).slice(0, take));
   }
 
   async submitQuestionAttempts(

@@ -357,7 +357,23 @@ export class SessionsService {
     });
   }
 
-  async getSession(id: string) {
+  // SECURITY: every session read/write must be scoped to its owner. Fetching a
+  // session by id alone (as this module previously did) is an IDOR — any
+  // authenticated user could read/end/message another user's session by id.
+  private async assertSessionOwnership(sessionId: string, userId: string) {
+    const session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true, user_id: true },
+    });
+
+    // Return the same error whether the session is missing or owned by someone
+    // else, so ids can't be probed for existence.
+    if (!session || session.user_id !== userId) {
+      throw new Error('Session not found');
+    }
+  }
+
+  async getSession(id: string, userId: string) {
     const session = await prisma.session.findUnique({
       where: { id },
       include: {
@@ -375,11 +391,13 @@ export class SessionsService {
       },
     });
 
-    if (!session) throw new Error('Session not found');
+    if (!session || session.user_id !== userId) throw new Error('Session not found');
     return session;
   }
 
-  async endSession(id: string) {
+  async endSession(id: string, userId: string) {
+    await this.assertSessionOwnership(id, userId);
+
     const session = await prisma.session.update({
       where: { id },
       data: { ended_at: new Date() },
@@ -392,7 +410,9 @@ export class SessionsService {
     return session;
   }
 
-  async listMessages(sessionId: string) {
+  async listMessages(sessionId: string, userId: string) {
+    await this.assertSessionOwnership(sessionId, userId);
+
     return prisma.message.findMany({
       where: { session_id: sessionId },
       orderBy: { created_at: 'asc' },
@@ -400,7 +420,7 @@ export class SessionsService {
   }
 
   async sendMessage(userId: string, sessionId: string, data: SendMessageRequest) {
-    const session = await this.getSession(sessionId);
+    const session = await this.getSession(sessionId, userId);
 
     if (session.ended_at) {
         throw new Error('Cannot send message to an ended session');
@@ -523,7 +543,8 @@ export class SessionsService {
     };
   }
 
-  async getSessionSummary(sessionId: string) {
+  async getSessionSummary(sessionId: string, userId: string) {
+      await this.assertSessionOwnership(sessionId, userId);
       const session = await prisma.session.findUnique({
         where: { id: sessionId },
         include: {
@@ -598,29 +619,22 @@ export class SessionsService {
   }
 
   async createTutorSpeechStream(userId: string, sessionId: string, text: string) {
-    const session = await this.getSession(sessionId);
-    if (session.user_id !== userId) {
-      throw new Error('You do not have access to this session.');
-    }
-
+    await this.assertSessionOwnership(sessionId, userId);
     return elevenLabsStreamService.createPendingStream(sessionId, userId, text);
   }
 
   async streamTutorSpeech(userId: string, sessionId: string, streamId: string, res: Response) {
-    const session = await this.getSession(sessionId);
-    if (session.user_id !== userId) {
-      throw new Error('You do not have access to this session.');
-    }
-
+    await this.assertSessionOwnership(sessionId, userId);
     return elevenLabsStreamService.streamPendingAudio(sessionId, userId, streamId, res);
   }
 
-  async getCompanionState(sessionId: string) {
+  async getCompanionState(sessionId: string, userId: string) {
+    await this.assertSessionOwnership(sessionId, userId);
     return studyCompanionService.getPublicState(sessionId);
   }
 
-  async startCompanion(sessionId: string, data: StartCompanionRequest) {
-    const session = await this.getSession(sessionId);
+  async startCompanion(sessionId: string, userId: string, data: StartCompanionRequest) {
+    const session = await this.getSession(sessionId, userId);
     const kickoffText =
       data.mode === 'roadmap'
         ? 'Create my study roadmap first.'
@@ -672,12 +686,12 @@ export class SessionsService {
         if (!data.mode) {
           throw new Error('A start mode is required to begin the tutor session.');
         }
-        return this.startCompanion(sessionId, {
+        return this.startCompanion(sessionId, userId, {
           mode: data.mode,
           section_title: data.section_title,
         });
       case 'tutor:continue': {
-        const session = await this.getSession(sessionId);
+        const session = await this.getSession(sessionId, userId);
         const response = await studyCompanionService.handleTutorContinue(sessionId);
         return prisma.message.create({
           data: {
@@ -709,7 +723,7 @@ export class SessionsService {
   }
 
   async sendCompanionInterrupt(userId: string, sessionId: string, content: string) {
-    const session = await this.getSession(sessionId);
+    const session = await this.getSession(sessionId, userId);
 
     await prisma.message.create({
       data: {

@@ -151,8 +151,18 @@ export class FeatureAccessService {
   }
 
   async activateAccess(reference: string, email: string, metadata?: any) {
+    if (!reference || !email) throw new Error('Missing payment reference or customer email');
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error('User not found');
+
+    // A valid webhook signature is not enough on its own: require a matching
+    // transaction that we created for this exact user. This prevents granting
+    // paid access for an arbitrary email even if the signature verifies.
+    const transaction = await prisma.transaction.findFirst({ where: { reference } });
+    if (!transaction) throw new Error('Transaction not found for reference');
+    if (transaction.user_id !== user.id) throw new Error('Transaction does not belong to this user');
+    if (transaction.status === 'SUCCESS') return; // already granted; idempotent
 
     const product = metadata?.productCode ? getFeatureProduct(metadata.productCode) : null;
     const feature = product?.feature || (metadata?.feature as Feature) || Feature.EXAM_PREP;

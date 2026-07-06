@@ -3,6 +3,7 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.types';
 import { Feature, AccessType } from '@prisma/client';
+import { resolveDepartmentId } from '../../shared/utils/department-resolver';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -38,26 +39,16 @@ export class UsersService {
       throw new Error('University record not found');
     }
 
-    const department = await prisma.department.findFirst({
-      where: {
-        university_id: university.id,
-        name: user.department,
-      },
-      select: {
-        id: true,
-        name: true,
-        faculty: true,
-      },
-    });
+    const departmentId = await resolveDepartmentId(user.university, user.department);
 
-    if (!department) {
+    if (!departmentId) {
       throw new Error('Department record not found');
     }
 
     return {
       user,
       university,
-      department,
+      department: { id: departmentId },
     };
   }
 
@@ -93,9 +84,24 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, data: UpdateProfileRequest) {
+    // SECURITY: never spread raw request body into a Prisma update. Explicitly
+    // whitelist the fields a user is allowed to change on their own profile so
+    // sensitive columns (email, is_verified, is_banned, password_hash, etc.)
+    // can never be mass-assigned via PATCH /users/me.
+    const allowed: Record<string, unknown> = {};
+    if (typeof data.name === 'string') allowed.name = data.name;
+    if (typeof data.university === 'string') allowed.university = data.university;
+    if (typeof data.faculty === 'string') allowed.faculty = data.faculty;
+    if (typeof data.department === 'string') allowed.department = data.department;
+    if (typeof data.level === 'number') allowed.level = data.level;
+    if (typeof data.push_token === 'string') allowed.push_token = data.push_token;
+    if (Array.isArray(data.courses)) {
+      allowed.courses = data.courses.filter((code): code is string => typeof code === 'string');
+    }
+
     return prisma.user.update({
       where: { id: userId, is_deleted: false },
-      data,
+      data: allowed,
       select: {
         id: true,
         name: true,

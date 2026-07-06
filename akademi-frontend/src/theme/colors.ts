@@ -2,10 +2,11 @@ export const darkPalette = {
   background: "#0B0B0B",        // deep black (eye-friendly)
   surface: "#111111",           // base cards
   surfaceElevated: "#1A1A1A",   // raised elements
-  primary: "#304000",           // vibrant green (main brand)
+  primary: "#304000",           // vibrant green (main brand) — for FILLS behind white text only
   primaryDark: "#304000",       // deeper green for press states
   accentPurple: "#304000",      // lighter green accent
   success: "#304000",           // aligns perfectly
+  accent: "#4ADE80",            // bright green for text/icons/borders drawn ON dark surfaces
   warning: "#F59E0B",
   error: "#EF4444",
   textPrimary: "#FFFFFF",
@@ -22,6 +23,7 @@ export const lightPalette = {
   primaryDark: "#304000",
   accentPurple: "#304000",
   success: "#304000",
+  accent: "#304000",            // dark green already has strong contrast on light surfaces
   warning: "#D97706",
   error: "#DC2626",
   textPrimary: "#111827",

@@ -1,7 +1,7 @@
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../store/useAuthStore";
 import { captureFrontendException } from "../lib/sentry";
+import { readAccessToken, readAdminAccessToken, readRefreshToken, saveTokens } from "./tokenStorage";
 
 const DEFAULT_API_URLS = [
   "https://akademi-app-1.onrender.com",
@@ -37,7 +37,7 @@ const API_CANDIDATE_URLS = parseCandidateUrls(
 
 let currentApiBaseUrl = API_CANDIDATE_URLS[0] || DEFAULT_API_URLS[0];
 let activeUrlProbe: Promise<string> | null = null;
-let activeRefreshRequest: Promise<{ accessToken: string; refreshToken: string }> | null = null;
+let activeRefreshRequest: Promise<{ accessToken: string; refreshToken: string; adminAccessToken?: string | null }> | null = null;
 
 const setCurrentApiBaseUrl = (nextUrl: string) => {
   currentApiBaseUrl = nextUrl.replace(/\/+$/, "");
@@ -86,32 +86,18 @@ const api = axios.create({
   timeout: 30000,
 });
 
-const readStoredRefreshToken = async () => {
-  let refreshToken = await AsyncStorage.getItem("refreshToken");
-
-  if (!refreshToken) {
-    const authStorage = await AsyncStorage.getItem("auth-storage");
-    if (authStorage) {
-      const parsed = JSON.parse(authStorage);
-      refreshToken = parsed.state?.refreshToken || null;
-    }
-  }
-
-  return refreshToken;
+const isAdminApiRequest = (url?: string) => {
+  if (!url) return false;
+  return url.startsWith("/admin") || url.includes("/admin/");
 };
 
-const persistRotatedTokens = async (accessToken: string, refreshToken: string) => {
-  await AsyncStorage.setItem("accessToken", accessToken);
-  await AsyncStorage.setItem("refreshToken", refreshToken);
-  useAuthStore.getState().updateTokens(accessToken, refreshToken);
+const readStoredRefreshToken = async () => {
+  return readRefreshToken();
+};
 
-  const authStorage = await AsyncStorage.getItem("auth-storage");
-  if (authStorage) {
-    const parsed = JSON.parse(authStorage);
-    parsed.state.accessToken = accessToken;
-    parsed.state.refreshToken = refreshToken;
-    await AsyncStorage.setItem("auth-storage", JSON.stringify(parsed));
-  }
+const persistRotatedTokens = async (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => {
+  await saveTokens(accessToken, refreshToken, adminAccessToken);
+  useAuthStore.getState().updateTokens(accessToken, refreshToken, adminAccessToken);
 };
 
 const refreshAccessToken = async () => {
@@ -129,10 +115,11 @@ const refreshAccessToken = async () => {
       refreshToken,
     });
 
-    await persistRotatedTokens(data.accessToken, data.refreshToken);
+    await persistRotatedTokens(data.accessToken, data.refreshToken, data.adminAccessToken);
     return {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
+      adminAccessToken: data.adminAccessToken,
     };
   })();
 
@@ -145,19 +132,15 @@ const refreshAccessToken = async () => {
 
 // Request interceptor — attach token
 api.interceptors.request.use(async (config) => {
-  // Try to get token from AsyncStorage first
-  let token = await AsyncStorage.getItem("accessToken");
+  const isAdminRequest = isAdminApiRequest(String(config.url || ""));
+  let token = isAdminRequest ? await readAdminAccessToken() : await readAccessToken();
 
-  // If not in AsyncStorage, try to find it in the persisted auth-storage
-  if (!token) {
-    const authStorage = await AsyncStorage.getItem("auth-storage");
-    if (authStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        token = parsed.state?.accessToken;
-      } catch (e) {
-        console.error("Failed to parse auth-storage", e);
-      }
+  if (isAdminRequest && !token) {
+    try {
+      const refreshed = await refreshAccessToken();
+      token = refreshed.adminAccessToken || null;
+    } catch {
+      // Let the admin request fail as admin-only unauthorized; do not clear user auth here.
     }
   }
 
@@ -172,6 +155,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const isAdminRequest = isAdminApiRequest(String(originalRequest?.url || ""));
 
     // Log expected client/API failures as warnings to avoid dev-screen noise for handled cases.
     const logPayload = {
@@ -202,6 +186,10 @@ api.interceptors.response.use(
         originalRequest.baseURL = healthyBaseUrl;
         return api(originalRequest);
       }
+    }
+
+    if (error.response?.status === 401 && isAdminRequest) {
+      return Promise.reject(error);
     }
 
     if (error.response?.status === 401) {

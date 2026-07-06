@@ -17,6 +17,7 @@
     "import:tertiary": "tsx prisma/import-tertiary-institutions.ts",
     "seed:courses": "tsx prisma/seed-courses.ts",
     "scrape:courses": "tsx src/scripts/scrape-courses.ts",
+    "backfill:course-ids": "tsx src/scripts/backfill-course-ids.ts",
     "sync:typesense": "tsx src/shared/search/sync-all.ts",
     "migrate:dev": "prisma migrate dev",
     "test": "jest --runInBand",

@@ -127,10 +127,7 @@ export const registerHandlers = (
   withSocketRateLimit('session:start', 10, 60, async ({ sessionId, courseCode, topic, sessionType, replyMode }) => {
     try {
       if (sessionId) {
-        const session = await sessionsService.getSession(sessionId);
-        if (session.user_id !== userId) {
-          throw new Error('Session not found');
-        }
+        const session = await sessionsService.getSession(sessionId, userId);
 
         socket.join(session.id);
         socket.emit('session:joined', { sessionId: session.id });
@@ -208,8 +205,8 @@ export const registerHandlers = (
 
   withSocketRateLimit('session:end', 10, 60, async ({ sessionId }) => {
     try {
-      await sessionsService.endSession(sessionId);
-      const summary = await sessionsService.getSessionSummary(sessionId);
+      await sessionsService.endSession(sessionId, userId);
+      const summary = await sessionsService.getSessionSummary(sessionId, userId);
       socket.emit('session:summary', { summary });
       socket.emit('session:ended');
       socket.leave(sessionId);

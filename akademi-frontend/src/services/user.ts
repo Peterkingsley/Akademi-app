@@ -1,7 +1,7 @@
 import api from "./api";
 import { sessionService } from "./session";
 import { materialService } from "./material";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { readRefreshToken } from "./tokenStorage";
 
 export interface UserProfile {
   id: string;
@@ -223,19 +223,7 @@ export const userService = {
   },
 
   logout: async () => {
-    let refreshToken = await AsyncStorage.getItem("refreshToken");
-
-    if (!refreshToken) {
-      const authStorage = await AsyncStorage.getItem("auth-storage");
-      if (authStorage) {
-        try {
-          const parsed = JSON.parse(authStorage);
-          refreshToken = parsed.state?.refreshToken || null;
-        } catch (error) {
-          console.warn("Could not parse auth storage for logout:", error);
-        }
-      }
-    }
+    const refreshToken = await readRefreshToken();
 
     if (!refreshToken) {
       return { message: "No refresh token stored" };

@@ -39,7 +39,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant, style }) => {
     switch (variant) {
       case "course":
       case "blue":
-        return { color: colors.primary };
+        return { color: colors.accent };
       default:
         return { color: "#FFFFFF" };
     }

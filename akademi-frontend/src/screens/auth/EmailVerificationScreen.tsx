@@ -60,6 +60,7 @@ export const EmailVerificationScreen: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.post("/auth/verify-email", {
+        email,
         token: otpCode,
         deviceInfo: {
           name: Platform.OS === "ios" ? "iPhone" : "Android Device",
@@ -67,8 +68,8 @@ export const EmailVerificationScreen: React.FC = () => {
         },
       });
 
-      const { user, accessToken, refreshToken } = response.data;
-      navigation.navigate("SetupComplete", { user, accessToken, refreshToken });
+      const { user, accessToken, refreshToken, adminAccessToken } = response.data;
+      navigation.navigate("SetupComplete", { user, accessToken, refreshToken, adminAccessToken });
     } catch (error: any) {
       console.error("Verification failed", error);
     } finally {

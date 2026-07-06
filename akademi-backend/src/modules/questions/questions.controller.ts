@@ -24,7 +24,7 @@ export class QuestionsController {
   async getQuestion(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const question = await questionsService.getQuestion(id);
+      const question = await questionsService.getPublicQuestion(id);
       res.status(200).json(question);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
