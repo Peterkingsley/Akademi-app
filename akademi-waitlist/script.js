@@ -171,14 +171,29 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = LOOKUP_FETCH_TIME
   }
 }
 
+const RESERVED_PATH_CODES = new Set(["index.html", "styles.css", "script.js", "assets", "favicon.ico"]);
+
+function getPathReferralCode() {
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  if (segments.length !== 1) return null;
+
+  const raw = decodeURIComponent(segments[0]);
+  if (!/^[A-Za-z0-9_-]{2,64}$/.test(raw)) return null;
+  if (RESERVED_PATH_CODES.has(raw.toLowerCase())) return null;
+
+  return raw.toLowerCase();
+}
+
 function getWaitlistAttribution() {
   const params = new URLSearchParams(window.location.search);
+  const pathCode = getPathReferralCode();
+
   return {
     page_url: window.location.href,
     page_path: window.location.pathname,
     referrer: document.referrer || "",
-    utm_source: params.get("utm_source") || "",
-    utm_medium: params.get("utm_medium") || "",
+    utm_source: params.get("utm_source") || pathCode || "",
+    utm_medium: params.get("utm_medium") || (pathCode ? "referral" : ""),
     utm_campaign: params.get("utm_campaign") || "",
     utm_content: params.get("utm_content") || "",
     utm_term: params.get("utm_term") || "",
