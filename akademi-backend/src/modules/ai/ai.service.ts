@@ -268,7 +268,9 @@ export class AIService {
   }
 
   private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
-    if (session.session_type !== 'ASSIGNMENT') return false;
+    // Segmented board steps help just as much in a Study Mode tutoring conversation as they do
+    // in an assignment solve - only exam prep (a different, quiz-style flow) is excluded.
+    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
     const text = studentMessage.toLowerCase();
     const mathSignals = [
@@ -408,7 +410,7 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
   }
 
   private isGraphEligibleQuestion(studentMessage: string, session: { session_type: string }) {
-    if (session.session_type !== 'ASSIGNMENT') return false;
+    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
     const text = studentMessage.toLowerCase();
     const graphSignals = [
