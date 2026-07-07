@@ -332,6 +332,24 @@ export class AIService {
     return symbolSignals || keywordSignal || courseSignal;
   }
 
+  // A student can pin the question type on the Solve screen instead of relying on
+  // auto-detection (e.g. a word problem that reads as prose but is actually a calculation).
+  // The manual choice always wins; "AUTO" or an absent/unrecognized value falls back to the
+  // existing keyword/symbol heuristic.
+  private resolveIsCalculationQuestion(
+    studentMessage: string,
+    session: { session_type: string; course_code?: string | null; metadata?: unknown },
+  ) {
+    const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+    const questionType = typeof metadata.question_type === 'string' ? metadata.question_type : 'AUTO';
+
+    if (questionType === 'MATH') return true;
+    if (questionType === 'THEORETICAL') return false;
+    return this.isBoardEligibleQuestion(studentMessage, session);
+  }
+
   private extractJsonObject(raw: string) {
     const fencedMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fencedMatch?.[1]) {
@@ -689,7 +707,7 @@ Important:
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
-    const isCalculationQuestion = this.isBoardEligibleQuestion(studentMessage, session);
+    const isCalculationQuestion = this.resolveIsCalculationQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
       disciplineDocument,
