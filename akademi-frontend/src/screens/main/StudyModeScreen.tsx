@@ -31,6 +31,9 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { PdfSelectableViewer } from "../../components/ui/PdfSelectableViewer";
 import { GraphRenderer } from "../../components/graph/GraphRenderer";
 import { GraphSpec } from "../../components/graph/types";
+import { BoardStep, isMeaningfulStep } from "../../components/board/boardTypes";
+import { BoardStepCard } from "../../components/board/BoardStepCard";
+import { BoardFinalAnswerCard } from "../../components/board/BoardFinalAnswerCard";
 
 const formatStudyContent = (value: string) =>
   value
@@ -294,6 +297,10 @@ export const StudyModeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
+  const [boardSteps, setBoardSteps] = useState<BoardStep[]>([]);
+  const [boardFinalAnswer, setBoardFinalAnswer] = useState("");
+  const [boardFinalAnswerMath, setBoardFinalAnswerMath] = useState("");
+  const [boardSummary, setBoardSummary] = useState("");
   const [material, setMaterial] = useState<Material | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -405,6 +412,12 @@ export const StudyModeScreen: React.FC = () => {
           const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
           setContent(aiMsg?.content || "");
           setGraphSpec(aiMsg?.metadata?.graph?.payload || null);
+          const whiteboardPayload = aiMsg?.metadata?.whiteboard?.payload;
+          const meaningfulSteps = (whiteboardPayload?.steps || []).filter(isMeaningfulStep);
+          setBoardSteps(meaningfulSteps);
+          setBoardFinalAnswer(meaningfulSteps.length > 0 ? whiteboardPayload?.final_answer || "" : "");
+          setBoardFinalAnswerMath(meaningfulSteps.length > 0 ? whiteboardPayload?.final_answer_math || "" : "");
+          setBoardSummary(meaningfulSteps.length > 0 ? whiteboardPayload?.summary || "" : "");
           setIsExtracting(false);
           return;
         }
@@ -414,6 +427,10 @@ export const StudyModeScreen: React.FC = () => {
           if (cancelled) return;
           setMaterial(data);
           setGraphSpec(null);
+          setBoardSteps([]);
+          setBoardFinalAnswer("");
+          setBoardFinalAnswerMath("");
+          setBoardSummary("");
           const hasContent = typeof data.content === "string" && data.content.trim().length > 0;
           setContent(hasContent ? data.content! : "No text content available for this material.");
           setIsExtracting(!hasContent);
@@ -900,6 +917,19 @@ export const StudyModeScreen: React.FC = () => {
                     )
                   )}
                 </View>
+              ) : !material && boardSteps.length > 0 ? (
+                <View style={styles.boardStepsWrap}>
+                  {boardSteps.map((step, index) => (
+                    <BoardStepCard key={step.id} step={step} index={index} />
+                  ))}
+                  {(!!boardFinalAnswer || !!boardFinalAnswerMath) && (
+                    <BoardFinalAnswerCard
+                      finalAnswer={boardFinalAnswer}
+                      finalAnswerMath={boardFinalAnswerMath}
+                      summary={boardSummary}
+                    />
+                  )}
+                </View>
               ) : (
                 <SelectableText
                   content={material ? currentPage.content : displayContent}
@@ -1282,6 +1312,9 @@ const styles = StyleSheet.create({
   },
   graphWrap: {
     marginTop: 16,
+  },
+  boardStepsWrap: {
+    gap: 10,
   },
   readerBlocks: {
     gap: 18,
