@@ -178,7 +178,8 @@ const contentHasMath = (content: string) => {
       (line) =>
         explicitDisplayMathPattern.test(line) ||
         explicitInlineMathPattern.test(line) ||
-        looksLikeStandaloneMath(line),
+        looksLikeStandaloneMath(line) ||
+        !!splitInstructionPrefixMath(line),
     );
 };
 

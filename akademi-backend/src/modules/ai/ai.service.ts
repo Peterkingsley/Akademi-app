@@ -147,9 +147,11 @@ export class AIService {
   // included the full arc even if it tried, so there is nothing meaningful to validate there.
   private hasValidPedagogicalArc(steps: Array<{ phase?: string }>) {
     if (steps.length < 4) return true;
+    const interiorSteps = steps.slice(2, steps.length - 1);
     return steps[0]?.phase === 'understand'
       && steps[1]?.phase === 'method'
-      && steps[steps.length - 1]?.phase === 'verify';
+      && steps[steps.length - 1]?.phase === 'verify'
+      && interiorSteps.some((step) => step.phase === 'work');
   }
 
   private normalizeLatexExpression(value: string) {
