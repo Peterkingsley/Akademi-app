@@ -23,9 +23,8 @@ const WAITLIST_SITE_URL_STORAGE_KEY = "akademi_admin_waitlist_site_url";
 const slugify = (value: string) =>
   value
     .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "");
 
 type InviteStatus = "all" | "never_sent" | "sent_before";
 
@@ -77,7 +76,7 @@ export const AdminWaitlistScreen: React.FC = () => {
   });
   const [siteUrl, setSiteUrl] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
-  const [linkCampaign, setLinkCampaign] = useState("waitlist_referral");
+  const [linkCampaign, setLinkCampaign] = useState("");
   const [generatedLink, setGeneratedLink] = useState<{ code: string; url: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -161,12 +160,8 @@ export const AdminWaitlistScreen: React.FC = () => {
       Alert.alert("Add your waitlist site URL", "Paste the public waitlist site URL once so links can be generated.");
       return;
     }
-    const params = new URLSearchParams({
-      utm_source: code,
-      utm_medium: "referral",
-      ...(linkCampaign.trim() ? { utm_campaign: linkCampaign.trim() } : {}),
-    });
-    setGeneratedLink({ code, url: `${base}/?${params.toString()}` });
+    const campaignQuery = linkCampaign.trim() ? `?${new URLSearchParams({ utm_campaign: linkCampaign.trim() }).toString()}` : "";
+    setGeneratedLink({ code, url: `${base}/${code}${campaignQuery}` });
     setCopied(false);
   };
 

@@ -35,9 +35,23 @@ without adding a third-party analytics script.
 
 ## Trackable links
 
-Any link to this site that includes `?utm_source=<code>` (optionally with
-`utm_medium` and `utm_campaign`) is captured on page load and saved on the
-waitlist signup itself if the visitor joins, not just on the page view event.
+Two link formats are attributed the same way — captured on page load and saved
+on the waitlist signup itself if the visitor joins, not just on the page view
+event:
+
+- **Pretty path links**, e.g. `https://akademi.study/KELLYPEACE` — the single
+  path segment is read as the source code (case-insensitive) with medium
+  `referral`. This relies on the `_redirects` file in this folder, which tells
+  Render to serve `index.html` for any path instead of 404ing so the code stays
+  visible in the URL and readable by `script.js`. If your Render static site
+  doesn't pick up `_redirects` automatically, add the same rule manually under
+  the site's Settings -> Redirects/Rewrites: source `/*`, destination
+  `/index.html`, type `Rewrite`.
+- **Query string links**, e.g. `https://akademi.study/?utm_source=<code>`
+  (optionally with `utm_medium` and `utm_campaign`) — takes priority over a
+  path code if both are present.
+
 The admin waitlist screen has a "Generate a trackable link" tool that builds
-these URLs and shows a "Signups by link" breakdown so you can see how many
-people each link actually converted.
+the pretty path links and shows a "Signups by link" breakdown so you can see
+how many people each link actually converted, filterable down to schools,
+faculties, and departments for just that link's audience.
