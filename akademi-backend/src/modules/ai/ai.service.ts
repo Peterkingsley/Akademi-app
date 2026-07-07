@@ -1,9 +1,11 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, whiteboardMathSystemPrompt } from './ai.prompts';
+import { assembleSystemPrompt, whiteboardMathSystemPrompt, graphSystemPrompt } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
+import { sampleFunction, findRoots, findYIntercept, findTurningPoints, Point } from './expression-evaluator';
+import { GraphSpec, GraphMarker, RawGraphResponse } from './graph.types';
 
 function formatConversation(messages: Array<{ role: string; content: string; created_at: Date }>) {
   return messages
@@ -77,9 +79,31 @@ export class AIService {
   private readonly boardImperativeNotePattern =
     /^(define|set up|calculate|explain|find|simplify|differentiate|integrate|apply|substitute|rearrange|evaluate|state|show)\b/i;
 
+  private repairDoubleEscapedLatex(value: string) {
+    // Model output sometimes double-escapes backslashes inside its JSON (e.g. "\\to" -> two literal
+    // backslash characters instead of one). A LaTeX command's backslash always sits directly against
+    // its letters with no separator, so any run of 2+ backslashes immediately followed by a letter can
+    // only be an over-escaped command, never a real line break - collapse it back to one backslash.
+    return value.replace(/\\{2,}(?=[A-Za-z])/g, '\\');
+  }
+
+  private hasBalancedBraces(value: string) {
+    let depth = 0;
+    for (const char of value) {
+      if (char === '{') depth += 1;
+      else if (char === '}') {
+        depth -= 1;
+        if (depth < 0) return false;
+      }
+    }
+    return depth === 0;
+  }
+
   private splitEquationChain(math: string) {
-    const compact = math.replace(/\s+/g, ' ').trim();
+    const compact = this.repairDoubleEscapedLatex(math.replace(/\s+/g, ' ').trim());
     if (!compact) return [];
+    // If the whole expression already has unbalanced braces, splitting can only make it worse.
+    if (!this.hasBalancedBraces(compact)) return [compact];
 
     const multilineParts = compact
       .split(/\s*\\\\\s*/)
@@ -97,7 +121,11 @@ export class AIService {
       return chained;
     };
 
-    return multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+    const candidate = multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
+    // Never emit fragments that split a command in half (e.g. an errant "\\" landing inside "\lim_{x").
+    // If any piece comes out unbalanced, keep the original expression whole instead.
+    const allSegmentsValid = candidate.length > 0 && candidate.every((part) => this.hasBalancedBraces(part));
+    return allSegmentsValid ? candidate : [compact];
   }
 
   private expandWideBoardSteps(steps: Array<{ id: string; type: string; text: string; math: string; note: string }>) {
@@ -117,9 +145,11 @@ export class AIService {
         expanded.push({
           ...step,
           id: `${step.id}-${index + 1}`,
-          text: index === 0 ? step.text : index === segments.length - 1 ? 'Continue the simplification.' : 'Next transformation.',
+          // Carry the real explanation onto every fragment instead of a generic filler line - a
+          // repeated sentence still teaches something, an empty "Continue the simplification." card doesn't.
+          text: step.text,
           math: segment,
-          note: index === segments.length - 1 ? step.note : '',
+          note: step.note,
         });
       });
     });
@@ -130,7 +160,7 @@ export class AIService {
   private normalizeLatexExpression(value: string) {
     if (!value) return '';
 
-    let normalized = value.trim();
+    let normalized = this.repairDoubleEscapedLatex(value.trim());
 
     normalized = normalized
       .replace(/\$\$?/g, '')
@@ -372,6 +402,152 @@ Create a board replay plan for this solution.`,
     }
   }
 
+  private isGraphEligibleQuestion(studentMessage: string, session: { session_type: string }) {
+    if (session.session_type !== 'ASSIGNMENT') return false;
+
+    const text = studentMessage.toLowerCase();
+    const graphSignals = [
+      'plot',
+      'graph',
+      'sketch',
+      'draw the graph',
+      'draw a graph',
+      'pie chart',
+      'bar chart',
+      'bar graph',
+      'histogram',
+      'cumulative frequency',
+      'ogive',
+      'scatter plot',
+      'scatter diagram',
+      'scatter graph',
+      'line graph',
+      'demand curve',
+      'supply curve',
+      'supply and demand',
+      'frequency distribution',
+      'chart showing',
+      'pictogram',
+    ];
+
+    return graphSignals.some((signal) => text.includes(signal));
+  }
+
+  private normalizeGraphResponse(raw: RawGraphResponse | null | undefined): GraphSpec | null {
+    if (!raw || raw.eligible !== true || !raw.kind) return null;
+
+    const title = String(raw.title || 'Graph').trim().slice(0, 120) || 'Graph';
+    const xAxisLabel = String(raw.x_axis_label || '').trim().slice(0, 60);
+    const yAxisLabel = String(raw.y_axis_label || '').trim().slice(0, 60);
+    const caption = String(raw.caption || '').trim().slice(0, 220);
+
+    if (raw.kind === 'function_plot') {
+      const expression = String(raw.expression || '').trim();
+      const domainMin = Number(raw.domain_min);
+      const domainMax = Number(raw.domain_max);
+
+      if (!expression || !Number.isFinite(domainMin) || !Number.isFinite(domainMax) || domainMin >= domainMax) {
+        return null;
+      }
+
+      let points: Point[];
+      try {
+        points = sampleFunction(expression, domainMin, domainMax);
+      } catch (error) {
+        console.error('Graph expression evaluation failed:', error);
+        return null;
+      }
+
+      if (points.length < 2) return null;
+
+      const markers: GraphMarker[] = [];
+      findRoots(points).forEach((root, index) => {
+        markers.push({ x: root.x, y: root.y, label: index === 0 ? 'Root' : `Root ${index + 1}` });
+      });
+      const yIntercept = findYIntercept(expression, domainMin, domainMax);
+      if (yIntercept) markers.push({ x: yIntercept.x, y: yIntercept.y, label: 'y-intercept' });
+      findTurningPoints(points).forEach((point) => {
+        markers.push({ x: point.x, y: point.y, label: 'Turning point' });
+      });
+
+      return {
+        kind: 'function_plot',
+        title,
+        x_axis: { label: xAxisLabel || 'x', min: domainMin, max: domainMax },
+        y_axis: { label: yAxisLabel || 'y' },
+        series: [{ label: expression, points }],
+        markers,
+        caption,
+      };
+    }
+
+    if (raw.kind === 'pie_chart' || raw.kind === 'bar_chart') {
+      const segments = (raw.segments || [])
+        .map((segment) => ({ label: String(segment?.label || '').trim(), value: Number(segment?.value) }))
+        .filter((segment) => segment.label && Number.isFinite(segment.value) && segment.value >= 0)
+        .slice(0, 12);
+
+      if (segments.length < 2) return null;
+
+      return {
+        kind: raw.kind,
+        title,
+        x_axis: { label: xAxisLabel },
+        y_axis: { label: yAxisLabel },
+        segments,
+        caption,
+      };
+    }
+
+    if (raw.kind === 'line_chart' || raw.kind === 'scatter_plot') {
+      const series = (raw.series || [])
+        .map((entry) => ({
+          label: String(entry?.label || '').trim() || 'Series',
+          points: (entry?.points || [])
+            .map((point) => ({ x: Number(point?.x), y: Number(point?.y) }))
+            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
+        }))
+        .filter((entry) => entry.points.length >= 2)
+        .slice(0, 4);
+
+      if (series.length === 0) return null;
+
+      return {
+        kind: raw.kind,
+        title,
+        x_axis: { label: xAxisLabel },
+        y_axis: { label: yAxisLabel },
+        series,
+        caption,
+      };
+    }
+
+    return null;
+  }
+
+  private async buildGraphPayload(studentMessage: string, answer: string): Promise<GraphSpec | null> {
+    try {
+      const raw = await aiProvider.generateResponse(
+        `Question: ${studentMessage}
+
+Reference solution:
+${answer}
+
+Decide whether this needs a graph or chart, and if so extract the raw data for it.`,
+        {
+          systemPrompt: graphSystemPrompt,
+          maxTokens: 500,
+        }
+      );
+
+      const parsed = JSON.parse(this.extractJsonObject(raw)) as RawGraphResponse;
+      return this.normalizeGraphResponse(parsed);
+    } catch (error) {
+      console.error('Graph payload generation failed:', error);
+      return null;
+    }
+  }
+
   async getOrchestratedResponse(
     userId: string,
     sessionId: string,
@@ -494,9 +670,11 @@ Important:
       maxTokens: 1000,
     });
 
-    const whiteboardPayload = isCalculationQuestion
-      ? await this.buildWhiteboardPayload(studentMessage, aiResponseText)
-      : null;
+    const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
+    const [whiteboardPayload, graphPayload] = await Promise.all([
+      isCalculationQuestion ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+      isGraphQuestion ? this.buildGraphPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+    ]);
 
     // 6. Cache response
     if (!isFollowUp) {
@@ -512,6 +690,14 @@ Important:
                 available: true,
                 subject_family: 'quantitative',
                 payload: whiteboardPayload,
+              },
+            }
+          : {}),
+        ...(graphPayload
+          ? {
+              graph: {
+                available: true,
+                payload: graphPayload,
               },
             }
           : {}),

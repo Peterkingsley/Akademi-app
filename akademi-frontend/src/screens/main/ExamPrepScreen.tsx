@@ -6,17 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Dimensions,
-  Platform,
+  Alert,
 } from "react-native";
 import {
-  History, Calendar,
-  Zap,
-  Shield,
+  History,
   PlusCircle,
-  BookOpen,
   Flame,
   ChevronLeft,
+  Settings,
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import Animated, { FadeInUp } from "react-native-reanimated";
@@ -30,23 +27,22 @@ import { AIInsightBanner } from "../../components/ui/AIInsightBanner";
 import { Badge } from "../../components/ui/Badge";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
-import examPrepService, { ExamPrepPlan } from "../../services/examPrep";
-
-const { width } = Dimensions.get("window");
+import examPrepService, { CourseHubItem } from "../../services/examPrep";
 
 export const ExamPrepScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [plans, setPlans] = useState<ExamPrepPlan[]>([]);
+  const [startingCourse, setStartingCourse] = useState<string | null>(null);
+  const [courses, setCourses] = useState<CourseHubItem[]>([]);
 
-  const fetchPlans = async () => {
+  const fetchCourses = async () => {
     try {
       setLoading(true);
-      const data = await examPrepService.getAllPlans();
-      setPlans(data);
+      const data = await examPrepService.getCourseHub();
+      setCourses(data);
     } catch (error) {
-      console.error("Error fetching exam plans:", error);
+      console.error("Error fetching exam prep courses:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -54,12 +50,12 @@ export const ExamPrepScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPlans();
+    fetchCourses();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchPlans();
+    fetchCourses();
   };
 
   const renderHeader = () => (
@@ -68,51 +64,72 @@ export const ExamPrepScreen: React.FC = () => {
         <ChevronLeft size={24} color={colors.textPrimary} />
       </TouchableOpacity>
       <Text style={[styles.headerTitle, typography.h3]}>Exam Prep</Text>
-      <TouchableOpacity onPress={() => navigation.navigate("AcademicTimeline")} style={styles.timelineBtn}>
-        <Calendar size={24} color={colors.primary} />
-      </TouchableOpacity>
+      <View style={styles.backBtn} />
     </View>
   );
 
   const renderUrgentBanner = () => {
-    const urgentPlan = plans.find((p) => p.days_left <= 5);
-    if (!urgentPlan) return null;
+    const urgentCourse = courses.find((c) => c.days_left !== null && c.days_left !== undefined && c.days_left <= 5);
+    if (!urgentCourse) return null;
 
     return (
       <View style={styles.urgentBanner}>
         <View style={styles.urgentContent}>
           <Flame size={20} color={colors.warning} style={styles.urgentIcon} />
           <Text style={[styles.urgentText, typography.bodySmall]}>
-            {urgentPlan.course_code} {urgentPlan.assessment_label || "Exam"} in {urgentPlan.days_left} days!
+            {urgentCourse.course_code} {urgentCourse.assessment_label || "Exam"} in {urgentCourse.days_left} days!
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate("PrepPlan", { examId: urgentPlan.id })
-          }
-        >
-          <Text style={[styles.viewPlanLink, typography.caption]}>VIEW PLAN</Text>
-        </TouchableOpacity>
       </View>
     );
   };
 
-  const renderPrimaryExamCard = (plan: ExamPrepPlan) => {
-    const mockActive = plan.progress >= 60;
+  const goToLibrary = (courseCode: string) => {
+    navigation.navigate("MainTabs", { screen: "Library", params: { course_code: courseCode } });
+  };
+
+  const startMockExam = async (course: CourseHubItem) => {
+    try {
+      setStartingCourse(course.course_code);
+      const mockExam: any = await examPrepService.startMockExamForCourse(course.course_code);
+      navigation.navigate("MockExam", { examId: mockExam.plan_id, mockExamId: mockExam.id });
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "We could not start this mock exam yet.";
+      Alert.alert("Mock exam unavailable", message);
+    } finally {
+      setStartingCourse(null);
+    }
+  };
+
+  const renderCourseCard = (course: CourseHubItem) => {
+    const mockActive = course.mastery_level >= 60;
+    const hasExamDate = Boolean(course.exam_date);
 
     return (
-      <Animated.View key={plan.id} entering={FadeInUp.delay(100)}>
+      <Animated.View key={course.course_code} entering={FadeInUp.delay(100)}>
         <Card style={styles.examCard}>
           <View style={styles.cardHeader}>
-            <View>
+            <View style={styles.cardHeaderText}>
               <Text style={[styles.courseCode, typography.h3]}>
-                {plan.course_code}
+                {course.course_code}
               </Text>
               <Text style={[styles.examDate, typography.caption]}>
-                {(plan.assessment_label || "Exam").toUpperCase()} ON {new Date(plan.exam_date).toLocaleDateString()}
+                {hasExamDate
+                  ? `${(course.assessment_label || "Exam").toUpperCase()} ON ${new Date(course.exam_date as string).toLocaleDateString()}`
+                  : "NO EXAM DATE SET"}
               </Text>
             </View>
-            <Badge label={`${plan.days_left}D LEFT`} variant="warning" />
+            <View style={styles.cardHeaderActions}>
+              {hasExamDate && course.days_left !== null && course.days_left !== undefined && (
+                <Badge label={`${course.days_left}D LEFT`} variant="warning" style={styles.dayBadge} />
+              )}
+              <TouchableOpacity
+                style={styles.settingsBtn}
+                onPress={() => navigation.navigate("AddExam", { courseCode: course.course_code })}
+              >
+                <Settings size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.progressSection}>
@@ -121,25 +138,18 @@ export const ExamPrepScreen: React.FC = () => {
                 Mastery Level
               </Text>
               <Text style={[styles.progressValue, typography.bodySmall]}>
-                {plan.progress}%
+                {course.mastery_level}%
               </Text>
             </View>
-            <ProgressBar progress={plan.progress} color={colors.primary} />
+            <ProgressBar progress={course.mastery_level} color={colors.primary} />
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={[styles.statValue, typography.body]}>
-                {plan.readiness_grade}
+                {course.readiness_grade}
               </Text>
               <Text style={[styles.statLabel, typography.caption]}>GRADE</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, typography.body]}>
-                {plan.readiness_score}/100
-              </Text>
-              <Text style={[styles.statLabel, typography.caption]}>SCORE</Text>
             </View>
           </View>
 
@@ -147,14 +157,15 @@ export const ExamPrepScreen: React.FC = () => {
             <Button
               label="Study Now"
               style={styles.actionBtn}
-              onPress={() => navigation.navigate("PrepPlan", { examId: plan.id })}
+              onPress={() => goToLibrary(course.course_code)}
             />
             <Button
               label="Mock Exam"
               variant="outline"
               style={styles.actionBtn}
               disabled={!mockActive}
-              onPress={() => navigation.navigate("MockExam", { examId: plan.id })}
+              loading={startingCourse === course.course_code}
+              onPress={() => startMockExam(course)}
             />
           </View>
           {!mockActive && (
@@ -170,12 +181,12 @@ export const ExamPrepScreen: React.FC = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <History size={48} color={colors.textMuted} style={styles.emptyIcon} />
-      <Text style={[styles.emptyTitle, typography.h3]}>No Active Plans</Text>
+      <Text style={[styles.emptyTitle, typography.h3]}>No Courses Found</Text>
       <Text style={[styles.emptySubtitle, typography.body]}>
-        Choose a course, then prepare for a test or exam using all materials available for that course.
+        Complete your academic profile or upload a material for your course so Akademi can build your CBT practice hub.
       </Text>
       <Button
-        label="Plan Course Prep"
+        label="Set Up a Course"
         icon={<PlusCircle size={20} color="white" />}
         onPress={() => navigation.navigate("AddExam")}
         style={styles.addBtnLarge}
@@ -199,26 +210,16 @@ export const ExamPrepScreen: React.FC = () => {
               <Skeleton height={200} width="100%" borderRadius={16} style={{ marginBottom: 16 }} />
               <Skeleton height={200} width="100%" borderRadius={16} />
             </View>
-          ) : plans.length > 0 ? (
+          ) : courses.length > 0 ? (
             <>
               {renderUrgentBanner()}
               <View style={styles.insight}>
-        <AIInsightBanner text="Exam Prep works by course. Akademi uses all available materials and questions for the selected course." />
+                <AIInsightBanner text="Exam Prep works by course. Akademi uses all available materials and questions for the selected course." />
               </View>
               <Text style={[styles.sectionTitle, typography.mono]}>
-                ACTIVE PREP PLANS
+                YOUR COURSES
               </Text>
-              {plans.map(renderPrimaryExamCard)}
-
-              <TouchableOpacity
-                style={styles.addNewCard}
-                onPress={() => navigation.navigate("AddExam")}
-              >
-                <PlusCircle size={24} color={colors.primary} />
-                <Text style={[styles.addNewText, typography.bodySmall]}>
-                    Plan another course prep
-                </Text>
-              </TouchableOpacity>
+              {courses.map(renderCourseCard)}
             </>
           ) : (
             renderEmptyState()
@@ -243,9 +244,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
-  },
-  timelineBtn: {
-    padding: 4,
+    width: 32,
   },
   headerTitle: {
     color: colors.textPrimary,
@@ -277,11 +276,6 @@ const styles = StyleSheet.create({
     color: colors.warning,
     fontWeight: "700",
   },
-  viewPlanLink: {
-    color: colors.warning,
-    fontWeight: "700",
-    textDecorationLine: "underline",
-  },
   insight: {
     marginBottom: 24,
   },
@@ -301,6 +295,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 20,
+  },
+  cardHeaderText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  cardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dayBadge: {
+    marginRight: 0,
+  },
+  settingsBtn: {
+    padding: 4,
   },
   courseCode: {
     color: colors.textPrimary,
@@ -344,11 +353,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
   },
-  divider: {
-    width: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: 16,
-  },
   actionRow: {
     flexDirection: "row",
     gap: 12,
@@ -389,20 +393,4 @@ const styles = StyleSheet.create({
   skeletonContainer: {
     gap: 16,
   },
-  addNewCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 20,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors.border,
-      marginTop: 8,
-      gap: 12
-  },
-  addNewText: {
-      color: colors.textSecondary,
-      fontWeight: '600'
-  }
 });

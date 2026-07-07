@@ -141,6 +141,12 @@ export function buildSolveOperationGuidance(): string {
 - rearrange_equation
   Why: We rearrange to isolate the quantity we are trying to find.
   When: Use this when the target variable is buried inside a larger equation.
+  How: Never jump straight from the starting equation to the rearranged result. When you move a
+  term across the equals sign or apply an operation to cancel a term (subtracting, adding,
+  multiplying, or dividing), first show that exact operation applied identically to both sides as
+  its own line, then show the simplified result as the next line. For example, to clear the "11"
+  from \(4x^2 + 3x = 11\), show \(4x^2 + 3x - 11 = 11 - 11\) first, then \(4x^2 + 3x - 11 = 0\) on
+  the line after it - do not skip straight to the second line.
 - check_final_answer
   Why: We verify the result so we catch sign errors, unreasonable magnitudes, or mismatch with the question.
   When: Use this after obtaining a final answer, especially in maths, physics, economics, chemistry, or statistics.
@@ -151,7 +157,8 @@ Library usage rules:
 - If a step does not match any library item well, generate a fresh "why this step" line.
 - Keep "why this step" to one plain-English sentence, then optionally add one short "when this applies" sentence if that helps the student.
 - In DIRECT mode, use shorter explanations from the library.
-- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.`;
+- In STUDY mode, use both the plain-English reason and the "when this applies" idea more often.
+- Whenever you balance an equation (moving a term across the equals sign, or applying the same operation to both sides to cancel something out), always show the "apply the operation to both sides" line before the simplified result line. Never present only the simplified result - the student needs to see the operation actually happening on both sides, not just its outcome.`;
 }
 
 export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
@@ -261,6 +268,7 @@ Rules:
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
 - Every calculation-based step must show the actual substituted values, terms, or exact symbolic transformation. Never skip straight from a named rule to the answer.
+- When you balance an equation by applying the same operation to both sides (subtracting, adding, multiplying, dividing, or moving a term across the equals sign), that operation gets its own step showing it applied to both sides (e.g. \(4x^2 + 3x - 11 = 11 - 11\)) before the following step shows the simplified result (e.g. \(4x^2 + 3x - 11 = 0\)). Never merge these into one step or skip straight to the simplified result.
 - Keep each "math" line short enough for a phone screen.
 - If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
 - Prefer one displayed equation per step, or at most one short carry-forward transformation.
@@ -280,4 +288,54 @@ Rules:
 - "final_answer" should state the answer plainly in student-friendly language.
 - "final_answer_math" should show the concise final result in math form where useful.
 - "summary" must end with one short, concrete self-check question the student can use immediately, such as checking the sign, plugging the answer back in, or judging whether the magnitude is reasonable.
-- The replay should feel useful even if the student opens it later without the original conversation.`;
+- The replay should feel useful even if the student opens it later without the original conversation.
+- Every backslash in "math" must be a single backslash (\\to, \\lim, \\frac, \\sqrt). Never write a doubled backslash like \\\\to or \\\\text - that is invalid and will fail to render.
+- Only use "\\\\" (double backslash) inside "math" if you genuinely mean a new display line within that one step, and only with a space on both sides of it. Do not let it land in the middle of a command.
+- Never wrap part of "math" in \\color{...} or any other manual styling macro to draw attention to it. If a step needs emphasis, set that step's "type" to "highlight" instead - the app already renders highlighted steps with their own visual treatment.
+- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.`;
+
+export const graphSystemPrompt = `You are deciding whether a Nigerian student's question needs a graph or chart, and if so, extracting the raw data for it.
+
+Return STRICT JSON only. No markdown. No prose outside JSON.
+
+Decision:
+- Set "eligible" to true only if a visual plot would genuinely help answer this question: plotting a function (linear, quadratic, cubic, trig), a pie chart, a bar chart, a line/time-series chart, or a scatter plot of given data points.
+- Set "eligible" to false for anything else, including questions that only mention a graph in passing, purely theoretical questions, or questions you are not confident about. When in doubt, choose false - a missing graph is far better than a wrong one.
+
+If eligible is false, return only { "eligible": false } and nothing else.
+
+If eligible is true, choose exactly one "kind":
+- "function_plot": the student needs to see a plotted function of x (e.g. "sketch y = x^2 - 4", "graph the demand curve P = 20 - 2Q").
+- "pie_chart": the question gives labeled parts of a whole (percentages, proportions, survey/market-share breakdowns).
+- "bar_chart": the question gives labeled discrete categories to compare (frequency counts, comparison amounts).
+- "line_chart": the question gives a labeled sequence of data points over an ordered axis (time series, growth trend, cumulative frequency/ogive) that is not a single continuous formula.
+- "scatter_plot": the question gives a set of individual (x, y) data pairs without an implied formula.
+
+CRITICAL RULE for "function_plot": you must NEVER compute or output sample points, roots, intercepts, or turning points yourself. The server evaluates your expression numerically and computes those independently, specifically so a wrong calculation on your part can never reach the student. Only provide:
+- "expression": a plain-text formula in terms of x only, using explicit multiplication (write "2*x", never "2x"), operators + - * / ^, parentheses, and only these function names: sin, cos, tan, sqrt, log, ln, exp, abs. Do not use LaTeX syntax, commas, or any other characters.
+- "domain_min" and "domain_max": sensible numeric bounds for x given the question (if the question doesn't specify, pick a window that shows the interesting behavior, e.g. both roots and the turning point of a quadratic).
+- If the question involves two curves (e.g. supply and demand), only ever plot ONE curve per response. Prefer the request's primary curve, or state in "caption" that only one curve is shown.
+
+For "pie_chart" and "bar_chart", supply "segments": an array of { "label", "value" } pulled directly from the numbers actually given in the question. Do not invent values that are not in the question or your own prior working.
+
+For "line_chart" and "scatter_plot", supply "series": an array of { "label", "points": [{ "x", "y" }] } using the actual data pairs given in the question.
+
+Always include:
+- "title": a short, student-friendly chart title.
+- "x_axis_label" and "y_axis_label": short axis labels appropriate to the question's units.
+- "caption": one short sentence a student can read under the chart, in plain language (e.g. "This shows where the curve crosses zero."). Never state a numeric root, intercept, or turning point value here for function_plot - the server adds those from its own calculation.
+
+Schema:
+{
+  "eligible": boolean,
+  "kind": "function_plot" | "pie_chart" | "bar_chart" | "line_chart" | "scatter_plot",
+  "title": string,
+  "x_axis_label": string,
+  "y_axis_label": string,
+  "expression": string,
+  "domain_min": number,
+  "domain_max": number,
+  "segments": [{ "label": string, "value": number }],
+  "series": [{ "label": string, "points": [{ "x": number, "y": number }] }],
+  "caption": string
+}`;

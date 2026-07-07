@@ -3,6 +3,7 @@ import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.types';
 import { Feature, AccessType } from '@prisma/client';
+import { resolveDepartmentId } from '../../shared/utils/department-resolver';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -38,26 +39,16 @@ export class UsersService {
       throw new Error('University record not found');
     }
 
-    const department = await prisma.department.findFirst({
-      where: {
-        university_id: university.id,
-        name: user.department,
-      },
-      select: {
-        id: true,
-        name: true,
-        faculty: true,
-      },
-    });
+    const departmentId = await resolveDepartmentId(user.university, user.department);
 
-    if (!department) {
+    if (!departmentId) {
       throw new Error('Department record not found');
     }
 
     return {
       user,
       university,
-      department,
+      department: { id: departmentId },
     };
   }
 

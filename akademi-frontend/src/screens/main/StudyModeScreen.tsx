@@ -29,6 +29,8 @@ import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { PdfSelectableViewer } from "../../components/ui/PdfSelectableViewer";
+import { GraphRenderer } from "../../components/graph/GraphRenderer";
+import { GraphSpec } from "../../components/graph/types";
 
 const formatStudyContent = (value: string) =>
   value
@@ -291,6 +293,7 @@ export const StudyModeScreen: React.FC = () => {
   const { sessionId, materialId, autoOpenTutor } = route.params || {};
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
+  const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
   const [material, setMaterial] = useState<Material | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -401,6 +404,7 @@ export const StudyModeScreen: React.FC = () => {
           if (cancelled) return;
           const aiMsg = [...messages].reverse().find((m: Message) => m.role === "AI");
           setContent(aiMsg?.content || "");
+          setGraphSpec(aiMsg?.metadata?.graph?.payload || null);
           setIsExtracting(false);
           return;
         }
@@ -409,6 +413,7 @@ export const StudyModeScreen: React.FC = () => {
           const data = await materialService.getMaterialDetails(materialId);
           if (cancelled) return;
           setMaterial(data);
+          setGraphSpec(null);
           const hasContent = typeof data.content === "string" && data.content.trim().length > 0;
           setContent(hasContent ? data.content! : "No text content available for this material.");
           setIsExtracting(!hasContent);
@@ -902,6 +907,11 @@ export const StudyModeScreen: React.FC = () => {
                   onHighlight={handleHighlight}
                 />
               )}
+              {!material && graphSpec && (
+                <View style={styles.graphWrap}>
+                  <GraphRenderer spec={graphSpec} />
+                </View>
+              )}
             </View>
           )}
         </Card>
@@ -1269,6 +1279,9 @@ const styles = StyleSheet.create({
   pageContentWithImage: {
     flex: 1,
     justifyContent: "space-between",
+  },
+  graphWrap: {
+    marginTop: 16,
   },
   readerBlocks: {
     gap: 18,

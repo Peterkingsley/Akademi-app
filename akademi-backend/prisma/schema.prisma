@@ -327,6 +327,7 @@ model Material {
   id                      String                   @id @default(uuid())
   title                   String
   course_code             String?
+  course_id               String?
   university              String
   faculty                 String
   department              String
@@ -355,6 +356,7 @@ model Material {
   reader_structure        Json?
 
   user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
+  course                        Course?                      @relation(fields: [course_id], references: [id])
   questions                     Question[]
   embeddings                    MaterialEmbedding[]
   teacher_brain                 MaterialTeacherBrain?
@@ -372,6 +374,7 @@ model Material {
   teaching_constraints          LecturerTeachingConstraint[]
 
   @@index([course_code])
+  @@index([course_id])
   @@index([university])
   @@index([department])
   @@index([level])
@@ -821,6 +824,7 @@ model Question {
   id             String     @id @default(uuid())
   material_id    String
   course_code    String?
+  course_id      String?
   university     String
   department     String
   level          Int
@@ -836,10 +840,12 @@ model Question {
   generated_at   DateTime   @default(now())
 
   material   Material          @relation(fields: [material_id], references: [id], onDelete: Cascade)
+  course     Course?           @relation(fields: [course_id], references: [id])
   attempts   QuestionAttempt[]
   mock_exams MockExam[]
 
   @@index([course_code])
+  @@index([course_id])
   @@index([department])
   @@index([difficulty])
   @@map("questions")
@@ -949,8 +955,10 @@ model ExamPrepPlan {
   user_id                  String
   user                     User       @relation(fields: [user_id], references: [id])
   course_code              String?
+  course_id                String?
+  course                   Course?    @relation(fields: [course_id], references: [id])
   assessment_type          String     @default("EXAM")
-  exam_date                DateTime
+  exam_date                DateTime?
   duration_minutes         Int        @default(120)
   objective_question_count Int        @default(40)
   theory_question_count    Int        @default(5)
@@ -959,7 +967,9 @@ model ExamPrepPlan {
   tasks                    PrepTask[]
   mock_exams               MockExam[]
 
+  @@unique([user_id, course_code])
   @@index([user_id])
+  @@index([course_id])
   @@map("exam_prep_plans")
 }
 
@@ -1334,6 +1344,10 @@ model Course {
   created_at    DateTime   @default(now())
   updated_at    DateTime   @updatedAt
 
+  materials       Material[]
+  questions       Question[]
+  exam_prep_plans ExamPrepPlan[]
+
   @@unique([code, department_id])
   @@index([department_id])
   @@index([code])
@@ -1365,24 +1379,27 @@ model StudentCourse {
 }
 
 model WaitlistEntry {
-  id            String   @id @default(uuid())
-  full_name     String
-  email         String   @unique
-  phone         String?
-  university    String?
-  faculty       String?
-  department    String?
-  level         Int?
-  main_struggle String?
-  source        String   @default("landing_page")
-  status        String   @default("WAITLISTED")
+  id               String    @id @default(uuid())
+  full_name        String
+  email            String    @unique
+  phone            String?
+  university       String?
+  faculty          String?
+  department       String?
+  level            Int?
+  main_struggle    String?
+  source           String    @default("landing_page")
+  utm_source       String?
+  utm_medium       String?
+  utm_campaign     String?
+  status           String    @default("WAITLISTED")
   first_invited_at DateTime?
   last_invited_at  DateTime?
-  invite_count     Int      @default(0)
+  invite_count     Int       @default(0)
   last_invited_by  String?
-  metadata      Json     @default("{}")
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  metadata         Json      @default("{}")
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
   @@index([email])
   @@index([university])
@@ -1390,6 +1407,7 @@ model WaitlistEntry {
   @@index([department])
   @@index([invite_count])
   @@index([created_at])
+  @@index([utm_source])
   @@map("waitlist_entries")
 }
 

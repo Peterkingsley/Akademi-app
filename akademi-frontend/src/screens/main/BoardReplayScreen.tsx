@@ -16,6 +16,8 @@ import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { MathFormula } from "../../components/ui/MathFormula";
 import { RichMathText } from "../../components/ui/RichMathText";
+import { GraphRenderer } from "../../components/graph/GraphRenderer";
+import { GraphSpec } from "../../components/graph/types";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
 
@@ -26,6 +28,25 @@ type BoardStep = {
   math?: string;
   note: string;
 };
+
+// Defense in depth: even if a malformed LaTeX fragment slips through the backend, never show its raw
+// broken source to the student - KaTeX renders unbalanced braces as visible red error text.
+const hasBalancedBraces = (value: string) => {
+  let depth = 0;
+  for (const char of value) {
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+};
+
+const isRenderableMath = (value?: string) => !!value && !!value.trim() && hasBalancedBraces(value);
+
+const isMeaningfulStep = (step: BoardStep) =>
+  !!step.text.trim() || isRenderableMath(step.math) || !!step.note.trim();
 
 export const BoardReplayScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -43,6 +64,7 @@ export const BoardReplayScreen: React.FC = () => {
   const [finalAnswer, setFinalAnswer] = useState("");
   const [finalAnswerMath, setFinalAnswerMath] = useState("");
   const [summary, setSummary] = useState("");
+  const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
 
@@ -72,10 +94,11 @@ export const BoardReplayScreen: React.FC = () => {
         const payload = firstAiWithBoard.metadata.whiteboard.payload;
         setQuestion(studentMessage?.content || "");
         setTitle(payload.title || "Board walkthrough");
-        setSteps(payload.steps || []);
+        setSteps((payload.steps || []).filter(isMeaningfulStep));
         setFinalAnswer(payload.final_answer || "");
         setFinalAnswerMath(payload.final_answer_math || "");
         setSummary(payload.summary || "");
+        setGraphSpec(firstAiWithBoard.metadata?.graph?.payload || null);
       } catch (loadError) {
         console.error("Failed to load board replay", loadError);
         setError("Could not load the board replay.");
@@ -172,9 +195,9 @@ export const BoardReplayScreen: React.FC = () => {
                 {!!step.text && (
                   <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
                 )}
-                {!!step.math && (
+                {isRenderableMath(step.math) && (
                   <View style={styles.mathBlock}>
-                    <MathFormula latex={step.math} fontSize={17} />
+                    <MathFormula latex={step.math!} fontSize={17} />
                   </View>
                 )}
                 {!!step.note && (
@@ -193,7 +216,7 @@ export const BoardReplayScreen: React.FC = () => {
         {currentStep >= steps.length && (
           <View style={styles.answerCard}>
             <Text style={styles.answerLabel}>Worked answer</Text>
-            {!!finalAnswerMath ? (
+            {isRenderableMath(finalAnswerMath) ? (
               <View style={styles.finalMathBlock}>
                 <MathFormula latex={finalAnswerMath} fontSize={21} />
               </View>
@@ -202,6 +225,12 @@ export const BoardReplayScreen: React.FC = () => {
             )}
             {!!finalAnswer && finalAnswerMath && <RichMathText content={finalAnswer} textColor={colors.textSecondary} fontSize={14} lineHeight={1.4} />}
             {!!summary && <RichMathText content={summary} textColor={colors.textSecondary} fontSize={14} lineHeight={1.45} />}
+          </View>
+        )}
+
+        {currentStep >= steps.length && graphSpec && (
+          <View style={styles.graphCard}>
+            <GraphRenderer spec={graphSpec} />
           </View>
         )}
       </ScrollView>
@@ -367,6 +396,9 @@ const createStyles = (colors: any) =>
       borderRadius: 10,
       borderWidth: 1,
       padding: 14,
+    },
+    graphCard: {
+      marginTop: 4,
     },
     answerLabel: {
       ...typography.label,

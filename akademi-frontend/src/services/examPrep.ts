@@ -1,27 +1,13 @@
 import api from "./api";
 
-export interface Task {
-  id: string;
-  name: string;
-  type: "quiz" | "practice" | "revision";
-  duration: string;
-  completed: boolean;
-  topic?: string;
-}
-
-export interface DailyTaskGroup {
-  date: string;
-  focus: string;
-  tasks: Task[];
-}
-
 export interface ExamPrepPlan {
   id: string;
   course_code: string;
+  course_id?: string | null;
   course_name: string;
   assessment_type?: "TEST" | "EXAM";
   assessment_label?: string;
-  exam_date: string;
+  exam_date?: string | null;
   duration_minutes?: number;
   objective_question_count?: number;
   theory_question_count?: number;
@@ -31,9 +17,18 @@ export interface ExamPrepPlan {
   readinessScore?: number;
   readinessGrade?: string;
   subject: string;
-  days_left: number;
-  daily_tasks?: DailyTaskGroup[];
-  dailyTasks?: DailyTaskGroup[];
+  days_left?: number | null;
+}
+
+export interface CourseHubItem {
+  course_code: string;
+  course_name?: string | null;
+  mastery_level: number;
+  readiness_grade: string;
+  assessment_label?: string;
+  exam_date?: string | null;
+  days_left?: number | null;
+  plan_id?: string | null;
 }
 
 export interface ReadinessResponse {
@@ -51,6 +46,8 @@ export interface MockQuestion {
 
 export interface MockExam {
   id: string;
+  title?: string;
+  plan_id?: string;
   questions: MockQuestion[];
   durationMinutes: number;
 }
@@ -97,6 +94,34 @@ export interface MockHistoryItem {
 }
 
 const examPrepService = {
+  getCourseHub: async () => {
+    const { data } = await api.get<CourseHubItem[]>("/exam-prep/courses");
+    return data;
+  },
+
+  startMockExamForCourse: async (courseCode: string) => {
+    const { data } = await api.post<MockExam>(`/exam-prep/courses/${encodeURIComponent(courseCode)}/mock-exam`);
+    return data;
+  },
+
+  upsertPlanSettings: async (
+    courseCode: string,
+    exam_date?: string | null,
+    assessment_type: "TEST" | "EXAM" = "EXAM",
+    duration_minutes = 120,
+    objective_question_count = 40,
+    theory_question_count = 5,
+  ) => {
+    const { data } = await api.patch<ExamPrepPlan>(`/exam-prep/courses/${encodeURIComponent(courseCode)}/settings`, {
+      exam_date,
+      assessment_type,
+      duration_minutes,
+      objective_question_count,
+      theory_question_count,
+    });
+    return data;
+  },
+
   getAllPlans: async () => {
     const { data } = await api.get<ExamPrepPlan[]>("/exam-prep");
     return data;
@@ -107,35 +132,8 @@ const examPrepService = {
     return data;
   },
 
-  createPlan: async (
-    course_code: string,
-    exam_date: string,
-    assessment_type: "TEST" | "EXAM" = "EXAM",
-    duration_minutes = 120,
-    objective_question_count = 40,
-    theory_question_count = 5,
-  ) => {
-    const { data } = await api.post<ExamPrepPlan>("/exam-prep", {
-      course_code,
-      exam_date,
-      assessment_type,
-      duration_minutes,
-      objective_question_count,
-      theory_question_count,
-    });
-    return data;
-  },
-
   getPlanDetails: async (id: string) => {
     const { data } = await api.get<ExamPrepPlan>(`/exam-prep/${id}`);
-    return data;
-  },
-
-  updateTaskProgress: async (planId: string, taskId: string, completed: boolean) => {
-    const { data } = await api.patch(`/exam-prep/${planId}/progress`, {
-      taskId,
-      completed,
-    });
     return data;
   },
 

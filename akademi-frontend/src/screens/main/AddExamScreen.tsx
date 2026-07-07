@@ -13,7 +13,7 @@ import { X, Clock, FileText, ChevronLeft, ChevronRight, Plus } from "lucide-reac
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import examPrepService from "../../services/examPrep";
 import { materialService } from "../../services/material";
 import { SafeArea } from "../../components/layout/SafeArea";
@@ -31,15 +31,23 @@ const getDateKey = (date: Date) => {
 
 export const AddExamScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const preselectedCourseCode: string | undefined = route.params?.courseCode;
   const { user } = useAuthStore();
   const courses = (user as any)?.courses || [];
+  const pillCourses = useMemo(() => {
+    if (preselectedCourseCode && !courses.includes(preselectedCourseCode)) {
+      return [preselectedCourseCode, ...courses];
+    }
+    return courses;
+  }, [courses, preselectedCourseCode]);
   const tomorrow = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 1);
     date.setHours(12, 0, 0, 0);
     return date;
   }, []);
-  const [selectedCourse, setSelectedCourse] = useState(courses[0] || "");
+  const [selectedCourse, setSelectedCourse] = useState(preselectedCourseCode || courses[0] || "");
   const [assessmentType, setAssessmentType] = useState<AssessmentType>("EXAM");
   const [selectedDate, setSelectedDate] = useState<Date>(tomorrow);
   const [durationMinutes, setDurationMinutes] = useState("120");
@@ -92,7 +100,7 @@ export const AddExamScreen: React.FC = () => {
     setLoading(true);
     try {
       const dateString = selectedDate.toISOString().split('T')[0];
-      const plan = await examPrepService.createPlan(
+      const plan = await examPrepService.upsertPlanSettings(
         selectedCourse,
         dateString,
         assessmentType,
@@ -203,7 +211,7 @@ export const AddExamScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
           <X size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.title, typography.h3]}>Plan Course Prep</Text>
+        <Text style={[styles.title, typography.h3]}>{preselectedCourseCode ? "Customize Prep" : "Plan Course Prep"}</Text>
         <View style={styles.closeButton} />
       </View>
 
@@ -247,7 +255,7 @@ export const AddExamScreen: React.FC = () => {
             </View>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.courseRow}>
-            {courses.map((course: string) => {
+            {pillCourses.map((course: string) => {
               const isSelected = selectedCourse === course;
               return (
                 <TouchableOpacity
@@ -269,7 +277,7 @@ export const AddExamScreen: React.FC = () => {
               );
             })}
           </ScrollView>
-          {courses.length === 0 && (
+          {pillCourses.length === 0 && (
             <Text style={[styles.emptyCoursesText, typography.bodySmall]}>
               No courses found. Complete your academic setup before creating an exam plan.
             </Text>
@@ -325,7 +333,7 @@ export const AddExamScreen: React.FC = () => {
           icon={<Plus size={20} color="white" />}
           onPress={handleAddExam}
           loading={loading}
-          disabled={!selectedCourse || courses.length === 0}
+          disabled={!selectedCourse || pillCourses.length === 0}
         />
       </View>
     </SafeArea>

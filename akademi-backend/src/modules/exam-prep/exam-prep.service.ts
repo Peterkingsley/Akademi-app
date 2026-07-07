@@ -1,8 +1,9 @@
 import prisma from '../../config/db';
 import { Difficulty, VerificationStatus } from '@prisma/client';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
-
-const TASK_TYPE_BY_INDEX = ['revision', 'practice', 'quiz'] as const;
+import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
+import { resolveDepartmentId, findOrCreateCourse } from '../../shared/utils/department-resolver';
+import { UsersService } from '../users/users.service';
 
 function normalizeAnswer(answer: string) {
   return answer.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -27,7 +28,11 @@ function shuffle<T>(items: T[]) {
   return copy;
 }
 
+const DIFFICULTY_WEIGHTS = { [Difficulty.EASY]: 1, [Difficulty.MEDIUM]: 2, [Difficulty.HARD]: 3 };
+
 export class ExamPrepService {
+  private usersService = new UsersService();
+
   private normalizeAssessmentType(value?: string | null) {
     return value?.toUpperCase() === 'TEST' ? 'TEST' : 'EXAM';
   }
@@ -36,7 +41,8 @@ export class ExamPrepService {
     return this.normalizeAssessmentType(value) === 'TEST' ? 'Test' : 'Exam';
   }
 
-  private getDaysLeft(examDate: Date) {
+  private getDaysLeft(examDate: Date | null) {
+    if (!examDate) return null;
     const msPerDay = 1000 * 60 * 60 * 24;
     return Math.max(0, Math.ceil((examDate.getTime() - Date.now()) / msPerDay));
   }
@@ -49,33 +55,43 @@ export class ExamPrepService {
     return 'Needs work';
   }
 
-  private formatTask(task: any, index: number) {
-    return {
-      id: task.id,
-      name: task.title,
-      title: task.title,
-      description: task.description,
-      type: TASK_TYPE_BY_INDEX[index % TASK_TYPE_BY_INDEX.length],
-      duration: index === 0 ? '25 min' : index === 1 ? '35 min' : '20 min',
-      completed: task.completed,
-      due_date: task.due_date,
-      completed_at: task.completed_at,
-    };
+  /**
+   * Difficulty-weighted correctness % across a user's full QuestionAttempt history for a course.
+   * This is the single source of truth for "Mastery Level" (hub cards, plan progress, and the
+   * Mock Exam unlock gate) - no more fake task-completion ratios.
+   */
+  async getMasteryLevel(userId: string, courseRef: { courseId?: string | null; courseCode?: string | null }) {
+    const orConditions: any[] = [];
+    if (courseRef.courseCode) orConditions.push({ course_code: courseRef.courseCode });
+    if (courseRef.courseId) orConditions.push({ course_id: courseRef.courseId });
+    if (orConditions.length === 0) return 0;
+
+    const attempts = await prisma.questionAttempt.findMany({
+      where: { user_id: userId, question: { OR: orConditions } },
+      include: { question: { select: { difficulty: true } } },
+    });
+
+    if (attempts.length === 0) return 0;
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    attempts.forEach((a) => {
+      const weight = DIFFICULTY_WEIGHTS[a.question.difficulty];
+      totalWeight += weight;
+      if (a.is_correct) {
+        totalWeightedScore += weight;
+      }
+    });
+
+    return Math.round((totalWeightedScore / totalWeight) * 100);
   }
 
   private async formatPlan(plan: any) {
-    const tasks = plan.tasks || [];
-    const completedTasks = tasks.filter((task: any) => task.completed).length;
-    const progress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
-    const readinessScore = Math.round(await this.getReadinessScore(plan.user_id, plan.id));
-    const formattedTasks = tasks.map((task: any, index: number) => this.formatTask(task, index));
-    const dailyTasks = [
-      {
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        focus: plan.course_code || 'Exam preparation',
-        tasks: formattedTasks,
-      },
-    ];
+    const masteryLevel = await this.getMasteryLevel(plan.user_id, {
+      courseId: plan.course_id,
+      courseCode: plan.course_code,
+    });
 
     return {
       ...plan,
@@ -83,18 +99,16 @@ export class ExamPrepService {
       assessment_label: this.getAssessmentLabel(plan.assessment_type),
       course_name: plan.course_code,
       subject: plan.course_code,
+      exam_date: plan.exam_date,
       days_left: this.getDaysLeft(plan.exam_date),
       duration_minutes: plan.duration_minutes,
       objective_question_count: plan.objective_question_count,
       theory_question_count: plan.theory_question_count,
-      progress,
-      readiness_score: readinessScore,
-      readinessScore,
-      readiness_grade: this.getReadinessGrade(readinessScore),
-      readinessGrade: this.getReadinessGrade(readinessScore),
-      daily_tasks: dailyTasks,
-      dailyTasks,
-      tasks: formattedTasks,
+      progress: masteryLevel,
+      readiness_score: masteryLevel,
+      readinessScore: masteryLevel,
+      readiness_grade: this.getReadinessGrade(masteryLevel),
+      readinessGrade: this.getReadinessGrade(masteryLevel),
     };
   }
 
@@ -133,98 +147,172 @@ export class ExamPrepService {
     };
   }
 
-  async createPlan(
+  /**
+   * Resolves (best-effort, never throws) the Course catalog row id for a user's academic
+   * profile + a given course code, so plans can be linked via a real FK where possible.
+   */
+  private async resolveCourseId(userId: string, normalizedCourseCode: string): Promise<string | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { university: true, department: true, level: true },
+    });
+
+    if (!user?.university || !user.department || !user.level) return null;
+
+    const departmentId = await resolveDepartmentId(user.university, user.department);
+    if (!departmentId) return null;
+
+    const course = await findOrCreateCourse({
+      departmentId,
+      code: normalizedCourseCode,
+      level: user.level,
+    });
+
+    return course.id;
+  }
+
+  /**
+   * Get-or-create a plan for this user+course. Plans are now a lightweight per-course settings
+   * record (exam date, duration, question mix) rather than a mandatory gate before Study Now /
+   * Mock Exam are usable - the hub lists courses directly from the user's academic profile.
+   */
+  async getOrCreatePlanForCourse(userId: string, courseCode: string) {
+    const normalizedCourseCode = courseCode?.trim().toUpperCase();
+    if (!normalizedCourseCode) {
+      throw new Error('Select a course before creating a prep plan');
+    }
+
+    const existing = await prisma.examPrepPlan.findFirst({
+      where: { user_id: userId, course_code: normalizedCourseCode },
+    });
+    if (existing) return existing;
+
+    const courseId = await this.resolveCourseId(userId, normalizedCourseCode);
+
+    try {
+      return await prisma.examPrepPlan.create({
+        data: {
+          user_id: userId,
+          course_code: normalizedCourseCode,
+          course_id: courseId,
+          assessment_type: 'EXAM',
+          exam_date: null,
+          duration_minutes: 120,
+          objective_question_count: 40,
+          theory_question_count: 5,
+        },
+      });
+    } catch (error: any) {
+      // Concurrent get-or-create race: another request created it first, fetch and return that one.
+      if (error.code === 'P2002') {
+        const raceWinner = await prisma.examPrepPlan.findFirst({
+          where: { user_id: userId, course_code: normalizedCourseCode },
+        });
+        if (raceWinner) return raceWinner;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Creates or updates a course's prep settings (exam date, duration, question mix). Replaces
+   * the old mandatory "create a plan first" flow - AddExamScreen now calls this to customize an
+   * auto-provisioned plan rather than gating Study Now / Mock Exam behind it.
+   */
+  async upsertPlanSettings(
     userId: string,
     courseCode: string,
-    examDate: string,
+    examDate?: string | null,
     assessmentType = 'EXAM',
     durationMinutes?: number,
     objectiveQuestionCount?: number,
     theoryQuestionCount?: number,
   ) {
-    const normalizedCourseCode = courseCode?.trim().toUpperCase();
+    const plan = await this.getOrCreatePlanForCourse(userId, courseCode);
+
     const normalizedAssessmentType = this.normalizeAssessmentType(assessmentType);
-    const assessmentLabel = this.getAssessmentLabel(normalizedAssessmentType);
-    const normalizedDurationMinutes = Math.min(Math.max(Number(durationMinutes) || 120, 15), 360);
-    const normalizedObjectiveQuestionCount = Math.min(Math.max(Number(objectiveQuestionCount) || 40, 5), 100);
-    const normalizedTheoryQuestionCount = Math.min(Math.max(Number(theoryQuestionCount) || 5, 0), 20);
+    const normalizedDurationMinutes = Math.min(Math.max(Number(durationMinutes) || plan.duration_minutes || 120, 15), 360);
+    const normalizedObjectiveQuestionCount = Math.min(Math.max(Number(objectiveQuestionCount) || plan.objective_question_count || 40, 5), 100);
+    const normalizedTheoryQuestionCount = Math.min(Math.max(Number(theoryQuestionCount) || plan.theory_question_count || 5, 0), 20);
 
-    if (!normalizedCourseCode) {
-      throw new Error('Select a course before creating a prep plan');
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { university: true, department: true },
-    });
-
-    if (!user) throw new Error('User not found');
-
-    const usableMaterials = await prisma.material.findMany({
-      where: {
-        course_code: normalizedCourseCode,
-        university: user.university,
-        department: user.department,
-        OR: [
-          { verification_status: VerificationStatus.VERIFIED },
-          { uploaded_by: userId },
-        ],
-      },
-      select: { id: true },
-    });
-
-    const questionCount = await prisma.question.count({
-      where: {
-        course_code: normalizedCourseCode,
-        correct_answer: { not: null },
-      },
-    });
-
-    const plan = await prisma.examPrepPlan.create({
+    const updated = await prisma.examPrepPlan.update({
+      where: { id: plan.id },
       data: {
-        user_id: userId,
-        course_code: normalizedCourseCode,
+        exam_date: examDate ? new Date(examDate) : plan.exam_date,
         assessment_type: normalizedAssessmentType,
-        exam_date: new Date(examDate),
         duration_minutes: normalizedDurationMinutes,
         objective_question_count: normalizedObjectiveQuestionCount,
         theory_question_count: normalizedTheoryQuestionCount,
       },
     });
 
-    // Generate initial tasks
-    const tasksData = [
-      {
-        title: `${assessmentLabel} Course Sweep`,
-        description: `Review all ${usableMaterials.length || 'available'} ${normalizedCourseCode} material${usableMaterials.length === 1 ? '' : 's'} before the ${assessmentLabel.toLowerCase()}.`,
-        due_date: new Date(),
-      },
-      {
-        title: 'Course Practice Questions',
-        description: questionCount > 0
-          ? `Practice from ${questionCount} generated ${normalizedCourseCode} question${questionCount === 1 ? '' : 's'}.`
-          : `Generate or approve questions from ${normalizedCourseCode} materials, then practice.`,
-        due_date: new Date(),
-      },
-      {
-        title: `${assessmentLabel} Weak Area Focus`,
-        description: `Use mock results and study sessions to focus on weak ${normalizedCourseCode} topics.`,
-        due_date: new Date(),
-      },
-    ];
+    return this.getPlan(userId, updated.id);
+  }
 
-    await prisma.prepTask.createMany({
-      data: tasksData.map(t => ({ ...t, plan_id: plan.id })),
+  /**
+   * The Exam Prep hub: lists every course the user is currently offering (from their academic
+   * profile, not from pre-existing plans) with a real Mastery Level and any existing plan's
+   * exam-date/countdown, computed in one batched pass (no N+1 per course).
+   */
+  async listCourseHub(userId: string) {
+    const courseOptions = await this.usersService.getCourseOptions(userId);
+    if (courseOptions.length === 0) return [];
+
+    const uniqueByCode = new Map<string, { code: string; name?: string | null }>();
+    for (const course of courseOptions) {
+      const key = course.code.toUpperCase();
+      if (!uniqueByCode.has(key)) {
+        uniqueByCode.set(key, { code: course.code, name: course.name });
+      }
+    }
+    const courseCodes = [...uniqueByCode.keys()];
+
+    const [attempts, plans] = await Promise.all([
+      prisma.questionAttempt.findMany({
+        where: { user_id: userId, question: { course_code: { in: courseCodes } } },
+        select: { is_correct: true, question: { select: { course_code: true, difficulty: true } } },
+      }),
+      prisma.examPrepPlan.findMany({
+        where: { user_id: userId, course_code: { in: courseCodes } },
+      }),
+    ]);
+
+    const byCourse = new Map<string, { weighted: number; total: number }>();
+    for (const attempt of attempts) {
+      const code = attempt.question.course_code?.toUpperCase();
+      if (!code) continue;
+      const weight = DIFFICULTY_WEIGHTS[attempt.question.difficulty];
+      const entry = byCourse.get(code) || { weighted: 0, total: 0 };
+      entry.total += weight;
+      if (attempt.is_correct) entry.weighted += weight;
+      byCourse.set(code, entry);
+    }
+
+    const planByCourse = new Map(plans.map((plan) => [plan.course_code!.toUpperCase(), plan]));
+
+    return courseCodes.map((code) => {
+      const entry = byCourse.get(code);
+      const masteryLevel = entry && entry.total > 0 ? Math.round((entry.weighted / entry.total) * 100) : 0;
+      const plan = planByCourse.get(code);
+      const examDate = plan?.exam_date || null;
+
+      return {
+        course_code: code,
+        course_name: uniqueByCode.get(code)?.name || code,
+        mastery_level: masteryLevel,
+        readiness_grade: this.getReadinessGrade(masteryLevel),
+        assessment_label: plan ? this.getAssessmentLabel(plan.assessment_type) : 'Exam',
+        exam_date: examDate,
+        days_left: this.getDaysLeft(examDate),
+        plan_id: plan?.id || null,
+      };
     });
-
-    return this.getPlan(userId, plan.id);
   }
 
   async getAllPlans(userId: string) {
     const plans = await prisma.examPrepPlan.findMany({
       where: { user_id: userId },
-      include: { tasks: true },
-      orderBy: { exam_date: 'asc' },
+      orderBy: { created_at: 'asc' },
     });
     return Promise.all(plans.map((plan) => this.formatPlan(plan)));
   }
@@ -232,7 +320,6 @@ export class ExamPrepService {
   async getPlan(userId: string, planId: string) {
     const plan = await prisma.examPrepPlan.findFirst({
       where: { id: planId, user_id: userId },
-      include: { tasks: true, mock_exams: true },
     });
     if (!plan) throw new Error('Plan not found');
     return this.formatPlan(plan);
@@ -261,101 +348,129 @@ export class ExamPrepService {
     return attempts.map((attempt) => this.formatMockAttempt(attempt));
   }
 
-  async updateProgress(userId: string, planId: string, taskId: string, completed: boolean) {
-    const task = await prisma.prepTask.findFirst({
-      where: { id: taskId, plan_id: planId, plan: { user_id: userId } },
-    });
-    if (!task) throw new Error('Task not found');
-
-    const updatedTask = await prisma.prepTask.update({
-      where: { id: taskId },
-      data: {
-        completed,
-        completed_at: completed ? new Date() : null,
-      },
-    });
-
-    return this.formatTask(updatedTask, 0);
+  async getReadinessScore(userId: string, planId: string) {
+    const plan = await prisma.examPrepPlan.findFirst({ where: { id: planId, user_id: userId } });
+    if (!plan) throw new Error('Plan not found');
+    return this.getMasteryLevel(userId, { courseId: plan.course_id, courseCode: plan.course_code });
   }
 
-  async getReadinessScore(userId: string, planId: string) {
-    const attempts = await prisma.questionAttempt.findMany({
-      where: {
-        user_id: userId,
-        question: { course_code: { in: await prisma.examPrepPlan.findUnique({ where: { id: planId } }).then(p => [p?.course_code || '']) } },
-      },
-      include: { question: true },
+  /**
+   * Course-wide question pool for a mock exam: unions questions across every verified material
+   * under the plan's course, permanently excludes any question the user has ever attempted
+   * (regardless of which past mock/session it came from), and tops up generation for whichever
+   * sub-pool (objective/theory) is short, before splitting to the plan's configured counts.
+   */
+  private async getEligibleCourseQuestions(
+    userId: string,
+    plan: { course_id: string | null; course_code: string | null; objective_question_count: number; theory_question_count: number },
+  ) {
+    const materialWhere = plan.course_id
+      ? { course_id: plan.course_id, verification_status: VerificationStatus.VERIFIED }
+      : { course_code: plan.course_code, verification_status: VerificationStatus.VERIFIED };
+
+    const materials = await prisma.material.findMany({ where: materialWhere, select: { id: true } });
+    const materialIds = materials.map((m) => m.id);
+    if (materialIds.length === 0) return [];
+
+    const attemptedIds = await prisma.questionAttempt.findMany({
+      where: { user_id: userId, question: { material_id: { in: materialIds } } },
+      select: { question_id: true },
+      distinct: ['question_id'],
+    });
+    const excludeSet = new Set(attemptedIds.map((a) => a.question_id));
+
+    const loadPool = () =>
+      prisma.question.findMany({
+        where: { material_id: { in: materialIds }, id: { notIn: [...excludeSet] } },
+        select: {
+          id: true,
+          material_id: true,
+          question_text: true,
+          options: true,
+          correct_answer: true,
+          explanation: true,
+          approach_guide: true,
+          difficulty: true,
+        },
+      });
+
+    const splitPool = (items: Awaited<ReturnType<typeof loadPool>>) => ({
+      objective: items.filter((q) => Array.isArray(q.options) && q.options.length > 0 && !!q.correct_answer),
+      theory: items.filter((q) => !Array.isArray(q.options) || q.options.length === 0 || !q.correct_answer),
     });
 
-    if (attempts.length === 0) return 0;
+    let pool = await loadPool();
+    let { objective, theory } = splitPool(pool);
 
-    const weights = { [Difficulty.EASY]: 1, [Difficulty.MEDIUM]: 2, [Difficulty.HARD]: 3 };
-    let totalWeightedScore = 0;
-    let totalWeight = 0;
+    const targetObjective = plan.objective_question_count || 40;
+    const targetTheory = plan.theory_question_count || 5;
+    const objectiveShortfall = Math.max(targetObjective - objective.length, 0);
+    const theoryShortfall = Math.max(targetTheory - theory.length, 0);
 
-    attempts.forEach(a => {
-      const weight = weights[a.question.difficulty];
-      totalWeight += weight;
-      if (a.is_correct) {
-        totalWeightedScore += weight;
+    if (objectiveShortfall > 0 || theoryShortfall > 0) {
+      const remainingByMaterial = new Map<string, number>();
+      for (const id of materialIds) remainingByMaterial.set(id, 0);
+      for (const q of pool) remainingByMaterial.set(q.material_id, (remainingByMaterial.get(q.material_id) || 0) + 1);
+      const materialsNeedingMore = [...remainingByMaterial.entries()]
+        .sort((a, b) => a[1] - b[1])
+        .map(([materialId]) => materialId);
+
+      let stillNeeded = objectiveShortfall + theoryShortfall;
+      for (const materialId of materialsNeedingMore) {
+        if (stillNeeded <= 0) break;
+        try {
+          const existingTexts = await prisma.question.findMany({
+            where: { material_id: materialId },
+            select: { question_text: true },
+          });
+          const generationTarget = Math.max(Math.ceil(stillNeeded / materialsNeedingMore.length) + 5, 10);
+          const createdCount = await generateQuestionsJob(materialId, {
+            count: generationTarget,
+            excludeQuestionTexts: existingTexts.map((q) => q.question_text),
+          });
+          stillNeeded -= createdCount;
+        } catch (error) {
+          console.error(`Failed to top up course-wide questions for material ${materialId}:`, error);
+        }
       }
-    });
 
-    return (totalWeightedScore / totalWeight) * 100;
+      pool = await loadPool();
+      ({ objective, theory } = splitPool(pool));
+    }
+
+    return [...shuffle(objective).slice(0, targetObjective), ...shuffle(theory).slice(0, targetTheory)];
   }
 
   async startMockExam(userId: string, planId: string) {
-    const plan = await prisma.examPrepPlan.findUnique({
-      where: { id: planId },
-      include: { tasks: true },
-    });
-
+    const plan = await prisma.examPrepPlan.findUnique({ where: { id: planId } });
     if (!plan || plan.user_id !== userId) throw new Error('Plan not found');
 
-    const completedTasks = plan.tasks.filter(t => t.completed).length;
-    const totalTasks = plan.tasks.length;
-    const completionRate = totalTasks > 0 ? completedTasks / totalTasks : 0;
-
-    if (completionRate < 0.6) {
-      throw new Error('Complete 60% of your prep plan to unlock mock exam');
+    const masteryLevel = await this.getMasteryLevel(userId, { courseId: plan.course_id, courseCode: plan.course_code });
+    if (masteryLevel < 60) {
+      throw new Error('Reach 60% Mastery to unlock Mock Exam');
     }
 
-    const questionPool = await prisma.question.findMany({
-      where: {
-        course_code: plan.course_code,
-      },
-      select: {
-        id: true,
-        question_text: true,
-        options: true,
-        correct_answer: true,
-        explanation: true,
-        approach_guide: true,
-        difficulty: true,
-      },
-    });
-
-    const objectiveQuestions = shuffle(
-      questionPool.filter((question) => Array.isArray(question.options) && question.options.length > 0 && !!question.correct_answer),
-    ).slice(0, plan.objective_question_count || 40);
-    const theoryQuestions = shuffle(
-      questionPool.filter((question) => !Array.isArray(question.options) || question.options.length === 0 || !question.correct_answer),
-    ).slice(0, plan.theory_question_count || 5);
-    const selectedQuestions = [...objectiveQuestions, ...theoryQuestions];
+    const selectedQuestions = await this.getEligibleCourseQuestions(userId, plan);
 
     if (selectedQuestions.length === 0) {
-      throw new Error('No course questions are available for this exam prep yet');
+      throw new Error('No fresh course questions are available for this exam prep yet');
     }
 
     const mockExam = await prisma.mockExam.create({
       data: {
         plan_id: planId,
         title: `Mock Exam for ${plan.course_code}`,
-        questions: { connect: selectedQuestions.map(q => ({ id: q.id })) },
+        questions: { connect: selectedQuestions.map((q) => ({ id: q.id })) },
       },
     });
 
     return this.formatMockExam({ ...mockExam, plan, questions: selectedQuestions });
+  }
+
+  /** Convenience wrapper used by the hub's "Mock Exam" tap - resolves/creates the plan then starts it. */
+  async startMockExamForCourse(userId: string, courseCode: string) {
+    const plan = await this.getOrCreatePlanForCourse(userId, courseCode);
+    return this.startMockExam(userId, plan.id);
   }
 
   async getMockExam(userId: string, examId: string) {
