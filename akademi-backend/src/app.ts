@@ -36,6 +36,13 @@ const server = http.createServer(app);
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: corsOriginDelegate, credentials: true }));
+app.use((err: Error, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err.message === 'Origin not allowed by CORS') {
+    res.status(403).json({ message: err.message });
+    return;
+  }
+  next(err);
+});
 app.use(express.json());
 app.use((req, _res, next) => {
   if (req.path.includes('/teaching')) {
