@@ -99,62 +99,47 @@ export class AIService {
     return depth === 0;
   }
 
-  private splitEquationChain(math: string) {
-    const compact = this.repairDoubleEscapedLatex(math.replace(/\s+/g, ' ').trim());
-    if (!compact) return [];
-    // If the whole expression already has unbalanced braces, splitting can only make it worse.
-    if (!this.hasBalancedBraces(compact)) return [compact];
+  // A step's math is never mechanically split into multiple step cards. Splitting used to chain
+  // consecutive "=" signs together on the assumption that 3+ equals-separated segments always
+  // meant one continuous derivation (e.g. "y = 2x+3 = 2(4)+3 = 11"). That assumption breaks the
+  // moment a single "math" field lists an equation plus several *independent* facts side by side
+  // (e.g. "2x^2+3x+4=0 a=2 b=3 c=4" for restating the equation and identifying a, b, c) - the
+  // chain logic can't tell "independent facts" from "one equivalence chain" and shreds it into
+  // overlapping nonsense fragments, cloning the parent step's explanation across each one. One
+  // JSON-authored step is always exactly one rendered card now; see sanitizeBoardStepMath for the
+  // validation that replaced this splitting.
+  private endsWithDanglingVariable(math: string) {
+    const trimmed = math.trim();
+    if (!trimmed) return false;
 
-    const multilineParts = compact
-      .split(/\s*\\\\\s*/)
-      .map((part) => part.trim())
-      .filter(Boolean);
+    const tokens = trimmed.split(/\s+/).filter(Boolean);
+    if (tokens.length < 2) return false;
 
-    const splitPartOnEquals = (value: string) => {
-      const segments = value.split(/\s=\s/g).map((segment) => segment.trim()).filter(Boolean);
-      if (segments.length <= 2) return [value.trim()];
+    const lastToken = tokens[tokens.length - 1];
+    const precedingToken = tokens[tokens.length - 2];
+    const isRelationalOperator = /^(=|\+|-|\\times|\\cdot|\\pm|\\mp|<|>|\\leq|\\geq|\\neq)$/.test(precedingToken);
 
-      const chained: string[] = [];
-      for (let index = 0; index < segments.length - 1; index += 1) {
-        chained.push(`${segments[index]} = ${segments[index + 1]}`);
-      }
-      return chained;
-    };
-
-    const candidate = multilineParts.flatMap(splitPartOnEquals).filter(Boolean);
-    // Never emit fragments that split a command in half (e.g. an errant "\\" landing inside "\lim_{x").
-    // If any piece comes out unbalanced, keep the original expression whole instead.
-    const allSegmentsValid = candidate.length > 0 && candidate.every((part) => this.hasBalancedBraces(part));
-    return allSegmentsValid ? candidate : [compact];
+    // A trailing single letter is a normal, complete equation ("x = a") when something relational
+    // sits right before it. Without that, it is an orphaned token with nothing connecting it to
+    // the rest of the line ("... = 0 a") - the exact signature this bug used to produce.
+    return /^[A-Za-z]$/.test(lastToken) && !isRelationalOperator;
   }
 
-  private expandWideBoardSteps(steps: Array<{ id: string; type: string; text: string; math: string; note: string }>) {
-    const expanded: Array<{ id: string; type: string; text: string; math: string; note: string }> = [];
+  private sanitizeBoardStepMath(math: string) {
+    const trimmed = math.trim();
+    if (!trimmed) return '';
+    if (!this.hasBalancedBraces(trimmed)) return '';
+    if (this.endsWithDanglingVariable(trimmed)) return '';
+    return trimmed;
+  }
 
-    steps.forEach((step) => {
-      const mathSegments = this.splitEquationChain(step.math);
-      const shouldSplit = mathSegments.length > 1 || step.math.length > 110;
-
-      if (!step.math || !shouldSplit) {
-        expanded.push(step);
-        return;
-      }
-
-      const segments = mathSegments.length > 0 ? mathSegments : [step.math];
-      segments.forEach((segment, index) => {
-        expanded.push({
-          ...step,
-          id: `${step.id}-${index + 1}`,
-          // Carry the real explanation onto every fragment instead of a generic filler line - a
-          // repeated sentence still teaches something, an empty "Continue the simplification." card doesn't.
-          text: step.text,
-          math: segment,
-          note: step.note,
-        });
-      });
-    });
-
-    return expanded.slice(0, 16);
+  private hasConsecutiveDuplicateSteps(steps: Array<{ text: string }>) {
+    for (let index = 1; index < steps.length; index += 1) {
+      const previous = steps[index - 1].text.trim().toLowerCase();
+      const current = steps[index].text.trim().toLowerCase();
+      if (previous && previous === current) return true;
+    }
+    return false;
   }
 
   private normalizeLatexExpression(value: string) {
@@ -270,10 +255,14 @@ export class AIService {
       ? note.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').trim()
       : note;
 
+    // Combine into one atomic line (", \quad" between clauses) rather than a display line-break -
+    // a step is never split into multiple cards, so its math must read as one coherent block.
+    const combinedMath = this.sanitizeBoardStepMath(uniqueMath.join(', \\quad '));
+
     return {
       ...step,
       text: shortenedText,
-      math: uniqueMath.join(' \\\\ '),
+      math: combinedMath,
       note: shortenedNote,
     };
   }
@@ -352,6 +341,8 @@ export class AIService {
         return null;
       }
 
+      // Each JSON-authored step object becomes exactly one rendered card - never split, never
+      // cloned. Steps with no usable text or math after sanitization are simply dropped.
       const normalizedSteps = steps
         .map((step: any, index: number) => ({
           id: typeof step?.id === 'string' ? step.id : `step-${index + 1}`,
@@ -361,16 +352,15 @@ export class AIService {
           note: String(step?.note || '').trim(),
         }))
         .map((step: { id: string; type: string; text: string; math: string; note: string }) => this.normalizeBoardStep(step))
-        .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0);
+        .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0)
+        .slice(0, 16);
 
-      const expandedSteps = this.expandWideBoardSteps(normalizedSteps);
-
-      if (expandedSteps.length === 0) return null;
+      if (normalizedSteps.length === 0) return null;
 
       return {
         title: String(parsed?.title || 'Board walkthrough'),
         board_style: 'digital-whiteboard',
-        steps: expandedSteps,
+        steps: normalizedSteps,
         final_answer: parsed.final_answer.trim(),
         final_answer_math: this.normalizeLatexExpression(String(parsed?.final_answer_math || parsed?.final_answer || '').trim()),
         summary: String(parsed?.summary || '').trim(),
@@ -381,14 +371,14 @@ export class AIService {
   }
 
   private async buildWhiteboardPayload(studentMessage: string, answer: string) {
-    try {
+    const requestBoard = async (correctiveInstruction?: string) => {
       const raw = await aiProvider.generateResponse(
         `Question: ${studentMessage}
 
 Reference solution:
 ${answer}
 
-Create a board replay plan for this solution.`,
+Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${correctiveInstruction}` : ''}`,
         {
           systemPrompt: whiteboardMathSystemPrompt,
           maxTokens: 900,
@@ -396,6 +386,21 @@ Create a board replay plan for this solution.`,
       );
 
       return this.parseWhiteboardPayload(raw);
+    };
+
+    try {
+      const firstAttempt = await requestBoard();
+      if (!firstAttempt) return null;
+      if (!this.hasConsecutiveDuplicateSteps(firstAttempt.steps)) return firstAttempt;
+
+      // The model repeated one step's explanation across several consecutive steps - retry once
+      // with a corrective instruction rather than showing the student a duplicated walkthrough.
+      const retryAttempt = await requestBoard(
+        'Your previous attempt repeated the same "text" and "note" across multiple consecutive steps, and/or crammed multiple independent facts (like separate coefficient assignments) into one "math" field without proper separation. Each step must have its own distinct explanation. If you need to state several short related facts on one line (e.g. identifying a, b, and c), join them with ", \\\\quad " in a single "math" value instead of repeating the step.'
+      );
+      if (retryAttempt && !this.hasConsecutiveDuplicateSteps(retryAttempt.steps)) return retryAttempt;
+
+      return null;
     } catch (error) {
       console.error('Whiteboard payload generation failed:', error);
       return null;
