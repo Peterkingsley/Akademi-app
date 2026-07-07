@@ -1,5 +1,6 @@
 import api from "./api";
 import { GraphSpec } from "../components/graph/types";
+import { BoardStep } from "../components/board/boardTypes";
 
 export interface Session {
   id: string;
@@ -42,13 +43,7 @@ export interface Message {
       payload?: {
         title: string;
         board_style: "digital-whiteboard";
-        steps: Array<{
-          id: string;
-          type: "write" | "highlight" | "answer";
-          text: string;
-          math?: string;
-          note: string;
-        }>;
+        steps: BoardStep[];
         final_answer: string;
         final_answer_math?: string;
         summary?: string;

@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, whiteboardMathSystemPrompt, graphSystemPrompt } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, graphSystemPrompt, ExplanationDepth } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -140,6 +140,18 @@ export class AIService {
       if (previous && previous === current) return true;
     }
     return false;
+  }
+
+  // The prompt requires exactly one "understand" step, one "method" step, at least one "work"
+  // step, and one "verify" step - four steps minimum. Anything shorter than that couldn't have
+  // included the full arc even if it tried, so there is nothing meaningful to validate there.
+  private hasValidPedagogicalArc(steps: Array<{ phase?: string }>) {
+    if (steps.length < 4) return true;
+    const interiorSteps = steps.slice(2, steps.length - 1);
+    return steps[0]?.phase === 'understand'
+      && steps[1]?.phase === 'method'
+      && steps[steps.length - 1]?.phase === 'verify'
+      && interiorSteps.some((step) => step.phase === 'work');
   }
 
   private normalizeLatexExpression(value: string) {
@@ -349,11 +361,12 @@ export class AIService {
         .map((step: any, index: number) => ({
           id: typeof step?.id === 'string' ? step.id : `step-${index + 1}`,
           type: ['write', 'highlight', 'answer'].includes(step?.type) ? step.type : 'write',
+          phase: ['understand', 'method', 'work', 'verify'].includes(step?.phase) ? step.phase : 'work',
           text: String(step?.text || '').trim(),
           math: String(step?.math || '').trim(),
           note: String(step?.note || '').trim(),
         }))
-        .map((step: { id: string; type: string; text: string; math: string; note: string }) => this.normalizeBoardStep(step))
+        .map((step: { id: string; type: string; phase: string; text: string; math: string; note: string }) => this.normalizeBoardStep(step))
         .filter((step: { text: string; math: string }) => step.text.length > 0 || step.math.length > 0)
         .slice(0, 16);
 
@@ -372,7 +385,11 @@ export class AIService {
     }
   }
 
-  private async buildWhiteboardPayload(studentMessage: string, answer: string) {
+  private async buildWhiteboardPayload(
+    studentMessage: string,
+    answer: string,
+    explanationDepth: ExplanationDepth = 'beginner',
+  ) {
     const requestBoard = async (correctiveInstruction?: string) => {
       const raw = await aiProvider.generateResponse(
         `Question: ${studentMessage}
@@ -382,7 +399,7 @@ ${answer}
 
 Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${correctiveInstruction}` : ''}`,
         {
-          systemPrompt: whiteboardMathSystemPrompt,
+          systemPrompt: buildWhiteboardMathSystemPrompt(explanationDepth),
           maxTokens: 900,
         }
       );
@@ -390,17 +407,29 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
       return this.parseWhiteboardPayload(raw);
     };
 
+    const isAttemptValid = (attempt: ReturnType<AIService['parseWhiteboardPayload']>) =>
+      !!attempt && !this.hasConsecutiveDuplicateSteps(attempt.steps) && this.hasValidPedagogicalArc(attempt.steps);
+
     try {
       const firstAttempt = await requestBoard();
+      if (isAttemptValid(firstAttempt)) return firstAttempt;
       if (!firstAttempt) return null;
-      if (!this.hasConsecutiveDuplicateSteps(firstAttempt.steps)) return firstAttempt;
 
-      // The model repeated one step's explanation across several consecutive steps - retry once
-      // with a corrective instruction rather than showing the student a duplicated walkthrough.
-      const retryAttempt = await requestBoard(
-        'Your previous attempt repeated the same "text" and "note" across multiple consecutive steps, and/or crammed multiple independent facts (like separate coefficient assignments) into one "math" field without proper separation. Each step must have its own distinct explanation. If you need to state several short related facts on one line (e.g. identifying a, b, and c), join them with ", \\\\quad " in a single "math" value instead of repeating the step.'
-      );
-      if (retryAttempt && !this.hasConsecutiveDuplicateSteps(retryAttempt.steps)) return retryAttempt;
+      // Retry once with a corrective instruction targeted at whichever check actually failed,
+      // rather than showing the student a duplicated or unframed walkthrough.
+      const missingArc = !this.hasValidPedagogicalArc(firstAttempt.steps);
+      const hasDuplicates = this.hasConsecutiveDuplicateSteps(firstAttempt.steps);
+      const correctiveNotes = [
+        hasDuplicates
+          ? 'Your previous attempt repeated the same "text" and "note" across multiple consecutive steps, and/or crammed multiple independent facts (like separate coefficient assignments) into one "math" field without proper separation. Each step must have its own distinct explanation. If you need to state several short related facts on one line (e.g. identifying a, b, and c), join them with ", \\\\quad " in a single "math" value instead of repeating the step.'
+          : '',
+        missingArc
+          ? 'Your previous attempt did not follow the required pedagogical arc. Step 1 must have "phase": "understand" (plain-language framing, no calculation), step 2 must have "phase": "method" (name and justify the method), and the last step must have "phase": "verify" (check the answer). Do not skip straight into mechanics.'
+          : '',
+      ].filter(Boolean).join(' ');
+
+      const retryAttempt = await requestBoard(correctiveNotes);
+      if (isAttemptValid(retryAttempt)) return retryAttempt;
 
       return null;
     } catch (error) {
