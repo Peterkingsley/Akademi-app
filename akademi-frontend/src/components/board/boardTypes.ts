@@ -1,9 +1,19 @@
+export type BoardStepPhase = "understand" | "method" | "work" | "verify";
+
 export type BoardStep = {
   id: string;
   type: "write" | "highlight" | "answer";
+  phase?: BoardStepPhase;
   text: string;
   math?: string;
   note: string;
+};
+
+export const PHASE_LABELS: Record<BoardStepPhase, string> = {
+  understand: "Understand the problem",
+  method: "Choose the method",
+  work: "",
+  verify: "Verify & interpret",
 };
 
 // Defense in depth: even if a malformed LaTeX fragment slips through the backend, never show its raw

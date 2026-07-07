@@ -4,40 +4,45 @@ import { StyleSheet, Text, View } from "react-native";
 import { typography } from "../../theme/typography";
 import { MathFormula } from "../ui/MathFormula";
 import { RichMathText } from "../ui/RichMathText";
-import { BoardStep, isRenderableMath } from "./boardTypes";
+import { BoardStep, isRenderableMath, PHASE_LABELS } from "./boardTypes";
 
 interface BoardStepCardProps {
   step: BoardStep;
   index: number;
 }
 
-export const BoardStepCard: React.FC<BoardStepCardProps> = ({ step, index }) => (
-  <View
-    style={[
-      styles.stepCard,
-      step.type === "highlight" && styles.highlightStepCard,
-      step.type === "answer" && styles.answerStepCard,
-    ]}
-  >
-    <Text style={styles.stepIndex}>Step {index + 1}</Text>
-    {!!step.text && (
-      <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
-    )}
-    {isRenderableMath(step.math) && (
-      <View style={styles.mathBlock}>
-        <MathFormula latex={step.math!} fontSize={17} />
-      </View>
-    )}
-    {!!step.note && (
-      <RichMathText
-        content={step.note}
-        textColor="rgba(247,250,252,0.76)"
-        fontSize={14}
-        lineHeight={1.35}
-      />
-    )}
-  </View>
-);
+export const BoardStepCard: React.FC<BoardStepCardProps> = ({ step, index }) => {
+  const phaseLabel = step.phase ? PHASE_LABELS[step.phase] : "";
+
+  return (
+    <View
+      style={[
+        styles.stepCard,
+        step.type === "highlight" && styles.highlightStepCard,
+        step.type === "answer" && styles.answerStepCard,
+      ]}
+    >
+      {!!phaseLabel && <Text style={styles.phaseLabel}>{phaseLabel.toUpperCase()}</Text>}
+      <Text style={styles.stepIndex}>Step {index + 1}</Text>
+      {!!step.text && (
+        <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
+      )}
+      {isRenderableMath(step.math) && (
+        <View style={styles.mathBlock}>
+          <MathFormula latex={step.math!} fontSize={17} />
+        </View>
+      )}
+      {!!step.note && (
+        <RichMathText
+          content={step.note}
+          textColor="rgba(247,250,252,0.76)"
+          fontSize={14}
+          lineHeight={1.35}
+        />
+      )}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   stepCard: {
@@ -54,6 +59,12 @@ const styles = StyleSheet.create({
   answerStepCard: {
     backgroundColor: "rgba(34,197,94,0.16)",
     borderColor: "rgba(34,197,94,0.55)",
+  },
+  phaseLabel: {
+    ...typography.caption,
+    color: "rgba(154,230,180,0.7)",
+    letterSpacing: 0.6,
+    marginBottom: 2,
   },
   stepIndex: {
     ...typography.caption,

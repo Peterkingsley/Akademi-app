@@ -19,7 +19,9 @@ jest.mock('../src/modules/ai/ai.provider', () => ({
 describe('board walkthrough step parsing', () => {
   let aiService: AIService;
 
-  const buildRawBoardResponse = (steps: Array<{ id: string; type?: string; text: string; math: string; note: string }>) =>
+  const buildRawBoardResponse = (
+    steps: Array<{ id: string; type?: string; phase?: string; text: string; math: string; note: string }>,
+  ) =>
     JSON.stringify({
       title: 'Solving a Quadratic Equation Using the Quadratic Formula',
       steps,
@@ -159,5 +161,84 @@ describe('board walkthrough step parsing', () => {
 
     expect(aiProvider.generateResponse).toHaveBeenCalledTimes(2);
     expect(stillBroken).toBeNull();
+  });
+
+  // Regression coverage for the "walkthroughs jump straight into mechanics with no conceptual
+  // framing" issue, reproduced with "Solve 2x^2 + 7x - 4 = 0". Every replay must now open with an
+  // "understand" step, name the method in a "method" step, and close with a "verify" step.
+  describe('pedagogical arc (understand -> method -> work -> verify)', () => {
+    it('parses the "phase" field and defaults invalid or missing values to "work"', () => {
+      const rawResponse = buildRawBoardResponse([
+        { id: 's1', phase: 'understand', text: 'This is a quadratic equation.', math: '', note: '' },
+        { id: 's2', phase: 'bogus-value', text: 'We use the quadratic formula.', math: '', note: '' },
+        { id: 's3', text: 'no phase field at all', math: 'x=1', note: 'n/a' },
+      ]);
+
+      const payload = (aiService as any).parseWhiteboardPayload(rawResponse);
+
+      expect(payload.steps[0].phase).toBe('understand');
+      expect(payload.steps[1].phase).toBe('work');
+      expect(payload.steps[2].phase).toBe('work');
+    });
+
+    it('accepts a compliant arc: understand first, method second, verify last', () => {
+      const steps = [
+        { phase: 'understand' },
+        { phase: 'method' },
+        { phase: 'work' },
+        { phase: 'work' },
+        { phase: 'verify' },
+      ];
+
+      expect((aiService as any).hasValidPedagogicalArc(steps)).toBe(true);
+    });
+
+    it('rejects a replay that jumps straight into mechanics with no framing', () => {
+      const steps = [{ phase: 'work' }, { phase: 'work' }, { phase: 'work' }, { phase: 'work' }];
+
+      expect((aiService as any).hasValidPedagogicalArc(steps)).toBe(false);
+    });
+
+    it('exempts short replays (under 4 steps) from arc validation', () => {
+      const steps = [{ phase: 'work' }, { phase: 'work' }];
+
+      expect((aiService as any).hasValidPedagogicalArc(steps)).toBe(true);
+    });
+
+    it('retries once when the arc is missing and returns the compliant retry', async () => {
+      const noArcResponse = buildRawBoardResponse([
+        { id: 's1', phase: 'work', text: 'Identify coefficients a, b, c.', math: 'a=2, \\quad b=7, \\quad c=-4', note: 'We need these for the formula.' },
+        { id: 's2', phase: 'work', text: 'Substitute into the quadratic formula.', math: 'x = \\frac{-7 \\pm \\sqrt{81}}{4}', note: 'This gives us both roots.' },
+        { id: 's3', phase: 'work', text: 'Simplify the roots.', math: 'x = 0.5, \\quad x = -4', note: 'These are the two solutions.' },
+        { id: 's4', phase: 'work', text: 'State the final answer.', math: '', note: '' },
+      ]);
+      const compliantResponse = buildRawBoardResponse([
+        {
+          id: 's1',
+          phase: 'understand',
+          text: 'This is a quadratic equation - the highest power of x is 2 - and solving it means finding the x values that make it true.',
+          math: '',
+          note: '',
+        },
+        { id: 's2', phase: 'method', text: 'We will use the quadratic formula since the numbers do not factor neatly.', math: '', note: '' },
+        { id: 's3', phase: 'work', text: 'Identify coefficients a, b, c.', math: 'a=2, \\quad b=7, \\quad c=-4', note: 'We need these for the formula.' },
+        { id: 's4', phase: 'verify', text: 'Substitute back to check.', math: '', note: '' },
+      ]);
+
+      (aiProvider.generateResponse as jest.Mock)
+        .mockResolvedValueOnce(noArcResponse)
+        .mockResolvedValueOnce(compliantResponse);
+
+      const result = await (aiService as any).buildWhiteboardPayload('Solve 2x^2 + 7x - 4 = 0', 'x = ...');
+
+      expect(aiProvider.generateResponse).toHaveBeenCalledTimes(2);
+      expect(result).not.toBeNull();
+      expect(result.steps.map((step: { phase: string }) => step.phase)).toEqual([
+        'understand',
+        'method',
+        'work',
+        'verify',
+      ]);
+    });
   });
 });
