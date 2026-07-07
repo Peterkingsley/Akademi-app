@@ -11,6 +11,8 @@ const DEV_ORIGINS = [
 // lookups when Render env vars lag behind a domain migration.
 const AKADEMI_PUBLIC_ORIGINS = [
   'https://akademiai-dtsr.onrender.com',
+  'https://akademi.study',
+  'https://www.akademi.study',
 ];
 
 export const getAllowedOrigins = (): string[] => {
