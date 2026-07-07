@@ -8,6 +8,7 @@ import { JwtPayload } from '../auth/auth.types';
 import { ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketData } from './websocket.types';
 import { registerHandlers } from './websocket.handlers';
 import { getIO, setIO } from './websocket.state';
+import { isOriginAllowed } from '../../shared/utils/cors-origins';
 
 let activeConnections = 0;
 let websocketInitialized = false;
@@ -15,7 +16,13 @@ let websocketInitialized = false;
 export const initWebSocket = (server: http.Server) => {
   const io = new Server(server, {
     cors: {
-      origin: '*', // Adjust based on requirements
+      origin: (origin, callback) => {
+        if (isOriginAllowed(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error('Origin not allowed by CORS'));
+      },
       methods: ['GET', 'POST'],
     },
   });

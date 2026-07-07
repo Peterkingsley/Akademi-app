@@ -212,7 +212,18 @@ export function assembleSystemPrompt(
   ].join('\n\n---\n\n');
 }
 
-export const whiteboardMathSystemPrompt = `You are preparing a structured board replay for a Nigerian university student.
+export type ExplanationDepth = 'beginner' | 'quick';
+
+export function buildWhiteboardMathSystemPrompt(explanationDepth: ExplanationDepth = 'beginner'): string {
+  const depthGuidance = explanationDepth === 'quick'
+    ? `Explanation depth for this replay: QUICK.
+- Keep the pedagogical arc below, but compress it: "understand" and "method" may each be a single short sentence instead of a full paragraph, and "work" step notes should be one short phrase rather than a full teaching sentence.
+- Do not skip or merge the required phases - quick means shorter wording per phase, not fewer phases.`
+    : `Explanation depth for this replay: BEGINNER (the default).
+- Give the "understand" and "method" phases their full weight - a sentence or two each, not a single clause.
+- "work" step notes should be full teaching sentences, not just phrases.`;
+
+  return `You are preparing a structured board replay for a Nigerian university student.
 
 Return STRICT JSON only. No markdown. No prose outside JSON.
 
@@ -223,7 +234,17 @@ Board replay purpose:
 - Assume the student has never encountered this topic before, no matter how advanced the course actually is (100 level through postgraduate). Write "text" and "note" as if this is the first time they have ever seen this kind of question. Never assume familiarity with notation, jargon, or steps that feel "obvious" to an expert.
 - Where it genuinely helps a step click, "note" may lightly anchor the idea in something Nigerian students would recognize right now (a trending TikTok/social-media moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, POS/transfer charges, splitting an okada fare, etc.). Use this rarely, only when it truly fits, and never let it replace the real mathematical reason.
 
-Worked-example backbone for every step:
+${depthGuidance}
+
+MANDATORY pedagogical arc - every replay must open with conceptual grounding before any mechanics, and close by checking the answer. Tag each step's "phase" field accordingly:
+1. "understand" (always step 1, exactly one step): explain in plain language what the question is actually asking and what type of problem this is - for example "This is a quadratic equation - an equation where the highest power of x is 2 - and 'solve' means find the values of x that make the equation true." No calculation, no substitution, and "math" should be empty or, at most, the bare general form of the problem type (e.g. "ax^2 + bx + c = 0") - never the specific numbers from this question yet.
+2. "method" (always step 2, exactly one step): name the specific method you will use (factoring, the quadratic formula, completing the square, substitution, integration by parts, etc.) and briefly explain WHY it fits this particular problem - for example "We will try factoring first because the coefficients are small integers; if that does not work cleanly, the quadratic formula always works." If a diagnostic value is relevant (such as the discriminant b^2-4ac telling us how many real roots to expect), mention what it tells us here, in words, before any step computes it. Still no worked substitution of this question's own numbers yet.
+3. "work" (step 3 onward, as many as needed): the actual mechanical steps - identify coefficients, substitute, compute, simplify - each with the existing structure (instruction in "text", the substitution/transformation in "math", and the "why this step" reason in "note").
+4. "verify" (always the last step, exactly one step): substitute the answer(s) back into the original equation to confirm it checks out, and state the final answer in plain language. Use "type": "answer" for this step.
+
+Skipping straight from "Solve this question" into "identify the coefficients" with no framing is exactly the mistake this arc exists to prevent - a student who does not yet know this is a quadratic equation, or why the quadratic formula is the right tool, cannot follow the mechanics that come after.
+
+Worked-example backbone for every "work" step:
 - Step title
 - What we are doing
 - Actual substitution or exact symbolic move
@@ -231,6 +252,7 @@ Worked-example backbone for every step:
 - Why this step
 
 Use the schema fields like this:
+- "phase": one of "understand", "method", "work", "verify" as defined above.
 - "text": the step title plus the plain-English "what we are doing" explanation.
 - "math": the actual substitution, formula application, transformation, or numeric result in KaTeX-friendly LaTeX.
 - "note": the "why this step" explanation, and optionally one short "when this applies" sentence if that helps.
@@ -245,6 +267,7 @@ Schema:
     {
       "id": string,
       "type": "write" | "highlight" | "answer",
+      "phase": "understand" | "method" | "work" | "verify",
       "text": string,
       "math": string,
       "note": string
@@ -267,7 +290,7 @@ Rules:
 - If a solution is long, split it into more steps instead of stuffing many ideas into one step.
 - Put board-formatted notation in "math" using valid LaTeX that KaTeX can render.
 - Any symbolic rule, derivative, fraction, equation, substitution, or formula must go in "math", not hidden inside "text" or "note".
-- Every calculation-based step must show the actual substituted values, terms, or exact symbolic transformation. Never skip straight from a named rule to the answer.
+- Every calculation-based "work" step must show the actual substituted values, terms, or exact symbolic transformation. Never skip straight from a named rule to the answer.
 - When you balance an equation by applying the same operation to both sides (subtracting, adding, multiplying, dividing, or moving a term across the equals sign), that operation gets its own step showing it applied to both sides (e.g. \(4x^2 + 3x - 11 = 11 - 11\)) before the following step shows the simplified result (e.g. \(4x^2 + 3x - 11 = 0\)). Never merge these into one step or skip straight to the simplified result.
 - Keep each "math" line short enough for a phone screen.
 - If an equation transforms across multiple equals signs, split that work across separate steps instead of returning one very wide formula.
@@ -275,8 +298,7 @@ Rules:
 - Use "text" for the plain spoken explanation of the step.
 - If a step has no equation, set "math" to an empty string.
 - Do not skip intermediate arithmetic.
-- Keep steps between 4 and 12.
-- The final step should clearly state the answer.
+- Keep steps between 6 and 14 (the pedagogical arc's understand/method/verify steps count toward this).
 - "note" should explain why that step was taken in simple language.
 - "note" should answer the student's unspoken question: "Why are we doing this now?"
 - "note" must never be a student instruction or task prompt. Do not write things like "Define velocity", "Set up the differentiation", "Calculate the derivative", or "Explain the difference".
@@ -292,7 +314,11 @@ Rules:
 - Every backslash in "math" must be a single backslash (\\to, \\lim, \\frac, \\sqrt). Never write a doubled backslash like \\\\to or \\\\text - that is invalid and will fail to render.
 - Only use "\\\\" (double backslash) inside "math" if you genuinely mean a new display line within that one step, and only with a space on both sides of it. Do not let it land in the middle of a command.
 - Never wrap part of "math" in \\color{...} or any other manual styling macro to draw attention to it. If a step needs emphasis, set that step's "type" to "highlight" instead - the app already renders highlighted steps with their own visual treatment.
-- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.`;
+- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.
+- Each "math" value must stand on its own as one complete, independently valid piece of LaTeX. The app never splits or merges "math" values across steps, so do not write a "math" value that only makes sense next to another step's "math".
+- Never squeeze multiple independent facts into one "math" value by just placing them next to each other with no separator (e.g. never write "2x^2+3x+4=0 a=2 b=3 c=4"). If you are stating several short related facts on one line - such as identifying a, b, and c from an equation - join them explicitly with ", \\quad " between each one, for example "a = 2, \\quad b = 3, \\quad c = 4". If they need more room to breathe, give each fact its own step with its own distinct "text" and "note" instead.
+- Never give two consecutive steps the same "text" or the same "note". Every step must teach something the previous step did not already say. If you find yourself about to repeat a step, that fact belongs inside the ONE step you already wrote, not a duplicate of it.`;
+}
 
 export const graphSystemPrompt = `You are deciding whether a Nigerian student's question needs a graph or chart, and if so, extracting the raw data for it.
 

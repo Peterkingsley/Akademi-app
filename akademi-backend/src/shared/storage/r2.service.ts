@@ -98,7 +98,7 @@ export async function scheduleAudioDeletion(key: string): Promise<void> {
 export async function bundleOfflinePackage(
   materialId: string,
   studentId: string,
-): Promise<string> {
+): Promise<{ downloadUrl: string; encryptionKey: string }> {
   // 1. Fetch verified material document
   const material = await prisma.material.findUnique({
     where: { id: materialId },
@@ -135,16 +135,19 @@ export async function bundleOfflinePackage(
   };
   const bundleBuffer = Buffer.from(JSON.stringify(bundle));
 
-  // 4. Encrypt with AES-256 using student-specific key
-  // Using studentId as a seed for the key for demonstration.
-  // In production, each student would have a unique 32-byte key stored securely.
-  const encryptionKey = crypto.createHash('sha256').update(studentId).digest();
+  // 4. Encrypt with AES-256 using a cryptographically-random per-package key.
+  // NEVER derive the key from a public identifier such as the studentId — that
+  // would let anyone who knows the id recompute the key. The caller is
+  // responsible for storing/delivering the returned key over a secure channel
+  // (e.g. persisted per-user via KMS).
+  const encryptionKey = crypto.randomBytes(32);
   const encryptedBundle = encrypt(bundleBuffer, encryptionKey);
 
   // 5. Upload to /materials/offline/{materialId}
   const offlineKey = `materials/offline/${materialId}/${studentId}.pkg`;
   await uploadFile(offlineKey, encryptedBundle, 'application/octet-stream');
 
-  // 6. Return presigned download URL
-  return await generatePresignedUrl(offlineKey, 3600);
+  // 6. Return presigned download URL and the key needed to decrypt the bundle.
+  const downloadUrl = await generatePresignedUrl(offlineKey, 3600);
+  return { downloadUrl, encryptionKey: encryptionKey.toString('base64') };
 }

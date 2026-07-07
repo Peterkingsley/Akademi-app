@@ -14,16 +14,13 @@ import { SetupCompleteScreen } from "../screens/auth/SetupCompleteScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { ForgotPasswordScreen } from "../screens/auth/ForgotPasswordScreen";
 import { PrivacyDataScreen } from "../screens/main/PrivacyDataScreen";
-import { useAuthStore } from "../store/useAuthStore";
 
 const Stack = createStackNavigator<AuthStackParamList>();
 
 export const AuthStack = () => {
-  const hasSeenOnboarding = useAuthStore((state) => state.hasSeenOnboarding);
-
   return (
     <Stack.Navigator
-      initialRouteName={hasSeenOnboarding ? "Login" : "Onboarding"}
+      initialRouteName="Onboarding"
       screenOptions={{
         headerShown: false,
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,

@@ -25,13 +25,11 @@ interface AuthState {
   refreshToken: string | null;
   adminAccessToken: string | null;
   isAuthenticated: boolean;
-  hasSeenOnboarding: boolean;
   hasHydrated: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
   updateTokens: (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => void;
   updateUser: (user: Partial<User>) => void;
   clearAuth: () => void;
-  setOnboardingComplete: (complete: boolean) => void;
   setHasHydrated: (hydrated: boolean) => void;
 }
 
@@ -43,7 +41,6 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       adminAccessToken: null,
       isAuthenticated: false,
-      hasSeenOnboarding: false,
       hasHydrated: false,
       setAuth: (user, accessToken, refreshToken, adminAccessToken = null) => {
         void saveTokens(accessToken, refreshToken, adminAccessToken).catch((error) => {
@@ -73,10 +70,8 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           adminAccessToken: null,
           isAuthenticated: false,
-          hasSeenOnboarding: true,
         });
       },
-      setOnboardingComplete: (complete) => set({ hasSeenOnboarding: complete }),
       setHasHydrated: (hydrated) => set({ hasHydrated: hydrated }),
     }),
     {
@@ -85,7 +80,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
-        hasSeenOnboarding: state.hasSeenOnboarding,
       }),
       onRehydrateStorage: () => async (state) => {
         const { accessToken, refreshToken, adminAccessToken } = await readStoredTokens();

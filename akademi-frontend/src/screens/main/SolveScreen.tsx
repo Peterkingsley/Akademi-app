@@ -12,11 +12,13 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import {
   BookOpen,
+  Calculator,
   Camera,
   Check,
   ChevronDown,
   FileText,
   Mic,
+  Sparkles,
   X,
   Zap,
 } from "lucide-react-native";
@@ -30,6 +32,7 @@ import { useVoiceComposer } from "../../hooks/useVoiceComposer";
 import { appendTranscript } from "../../services/voice";
 
 type AnswerMode = "DIRECT" | "STUDY";
+type QuestionType = "AUTO" | "MATH" | "THEORETICAL";
 
 const MAX_QUESTION_LENGTH = 6000;
 
@@ -43,6 +46,7 @@ export const SolveScreen: React.FC = () => {
   const userCourses = (user as any)?.courses || [];
 
   const [answerMode, setAnswerMode] = useState<AnswerMode>("DIRECT");
+  const [questionType, setQuestionType] = useState<QuestionType>("AUTO");
   const [question, setQuestion] = useState("");
   const [course, setCourse] = useState("Select Course");
   const [loading, setLoading] = useState(false);
@@ -106,6 +110,7 @@ export const SolveScreen: React.FC = () => {
         session_type: "ASSIGNMENT",
         reply_mode: answerMode,
         course_code: courseCode,
+        metadata: { question_type: questionType },
       });
 
       await api.post(
@@ -277,6 +282,50 @@ export const SolveScreen: React.FC = () => {
               {audioLoading ? "Transcribing..." : isRecording ? "Stop" : "Voice"}
             </Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.answerSection}>
+          <Text style={styles.sectionHeading}>Question type</Text>
+          <View style={styles.segmentedControl}>
+            <TouchableOpacity
+              style={[styles.segment, questionType === "AUTO" && styles.segmentActive]}
+              activeOpacity={0.86}
+              onPress={() => setQuestionType("AUTO")}
+            >
+              <View style={styles.segmentHeader}>
+                <Sparkles size={16} color={questionType === "AUTO" ? colors.primary : "#7EA6FF"} />
+                <Text style={[styles.segmentTitle, questionType === "AUTO" && styles.segmentTitleActive]}>
+                  Auto
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segment, questionType === "MATH" && styles.segmentActive]}
+              activeOpacity={0.86}
+              onPress={() => setQuestionType("MATH")}
+            >
+              <View style={styles.segmentHeader}>
+                <Calculator size={16} color={questionType === "MATH" ? colors.primary : "#7EA6FF"} />
+                <Text style={[styles.segmentTitle, questionType === "MATH" && styles.segmentTitleActive]}>
+                  Math
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.segment, questionType === "THEORETICAL" && styles.segmentActive]}
+              activeOpacity={0.86}
+              onPress={() => setQuestionType("THEORETICAL")}
+            >
+              <View style={styles.segmentHeader}>
+                <BookOpen size={16} color={questionType === "THEORETICAL" ? colors.primary : "#7EA6FF"} />
+                <Text style={[styles.segmentTitle, questionType === "THEORETICAL" && styles.segmentTitleActive]}>
+                  Theory
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.answerSection}>
