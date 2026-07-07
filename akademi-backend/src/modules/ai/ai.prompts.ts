@@ -292,7 +292,10 @@ Rules:
 - Every backslash in "math" must be a single backslash (\\to, \\lim, \\frac, \\sqrt). Never write a doubled backslash like \\\\to or \\\\text - that is invalid and will fail to render.
 - Only use "\\\\" (double backslash) inside "math" if you genuinely mean a new display line within that one step, and only with a space on both sides of it. Do not let it land in the middle of a command.
 - Never wrap part of "math" in \\color{...} or any other manual styling macro to draw attention to it. If a step needs emphasis, set that step's "type" to "highlight" instead - the app already renders highlighted steps with their own visual treatment.
-- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.`;
+- Before finalizing each "math" value, mentally check that every "{" has a matching "}". Never split one command (like \\lim_{x \\to a}) across two different "math" values.
+- Each "math" value must stand on its own as one complete, independently valid piece of LaTeX. The app never splits or merges "math" values across steps, so do not write a "math" value that only makes sense next to another step's "math".
+- Never squeeze multiple independent facts into one "math" value by just placing them next to each other with no separator (e.g. never write "2x^2+3x+4=0 a=2 b=3 c=4"). If you are stating several short related facts on one line - such as identifying a, b, and c from an equation - join them explicitly with ", \\quad " between each one, for example "a = 2, \\quad b = 3, \\quad c = 4". If they need more room to breathe, give each fact its own step with its own distinct "text" and "note" instead.
+- Never give two consecutive steps the same "text" or the same "note". Every step must teach something the previous step did not already say. If you find yourself about to repeat a step, that fact belongs inside the ONE step you already wrote, not a duplicate of it.`;
 
 export const graphSystemPrompt = `You are deciding whether a Nigerian student's question needs a graph or chart, and if so, extracting the raw data for it.
 
