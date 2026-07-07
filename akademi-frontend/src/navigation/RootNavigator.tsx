@@ -113,11 +113,7 @@ export const RootNavigator = () => {
           <Stack.Screen name="Admin" component={AdminStack} />
         </>
       ) : (
-        <Stack.Screen
-          name="Auth"
-          component={AuthStack}
-          initialParams={{ screen: "Login" }}
-        />
+        <Stack.Screen name="Auth" component={AuthStack} />
       )}
     </Stack.Navigator>
   );
