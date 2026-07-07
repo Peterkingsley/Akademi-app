@@ -8,6 +8,7 @@ import { connectRedis, disconnectRedis } from './config/redis';
 import prisma from './config/db';
 import { shutdownQueue } from './config/queue';
 import { generalPublicApiLimiter } from './shared/middleware/rate-limit';
+import { corsOriginDelegate } from './shared/utils/cors-origins';
 import authRoutes from './modules/auth/auth.routes';
 import userRoutes from './modules/users/users.routes';
 import materialsRoutes from './modules/materials/materials.routes';
@@ -34,7 +35,7 @@ app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: corsOriginDelegate, credentials: true }));
 app.use(express.json());
 app.use((req, _res, next) => {
   if (req.path.includes('/teaching')) {

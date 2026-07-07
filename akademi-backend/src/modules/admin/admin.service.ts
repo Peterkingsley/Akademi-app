@@ -16,6 +16,7 @@ import { getSystemHealthSnapshot } from '../../shared/system/system-health';
 import { getQueueHealth } from '../../config/queue';
 import { queueMaterialIngestion } from '../materials/material-processing';
 import { getUniversityCoverageAudit } from '../universities/university-coverage';
+import { timingSafeEqual } from '../../shared/utils/secure-compare';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -1046,7 +1047,7 @@ export class AdminService {
   }
 
   async reingestAllPdfMaterials(secret: string) {
-    if (!config.adminReingestSecret || secret !== config.adminReingestSecret) {
+    if (!config.adminReingestSecret || !timingSafeEqual(secret || '', config.adminReingestSecret)) {
       throw new Error('Invalid admin secret');
     }
 
