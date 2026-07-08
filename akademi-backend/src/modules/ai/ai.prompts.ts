@@ -1,5 +1,10 @@
 import { ReplyMode } from '@prisma/client';
 
+// Bump this whenever the assembled system prompt changes meaningfully.
+// It is part of the AI response cache key, so stale answers generated under
+// an older prompt stop being served the moment a new prompt ships.
+export const PROMPT_VERSION = 2;
+
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
   Frame everything within the student's department and course context.

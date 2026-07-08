@@ -10,10 +10,11 @@ export function getAICacheKey(
   courseCode: string,
   questionText: string,
   replyMode: ReplyMode,
-  disciplineDocVersion: number
+  disciplineDocVersion: number,
+  promptVersion: number
 ): string {
   const hashedQuestion = hashString(questionText);
-  return `ai:${courseCode}:${hashedQuestion}:${replyMode}:v${disciplineDocVersion}`;
+  return `ai:${courseCode}:${hashedQuestion}:${replyMode}:v${disciplineDocVersion}:p${promptVersion}`;
 }
 
 export async function getCachedAIResponse(key: string): Promise<string | null> {
