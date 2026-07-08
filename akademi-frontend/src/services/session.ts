@@ -64,6 +64,11 @@ export interface TranscriptionResult {
   fileName?: string;
 }
 
+export interface SegmentedQuestion {
+  index: number;
+  text: string;
+}
+
 export interface StudyRoadmapSection {
   key: string;
   title: string;
@@ -266,6 +271,15 @@ export const sessionService = {
     const response = await api.post<Message>(`/sessions/${sessionId}/companion/turn`, data, {
       timeout: 90000,
     });
+    return response.data;
+  },
+
+  solveQuestion: async (sessionId: string, questionIndex: number) => {
+    const response = await api.post<{ question: string; answer: Message }>(
+      `/sessions/${sessionId}/questions/${questionIndex}/solve`,
+      {},
+      { timeout: 90000 },
+    );
     return response.data;
   },
 

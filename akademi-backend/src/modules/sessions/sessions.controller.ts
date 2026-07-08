@@ -87,6 +87,25 @@ export class SessionsController {
     }
   }
 
+  async solveQuestion(req: Request, res: Response) {
+    try {
+      const questionIndex = Number(req.params.index);
+      if (!Number.isInteger(questionIndex) || questionIndex < 0) {
+        res.status(400).json({ message: 'Invalid question index' });
+        return;
+      }
+
+      const result = await sessionsService.solveQuestionAtIndex(
+        req.user!.userId,
+        req.params.id,
+        questionIndex,
+      );
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(statusForError(error)).json({ message: error.message });
+    }
+  }
+
   async transcribeAudio(req: Request, res: Response) {
     try {
       const result = await sessionsService.transcribeAudio(req.file!);

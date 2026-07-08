@@ -30,6 +30,7 @@ import { useVoiceComposer } from "../../hooks/useVoiceComposer";
 import { appendTranscript } from "../../services/voice";
 
 type AnswerMode = "DIRECT" | "STUDY";
+type DetectedQuestion = { index: number; text: string };
 
 const MAX_QUESTION_LENGTH = 6000;
 
@@ -48,6 +49,7 @@ export const SolveScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
+  const [detectedQuestions, setDetectedQuestions] = useState<DetectedQuestion[] | null>(null);
 
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
@@ -76,8 +78,10 @@ export const SolveScreen: React.FC = () => {
     isTranscribing: audioLoading,
     toggleRecording: handleVoicePress,
   } = useVoiceComposer({
-    onTranscript: (transcript) =>
-      setQuestion((prev) => appendTranscript(prev, transcript, true)),
+    onTranscript: (transcript) => {
+      setDetectedQuestions(null);
+      setQuestion((prev) => appendTranscript(prev, transcript, true));
+    },
     recordingName: "solve-voice.m4a",
     permissionMessage: "Allow microphone access so Akademi can capture your spoken question.",
     startErrorTitle: "Could not start recording",
@@ -102,6 +106,21 @@ export const SolveScreen: React.FC = () => {
 
     setLoading(true);
     try {
+      if (detectedQuestions && detectedQuestions.length > 1) {
+        const { data: session } = await api.post("/sessions", {
+          session_type: "ASSIGNMENT",
+          reply_mode: answerMode,
+          course_code: courseCode,
+          metadata: { questions: detectedQuestions },
+        });
+
+        navigation.navigate("MultiQuestionSolve", {
+          sessionId: session.id,
+          questions: detectedQuestions,
+        });
+        return;
+      }
+
       const { data: session } = await api.post("/sessions", {
         session_type: "ASSIGNMENT",
         reply_mode: answerMode,
@@ -171,6 +190,8 @@ export const SolveScreen: React.FC = () => {
         timeout: 90000,
       });
 
+      const questions: DetectedQuestion[] = Array.isArray(data?.questions) ? data.questions : [];
+      setDetectedQuestions(questions.length > 1 ? questions : null);
       mergeIntoQuestion(data?.extractedText || "");
     } catch (error: any) {
       Alert.alert(
@@ -245,7 +266,10 @@ export const SolveScreen: React.FC = () => {
             multiline
             maxLength={MAX_QUESTION_LENGTH}
             value={question}
-            onChangeText={setQuestion}
+            onChangeText={(text) => {
+              setDetectedQuestions(null);
+              setQuestion(text);
+            }}
             textAlignVertical="top"
           />
 
@@ -253,6 +277,14 @@ export const SolveScreen: React.FC = () => {
             <Text style={styles.counter}>{questionLength} / {MAX_QUESTION_LENGTH}</Text>
           </View>
         </View>
+
+        {detectedQuestions && detectedQuestions.length > 1 && (
+          <View style={styles.multiQuestionBanner}>
+            <Text style={styles.multiQuestionText}>
+              Detected {detectedQuestions.length} separate questions. Akademi will solve them one at a time, with a Next button between each.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handlePhotoPress}>
@@ -485,6 +517,20 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       ...typography.bodySmall,
       color: colors.textMuted,
       fontSize: 12,
+    },
+    multiQuestionBanner: {
+      backgroundColor: "rgba(34,197,94,0.1)",
+      borderColor: "rgba(34,197,94,0.4)",
+      borderRadius: 14,
+      borderWidth: 1,
+      marginBottom: 12,
+      padding: 12,
+    },
+    multiQuestionText: {
+      ...typography.bodySmall,
+      color: colors.textPrimary,
+      fontSize: 12,
+      lineHeight: 17,
     },
     actionRow: {
       flexDirection: "row",

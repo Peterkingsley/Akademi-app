@@ -92,6 +92,10 @@ export type MainStackParamList = {
     courseCode: string;
   };
   AssignmentResult: { sessionId: string };
+  MultiQuestionSolve: {
+    sessionId: string;
+    questions: Array<{ index: number; text: string }>;
+  };
   StudyMode: { sessionId?: string; materialId?: string; autoOpenTutor?: boolean };
   MaterialPractice: { materialId: string; title?: string };
   ChallengeResult: { sessionId: string };
