@@ -32,7 +32,15 @@ function getVisionClient() {
 }
 
 function normalizeExtractedText(text: string) {
-  return text.replace(/\s+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  // PDF/OCR extraction can emit stray control characters (e.g. NUL) for
+  // glyphs it couldn't decode. Postgres rejects NUL bytes in text/json
+  // columns outright, so strip all C0 controls except \t, \n, \r.
+  return text
+    // eslint-disable-next-line no-control-regex -- intentionally stripping C0 controls
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/\s+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function sanitizeSpeechText(content: string) {
