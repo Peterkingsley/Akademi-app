@@ -3,7 +3,7 @@ import { ReplyMode } from '@prisma/client';
 // Bump this whenever the assembled system prompt changes meaningfully.
 // It is part of the AI response cache key, so stale answers generated under
 // an older prompt stop being served the moment a new prompt ships.
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
@@ -210,6 +210,28 @@ step is genuinely the hard one, say so once ("this is the step most
 people trip on") — naming the difficulty lowers it.`;
 }
 
+export function buildDirectConceptualStyle(): string {
+  return `DIRECT ANSWER STYLE (conceptual question on the Quick Solve path)
+The student chose a direct answer, so brevity IS the quality bar. A short
+reply that a student can carry away whole beats a long one they abandon.
+Where any earlier instruction conflicts with this block, this block wins -
+in particular, "do not jump straight to the final answer" applies to worked
+calculations, not to conceptual questions like this one.
+- Open with the answer itself in the first sentence. No greeting, no
+  "Great question", no preamble about why the topic matters.
+- Then give the shortest causal chain that makes the answer make sense:
+  2 to 4 plain-language sentences joined with because / so / which means.
+  Zero background assumed and concept before label, same as always.
+- Keep the whole reply under about 120 words. No step titles, no headed
+  sections, no bullet-point summary, and no "whole story" recap - in a
+  reply this short, the reply itself IS the story.
+- Never state the same fact twice in different forms. Say it once, clearly.
+- If the topic genuinely needs deeper teaching to be properly understood,
+  do not deliver that teaching here. Close with one short line pointing
+  the student to Study Mode for the full step-by-step walkthrough; that
+  closing line also counts as the reply's follow-up prompt.`;
+}
+
 export function buildWorkedExampleStructure(replyMode: ReplyMode): string {
   return replyMode === ReplyMode.DIRECT
     ? `For this calculation, use a short worked-example structure for each step:
@@ -295,9 +317,12 @@ export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
 }
 
 export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
+  // DIRECT gets a compact answer-first style instead of the full teaching contract:
+  // applying the contract's hook/steps/retell arc to "Quick Solve" produced multi-screen
+  // replies for questions the student explicitly wanted answered briefly.
   const contractApplies = !isCalculationQuestion
-    && replyMode !== ReplyMode.QUESTION
-    && replyMode !== ReplyMode.WRONGLY;
+    && (replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC);
+  const directStyleApplies = !isCalculationQuestion && replyMode === ReplyMode.DIRECT;
 
   const calculationRules = isCalculationQuestion
     ? `
@@ -325,7 +350,9 @@ Learning System Rules:
 9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
 10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.${calculationRules}${contractApplies ? `
 
-${buildExplainBackContract()}` : ''}`;
+${buildExplainBackContract()}` : ''}${directStyleApplies ? `
+
+${buildDirectConceptualStyle()}` : ''}`;
 }
 
 export function assembleSystemPrompt(
