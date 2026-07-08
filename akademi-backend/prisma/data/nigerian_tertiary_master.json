@@ -93767,6 +93767,10 @@
         "faculty_name": "Engineering, Environment & Technology",
         "courses": [
           {
+            "course_name": "Aerospace Engineering",
+            "course_code": "N/A"
+          },
+          {
             "course_name": "Agricultural Engineering",
             "course_code": "N/A"
           },
