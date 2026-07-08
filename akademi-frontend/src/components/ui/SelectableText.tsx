@@ -178,6 +178,10 @@ const contentHasMath = (content: string) => {
       (line) =>
         explicitDisplayMathPattern.test(line) ||
         explicitInlineMathPattern.test(line) ||
+        // Delimiters embedded mid-sentence ("...carbon monoxide, \\( \\text{CO} \\).") must
+        // also count - the whole-line patterns above miss them, KaTeX never loads, and the
+        // student sees the raw \\( \\text{CO} \\) source instead of rendered math.
+        containsExplicitMathDelimiter(line) ||
         looksLikeStandaloneMath(line) ||
         !!splitInstructionPrefixMath(line),
     );
@@ -285,11 +289,14 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       }
 
       function postFinalHeight() {
-        const nextHeight = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight,
-          32
-        );
+        // Measure the #content element, never body/documentElement scrollHeight. Those are
+        // floored at the viewport height, and the native side sizes the viewport from what we
+        // post here (plus a small buffer) - so posting viewport-derived numbers feeds the
+        // WebView's own height back into itself and the card grows a few pixels on every
+        // re-measure, forever. The content box's height does not depend on the viewport.
+        const contentEl = document.getElementById('content');
+        const measured = contentEl ? contentEl.getBoundingClientRect().height : 0;
+        const nextHeight = Math.max(Math.ceil(measured), 32);
         post({ type: 'height', value: nextHeight });
       }
 
@@ -443,7 +450,11 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
-              setHeight((currentHeight) => (nextHeight > currentHeight ? nextHeight : currentHeight));
+              // Track the reported height in both directions instead of ratcheting upward.
+              // A grow-only rule turns any repeated measurement into permanent extra blank
+              // space, and short content (like a one-line inquiry) can never recover from a
+              // transient tall reading. The 2px tolerance just absorbs sub-pixel jitter.
+              setHeight((currentHeight) => (Math.abs(nextHeight - currentHeight) > 2 ? nextHeight : currentHeight));
               return;
             }
 
