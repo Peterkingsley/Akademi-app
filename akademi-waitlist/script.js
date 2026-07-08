@@ -657,3 +657,38 @@ form.addEventListener(
 );
 
 void trackWaitlistEvent("waitlist_page_view", {}, { once: true });
+
+const LAUNCH_DATE = new Date("2026-09-11T00:00:00+01:00");
+const countdownPanel = document.getElementById("countdown");
+const countdownHeading = countdownPanel?.querySelector(".countdown-heading");
+const cdDays = document.getElementById("cdDays");
+const cdHours = document.getElementById("cdHours");
+const cdMinutes = document.getElementById("cdMinutes");
+const cdSeconds = document.getElementById("cdSeconds");
+let countdownTimer = null;
+
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+function renderCountdown() {
+  const remainingMs = LAUNCH_DATE.getTime() - Date.now();
+
+  if (remainingMs <= 0) {
+    clearInterval(countdownTimer);
+    countdownPanel?.classList.add("is-live");
+    if (countdownHeading) countdownHeading.innerHTML = "Akademi is <span>live</span>.";
+    return;
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  cdDays.textContent = pad(Math.floor(totalSeconds / 86400));
+  cdHours.textContent = pad(Math.floor((totalSeconds % 86400) / 3600));
+  cdMinutes.textContent = pad(Math.floor((totalSeconds % 3600) / 60));
+  cdSeconds.textContent = pad(totalSeconds % 60);
+}
+
+if (countdownPanel && cdDays && cdHours && cdMinutes && cdSeconds) {
+  renderCountdown();
+  countdownTimer = setInterval(renderCountdown, 1000);
+}
