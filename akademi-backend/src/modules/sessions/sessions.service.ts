@@ -8,6 +8,7 @@ import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { config } from '../../config/env';
 import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
+import { segmentQuestions } from './question-segmentation';
 import { aiProvider } from '../ai/ai.provider';
 import { studyCompanionService } from './study-companion.service';
 import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
@@ -516,10 +517,78 @@ export class SessionsService {
       throw new Error('No readable text could be extracted from this document.');
     }
 
+    // Segmentation runs on the full extracted text (no length cap), so a
+    // document with any number of numbered questions is detected in full.
+    const questions = segmentQuestions(extractedText);
+
     return {
       extractedText,
+      questions,
       fileName: file.originalname,
     };
+  }
+
+  async solveQuestionAtIndex(userId: string, sessionId: string, questionIndex: number) {
+    const session = await this.getSession(sessionId, userId);
+
+    if (session.ended_at) {
+      throw new Error('Cannot send message to an ended session');
+    }
+
+    const sessionMetadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+    const questions = Array.isArray(sessionMetadata.questions)
+      ? sessionMetadata.questions as { index: number; text: string }[]
+      : [];
+    const question = questions.find((entry) => entry.index === questionIndex);
+
+    if (!question) {
+      throw new Error('Question not found in this session');
+    }
+
+    // Idempotent: if this question was already solved (e.g. student navigated
+    // back to it), return the cached answer instead of calling the AI again.
+    const existingAiMessage = await prisma.message.findFirst({
+      where: {
+        session_id: sessionId,
+        role: MessageRole.AI,
+        metadata: { path: ['questionIndex'], equals: questionIndex },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    if (existingAiMessage) {
+      return { question: question.text, answer: existingAiMessage };
+    }
+
+    const replyMode = session.reply_mode || ReplyMode.DIRECT;
+
+    await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: userId,
+        role: MessageRole.STUDENT,
+        content: question.text,
+        reply_mode: replyMode,
+        metadata: { questionIndex } as Prisma.InputJsonValue,
+      },
+    });
+
+    const aiResponse = await orchestrateAIResponse(userId, sessionId, question.text, replyMode);
+
+    const aiMessage = await prisma.message.create({
+      data: {
+        session_id: sessionId,
+        user_id: userId,
+        role: MessageRole.AI,
+        content: aiResponse.content,
+        metadata: { ...(aiResponse.metadata || {}), questionIndex } as Prisma.InputJsonValue,
+        reply_mode: replyMode,
+      },
+    });
+
+    return { question: question.text, answer: aiMessage };
   }
 
   async transcribeAudio(file: Express.Multer.File) {

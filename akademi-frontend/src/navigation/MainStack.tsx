@@ -7,6 +7,7 @@ import { MainStackParamList } from "./types";
 import { MainTabs } from "./MainTabs";
 import { SessionsTabs } from "./SessionsTabs";
 import { AssignmentResultScreen } from "../screens/main/AssignmentResultScreen";
+import { MultiQuestionSolveScreen } from "../screens/main/MultiQuestionSolveScreen";
 import { StudyModeScreen } from "../screens/main/StudyModeScreen";
 import { MaterialPracticeScreen } from "../screens/main/MaterialPracticeScreen";
 import { ChallengeResultScreen } from "../screens/main/ChallengeResultScreen";
@@ -63,6 +64,7 @@ export const MainStack = () => {
         name="AssignmentResult"
         component={AssignmentResultScreen}
       />
+      <Stack.Screen name="MultiQuestionSolve" component={MultiQuestionSolveScreen} />
       <Stack.Screen name="StudyMode" component={StudyModeScreen} />
       <Stack.Screen name="MaterialPractice" component={MaterialPracticeScreen} />
       <Stack.Screen name="ChallengeResult" component={ChallengeResultScreen} />

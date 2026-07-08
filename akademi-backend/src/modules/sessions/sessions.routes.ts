@@ -91,6 +91,7 @@ router.post('/:id/companion/turn', companionTurnRateLimiter, sessionsController.
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionMessageRateLimiter, sessionsController.sendMessage);
+router.post('/:id/questions/:index/solve', sessionMessageRateLimiter, sessionsController.solveQuestion);
 router.post('/:id/messages/photo', sessionMessageRateLimiter, photoUpload.single('photo'), sessionsController.sendPhotoMessage);
 router.get('/:id/summary', sessionsController.getSummary);
 
