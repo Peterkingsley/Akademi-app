@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, graphSystemPrompt, ExplanationDepth } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -279,11 +279,11 @@ export class AIService {
     };
   }
 
-  private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
-    // Segmented board steps help just as much in a Study Mode tutoring conversation as they do
-    // in an assignment solve - only exam prep (a different, quiz-style flow) is excluded.
-    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
-
+  // A question only counts as a calculation for prompt purposes when the message itself
+  // carries computation signals. The course code is deliberately NOT considered here:
+  // conceptual questions exist inside MTH/CHM/PHY/STA courses too, and they must get the
+  // Explain-Back Contract, not the worked-example substitution template.
+  private hasCalculationSignals(studentMessage: string) {
     const text = studentMessage.toLowerCase();
     const mathSignals = [
       'solve',
@@ -327,9 +327,19 @@ export class AIService {
 
     const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]|\bdy\/dx\b|\bdx\b|\bx\^|\bx²|\bx³/.test(studentMessage);
     const keywordSignal = mathSignals.some((signal) => text.includes(signal));
-    const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
 
-    return symbolSignals || keywordSignal || courseSignal;
+    return symbolSignals || keywordSignal;
+  }
+
+  private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
+    // Segmented board steps help just as much in a Study Mode tutoring conversation as they do
+    // in an assignment solve - only exam prep (a different, quiz-style flow) is excluded.
+    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
+
+    // The board keeps the broader net (course code counts as a signal): offering a board on a
+    // quantitative course rarely hurts, whereas the prompt-level calculation gate must stay strict.
+    const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
+    return this.hasCalculationSignals(studentMessage) || courseSignal;
   }
 
   private extractJsonObject(raw: string) {
@@ -682,14 +692,16 @@ Important:
       session.course_code || 'GENERAL',
       studentMessage,
       effectiveReplyMode,
-      disciplineDocument?.version || 1
+      disciplineDocument?.version || 1,
+      PROMPT_VERSION
     );
 
     const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
-    const isCalculationQuestion = this.isBoardEligibleQuestion(studentMessage, session);
+    const isCalculationQuestion = this.hasCalculationSignals(studentMessage);
+    const isBoardEligible = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
       disciplineDocument,
@@ -708,7 +720,7 @@ Important:
 
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
     const [whiteboardPayload, graphPayload] = await Promise.all([
-      isCalculationQuestion ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+      isBoardEligible ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
       isGraphQuestion ? this.buildGraphPayload(studentMessage, aiResponseText) : Promise.resolve(null),
     ]);
 
