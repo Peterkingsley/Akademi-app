@@ -16,7 +16,6 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { Button } from "../../components/ui/Button";
 import { BrandWordmark } from "../../components/ui/BrandWordmark";
-import { useAuthStore } from "../../store/useAuthStore";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
@@ -27,7 +26,6 @@ const onboardingMale = require("../../../assets/images/onboarding-male.jpg");
 
 export const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const setOnboardingComplete = useAuthStore((state) => state.setOnboardingComplete);
   const [activeSlide, setActiveSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -42,12 +40,10 @@ export const OnboardingScreen: React.FC = () => {
       return;
     }
 
-    setOnboardingComplete(true);
     navigation.navigate("UniversityPicker");
   };
 
   const handleLogin = () => {
-    setOnboardingComplete(true);
     navigation.navigate("Login");
   };
 

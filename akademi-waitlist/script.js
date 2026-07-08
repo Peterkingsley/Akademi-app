@@ -1,6 +1,5 @@
 const DEFAULT_API_URLS = [
   "https://akademi-app-1.onrender.com",
-  "https://akademi-app.onrender.com",
 ];
 
 function parseCandidateUrls(...sources) {
@@ -358,6 +357,7 @@ async function fetchUniversitySuggestions(query) {
         }
 
         sawSuccessfulResponse = true;
+        currentApiBaseUrl = baseUrl;
         if (Array.isArray(data)) {
           data.forEach((school) => {
             if (school?.id && !mergedResults.has(school.id)) {

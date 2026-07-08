@@ -14,39 +14,14 @@ import { Screen } from "../../components/layout/Screen";
 import { sessionService } from "../../services/session";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
-import { MathFormula } from "../../components/ui/MathFormula";
 import { RichMathText } from "../../components/ui/RichMathText";
 import { GraphRenderer } from "../../components/graph/GraphRenderer";
 import { GraphSpec } from "../../components/graph/types";
+import { BoardStep, isMeaningfulStep } from "../../components/board/boardTypes";
+import { BoardStepCard } from "../../components/board/BoardStepCard";
+import { BoardFinalAnswerCard } from "../../components/board/BoardFinalAnswerCard";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
-
-type BoardStep = {
-  id: string;
-  type: "write" | "highlight" | "answer";
-  text: string;
-  math?: string;
-  note: string;
-};
-
-// Defense in depth: even if a malformed LaTeX fragment slips through the backend, never show its raw
-// broken source to the student - KaTeX renders unbalanced braces as visible red error text.
-const hasBalancedBraces = (value: string) => {
-  let depth = 0;
-  for (const char of value) {
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth < 0) return false;
-    }
-  }
-  return depth === 0;
-};
-
-const isRenderableMath = (value?: string) => !!value && !!value.trim() && hasBalancedBraces(value);
-
-const isMeaningfulStep = (step: BoardStep) =>
-  !!step.text.trim() || isRenderableMath(step.math) || !!step.note.trim();
 
 export const BoardReplayScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -182,50 +157,12 @@ export const BoardReplayScreen: React.FC = () => {
           {visibleSteps.length === 0 ? (
             <Text style={styles.boardPlaceholder}>Setting up the first step...</Text>
           ) : (
-            visibleSteps.map((step, index) => (
-              <View
-                key={step.id}
-                style={[
-                  styles.stepCard,
-                  step.type === "highlight" && styles.highlightStepCard,
-                  step.type === "answer" && styles.answerStepCard,
-                ]}
-              >
-                <Text style={styles.stepIndex}>Step {index + 1}</Text>
-                {!!step.text && (
-                  <RichMathText content={step.text} textColor="#F7FAFC" fontSize={16} lineHeight={1.45} />
-                )}
-                {isRenderableMath(step.math) && (
-                  <View style={styles.mathBlock}>
-                    <MathFormula latex={step.math!} fontSize={17} />
-                  </View>
-                )}
-                {!!step.note && (
-                  <RichMathText
-                    content={step.note}
-                    textColor="rgba(247,250,252,0.76)"
-                    fontSize={14}
-                    lineHeight={1.35}
-                  />
-                )}
-              </View>
-            ))
+            visibleSteps.map((step, index) => <BoardStepCard key={step.id} step={step} index={index} />)
           )}
         </View>
 
         {currentStep >= steps.length && (
-          <View style={styles.answerCard}>
-            <Text style={styles.answerLabel}>Worked answer</Text>
-            {isRenderableMath(finalAnswerMath) ? (
-              <View style={styles.finalMathBlock}>
-                <MathFormula latex={finalAnswerMath} fontSize={21} />
-              </View>
-            ) : (
-              <RichMathText content={finalAnswer} textColor={colors.textPrimary} fontSize={22} lineHeight={1.4} />
-            )}
-            {!!finalAnswer && finalAnswerMath && <RichMathText content={finalAnswer} textColor={colors.textSecondary} fontSize={14} lineHeight={1.4} />}
-            {!!summary && <RichMathText content={summary} textColor={colors.textSecondary} fontSize={14} lineHeight={1.45} />}
-          </View>
+          <BoardFinalAnswerCard finalAnswer={finalAnswer} finalAnswerMath={finalAnswerMath} summary={summary} />
         )}
 
         {currentStep >= steps.length && graphSpec && (
@@ -355,75 +292,8 @@ const createStyles = (colors: any) =>
       ...typography.body,
       color: "rgba(255,255,255,0.72)",
     },
-    stepCard: {
-      backgroundColor: "rgba(7, 15, 9, 0.45)",
-      borderColor: "rgba(255,255,255,0.06)",
-      borderRadius: 10,
-      borderWidth: 1,
-      marginBottom: 10,
-      padding: 12,
-    },
-    highlightStepCard: {
-      borderColor: "rgba(34,197,94,0.45)",
-    },
-    answerStepCard: {
-      backgroundColor: "rgba(34,197,94,0.16)",
-      borderColor: "rgba(34,197,94,0.55)",
-    },
-    stepIndex: {
-      ...typography.caption,
-      color: "#9AE6B4",
-      marginBottom: 6,
-    },
-    stepText: {
-      ...typography.body,
-      color: "#F7FAFC",
-      lineHeight: 23,
-    },
-    mathBlock: {
-      marginTop: 8,
-      minHeight: 32,
-    },
-    stepNote: {
-      ...typography.bodySmall,
-      color: "rgba(247,250,252,0.76)",
-      lineHeight: 18,
-      marginTop: 8,
-    },
-    answerCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 10,
-      borderWidth: 1,
-      padding: 14,
-    },
     graphCard: {
       marginTop: 4,
-    },
-    answerLabel: {
-      ...typography.label,
-      color: colors.primary,
-      marginBottom: 8,
-    },
-    answerText: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      fontSize: 22,
-    },
-    finalMathBlock: {
-      marginTop: 2,
-      minHeight: 40,
-    },
-    answerTextFallback: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      marginTop: 6,
-    },
-    summaryText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      lineHeight: 20,
-      marginTop: 8,
     },
     controls: {
       alignItems: "center",
