@@ -583,7 +583,7 @@ export class SessionsService {
       },
     });
 
-    const aiResponse = await orchestrateAIResponse(userId, sessionId, question.text, replyMode);
+    const aiResponse = await orchestrateAIResponse(userId, sessionId, question.text, replyMode, true);
 
     const aiMessage = await prisma.message.create({
       data: {

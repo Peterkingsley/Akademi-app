@@ -12,7 +12,8 @@ export async function orchestrateAIResponse(
   userId: string,
   sessionId: string,
   content: string,
-  replyMode: ReplyMode | null
+  replyMode: ReplyMode | null,
+  standalone = false
 ): Promise<OrchestratedAIResponse> {
   // Free check for Study Mode (as per monetization table in Ticket-00)
   // Actually, we check feature access in SessionsService, but let's be safe.
@@ -24,6 +25,7 @@ export async function orchestrateAIResponse(
     sessionId,
     content,
     replyMode || ReplyMode.DIRECT,
-    hasActivePaidFeature
+    hasActivePaidFeature,
+    standalone
   );
 }
