@@ -599,7 +599,8 @@ Decide whether this needs a graph or chart, and if so extract the raw data for i
     sessionId: string,
     studentMessage: string,
     replyMode: ReplyMode,
-    hasActivePaidFeature: boolean
+    hasActivePaidFeature: boolean,
+    standalone = false
   ): Promise<OrchestratedAIResponse> {
     // 1. Check daily limit
     await checkDailyLimit(userId, hasActivePaidFeature);
@@ -669,8 +670,22 @@ Decide whether this needs a graph or chart, and if so extract the raw data for i
       studentMessage,
       conversationHistory
     );
-    const isFollowUp = session.messages.length > 1;
-    const prompt = isFollowUp
+    // A standalone call (e.g. solving one question from a multi-question
+    // pager) must never be treated as a continuation of the session's prior
+    // messages — each question is independent, and there is no chat input on
+    // that screen for the student to reply to a clarifying question.
+    const isFollowUp = !standalone && session.messages.length > 1;
+    const prompt = standalone
+      ? `This question is one of several standalone questions from an uploaded assignment, shown one at a time with no chat reply available on this screen.
+
+Important:
+- Solve the ENTIRE question completely in this single response, including every lettered or numbered sub-part.
+- Do not ask the student which part to start with, do not pause for clarification, and do not wait for a reply.
+- If the reply style calls for guided teaching, still teach AND fully solve every part within this one response — never defer a part to a follow-up.
+
+Question:
+${studentMessage}`
+      : isFollowUp
       ? `Continue this existing learning conversation.
 
 Recent conversation:
@@ -687,7 +702,9 @@ Important:
 - Do not trap the student in repeated questions. Move the explanation forward.`
       : studentMessage;
 
-    // 3. Cache check. Multi-turn sessions must include conversation context, so do not reuse a standalone answer.
+    // 3. Cache check. Multi-turn sessions must include conversation context, and
+    // standalone calls use a distinct prompt, so neither should reuse or poison
+    // the plain single-question cache entry.
     const cacheKey = getAICacheKey(
       session.course_code || 'GENERAL',
       studentMessage,
@@ -696,7 +713,7 @@ Important:
       PROMPT_VERSION
     );
 
-    const cachedResponse = isFollowUp ? null : await getCachedAIResponse(cacheKey);
+    const cachedResponse = isFollowUp || standalone ? null : await getCachedAIResponse(cacheKey);
     if (cachedResponse) return { content: cachedResponse };
 
     // 4. Assemble system prompt
@@ -725,7 +742,7 @@ Important:
     ]);
 
     // 6. Cache response
-    if (!isFollowUp) {
+    if (!isFollowUp && !standalone) {
       await setCachedAIResponse(cacheKey, aiResponseText);
     }
 
