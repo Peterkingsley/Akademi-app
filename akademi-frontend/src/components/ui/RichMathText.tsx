@@ -115,7 +115,7 @@ const getRenderedLine = (line: string) => {
   return `<div class="paragraph">${safeLine}</div>`;
 };
 
-const buildHtmlContent = (content: string) => {
+export const buildMathHtmlContent = (content: string) => {
   const blocks = normalizeText(content).split(/\n{2,}/);
 
   return blocks
@@ -215,7 +215,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
     </style>
   </head>
   <body>
-    <div id="content">${buildHtmlContent(content)}</div>
+    <div id="content">${buildMathHtmlContent(content)}</div>
     <script>
       let hasRenderedMath = false;
 
