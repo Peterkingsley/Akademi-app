@@ -10,7 +10,7 @@ import {
   Share,
   Alert,
 } from "react-native";
-import { ArrowLeft, Share2, RefreshCw, Book, Send, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, Share2, RefreshCw, Book, Send, ChevronRight, Download } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -25,6 +25,7 @@ import { GraphRenderer } from "../../components/graph/GraphRenderer";
 import { GraphSpec } from "../../components/graph/types";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
+import { exportSolutionsAsPdf } from "../../services/pdfExport";
 import { useVoiceComposer } from "../../hooks/useVoiceComposer";
 import { appendTranscript } from "../../services/voice";
 import { useAiVoicePlayback } from "../../hooks/useAiVoicePlayback";
@@ -48,6 +49,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [spokenKey, setSpokenKey] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
   const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
     onTranscript: (transcript) => setFollowUp((prev) => appendTranscript(prev, transcript, true)),
@@ -154,6 +156,25 @@ export const AssignmentResultScreen: React.FC = () => {
       });
     } catch (error) {
       console.error("Error sharing:", error);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (downloadingPdf || !answer) return;
+
+    setDownloadingPdf(true);
+    try {
+      await exportSolutionsAsPdf(
+        [{ index: 0, question, answer }],
+        { title: "Akademi Solution", subtitle: answerStatusLabel }
+      );
+    } catch (error: any) {
+      Alert.alert(
+        "Could not create PDF",
+        error?.message || "Please check your connection and try again."
+      );
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -336,6 +357,14 @@ export const AssignmentResultScreen: React.FC = () => {
           <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
             <Share2 size={20} color={colors.textSecondary} />
             <Text style={[styles.actionLabel, typography.caption]}>SHARE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={handleDownloadPdf} disabled={downloadingPdf}>
+            {downloadingPdf ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : (
+              <Download size={20} color={colors.textSecondary} />
+            )}
+            <Text style={[styles.actionLabel, typography.caption]}>PDF</Text>
           </TouchableOpacity>
           <Button
             label="Try Another"

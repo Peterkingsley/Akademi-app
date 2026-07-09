@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -20,6 +20,7 @@ import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { sessionService } from "../../services/session";
+import { exportSolutionsAsPdf } from "../../services/pdfExport";
 
 type QuestionEntry = { index: number; text: string };
 
@@ -42,6 +43,7 @@ export const MultiQuestionSolveScreen: React.FC = () => {
   const [errorByIndex, setErrorByIndex] = useState<Record<number, string>>({});
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Tracks indexes that have an in-flight or completed solve call so the
   // background prefetch and the on-arrival solve never race each other.
@@ -118,6 +120,34 @@ export const MultiQuestionSolveScreen: React.FC = () => {
     ]);
   };
 
+  const solvedEntries = questions
+    .filter((q) => answers[q.index] !== undefined)
+    .map((q) => ({ index: q.index, question: q.text, answer: answers[q.index] }));
+
+  const handleDownloadPdf = async () => {
+    if (downloadingPdf) return;
+
+    if (!solvedEntries.length) {
+      Alert.alert("Nothing to download yet", "Solve at least one question before downloading a PDF.");
+      return;
+    }
+
+    setDownloadingPdf(true);
+    try {
+      await exportSolutionsAsPdf(solvedEntries, {
+        title: "Akademi Solution",
+        subtitle: `${solvedEntries.length} of ${total} questions solved`,
+      });
+    } catch (error: any) {
+      Alert.alert(
+        "Could not create PDF",
+        error?.message || "Please check your connection and try again."
+      );
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const isCurrentLoading = loadingIndex === currentIndex && answers[currentIndex] === undefined;
   const currentError = errorByIndex[currentIndex];
 
@@ -130,7 +160,13 @@ export const MultiQuestionSolveScreen: React.FC = () => {
         <Text style={[styles.headerTitle, typography.h3]} numberOfLines={1}>
           Assignment Solve
         </Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity onPress={handleDownloadPdf} style={styles.downloadBtn} disabled={downloadingPdf}>
+          {downloadingPdf ? (
+            <ActivityIndicator size="small" color={colors.textPrimary} />
+          ) : (
+            <Download size={20} color={colors.textPrimary} />
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.progressWrap}>
@@ -221,8 +257,11 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backBtn: {
       padding: 4,
     },
-    headerSpacer: {
-      width: 22,
+    downloadBtn: {
+      alignItems: "center",
+      justifyContent: "center",
+      minWidth: 22,
+      padding: 4,
     },
     headerTitle: {
       color: colors.textPrimary,
