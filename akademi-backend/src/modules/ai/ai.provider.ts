@@ -1,9 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../config/env';
 
 export interface AIRequestOptions {
-  model?: string;
   maxTokens?: number;
   systemPrompt?: string;
 }
@@ -16,7 +14,6 @@ const PLACEHOLDER_KEYWORDS = [
   'sk-placeholder',
 ];
 
-const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 const GEMINI_FALLBACK_MODELS = [
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
@@ -56,13 +53,12 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Bounds so a slow/hanging provider can't silently eat the client's request
-// timeout - without these, a single overloaded Gemini model or a stalled
-// Claude call had no cap and could stall the response past the 90s the
-// frontend waits, which surfaces as a network error with no status at all.
+// Bounds so a slow/hanging model can't silently eat the client's request
+// timeout - without this, a single overloaded Gemini model had no cap and
+// could stall the response past the 90s the frontend waits, which surfaces
+// as a network error with no status at all.
 const GEMINI_ATTEMPT_TIMEOUT_MS = 8000;
-const GEMINI_TOTAL_BUDGET_MS = 15000;
-const CLAUDE_TIMEOUT_MS = 15000;
+const GEMINI_TOTAL_BUDGET_MS = 25000;
 
 class ProviderTimeoutError extends Error {}
 
@@ -108,22 +104,8 @@ function hashTextEmbedding(text: string, dimensions = 256) {
 }
 
 export class AIProvider {
-  private anthropic: Anthropic | null = null;
-  private lastClaudeKey: string | null = null;
   private gemini: GoogleGenerativeAI | null = null;
   private lastGeminiKey: string | null = null;
-
-  private getAnthropic() {
-    const key = config.claudeApiKey;
-    if (key && !isPlaceholder(key) && key !== this.lastClaudeKey) {
-      this.anthropic = new Anthropic({ apiKey: key });
-      this.lastClaudeKey = key;
-    } else if (!key || isPlaceholder(key)) {
-      this.anthropic = null;
-      this.lastClaudeKey = null;
-    }
-    return this.anthropic;
-  }
 
   private getGemini() {
     const key = config.geminiApiKey;
@@ -141,13 +123,8 @@ export class AIProvider {
     prompt: string,
     options: AIRequestOptions = {}
   ): Promise<string> {
-    const {
-      model = DEFAULT_CLAUDE_MODEL,
-      maxTokens = 1000,
-      systemPrompt,
-    } = options;
+    const { maxTokens = 1000, systemPrompt } = options;
 
-    let claudeError: string | null = null;
     let geminiError: string | null = null;
 
     const geminiClient = this.getGemini();
@@ -166,7 +143,10 @@ export class AIProvider {
         }
 
         try {
-          const geminiModel = geminiClient.getGenerativeModel({ model: geminiModelName });
+          const geminiModel = geminiClient.getGenerativeModel({
+            model: geminiModelName,
+            generationConfig: { maxOutputTokens: maxTokens },
+          });
           const result = await withTimeout(
             geminiModel.generateContent(combinedPrompt),
             Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remainingBudget),
@@ -194,28 +174,7 @@ export class AIProvider {
       geminiError = 'Gemini API key is missing or invalid';
     }
 
-    const anthropicClient = this.getAnthropic();
-    if (anthropicClient) {
-      try {
-        const response = await anthropicClient.messages.create(
-          {
-            model,
-            max_tokens: maxTokens,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: prompt }],
-          },
-          { timeout: CLAUDE_TIMEOUT_MS, maxRetries: 0 }
-        );
-        return (response.content[0] as any).text;
-      } catch (error: any) {
-        claudeError = error.message || 'Unknown Claude error';
-        console.error('Claude API error:', error);
-      }
-    } else {
-      claudeError = 'Claude API key is missing or invalid';
-    }
-
-    console.error('AI providers failed', { geminiError, claudeError });
+    console.error('AI provider failed', { geminiError });
     throw new Error('AI is temporarily busy. Please try again in a moment.');
   }
 

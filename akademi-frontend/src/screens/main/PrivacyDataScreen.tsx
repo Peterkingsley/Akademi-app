@@ -113,7 +113,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.paragraph}>We use the information we collect to:</Text>
       <BulletItem text="Create and manage your Akademi account" colors={colors} />
       <BulletItem text="Personalize your study experience based on your learning profile" colors={colors} />
-      <BulletItem text="Generate AI responses to your academic questions using Claude (Anthropic)" colors={colors} />
+      <BulletItem text="Generate AI responses to your academic questions using Gemini (Google)" colors={colors} />
       <BulletItem text="Provide verified course materials relevant to your department and university" colors={colors} />
       <BulletItem text="Process your payments for premium features" colors={colors} />
       <BulletItem text="Send you email notifications including account verification, password resets, and material upload confirmations" colors={colors} />
@@ -141,7 +141,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
           </View>
         </View>
         {[
-          { provider: "Anthropic (Claude API)", purpose: "AI-powered responses", data: "Question text and context" },
+          { provider: "Google (Gemini API)", purpose: "AI-powered responses", data: "Question text and context" },
           { provider: "Paystack", purpose: "Payment processing", data: "Email and amount" },
           { provider: "Resend", purpose: "Transactional emails", data: "Email and name" },
           { provider: "Cloudflare R2", purpose: "File storage", data: "Uploaded files" },
@@ -215,7 +215,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.sectionTitle}>8. AI and Automated Decision Making</Text>
       <Text style={styles.paragraph}>
-        Akademi uses artificial intelligence (Claude by Anthropic) to generate responses to your academic questions. The AI:
+        Akademi uses artificial intelligence (Gemini by Google) to generate responses to your academic questions. The AI:
       </Text>
       <BulletItem text="Does not make decisions that have legal or significant effects on you" colors={colors} />
       <BulletItem text="Uses your learning profile and course context to personalize responses" colors={colors} />
@@ -396,7 +396,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.sectionTitle}>7. AI Services</Text>
       <Text style={styles.subSectionTitle}>7.1 Nature of AI Responses</Text>
       <Text style={styles.paragraph}>
-        Akademi uses Claude (by Anthropic) to generate AI responses. While we take significant steps to ensure accuracy through course-specific context and discipline documents, AI responses may occasionally contain errors.
+        Akademi uses Gemini (by Google) to generate AI responses. While we take significant steps to ensure accuracy through course-specific context and discipline documents, AI responses may occasionally contain errors.
       </Text>
       <Text style={[styles.paragraph, { marginTop: 8 }]}>AI responses are:</Text>
       <BulletItem text="Educational guidance, not professional or expert advice" colors={colors} />
@@ -466,7 +466,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.subSectionTitle}>11.3 Third Party Services</Text>
       <Text style={styles.paragraph}>
-        Akademi integrates with third-party services including Anthropic, Paystack, and Cloudflare. We are not responsible for the availability or performance of these services.
+        Akademi integrates with third-party services including Google, Paystack, and Cloudflare. We are not responsible for the availability or performance of these services.
       </Text>
 
       <Text style={styles.sectionTitle}>12. Limitation of Liability</Text>

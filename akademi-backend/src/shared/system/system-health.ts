@@ -25,7 +25,7 @@ export type SystemHealthSnapshot = {
     redis: DependencyDetail;
     queue: DependencyDetail;
     typesense: DependencyDetail;
-    claude: DependencyDetail;
+    gemini: DependencyDetail;
     websocket: DependencyDetail;
     r2: DependencyDetail;
   };
@@ -88,7 +88,7 @@ export const getSystemHealthSnapshot = async (): Promise<SystemHealthSnapshot> =
       detail: queue.lastError || (queue.mode === 'inline' ? 'Inline processing mode' : null),
     },
     typesense: { status: 'unknown', detail: 'Typesense check not attempted yet' },
-    claude: { status: config.claudeApiKey ? 'online' : 'disabled', detail: config.claudeApiKey ? 'API key configured' : 'Claude API key missing' },
+    gemini: { status: config.geminiApiKey ? 'online' : 'disabled', detail: config.geminiApiKey ? 'API key configured' : 'Gemini API key missing' },
     websocket: { status: 'disabled', detail: 'WebSocket service not running for this process' },
     r2: { status: 'unknown', detail: 'R2 bucket check not attempted yet' },
   };
