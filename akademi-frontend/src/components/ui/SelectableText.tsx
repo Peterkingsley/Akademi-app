@@ -36,6 +36,9 @@ const normalizeText = (value: string) =>
     .replace(/__(.*?)__/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^\s*\*\s+/gm, "- ")
+    // Close blank-line gaps between consecutive markdown table rows so a table the AI
+    // emitted with spacing between rows still arrives at the block parser as ONE table.
+    .replace(/(\|)[ \t]*\n(?:[ \t]*\n)+(?=[ \t]*\|)/g, "$1\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
@@ -71,7 +74,51 @@ const looksLikeStandaloneMath = (line: string) => {
 };
 
 const wrapDisplayMath = (line: string) => `\\[${line.trim()}\\]`;
-const containsExplicitMathDelimiter = (line: string) => /\\\(|\\\[/.test(line);
+
+// `$...$` / `$$...$$` count as explicit delimiters too. AI answers routinely arrive with
+// dollar-delimited math ("(e) $n(x) = \sin x$"), and wrapping such a line in our own
+// \[...\] puts a literal $ inside math mode - a KaTeX parse error, which throwOnError:false
+// then paints as raw red error text. Lines that already carry any delimiter must be left
+// as plain paragraphs for KaTeX's auto-render to process in place.
+const containsExplicitMathDelimiter = (line: string) =>
+  /\\\(|\\\[/.test(line) || /\$\$[^$]+\$\$/.test(line) || /\$[^$\n]+\$/.test(line);
+
+// "---" / "***" / "___" markdown dividers: without special handling, "---" carries a math
+// signal (the minus), gets wrapped as display math, and KaTeX draws it as three minus signs.
+const isHorizontalRuleLine = (line: string) => /^(?:-{3,}|\*{3,}|_{3,})$/.test(line.trim());
+
+const isTableRowLine = (line: string) => /^\|.*\|$/.test(line.trim());
+const isTableSeparatorLine = (line: string) => /^\|(?:\s*:?-{2,}:?\s*\|)+$/.test(line.trim());
+
+// Markdown tables ("| Function | Injective |" + "| :--- | :--- |" rows) become real HTML
+// tables. Previously each row rendered as a raw pipe-filled paragraph, and the separator
+// row - all dashes - got wrapped as display math and rendered as "- - -" garbage.
+const renderTableBlock = (tableLines: string[]) => {
+  const hasHeader = tableLines.length > 1 && isTableSeparatorLine(tableLines[1]);
+  const rows = tableLines
+    .filter((line) => !isTableSeparatorLine(line))
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => escapeHtml(cell.trim()))
+    );
+
+  if (rows.length === 0) return "";
+
+  const renderRow = (cells: string[], tag: "th" | "td") =>
+    `<tr>${cells.map((cell) => `<${tag}>${cell}</${tag}>`).join("")}</tr>`;
+
+  const headerHtml = hasHeader ? `<thead>${renderRow(rows[0], "th")}</thead>` : "";
+  const bodyRows = hasHeader ? rows.slice(1) : rows;
+  const bodyHtml = bodyRows.length
+    ? `<tbody>${bodyRows.map((cells) => renderRow(cells, "td")).join("")}</tbody>`
+    : "";
+
+  return `<div class="table-wrap"><table>${headerHtml}${bodyHtml}</table></div>`;
+};
 
 // Matches a leading instruction like "Solve", "Find", "Solve for x", "Simplify" at the start of
 // a question. When the rest of the line is pure math with no other prose, split the instruction
@@ -143,21 +190,48 @@ const buildHtmlContent = (content: string) => {
 
       if (lines.length === 0) return "";
 
-      if (lines.every(isBulletLine)) {
-        const items = lines
-          .map((line) => {
-            const itemText = line.replace(/^(?:\u2022|[-*])\s+/, "");
+      // Walk the block grouping runs of table rows and bullets, so a block can mix
+      // prose, a table, and a divider without any of them corrupting the others.
+      const pieces: string[] = [];
+      let index = 0;
+      while (index < lines.length) {
+        const line = lines[index];
+
+        if (isHorizontalRuleLine(line)) {
+          pieces.push('<hr class="divider" />');
+          index += 1;
+          continue;
+        }
+
+        if (isTableRowLine(line)) {
+          const tableLines: string[] = [];
+          while (index < lines.length && isTableRowLine(lines[index])) {
+            tableLines.push(lines[index]);
+            index += 1;
+          }
+          pieces.push(renderTableBlock(tableLines));
+          continue;
+        }
+
+        if (isBulletLine(line)) {
+          const items: string[] = [];
+          while (index < lines.length && isBulletLine(lines[index])) {
+            const itemText = lines[index].replace(/^(?:\u2022|[-*])\s+/, "");
             const itemContent = !containsExplicitMathDelimiter(itemText) && looksLikeStandaloneMath(itemText)
               ? wrapDisplayMath(escapeHtml(itemText))
               : escapeHtml(itemText);
-            return `<li>${itemContent}</li>`;
-          })
-          .join("");
+            items.push(`<li>${itemContent}</li>`);
+            index += 1;
+          }
+          pieces.push(`<ul>${items.join("")}</ul>`);
+          continue;
+        }
 
-        return `<ul>${items}</ul>`;
+        pieces.push(getRenderedLine(line));
+        index += 1;
       }
 
-      return lines.map(getRenderedLine).join("");
+      return pieces.join("");
     })
     .join("");
 };
@@ -267,6 +341,30 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       li {
         margin: 0 0 0.35em 0;
       }
+      hr.divider {
+        border: none;
+        border-top: 1px solid rgba(148, 163, 184, 0.35);
+        margin: 0.9em 0;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 0 0.8em 0;
+      }
+      table {
+        border-collapse: collapse;
+        min-width: 100%;
+      }
+      th, td {
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        padding: 6px 10px;
+        text-align: left;
+        font-size: 0.95em;
+        white-space: nowrap;
+      }
+      th {
+        font-weight: 600;
+      }
       .katex {
         color: inherit;
         font-size: 1.05em;
@@ -315,6 +413,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           if (window.renderMathInElement) {
             renderMathInElement(document.getElementById('content'), {
               throwOnError: false,
+              errorColor: '#FFFFFF',
               strict: 'ignore',
               delimiters: [
                 { left: '$$', right: '$$', display: true },

@@ -4,6 +4,10 @@ import { config } from '../../config/env';
 export interface AIRequestOptions {
   maxTokens?: number;
   systemPrompt?: string;
+  // Long-form generations (multi-part assignment solves taught at full depth) need more
+  // wall-clock time than a chat turn; this widens the per-provider time limits while
+  // still keeping the worst case far inside the frontend's request timeout.
+  extendedTimeouts?: boolean;
 }
 
 const PLACEHOLDER_KEYWORDS = [
@@ -59,6 +63,14 @@ function sleep(ms: number) {
 // as a network error with no status at all.
 const GEMINI_ATTEMPT_TIMEOUT_MS = 8000;
 const GEMINI_TOTAL_BUDGET_MS = 25000;
+
+// Extended limits for long-form answers (see AIRequestOptions.extendedTimeouts): a
+// several-thousand-token assignment solve simply cannot finish inside 8s, and killing it
+// mid-generation is what surfaced as "AI is temporarily busy" on the assignment pager.
+// Gemini is the sole provider now, so this budget alone has to cover the whole call -
+// 60s leaves a healthy 30s margin under the frontend's 90s wait for network/DB overhead.
+const EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS = 20000;
+const EXTENDED_GEMINI_TOTAL_BUDGET_MS = 60000;
 
 class ProviderTimeoutError extends Error {}
 
@@ -123,7 +135,10 @@ export class AIProvider {
     prompt: string,
     options: AIRequestOptions = {}
   ): Promise<string> {
-    const { maxTokens = 1000, systemPrompt } = options;
+    const { maxTokens = 1000, systemPrompt, extendedTimeouts = false } = options;
+
+    const geminiAttemptTimeoutMs = extendedTimeouts ? EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS : GEMINI_ATTEMPT_TIMEOUT_MS;
+    const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
 
     let geminiError: string | null = null;
 
@@ -133,7 +148,7 @@ export class AIProvider {
         ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
         : prompt;
 
-      const geminiDeadline = Date.now() + GEMINI_TOTAL_BUDGET_MS;
+      const geminiDeadline = Date.now() + geminiTotalBudgetMs;
 
       for (const geminiModelName of uniqueModels(config.geminiModel)) {
         const remainingBudget = geminiDeadline - Date.now();
@@ -149,7 +164,7 @@ export class AIProvider {
           });
           const result = await withTimeout(
             geminiModel.generateContent(combinedPrompt),
-            Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remainingBudget),
+            Math.min(geminiAttemptTimeoutMs, remainingBudget),
             `Gemini (${geminiModelName})`
           );
           const response = await result.response;

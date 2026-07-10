@@ -97,6 +97,7 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         try {
           katex.render(String.raw\`${escapeHtml(latex)}\`, document.getElementById('formula'), {
             throwOnError: false,
+            errorColor: '${textColor}',
             displayMode: ${displayMode === "block" ? "true" : "false"},
             trust: false
           });
