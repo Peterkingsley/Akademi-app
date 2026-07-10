@@ -729,7 +729,7 @@ Important:
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
-    // 5. Call AI Provider (Claude with Gemini fallback)
+    // 5. Call AI Provider (Gemini)
     const aiResponseText = await aiProvider.generateResponse(prompt, {
       systemPrompt,
       maxTokens: 1000,

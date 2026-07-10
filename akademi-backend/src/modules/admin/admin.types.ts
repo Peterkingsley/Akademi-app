@@ -39,7 +39,7 @@ export interface SystemHealth {
     redis: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
     queue: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
     typesense: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
-    claude: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
+    gemini: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
     websocket: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
     r2: { status: 'online' | 'offline' | 'degraded' | 'disabled' | 'unknown'; detail?: string | null };
   };
