@@ -56,6 +56,34 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Bounds so a slow/hanging provider can't silently eat the client's request
+// timeout - without these, a single overloaded Gemini model or a stalled
+// Claude call had no cap and could stall the response past the 90s the
+// frontend waits, which surfaces as a network error with no status at all.
+const GEMINI_ATTEMPT_TIMEOUT_MS = 8000;
+const GEMINI_TOTAL_BUDGET_MS = 15000;
+const CLAUDE_TIMEOUT_MS = 15000;
+
+class ProviderTimeoutError extends Error {}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new ProviderTimeoutError(`${label} timed out after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 function normalizeVector(values: number[]) {
   const magnitude = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
   if (!magnitude) return values;
@@ -128,10 +156,22 @@ export class AIProvider {
         ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
         : prompt;
 
+      const geminiDeadline = Date.now() + GEMINI_TOTAL_BUDGET_MS;
+
       for (const geminiModelName of uniqueModels(config.geminiModel)) {
+        const remainingBudget = geminiDeadline - Date.now();
+        if (remainingBudget <= 0) {
+          geminiError = geminiError || 'Gemini budget exhausted before a model could respond';
+          break;
+        }
+
         try {
           const geminiModel = geminiClient.getGenerativeModel({ model: geminiModelName });
-          const result = await geminiModel.generateContent(combinedPrompt);
+          const result = await withTimeout(
+            geminiModel.generateContent(combinedPrompt),
+            Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remainingBudget),
+            `Gemini (${geminiModelName})`
+          );
           const response = await result.response;
           const text = response.text();
 
@@ -144,7 +184,7 @@ export class AIProvider {
           const errorMessage = error.message || 'Unknown Gemini error';
           geminiError = errorMessage;
           console.error(`Gemini API error on ${geminiModelName}:`, error);
-          if (!isRetryableGeminiError(errorMessage)) {
+          if (!(error instanceof ProviderTimeoutError) && !isRetryableGeminiError(errorMessage)) {
             break;
           }
           await sleep(350);
@@ -157,12 +197,15 @@ export class AIProvider {
     const anthropicClient = this.getAnthropic();
     if (anthropicClient) {
       try {
-        const response = await anthropicClient.messages.create({
-          model,
-          max_tokens: maxTokens,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: prompt }],
-        });
+        const response = await anthropicClient.messages.create(
+          {
+            model,
+            max_tokens: maxTokens,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: prompt }],
+          },
+          { timeout: CLAUDE_TIMEOUT_MS, maxRetries: 0 }
+        );
         return (response.content[0] as any).text;
       } catch (error: any) {
         claudeError = error.message || 'Unknown Claude error';
