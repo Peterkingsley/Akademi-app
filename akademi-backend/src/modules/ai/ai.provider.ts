@@ -45,7 +45,11 @@ function isRetryableGeminiError(message: string) {
     lowerMessage.includes('high demand') ||
     message.includes('429') ||
     message.includes('RESOURCE_EXHAUSTED') ||
-    lowerMessage.includes('rate limit')
+    lowerMessage.includes('rate limit') ||
+    // An empty completion from one model (e.g. its output budget was consumed
+    // by internal reasoning) should fall through to the next model, not abort
+    // the whole chain.
+    lowerMessage.includes('empty response')
   );
 }
 
@@ -145,7 +149,15 @@ export class AIProvider {
         try {
           const geminiModel = geminiClient.getGenerativeModel({
             model: geminiModelName,
-            generationConfig: { maxOutputTokens: maxTokens },
+            // thinkingBudget: 0 turns off Gemini 2.5+ internal "thinking",
+            // which otherwise silently consumes most of maxOutputTokens and
+            // can leave the visible answer empty or truncated. The installed
+            // SDK predates thinkingConfig in its types but forwards the field
+            // to the API untouched.
+            generationConfig: {
+              maxOutputTokens: maxTokens,
+              thinkingConfig: { thinkingBudget: 0 },
+            } as Record<string, unknown>,
           });
           const result = await withTimeout(
             geminiModel.generateContent(combinedPrompt),
