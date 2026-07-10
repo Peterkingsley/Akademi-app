@@ -22,11 +22,11 @@ export const BoardFinalAnswerCard: React.FC<BoardFinalAnswerCardProps> = ({
   const styles = createStyles(colors);
 
   return (
-    <View style={styles.answerCard}>
-      <Text style={styles.answerLabel}>Worked answer</Text>
+    <View style={styles.answerBlock}>
+      <Text style={styles.answerLabel}>Answer</Text>
       {isRenderableMath(finalAnswerMath) ? (
         <View style={styles.finalMathBlock}>
-          <MathFormula latex={finalAnswerMath!} fontSize={21} />
+          <MathFormula latex={finalAnswerMath!} textColor={colors.textPrimary} fontSize={21} />
         </View>
       ) : (
         <RichMathText content={finalAnswer} textColor={colors.textPrimary} fontSize={22} lineHeight={1.4} />
@@ -41,18 +41,13 @@ export const BoardFinalAnswerCard: React.FC<BoardFinalAnswerCardProps> = ({
 
 const createStyles = (colors: any) =>
   StyleSheet.create({
-    answerCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 10,
-      borderWidth: 1,
-      padding: 14,
+    answerBlock: {
       gap: 8,
     },
     answerLabel: {
       ...typography.label,
       color: colors.primary,
-      marginBottom: 8,
+      marginBottom: 2,
     },
     finalMathBlock: {
       marginTop: 2,
