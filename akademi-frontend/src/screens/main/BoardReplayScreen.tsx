@@ -142,14 +142,13 @@ export const BoardReplayScreen: React.FC = () => {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.questionCard}>
+        <View style={styles.questionBlock}>
           <Text style={styles.questionLabel}>Question</Text>
           <RichMathText content={question} textColor={colors.textPrimary} fontSize={16} lineHeight={1.45} />
         </View>
 
         <View style={styles.board}>
           <View style={styles.boardHeadingRow}>
-            <Text style={styles.boardHeading}>Akademi board</Text>
             <Text style={styles.boardProgress}>
               {steps.length > 0 ? `${visibleStepCount}/${steps.length} steps` : "Starting"}
             </Text>
@@ -249,12 +248,8 @@ const createStyles = (colors: any) =>
       paddingBottom: 24,
       gap: 16,
     },
-    questionCard: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 10,
-      borderWidth: 1,
-      padding: 14,
+    questionBlock: {
+      marginBottom: 4,
     },
     questionLabel: {
       ...typography.label,
@@ -267,30 +262,21 @@ const createStyles = (colors: any) =>
       lineHeight: 22,
     },
     board: {
-      backgroundColor: "#16311D",
-      borderColor: "rgba(255,255,255,0.08)",
-      borderRadius: 14,
-      borderWidth: 1,
       minHeight: 340,
-      padding: 16,
     },
     boardHeadingRow: {
       alignItems: "center",
       flexDirection: "row",
-      justifyContent: "space-between",
+      justifyContent: "flex-end",
       marginBottom: 12,
-    },
-    boardHeading: {
-      ...typography.label,
-      color: "#9AE6B4",
     },
     boardProgress: {
       ...typography.caption,
-      color: "rgba(247,250,252,0.74)",
+      color: colors.textMuted,
     },
     boardPlaceholder: {
       ...typography.body,
-      color: "rgba(255,255,255,0.72)",
+      color: colors.textSecondary,
     },
     graphCard: {
       marginTop: 4,
