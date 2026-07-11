@@ -42,6 +42,15 @@ export const MultiQuestionSolveScreen: React.FC = () => {
   const [errorByIndex, setErrorByIndex] = useState<Record<number, string>>({});
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  // The answer's SelectableText resizes in visible steps while math loads and settles -
+  // revealing it immediately made the card look like it was "writing then stopping" or
+  // blinking. Keep the loading state up until SelectableText reports it has fully settled,
+  // then reveal the finished, stable card in one step.
+  const [isAnswerReady, setIsAnswerReady] = useState(false);
+
+  useEffect(() => {
+    setIsAnswerReady(false);
+  }, [currentIndex]);
 
   // Tracks indexes that have an in-flight or completed solve call so the
   // background prefetch and the on-arrival solve never race each other.
@@ -120,6 +129,7 @@ export const MultiQuestionSolveScreen: React.FC = () => {
 
   const isCurrentLoading = loadingIndex === currentIndex && answers[currentIndex] === undefined;
   const currentError = errorByIndex[currentIndex];
+  const showAnswerLoading = isCurrentLoading || (!currentError && !isAnswerReady);
 
   return (
     <Screen style={styles.screen}>
@@ -155,24 +165,32 @@ export const MultiQuestionSolveScreen: React.FC = () => {
         <Card style={styles.answerCard}>
           <Text style={[styles.monoLabel, typography.mono]}>AKADEMI SYNTHESIS</Text>
 
-          {isCurrentLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingText, typography.bodySmall]}>Solving this question...</Text>
-            </View>
-          ) : currentError ? (
+          {currentError ? (
             <View style={styles.errorBlock}>
               <Text style={[styles.errorText, typography.bodySmall]}>{currentError}</Text>
               <Button label="Retry" onPress={() => handleRetry(currentIndex)} style={styles.retryBtn} />
             </View>
           ) : (
-            <SelectableText
-              content={answers[currentIndex] || ""}
-              onAskAkademi={(text) => {
-                setSelectedText(text);
-                setIsAskModalVisible(true);
-              }}
-            />
+            <>
+              {showAnswerLoading && (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.loadingText, typography.bodySmall]}>Solving this question...</Text>
+                </View>
+              )}
+              {!isCurrentLoading && (
+                <View style={showAnswerLoading ? styles.settlingOffscreen : undefined}>
+                  <SelectableText
+                    content={answers[currentIndex] || ""}
+                    onAskAkademi={(text) => {
+                      setSelectedText(text);
+                      setIsAskModalVisible(true);
+                    }}
+                    onReady={() => setIsAnswerReady(true)}
+                  />
+                </View>
+              )}
+            </>
           )}
         </Card>
       </ScrollView>
@@ -269,6 +287,14 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     loadingText: {
       color: colors.textSecondary,
+    },
+    // Lets SelectableText mount and settle (math rendering, height measuring) without
+    // taking up layout space or being visible, so the card doesn't visibly resize while
+    // the loading indicator above is still showing.
+    settlingOffscreen: {
+      position: "absolute",
+      opacity: 0,
+      width: "100%",
     },
     errorBlock: {
       paddingVertical: 8,
