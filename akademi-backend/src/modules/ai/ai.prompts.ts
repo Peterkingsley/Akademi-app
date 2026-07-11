@@ -316,12 +316,41 @@ export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
 - This mode applies only to the calculation itself. If part of the same answer is theoretical or conceptual (no computation involved), explain that part normally without forcing the beginner-simplification style onto it.`;
 }
 
+export function buildExplainBackCalculationBridge(): string {
+  return `EXPLAIN-BACK CONTRACT × CALCULATION TEACHING MODE
+This question involves computation, so the Explain-Back Contract above and Calculation
+Teaching Mode below govern this reply TOGETHER — they are not alternatives, and neither
+one overrides the other into being skipped.
+- The causal chain from Rule 1 IS the sequence of calculation steps. Each step you show
+  under Calculation Teaching Mode is one link — connect one step to the next with
+  "because / so / which means / that is why", not just prose sentences to each other.
+- Rule 3's instinct to cut anything that doesn't build a link does NOT authorize skipping
+  a calculation step. Calculation Teaching Mode's "never skip a step, even a trivial one"
+  always wins over the contract's pruning instinct. Prune extra commentary and asides
+  around the steps; never prune the steps themselves.
+- Still open with Rule 0's hook — name the puzzle this question is really asking, in one
+  sentence — before any substituted number appears.
+- If the question has multiple lettered or numbered sub-parts (a), (b), (c)... treat each
+  sub-part as its own mini causal chain: a one-line hook or reframing before that
+  sub-part's working starts, then a short 1-2 sentence retell of what that sub-part showed
+  right after it — not the full 3-6 sentence Rule 7 ending every time. Reserve the full
+  Rule 7 "whole story in N sentences" ending for the very end of the ENTIRE reply, tying
+  every sub-part together into one takeaway the student could repeat about the question
+  as a whole.
+- Rule 8's cover test applies per sub-part too: if a friend asked "why is (b) surjective
+  but (a) is not?", could the student answer purely from what you wrote for each one?`;
+}
+
 export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
-  // DIRECT gets a compact answer-first style instead of the full teaching contract:
+  // The Explain-Back Contract now governs every STUDY/SOCRATIC reply, calculation or not -
+  // math and science worked answers need the same zero-background, retell-tested teaching
+  // discipline as conceptual ones. When both apply, buildExplainBackCalculationBridge()
+  // reconciles the contract's narrative arc with Calculation Teaching Mode's step mechanics
+  // so neither one silently overrides the other.
+  // DIRECT still gets a compact answer-first style instead of the full teaching contract:
   // applying the contract's hook/steps/retell arc to "Quick Solve" produced multi-screen
   // replies for questions the student explicitly wanted answered briefly.
-  const contractApplies = !isCalculationQuestion
-    && (replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC);
+  const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
   const directStyleApplies = !isCalculationQuestion && replyMode === ReplyMode.DIRECT;
 
   const calculationRules = isCalculationQuestion
@@ -350,7 +379,9 @@ Learning System Rules:
 9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
 10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.${calculationRules}${contractApplies ? `
 
-${buildExplainBackContract()}` : ''}${directStyleApplies ? `
+${buildExplainBackContract()}` : ''}${contractApplies && isCalculationQuestion ? `
+
+${buildExplainBackCalculationBridge()}` : ''}${directStyleApplies ? `
 
 ${buildDirectConceptualStyle()}` : ''}`;
 }
