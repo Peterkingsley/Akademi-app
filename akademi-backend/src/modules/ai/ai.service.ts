@@ -690,6 +690,7 @@ Important:
 - Assume the student reading this has ZERO background knowledge of the topic. Before working the first sub-part, explain in plain everyday words what the question is asking and what each key term means, as if teaching it for the very first time.
 - For every verdict or result you state, walk the full reasoning in small steps with the "why" of each step spelled out in plain language — never state a conclusion whose reason a complete beginner could not retell in their own words.
 - The success bar: a student who reads this once should be able to explain each answer back to a friend and solve a similar question alone. If a step would be unclear to a complete beginner, expand it rather than shorten it.
+- The Explain-Back Contract and Calculation Teaching Mode in your instructions both apply here, and this is a multi-part question, so apply them per sub-part: open each lettered/numbered sub-part with a one-line hook or reframing before its working starts, walk that sub-part's causal chain step by step with nothing skipped, then close that sub-part with a short 1-2 sentence retell of what it showed. After every sub-part is done, end the whole reply with one short "whole story" retell (3-6 plain sentences) that ties every sub-part together into one takeaway the student could repeat about the entire question.
 - Format math with LaTeX delimiters the app can typeset: inline math in \\(...\\) and standalone equations in \\[...\\]. Never leave raw LaTeX outside delimiters.
 
 Question:
