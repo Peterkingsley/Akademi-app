@@ -1,14 +1,17 @@
 import React from "react";
-import { Image, ImageStyle, StyleProp, StyleSheet } from "react-native";
+import { Image, ImageStyle, StyleProp, StyleSheet, TextStyle } from "react-native";
 
 const logo = require("../../../assets/branding/akademi-logo.png");
 
 interface BrandWordmarkProps {
-  style?: StyleProp<ImageStyle>;
+  // Callers pass typography presets (fontSize, fontFamily, fontWeight, color) so this component
+  // can derive an image size that matches nearby text - only width/height ever reach the
+  // underlying <Image>, so the prop accepts TextStyle shapes too, not just ImageStyle.
+  style?: StyleProp<ImageStyle | TextStyle>;
 }
 
 export const BrandWordmark: React.FC<BrandWordmarkProps> = ({ style }) => {
-  const flattened = (StyleSheet.flatten(style) || {}) as ImageStyle & { fontSize?: number };
+  const flattened = (StyleSheet.flatten(style) || {}) as ImageStyle & TextStyle;
   const derivedHeight =
     typeof flattened.height === "number"
       ? flattened.height
@@ -25,7 +28,7 @@ export const BrandWordmark: React.FC<BrandWordmarkProps> = ({ style }) => {
       source={logo}
       resizeMode="contain"
       accessibilityLabel="Akademi"
-      style={[styles.wordmark, { width: derivedWidth, height: derivedHeight }, style]}
+      style={[styles.wordmark, { width: derivedWidth, height: derivedHeight }, style as StyleProp<ImageStyle>]}
     />
   );
 };

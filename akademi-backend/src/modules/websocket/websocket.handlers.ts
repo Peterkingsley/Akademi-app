@@ -20,9 +20,8 @@ const getClientSafeError = (error: any) => {
   console.error('WebSocket handler error:', error);
 
   if (
-    message.includes('AI providers failed') ||
+    message.includes('AI provider failed') ||
     message.includes('Gemini') ||
-    message.includes('Claude') ||
     message.includes('GoogleGenerativeAI') ||
     message.includes('503') ||
     message.includes('Service Unavailable')

@@ -28,7 +28,6 @@ export const config = {
   enableRedis: process.env.ENABLE_REDIS === 'true',
   enableWebSocketRedisAdapter: process.env.ENABLE_WEBSOCKET_REDIS_ADAPTER === 'true',
   jwtSecret: process.env.JWT_SECRET as string,
-  claudeApiKey: process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY || '',
   geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
   googleTtsApiKey: process.env.GOOGLE_TTS_API_KEY || '',

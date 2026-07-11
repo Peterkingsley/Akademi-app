@@ -90,7 +90,7 @@ export const SystemMonitoringScreen: React.FC = () => {
       { name: "Redis Cache", status: healthData.dependencies.redis.status, icon: Activity, detail: healthData.dependencies.redis.detail },
       { name: "Inline Queue", status: healthData.dependencies.queue.status, icon: RefreshCcw, detail: healthData.dependencies.queue.detail },
       { name: "Typesense", status: healthData.dependencies.typesense.status, icon: HardDrive, detail: healthData.dependencies.typesense.detail },
-      { name: "Claude API", status: healthData.dependencies.claude.status, icon: Cpu, detail: healthData.dependencies.claude.detail },
+      { name: "Gemini API", status: healthData.dependencies.gemini.status, icon: Cpu, detail: healthData.dependencies.gemini.detail },
       { name: "WebSocket", status: healthData.dependencies.websocket.status, icon: Zap, detail: healthData.dependencies.websocket.detail },
       { name: "Object Store (R2)", status: healthData.dependencies.r2.status, icon: Globe, detail: healthData.dependencies.r2.detail },
     ];
@@ -114,7 +114,7 @@ export const SystemMonitoringScreen: React.FC = () => {
     <Screen title="System Monitoring" scrollable refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchData} />}>
       <View style={styles.container}>
         <View style={styles.section}>
-          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>CLAUDE AI MONITOR (TODAY)</Text>
+          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>GEMINI AI MONITOR (TODAY)</Text>
           <View style={styles.statsRow}>
             <Card style={styles.statCard}>
               <Cpu size={20} color={colors.primary} />
