@@ -72,6 +72,12 @@ const GEMINI_TOTAL_BUDGET_MS = 25000;
 const EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS = 20000;
 const EXTENDED_GEMINI_TOTAL_BUDGET_MS = 60000;
 
+// Gemini truncates output at maxOutputTokens without erroring - response.text() still
+// returns the partial text, ending mid-sentence, and a naive caller serves it as if it
+// were complete. This ceiling bounds a single "give it more room" retry on the SAME model
+// when that happens, instead of silently accepting a cut-off answer.
+const MAX_OUTPUT_TOKENS_CEILING = 16000;
+
 class ProviderTimeoutError extends Error {}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -158,20 +164,46 @@ export class AIProvider {
         }
 
         try {
-          const geminiModel = geminiClient.getGenerativeModel({
-            model: geminiModelName,
-            generationConfig: { maxOutputTokens: maxTokens },
-          });
-          const result = await withTimeout(
-            geminiModel.generateContent(combinedPrompt),
-            Math.min(geminiAttemptTimeoutMs, remainingBudget),
-            `Gemini (${geminiModelName})`
-          );
-          const response = await result.response;
-          const text = response.text();
+          let attemptMaxTokens = maxTokens;
+          let text = '';
+          let wasTruncated = false;
+
+          // At most one retry per model: if Gemini cuts the answer off at maxOutputTokens,
+          // give it a bigger budget once before moving on - most truncations only need a
+          // little more room, and this stays bounded instead of looping indefinitely.
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const attemptRemainingBudget = geminiDeadline - Date.now();
+            if (attemptRemainingBudget <= 0) break;
+
+            const geminiModel = geminiClient.getGenerativeModel({
+              model: geminiModelName,
+              generationConfig: { maxOutputTokens: attemptMaxTokens },
+            });
+            const result = await withTimeout(
+              geminiModel.generateContent(combinedPrompt),
+              Math.min(geminiAttemptTimeoutMs, attemptRemainingBudget),
+              `Gemini (${geminiModelName})`
+            );
+            const response = await result.response;
+            text = response.text();
+            wasTruncated = response.candidates?.[0]?.finishReason === 'MAX_TOKENS';
+
+            if (!wasTruncated || attemptMaxTokens >= MAX_OUTPUT_TOKENS_CEILING) break;
+
+            console.error(
+              `Gemini (${geminiModelName}) truncated at maxOutputTokens=${attemptMaxTokens}; retrying with a larger budget`
+            );
+            attemptMaxTokens = Math.min(attemptMaxTokens * 2, MAX_OUTPUT_TOKENS_CEILING);
+          }
 
           if (!text) {
             throw new Error('Gemini returned empty response');
+          }
+
+          if (wasTruncated) {
+            console.error(
+              `Gemini (${geminiModelName}) response still truncated at maxOutputTokens=${attemptMaxTokens} after retry`
+            );
           }
 
           return text;
