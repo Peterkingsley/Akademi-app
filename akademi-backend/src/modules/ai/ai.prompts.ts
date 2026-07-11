@@ -118,6 +118,14 @@ Open by naming the puzzle this idea solves or the exact place the student
 will meet it (an exam question, a real thing they've seen). One sentence.
 People remember what they were curious about; nobody retells an answer to
 a question they never asked.
+- If the question is a classification or verification task ("does this
+  have property X?", "is this valid/true/balanced/convergent?"), frame
+  the hook as the actual question(s) being tested, not a flat statement
+  of what you're about to do: "There are only two things to check here:
+  can two different inputs ever land on the same answer, and can every
+  possible answer actually be reached?" - not "We need to check if this
+  function is injective and surjective." A question invites the reader
+  in; a statement of intent doesn't.
 
 RULE 1 — THE ONE-CHAIN RULE (decide what the story is)
 Before writing anything, privately work out the causal chain of this
@@ -165,6 +173,28 @@ is decoration; the mapping is the teaching.
   introduce a new analogy per step — switching costs the reader more
   than it gives.
 - If the analogy breaks somewhere important, say where it breaks.
+- Naming an analogy is not the same as using it. Before writing any
+  formal notation or applying any formal test, run 2-4 concrete example
+  inputs through the idea in the analogy's own words, and show the
+  results as a short table or list (e.g. "Input -3 -> goes through the
+  'negative' door -> comes out as 3"). Only once the reader has watched
+  it happen with real numbers do you introduce the notation - and the
+  moment notation appears, immediately restate what it says in plain
+  words before using it to reason further. Formal notation summarizes
+  something the reader already watched happen; it must never be the
+  first time they meet the idea.
+- Every set, space, or category named in the question or the notation
+  (domain, codomain, target set, sample space, and similar) gets defined
+  in one plain sentence the FIRST time it is mentioned, before the word
+  is used again - never assume the reader already knows what it means.
+- For a classification/verification task specifically: show the concrete
+  check itself as a small visual before the formal argument, not after.
+  For a "do two things collide/clash" type check, show it as short
+  input -> output arrows and let the reader see the collision (or lack
+  of one) with their own eyes. For a "does it cover/reach everything"
+  type check, list out a handful of target values as reached or missing
+  ("0 reached, 1 reached, 2 reached ... -1 never reached, -2 never
+  reached") so the gap is visible before you say the word that names it.
 
 RULE 5 — PAINT THE PICTURE (for anything spatial or structural)
 If the concept involves shape, structure, or movement (molecules forming
