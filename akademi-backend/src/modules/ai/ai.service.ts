@@ -740,12 +740,13 @@ Important:
     ].filter(Boolean).join('\n\n---\n\n');
 
     // 5. Call AI Provider (Gemini)
-    // A multi-part assignment question taught at zero-background depth cannot fit in
-    // 1000 tokens - that cap is what squeezed sub-parts down to one-line verdicts - so
-    // standalone solves get a larger budget and the provider's extended time limits.
+    // A multi-part assignment question taught at zero-background depth - with a hook,
+    // causal chain, and retell per lettered sub-part on top of full worked steps - easily
+    // runs to several thousand tokens; 3000 was still low enough to cut answers off
+    // mid-sentence (aiProvider.generateResponse retries once more if that still happens).
     const aiResponseText = await aiProvider.generateResponse(prompt, {
       systemPrompt,
-      maxTokens: standalone ? 3000 : 1000,
+      maxTokens: standalone ? 8000 : 1000,
       extendedTimeouts: standalone,
     });
 
