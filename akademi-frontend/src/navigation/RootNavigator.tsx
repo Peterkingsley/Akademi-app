@@ -14,7 +14,7 @@ import * as Device from "expo-device";
 import { Platform } from "react-native";
 
 const Stack = createStackNavigator<RootStackParamList>();
-export const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const EAS_PROJECT_ID = "d1d7eb95-0f0a-44e4-b839-7f19fa7ef667";
 
 if (typeof window !== 'undefined') {
