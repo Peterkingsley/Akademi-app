@@ -31,6 +31,7 @@ export interface Message {
   role: "STUDENT" | "AI";
   content: string;
   metadata?: {
+    questionIndex?: number;
     autoContinue?: boolean;
     waitForStudent?: boolean;
     nextAction?: "continue_teaching" | "evaluate_answer" | "ask_followup" | "move_next";
@@ -53,6 +54,10 @@ export interface Message {
     graph?: {
       available?: boolean;
       payload?: GraphSpec;
+    };
+    practice?: {
+      question: string;
+      answer: string;
     };
   };
   reply_mode?: string;

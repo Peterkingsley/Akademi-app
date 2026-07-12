@@ -448,6 +448,21 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
     }
   }
 
+  // Standalone (pager) replies end with a tagged practice question since that screen has no
+  // chat input for a real follow-up. Split it out of the displayed content so it renders as
+  // its own "Now You Try" block instead of leaning on the model to format it inline.
+  private extractPracticeBlock(text: string): { content: string; practice: { question: string; answer: string } | null } {
+    const match = text.match(/\[PRACTICE\]([\s\S]*?)\[\/PRACTICE\]\s*\[PRACTICE_ANSWER\]([\s\S]*?)\[\/PRACTICE_ANSWER\]/);
+    if (!match) return { content: text, practice: null };
+
+    const question = match[1].trim();
+    const answer = match[2].trim();
+    const content = (text.slice(0, match.index) + text.slice(match.index! + match[0].length)).trim();
+
+    if (!question || !answer) return { content, practice: null };
+    return { content, practice: { question, answer } };
+  }
+
   private isGraphEligibleQuestion(studentMessage: string, session: { session_type: string }) {
     if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
@@ -476,7 +491,23 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
       'pictogram',
     ];
 
-    return graphSignals.some((signal) => text.includes(signal));
+    // Function-analysis questions (injective/surjective/domain/range checks) rarely say the
+    // word "graph" outright, but a plotted curve is exactly the visual that makes a collision
+    // or a gap in the range visible - so these count as graph signals too, gated to sessions
+    // that already look quantitative enough for a graph to make sense (checked by the caller).
+    const functionAnalysisSignals = [
+      'injective',
+      'surjective',
+      'bijective',
+      'one-to-one',
+      'onto',
+      'domain and range',
+      'domain of the function',
+      'range of the function',
+      'is the function',
+    ];
+
+    return [...graphSignals, ...functionAnalysisSignals].some((signal) => text.includes(signal));
   }
 
   private normalizeGraphResponse(raw: RawGraphResponse | null | undefined): GraphSpec | null {
@@ -692,6 +723,8 @@ Important:
 - The success bar: a student who reads this once should be able to explain each answer back to a friend and solve a similar question alone. If a step would be unclear to a complete beginner, expand it rather than shorten it.
 - The Explain-Back Contract and Calculation Teaching Mode in your instructions both apply here, and this is a multi-part question, so apply them per sub-part: open each lettered/numbered sub-part with a one-line hook or reframing before its working starts, walk that sub-part's causal chain step by step with nothing skipped, then close that sub-part with a short 1-2 sentence retell of what it showed. After every sub-part is done, end the whole reply with one short "whole story" retell (3-6 plain sentences) that ties every sub-part together into one takeaway the student could repeat about the entire question.
 - Format math with LaTeX delimiters the app can typeset: inline math in \\(...\\) and standalone equations in \\[...\\]. Never leave raw LaTeX outside delimiters.
+- This screen has no chat input, so the student cannot ask a follow-up here. After the whole-story retell, give them one concrete way to test their own understanding: add exactly one practice question of the same type but with different numbers, wrapped EXACTLY like this at the very end of your reply, with nothing after it:
+[PRACTICE]the practice question, in plain text[/PRACTICE][PRACTICE_ANSWER]a short worked answer to that practice question, using the same LaTeX rules[/PRACTICE_ANSWER]
 
 Question:
 ${studentMessage}`
@@ -750,19 +783,23 @@ Important:
       extendedTimeouts: standalone,
     });
 
+    const { content: cleanedResponseText, practice: practiceBlock } = standalone
+      ? this.extractPracticeBlock(aiResponseText)
+      : { content: aiResponseText, practice: null };
+
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
     const [whiteboardPayload, graphPayload] = await Promise.all([
-      isBoardEligible ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
-      isGraphQuestion ? this.buildGraphPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+      isBoardEligible ? this.buildWhiteboardPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
+      isGraphQuestion ? this.buildGraphPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
     ]);
 
     // 6. Cache response
     if (!isFollowUp && !standalone) {
-      await setCachedAIResponse(cacheKey, aiResponseText);
+      await setCachedAIResponse(cacheKey, cleanedResponseText);
     }
 
     return {
-      content: aiResponseText,
+      content: cleanedResponseText,
       metadata: {
         ...(whiteboardPayload
           ? {
@@ -779,6 +816,11 @@ Important:
                 available: true,
                 payload: graphPayload,
               },
+            }
+          : {}),
+        ...(practiceBlock
+          ? {
+              practice: practiceBlock,
             }
           : {}),
       },
