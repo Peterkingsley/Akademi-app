@@ -21,7 +21,6 @@ import { Screen } from "../../components/layout/Screen";
 import { SafeArea } from "../../components/layout/SafeArea";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { ProgressBar } from "../../components/ui/ProgressBar";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { AIInsightBanner } from "../../components/ui/AIInsightBanner";
 import { Badge } from "../../components/ui/Badge";
@@ -101,13 +100,22 @@ export const ExamPrepScreen: React.FC = () => {
     }
   };
 
+  const openCourseDetail = async (course: CourseHubItem) => {
+    try {
+      const plan = await examPrepService.getOrCreateCoursePlan(course.course_code);
+      navigation.navigate("PrepPlan", { examId: plan.id });
+    } catch (error: any) {
+      Alert.alert("Could not open course", error?.response?.data?.message || "Please try again.");
+    }
+  };
+
   const renderCourseCard = (course: CourseHubItem) => {
-    const mockActive = course.mastery_level >= 60;
     const hasExamDate = Boolean(course.exam_date);
+    const hasLastScore = course.last_mock_score !== null && course.last_mock_score !== undefined;
 
     return (
       <Animated.View key={course.course_code} entering={FadeInUp.delay(100)}>
-        <Card style={styles.examCard}>
+        <Card style={styles.examCard} onPress={() => openCourseDetail(course)}>
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderText}>
               <Text style={[styles.courseCode, typography.h3]}>
@@ -132,26 +140,16 @@ export const ExamPrepScreen: React.FC = () => {
             </View>
           </View>
 
-          <View style={styles.progressSection}>
-            <View style={styles.progressLabels}>
-              <Text style={[styles.progressLabel, typography.caption]}>
-                Mastery Level
-              </Text>
-              <Text style={[styles.progressValue, typography.bodySmall]}>
-                {course.mastery_level}%
-              </Text>
+          {hasLastScore && (
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={[styles.statValue, typography.body]}>
+                  {course.last_mock_score}%
+                </Text>
+                <Text style={[styles.statLabel, typography.caption]}>LAST MOCK SCORE</Text>
+              </View>
             </View>
-            <ProgressBar progress={course.mastery_level} color={colors.primary} />
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, typography.body]}>
-                {course.readiness_grade}
-              </Text>
-              <Text style={[styles.statLabel, typography.caption]}>GRADE</Text>
-            </View>
-          </View>
+          )}
 
           <View style={styles.actionRow}>
             <Button
@@ -163,16 +161,10 @@ export const ExamPrepScreen: React.FC = () => {
               label="Mock Exam"
               variant="outline"
               style={styles.actionBtn}
-              disabled={!mockActive}
               loading={startingCourse === course.course_code}
               onPress={() => startMockExam(course)}
             />
           </View>
-          {!mockActive && (
-            <Text style={[styles.lockText, typography.caption]}>
-              *Reach 60% Mastery to unlock Mock Exam
-            </Text>
-          )}
         </Card>
       </Animated.View>
     );
@@ -319,21 +311,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
-  progressSection: {
-    marginBottom: 20,
-  },
-  progressLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  progressLabel: {
-    color: colors.textSecondary,
-  },
-  progressValue: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
   statsRow: {
     flexDirection: "row",
     backgroundColor: colors.surfaceElevated,
@@ -360,12 +337,6 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1,
     height: 44,
-  },
-  lockText: {
-    color: colors.textMuted,
-    textAlign: "center",
-    marginTop: 12,
-    fontStyle: "italic",
   },
   emptyState: {
     alignItems: "center",

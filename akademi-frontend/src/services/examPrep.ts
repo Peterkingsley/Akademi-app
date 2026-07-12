@@ -11,29 +11,20 @@ export interface ExamPrepPlan {
   duration_minutes?: number;
   objective_question_count?: number;
   theory_question_count?: number;
-  progress: number;
-  readiness_score: number;
-  readiness_grade: string;
-  readinessScore?: number;
-  readinessGrade?: string;
   subject: string;
   days_left?: number | null;
+  last_mock_score?: number | null;
+  mock_count?: number;
 }
 
 export interface CourseHubItem {
   course_code: string;
   course_name?: string | null;
-  mastery_level: number;
-  readiness_grade: string;
   assessment_label?: string;
   exam_date?: string | null;
   days_left?: number | null;
   plan_id?: string | null;
-}
-
-export interface ReadinessResponse {
-  score: number;
-  grade: string;
+  last_mock_score?: number | null;
 }
 
 export interface MockQuestion {
@@ -127,8 +118,8 @@ const examPrepService = {
     return data;
   },
 
-  getReadiness: async (id: string) => {
-    const { data } = await api.get<ReadinessResponse>(`/exam-prep/${id}/readiness`);
+  getOrCreateCoursePlan: async (courseCode: string) => {
+    const { data } = await api.get<ExamPrepPlan>(`/exam-prep/courses/${encodeURIComponent(courseCode)}/plan`);
     return data;
   },
 

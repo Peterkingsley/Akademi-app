@@ -14,6 +14,17 @@ export class ExamPrepController {
     }
   }
 
+  async getOrCreateCoursePlan(req: Request, res: Response) {
+    try {
+      const { courseCode } = req.params;
+      const userId = (req.user as any).userId;
+      const plan = await examPrepService.getOrCreateFormattedPlanForCourse(userId, courseCode);
+      res.status(200).json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to load prep plan for course' });
+    }
+  }
+
   async upsertPlanSettings(req: Request, res: Response) {
     try {
       const { courseCode } = req.params;
@@ -97,17 +108,6 @@ export class ExamPrepController {
       res.status(200).json(plan);
     } catch (error: any) {
       res.status(404).json({ message: error.message });
-    }
-  }
-
-  async getReadiness(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const userId = (req.user as any).userId;
-      const score = await examPrepService.getReadinessScore(userId, id);
-      res.status(200).json({ readinessScore: score });
-    } catch (error) {
-      res.status(500).json({ message: 'Failed to calculate readiness score' });
     }
   }
 

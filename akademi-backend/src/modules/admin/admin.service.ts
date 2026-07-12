@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { config } from '../../config/env';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
+import { ensureQuestionBuffer, QUESTION_BUFFER_TARGET } from '../../jobs/generateQuestions.job';
 import { NotFoundException } from '../../shared/exceptions';
 import { getRateLimitMonitoringSnapshot } from '../../shared/middleware/rate-limit-observability';
 import { SessionType } from '@prisma/client';
@@ -971,7 +972,7 @@ export class AdminService {
     });
 
     try {
-      await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId: id });
+      await ensureQuestionBuffer(id, QUESTION_BUFFER_TARGET);
     } catch (error) {
       console.error(`Material ${id} approved, but question generation failed:`, error);
     }
@@ -1036,6 +1037,12 @@ export class AdminService {
         admin_reviewed_at: new Date()
       }
     });
+
+    try {
+      await ensureQuestionBuffer(id, QUESTION_BUFFER_TARGET);
+    } catch (error) {
+      console.error(`Material ${id} restored, but question buffer top-up failed:`, error);
+    }
 
     await notificationsService.createNotification({
       user_id: material.uploaded_by,
