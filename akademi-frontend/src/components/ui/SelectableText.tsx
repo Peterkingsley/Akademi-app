@@ -38,6 +38,11 @@ const normalizeText = (value: string) =>
     .replace(/\r\n/g, "\n")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
+    // Single-asterisk emphasis (*word*). The leading "no space right after the opening
+    // asterisk" check keeps this from touching a bullet marker ("* item") or a raw
+    // multiplication sign the model left unescaped (e.g. "2*x" - the char right before
+    // that asterisk is "2", not whitespace/start, so it never even reaches this branch).
+    .replace(/(^|\s)\*([^\s*][^*\n]*?)\*(?=[\s.,;:!?)]|$)/g, "$1$2")
     .replace(/__(.*?)__/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^\s*\*\s+/gm, "- ")

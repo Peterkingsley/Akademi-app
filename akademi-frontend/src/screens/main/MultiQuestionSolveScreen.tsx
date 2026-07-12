@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, ChevronLeft, ChevronRight, PenLine } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -19,7 +19,8 @@ import { SelectableText } from "../../components/ui/SelectableText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
-import { sessionService } from "../../services/session";
+import { sessionService, Message } from "../../services/session";
+import { GraphRenderer } from "../../components/graph/GraphRenderer";
 
 type QuestionEntry = { index: number; text: string };
 
@@ -38,10 +39,12 @@ export const MultiQuestionSolveScreen: React.FC = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [metadataByIndex, setMetadataByIndex] = useState<Record<number, Message["metadata"]>>({});
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [errorByIndex, setErrorByIndex] = useState<Record<number, string>>({});
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
+  const [revealedPracticeIndexes, setRevealedPracticeIndexes] = useState<Record<number, boolean>>({});
   // The answer's SelectableText resizes in visible steps while math loads and settles -
   // revealing it immediately made the card look like it was "writing then stopping" or
   // blinking. Keep the loading state up until SelectableText reports it has fully settled,
@@ -70,6 +73,7 @@ export const MultiQuestionSolveScreen: React.FC = () => {
       try {
         const result = await sessionService.solveQuestion(sessionId, index);
         setAnswers((prev) => ({ ...prev, [index]: result.answer.content }));
+        setMetadataByIndex((prev) => ({ ...prev, [index]: result.answer.metadata }));
         setErrorByIndex((prev) => {
           if (!prev[index]) return prev;
           const next = { ...prev };
@@ -130,6 +134,11 @@ export const MultiQuestionSolveScreen: React.FC = () => {
   const isCurrentLoading = loadingIndex === currentIndex && answers[currentIndex] === undefined;
   const currentError = errorByIndex[currentIndex];
   const showAnswerLoading = isCurrentLoading || (!currentError && !isAnswerReady);
+  const currentMetadata = metadataByIndex[currentIndex];
+  const currentGraph = currentMetadata?.graph?.payload;
+  const hasBoard = !!currentMetadata?.whiteboard?.payload?.steps?.length;
+  const currentPractice = currentMetadata?.practice;
+  const isPracticeRevealed = !!revealedPracticeIndexes[currentIndex];
 
   return (
     <Screen style={styles.screen}>
@@ -188,11 +197,55 @@ export const MultiQuestionSolveScreen: React.FC = () => {
                     }}
                     onReady={() => setIsAnswerReady(true)}
                   />
+                  {currentGraph && (
+                    <View style={styles.graphWrap}>
+                      <GraphRenderer spec={currentGraph} />
+                    </View>
+                  )}
+                  {hasBoard && (
+                    <TouchableOpacity
+                      style={styles.boardLink}
+                      onPress={() => navigation.navigate("BoardReplay", { sessionId, questionIndex: currentIndex })}
+                    >
+                      <PenLine size={16} color={colors.primary} />
+                      <Text style={[styles.boardLinkText, typography.bodySmall]}>View step-by-step board</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               )}
             </>
           )}
         </Card>
+
+        {!isCurrentLoading && !currentError && isAnswerReady && currentPractice && (
+          <Card style={styles.practiceCard}>
+            <Text style={[styles.monoLabel, typography.mono]}>NOW YOU TRY</Text>
+            <SelectableText
+              content={currentPractice.question}
+              onAskAkademi={(text) => {
+                setSelectedText(text);
+                setIsAskModalVisible(true);
+              }}
+            />
+            {isPracticeRevealed ? (
+              <View style={styles.practiceAnswerWrap}>
+                <SelectableText
+                  content={currentPractice.answer}
+                  onAskAkademi={(text) => {
+                    setSelectedText(text);
+                    setIsAskModalVisible(true);
+                  }}
+                />
+              </View>
+            ) : (
+              <Button
+                label="Reveal answer"
+                onPress={() => setRevealedPracticeIndexes((prev) => ({ ...prev, [currentIndex]: true }))}
+                style={styles.revealBtn}
+              />
+            )}
+          </Card>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -278,6 +331,34 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       backgroundColor: colors.surface,
       marginBottom: 16,
       minHeight: 100,
+    },
+    graphWrap: {
+      marginTop: 16,
+    },
+    boardLink: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      gap: 6,
+      marginTop: 14,
+      paddingVertical: 4,
+    },
+    boardLinkText: {
+      color: colors.primary,
+      fontWeight: "600",
+    },
+    practiceCard: {
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+      marginBottom: 16,
+    },
+    practiceAnswerWrap: {
+      marginTop: 12,
+    },
+    revealBtn: {
+      alignSelf: "flex-start",
+      marginTop: 12,
+      minWidth: 140,
     },
     loadingRow: {
       alignItems: "center",
