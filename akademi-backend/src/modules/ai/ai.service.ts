@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -326,7 +326,14 @@ export class AIService {
     ];
 
     const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]|\bdy\/dx\b|\bdx\b|\bx\^|\bx²|\bx³/.test(studentMessage);
-    const keywordSignal = mathSignals.some((signal) => text.includes(signal));
+    // Word-boundary match, not substring: a plain .includes() check false-positives on prose
+    // that merely contains the letters (e.g. "sin" inside "business", "tan" inside "important",
+    // "mean"/"force" as ordinary words), which was misrouting essay questions to the calculation
+    // prompt and the Board.
+    const keywordSignal = mathSignals.some((signal) => {
+      const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+    });
 
     return symbolSignals || keywordSignal;
   }
@@ -336,10 +343,36 @@ export class AIService {
     // in an assignment solve - only exam prep (a different, quiz-style flow) is excluded.
     if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
-    // The board keeps the broader net (course code counts as a signal): offering a board on a
-    // quantitative course rarely hurts, whereas the prompt-level calculation gate must stay strict.
-    const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
-    return this.hasCalculationSignals(studentMessage) || courseSignal;
+    // The board used to accept the course code alone as a signal, on the theory that offering a
+    // board on a quantitative course rarely hurts. In practice this let pure essay questions
+    // inside MTH/PHY/CHM/STA-coded courses reach the calculation-flavored whiteboard prompt,
+    // which then invented pseudo-math to fill the step schema. The message itself must now show
+    // an actual calculation signal - the course code alone is no longer sufficient.
+    return this.hasCalculationSignals(studentMessage);
+  }
+
+  // Command words examiners use to ask for a written case rather than a number - the essay
+  // counterpart to hasCalculationSignals. Word-boundary matched for the same reason: a bare
+  // substring check would false-positive inside unrelated prose.
+  private hasEssayDirectiveSignals(studentMessage: string) {
+    const text = studentMessage.toLowerCase();
+    const essaySignals = [
+      'critically examine', 'critically evaluate', 'critically discuss', 'critically assess',
+      'discuss', 'evaluate', 'assess', 'examine', 'analyze', 'analyse', 'to what extent',
+      'compare and contrast', 'justify', 'account for', 'explain the significance',
+      'explain the role', 'what is the relationship between',
+    ];
+    return essaySignals.some((signal) => {
+      const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+    });
+  }
+
+  // Mutually exclusive with the calculation Board by construction: a question only qualifies for
+  // an essay blueprint when it shows no calculation signal but does show an essay command word.
+  private isEssayBlueprintEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
+    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
+    return !this.hasCalculationSignals(studentMessage) && this.hasEssayDirectiveSignals(studentMessage);
   }
 
   private extractJsonObject(raw: string) {
@@ -444,6 +477,102 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
       return null;
     } catch (error) {
       console.error('Whiteboard payload generation failed:', error);
+      return null;
+    }
+  }
+
+  private parseEssayBlueprintPayload(raw: string) {
+    try {
+      const parsed = JSON.parse(this.extractJsonObject(raw));
+      const rawSteps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+      if (typeof parsed?.final_answer !== 'string' || rawSteps.length === 0) {
+        return null;
+      }
+
+      // Essay steps carry no math to normalize - unlike board steps, "math" is always forced
+      // empty here rather than parsed, so a conceptual step can never smuggle in pseudo-math.
+      const steps = rawSteps
+        .map((step: any) => ({
+          id: String(step?.id || ''),
+          type: step?.type === 'highlight' || step?.type === 'answer' ? step.type : 'write',
+          phase: String(step?.phase || ''),
+          text: this.cleanBoardCopy(String(step?.text || '').trim()),
+          math: '',
+          note: this.cleanBoardCopy(String(step?.note || '').trim()),
+        }))
+        .filter((step: { text: string }) => step.text.length > 0);
+
+      if (steps.length === 0) return null;
+
+      return {
+        title: String(parsed?.title || 'Essay blueprint'),
+        board_style: 'essay-blueprint' as const,
+        steps,
+        final_answer: parsed.final_answer.trim(),
+        summary: String(parsed?.summary || '').trim(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Mirrors hasValidPedagogicalArc's shape check, but for the essay arc: "decode" opens,
+  // "checklist" closes, "conclusion" sits immediately before it, and at least one "argument"
+  // step appears somewhere in between. "counter" is optional (some command words don't support
+  // one) so it is deliberately not required here.
+  private hasValidEssayArc(steps: Array<{ phase?: string }>) {
+    if (steps.length < 4) return true;
+    const interiorSteps = steps.slice(2, steps.length - 2);
+    return steps[0]?.phase === 'decode'
+      && steps[1]?.phase === 'thesis'
+      && steps[steps.length - 2]?.phase === 'conclusion'
+      && steps[steps.length - 1]?.phase === 'checklist'
+      && interiorSteps.some((step) => step.phase === 'argument');
+  }
+
+  private async buildEssayBlueprintPayload(studentMessage: string, answer: string) {
+    const requestBlueprint = async (correctiveInstruction?: string) => {
+      const raw = await aiProvider.generateResponse(
+        `Question: ${studentMessage}
+
+Reference answer:
+${answer}
+
+Create an essay blueprint plan for this question.${correctiveInstruction ? `\n\n${correctiveInstruction}` : ''}`,
+        {
+          systemPrompt: buildEssayBlueprintSystemPrompt(),
+          maxTokens: 900,
+        }
+      );
+
+      return this.parseEssayBlueprintPayload(raw);
+    };
+
+    const isAttemptValid = (attempt: ReturnType<AIService['parseEssayBlueprintPayload']>) =>
+      !!attempt && !this.hasConsecutiveDuplicateSteps(attempt.steps) && this.hasValidEssayArc(attempt.steps);
+
+    try {
+      const firstAttempt = await requestBlueprint();
+      if (isAttemptValid(firstAttempt)) return firstAttempt;
+      if (!firstAttempt) return null;
+
+      const missingArc = !this.hasValidEssayArc(firstAttempt.steps);
+      const hasDuplicates = this.hasConsecutiveDuplicateSteps(firstAttempt.steps);
+      const correctiveNotes = [
+        hasDuplicates
+          ? 'Your previous attempt repeated the same "text" across multiple consecutive steps. Each step must argue something the previous step did not already say.'
+          : '',
+        missingArc
+          ? 'Your previous attempt did not follow the required arc. Step 1 must have "phase": "decode", step 2 must have "phase": "thesis", the second-to-last step must have "phase": "conclusion", and the last step must have "phase": "checklist". Do not skip straight into argument points.'
+          : '',
+      ].filter(Boolean).join(' ');
+
+      const retryAttempt = await requestBlueprint(correctiveNotes);
+      if (isAttemptValid(retryAttempt)) return retryAttempt;
+
+      return null;
+    } catch (error) {
+      console.error('Essay blueprint payload generation failed:', error);
       return null;
     }
   }
@@ -788,9 +917,11 @@ Important:
       : { content: aiResponseText, practice: null };
 
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
-    const [whiteboardPayload, graphPayload] = await Promise.all([
+    const isEssayBlueprintEligible = this.isEssayBlueprintEligibleQuestion(studentMessage, session);
+    const [whiteboardPayload, graphPayload, essayBlueprintPayload] = await Promise.all([
       isBoardEligible ? this.buildWhiteboardPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
       isGraphQuestion ? this.buildGraphPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
+      isEssayBlueprintEligible ? this.buildEssayBlueprintPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
     ]);
 
     // 6. Cache response
@@ -815,6 +946,15 @@ Important:
               graph: {
                 available: true,
                 payload: graphPayload,
+              },
+            }
+          : {}),
+        ...(essayBlueprintPayload
+          ? {
+              essay_blueprint: {
+                available: true,
+                subject_family: 'conceptual',
+                payload: essayBlueprintPayload,
               },
             }
           : {}),
