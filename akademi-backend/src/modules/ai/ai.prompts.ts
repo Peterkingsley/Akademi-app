@@ -570,6 +570,65 @@ Rules:
 - Never give two consecutive steps the same "text" or the same "note". Every step must teach something the previous step did not already say. If you find yourself about to repeat a step, that fact belongs inside the ONE step you already wrote, not a duplicate of it.`;
 }
 
+export type EssayPhase = 'decode' | 'thesis' | 'argument' | 'counter' | 'conclusion' | 'checklist';
+
+export function buildEssayBlueprintSystemPrompt(): string {
+  return `You are preparing a structured essay blueprint for a Nigerian university student answering a conceptual, argumentative, or theory question (no calculation involved).
+
+Return STRICT JSON only. No markdown. No prose outside JSON.
+
+Essay blueprint purpose:
+- Do not just replay the answer as one block of prose.
+- Show the student the SKELETON a first-class answer is built from, one argument move at a time, so they can build their own answer to a similar question next time.
+- Assume the student has never been taught how examiners actually award marks. Make the hidden structure of a strong essay visible: what the question is really asking, the position being argued, each supporting point in turn, the strongest objection to that position, and how it all resolves.
+- An essay does not decompose into calculation "moves" - it decomposes into arguments. Each "argument" step must be one distinct point, not one sentence of a longer paragraph.
+
+MANDATORY arc - tag each step's "phase" field accordingly:
+1. "decode" (always step 1, exactly one step): unpack what the question is actually demanding. Name the command word ("critically examine", "evaluate", "discuss", "to what extent", "compare and contrast", etc.) and explain in plain language what that command word requires the student to do - a "discuss" answer looks different from an "evaluate" answer. Identify every distinct sub-part of the question so nothing gets missed.
+2. "thesis" (always step 2, exactly one step): state the one-sentence position the essay will argue. This is the student's own stance, not a restatement of the question.
+3. "argument" (step 3 onward, one distinct point per step, as many as the question's sub-parts genuinely require): each step is ONE point - point, plus the evidence, thinker, theory, or example that supports it, plus a one-clause link back to the thesis or the question. If the question has multiple named sub-parts (e.g. comparing several theorists), each sub-part gets its own step(s) - never compress three theorists into one step.
+4. "counter" (one step, placed after the argument steps): the strongest objection or alternative position a good student would be expected to acknowledge, and how the thesis holds up against it (or where it must be qualified). Skip this phase entirely (do not include a "counter" step) only if the question's command word cannot support a counter-argument (e.g. a pure "explain" or "define" task with no evaluative dimension).
+5. "conclusion" (always the second-to-last step, exactly one step): draw the argument threads together into a final judgment - not a repeat of the thesis, but what the thesis means once the counter-argument has been weighed.
+6. "checklist" (always the last step, exactly one step, "type": "answer"): an examiner's mark-scheme view - the concrete things a marker would actually award marks for (naming the right theorists/authorities, addressing every sub-part, engaging with a counter-argument, a clear final judgment). Written as short check-items in "text", not as instructions to the student.
+
+Use the schema fields like this:
+- "phase": one of "decode", "thesis", "argument", "counter", "conclusion", "checklist" as defined above.
+- "text": the step's content - what the point IS, written as if teaching it, not as an instruction to go write it. Never phrase a step as a task for the student ("Explain X", "Discuss Y") - write the actual explanation or argument itself.
+- "math": always an empty string. This blueprint is for non-computational questions; never invent a pseudo-equation, symbolic notation, or slogan-as-formula to fill this field.
+- "note": one short line on why this move matters for the mark scheme or the overall case being built.
+
+Schema:
+{
+  "title": string,
+  "board_style": "essay-blueprint",
+  "steps": [
+    {
+      "id": string,
+      "type": "write" | "highlight" | "answer",
+      "phase": "decode" | "thesis" | "argument" | "counter" | "conclusion" | "checklist",
+      "text": string,
+      "math": "",
+      "note": string
+    }
+  ],
+  "final_answer": string,
+  "summary": string
+}
+
+Rules:
+- Only return valid JSON.
+- This question has no calculation in it. Never invent numbers, formulas, or pseudo-equations to fill "math" - always leave "math" as an empty string on every step.
+- Each step must be short, classroom-clear, and cover exactly one point.
+- Never give two consecutive steps the same "text" or the same "note".
+- If the question has more than one distinct sub-question (e.g. pasted as "Question 1" and "Question 2"), only build a blueprint for the question actually referenced by the reference answer below - do not merge unrelated questions into one blueprint or force a shared thesis across them.
+- Keep "text" to two or three sentences per step, not a full paragraph - the student expands each step into prose themselves.
+- "note" should answer "why does this move earn marks", not restate "text".
+- "final_answer" should be a short model thesis statement / answer skeleton in plain language - a one-paragraph sketch of the position, not the full essay.
+- "summary" should end with one concrete self-check the student can use, such as "Did you address every sub-part the question named?" or "Would this survive a marker who disagrees with your thesis?"
+- Keep steps between 5 and 10 (the decode/thesis/conclusion/checklist arc steps count toward this).
+- The blueprint should feel useful even if the student opens it later without the original conversation.`;
+}
+
 export const questionReconstructionSystemPrompt = `You are cleaning up text that was mechanically extracted from a student's assignment document (via OCR or PDF/DOCX text extraction). That extraction process routinely destroys math structure: superscripts collapse onto the baseline (x2 instead of \\(x^2\\)), piecewise braces vanish or turn into a stray "(", fractions lose their bar, and function notation like "f: R -> R" loses its arrow or its blackboard-bold formatting.
 
 Your job: rewrite the text into clean, well-formatted text that preserves the exact academic content, with all mathematics properly delimited in LaTeX so the app can typeset it.
