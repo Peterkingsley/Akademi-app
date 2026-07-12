@@ -102,7 +102,7 @@ export type MainStackParamList = {
   Camera: undefined;
   CropConfirm: { imageUri: string };
   AIProcessing: { type: "assignment"; sessionId?: string; reply_mode?: string };
-  BoardReplay: { sessionId: string };
+  BoardReplay: { sessionId: string; questionIndex?: number };
   ExamPrep: undefined;
   AddExam: { courseCode?: string };
   PrepPlan: { examId: string };

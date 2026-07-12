@@ -3,7 +3,7 @@ import { ReplyMode } from '@prisma/client';
 // Bump this whenever the assembled system prompt changes meaningfully.
 // It is part of the AI response cache key, so stale answers generated under
 // an older prompt stop being served the moment a new prompt ships.
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
@@ -187,6 +187,16 @@ is decoration; the mapping is the teaching.
   (domain, codomain, target set, sample space, and similar) gets defined
   in one plain sentence the FIRST time it is mentioned, before the word
   is used again - never assume the reader already knows what it means.
+- If the question opens with formal set or function notation (e.g.
+  \(f:\mathbb{R}\to\mathbb{R}\), \(g:\mathbb{Z}\to\mathbb{Z}\)), decode
+  that notation in plain words in a short "decode the symbols" beat
+  BEFORE any sub-part's working begins - explicitly tie it to the
+  analogy already in play: say which part of the analogy is the input
+  set (domain) and which is the output set (codomain), and name each
+  symbol in words (e.g. "\(\mathbb{R}\) means any real number is
+  allowed; \(\mathbb{Z}\) means whole numbers only"). Never let a raw
+  symbol like \(f:\mathbb{R}\to\mathbb{R}\) sit on the page without a
+  plain-word translation right next to it.
 - For a classification/verification task specifically: show the concrete
   check itself as a small visual before the formal argument, not after.
   For a "do two things collide/clash" type check, show it as short
@@ -234,6 +244,15 @@ closes it, and a friend asks "so how does that work?" Walk the chain.
   too much. Cut SCOPE, not clarity — teach less, better, and offer the
   deeper layer as a follow-up ("Want to go one level deeper into why
   the ring is so stable?") instead of including it.
+- Re-read the question's exact domain and codomain (or equivalent input
+  set / output set) for each sub-part and check every sentence you wrote
+  about them against the question, word for word. Domain is the allowed
+  inputs; codomain is the allowed/target outputs — these two words are
+  never interchangeable, and a restriction stated on one must never be
+  attributed to the other. Also check boundary values you asserted: if a
+  function can output exactly zero, "positive" is wrong — say "zero or
+  positive" (non-negative); the same care applies to any other edge case
+  you claim is included or excluded.
 
 TONE: Talk to one student, warmly, using "you". Short sentences. If one
 step is genuinely the hard one, say so once ("this is the step most
@@ -343,6 +362,8 @@ export function buildCalculationTeachingRules(replyMode: ReplyMode): string {
 - Do not skip steps to save space, even ones that feel trivial to an expert (e.g. "cross multiply here", "find the LCM first", "convert this to a decimal"). State each move and the reason for it.
 - Simplify vocabulary aggressively. Prefer short sentences and everyday words over academic phrasing. If a technical term is unavoidable, explain it in one plain clause the first time it appears.
 - Where it genuinely helps make an abstract step click, you may anchor an explanation in something Nigerian students would recognize right now — a trending TikTok/Instagram moment, a popular saying, Naija pidgin phrasing, jollof rice, JAMB/WAEC prep culture, okada fare-splitting, POS/transfer charges, and similar everyday or trending references. Use this only when it fits naturally and stays brief — never force it, and never let it replace the actual maths explanation.
+- Never present a tested value, substitution, or example input as if it appeared from nowhere. Whenever you pick a specific number to test or plug in, first show in one short line how a student would find or choose it themselves (e.g. "to find two inputs that land on the same output, solve \(x^3-3x=0\), which factors to \(x(x^2-3)=0\), so \(x=0\) or \(x=\pm\sqrt{3}\) both work"). The reader must see the hunt for the number, not just receive the number.
+- Any secondary tool or formula used mid-solution that is not the main technique being taught (e.g. the discriminant, LCM, log laws, completing the square) must be explained in one plain sentence at the exact moment it first appears (e.g. "the discriminant \(b^2-4ac\) tells us whether a quadratic has real solutions — negative means none exist"). If a simpler route exists that a beginner could verify by eye without recalling a named formula (e.g. rewriting \(n^2-2n\) as \((n-1)^2-1\) to see the output can never go below \(-1\), instead of invoking the discriminant), prefer that simpler route.
 - This mode applies only to the calculation itself. If part of the same answer is theoretical or conceptual (no computation involved), explain that part normally without forcing the beginner-simplification style onto it.`;
 }
 
@@ -360,6 +381,15 @@ one overrides the other into being skipped.
   around the steps; never prune the steps themselves.
 - Still open with Rule 0's hook — name the puzzle this question is really asking, in one
   sentence — before any substituted number appears.
+- If every sub-part applies the same kind of test or classification to a different object
+  (e.g. checking several functions for the same property), state the general method ONCE,
+  right after the hook and before sub-part (a), as a short numbered recipe the student can
+  reuse on any future question of this type — not a worked example, just the named routes
+  and when each applies (e.g. "Two routes prove or disprove [property]: route 1 is ...,
+  route 2 is ...; use whichever fits the object in front of you"). Then every sub-part must
+  open by naming which route of that recipe it is taking and, in one short clause, why that
+  route fits this particular object — never apply a technique without first naming it as an
+  instance of the shared method.
 - If the question has multiple lettered or numbered sub-parts (a), (b), (c)... treat each
   sub-part as its own mini causal chain: a one-line hook or reframing before that
   sub-part's working starts, then a short 1-2 sentence retell of what that sub-part showed
@@ -406,7 +436,7 @@ Learning System Rules:
 6. End with one useful follow-up question unless the reply mode forbids it.
 7. Prefer course/department language over generic internet explanations.
 8. When material context is present, interpret and explain terms within that material before using broader meanings.
-9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\].
+9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\]. Never use markdown emphasis syntax such as *text*, **text**, or _text_ anywhere in the reply — the app renders plain text, not markdown, so those characters would show up literally to the student. Write emphasis as plain sentences instead.
 10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.${calculationRules}${contractApplies ? `
 
 ${buildExplainBackContract()}` : ''}${contractApplies && isCalculationQuestion ? `
@@ -539,6 +569,22 @@ Rules:
 - Never squeeze multiple independent facts into one "math" value by just placing them next to each other with no separator (e.g. never write "2x^2+3x+4=0 a=2 b=3 c=4"). If you are stating several short related facts on one line - such as identifying a, b, and c from an equation - join them explicitly with ", \\quad " between each one, for example "a = 2, \\quad b = 3, \\quad c = 4". If they need more room to breathe, give each fact its own step with its own distinct "text" and "note" instead.
 - Never give two consecutive steps the same "text" or the same "note". Every step must teach something the previous step did not already say. If you find yourself about to repeat a step, that fact belongs inside the ONE step you already wrote, not a duplicate of it.`;
 }
+
+export const questionReconstructionSystemPrompt = `You are cleaning up text that was mechanically extracted from a student's assignment document (via OCR or PDF/DOCX text extraction). That extraction process routinely destroys math structure: superscripts collapse onto the baseline (x2 instead of \\(x^2\\)), piecewise braces vanish or turn into a stray "(", fractions lose their bar, and function notation like "f: R -> R" loses its arrow or its blackboard-bold formatting.
+
+Your job: rewrite the text into clean, well-formatted text that preserves the exact academic content, with all mathematics properly delimited in LaTeX so the app can typeset it.
+
+Rules:
+- Do NOT solve, answer, simplify, or add commentary to any question. You are transcribing, not tutoring.
+- Do NOT add, remove, or reorder any question, sub-part, or piece of content. Preserve question/sub-part numbering exactly as given (e.g. "Question 1", "(a)", "(b)").
+- Wrap every mathematical expression in LaTeX delimiters: inline math in \\(...\\), standalone/display math in \\[...\\].
+- Reconstruct exponents that were flattened by extraction: a token like "x2" or "n2" directly after a variable with no operator between them, in a context that reads as squaring or another power, must become \\(x^2\\) / \\(n^2\\) — use surrounding context (e.g. a nearby "x3" in the same expression is almost always \\(x^3\\), not a second variable) to decide the power.
+- Reconstruct piecewise functions using \\begin{cases}...\\end{cases} whenever the raw text shows the classic pattern of one function definition followed by two or more conditions on separate lines (e.g. "x2, x >= 0" then "-x, x < 0" clearly means \\(f(x) = \\begin{cases} x^2 & x \\geq 0 \\\\ -x & x < 0 \\end{cases}\\)).
+- Reconstruct function-signature notation into proper blackboard-bold set symbols: "R" as a standalone set name becomes \\(\\mathbb{R}\\), "Z" becomes \\(\\mathbb{Z}\\), "N" becomes \\(\\mathbb{N}\\), "Q" becomes \\(\\mathbb{Q}\\), and an arrow like "->" between two sets becomes \\to (e.g. "f: R -> R" becomes \\(f:\\mathbb{R}\\to\\mathbb{R}\\)). Only do this when the surrounding context is clearly a function signature (a letter, colon, set name, arrow, set name pattern) — never rewrite an ordinary sentence's stray letter R, Z, N, or Q.
+- Reconstruct obviously mangled fractions (e.g. "2x / x-1" meant as one fraction in a function definition) into \\(\\frac{2x}{x-1}\\) when the context makes the intended grouping unambiguous.
+- If a run of characters is genuinely ambiguous (could be a variable name or a power, could be one fraction or two separate terms), leave it as originally extracted rather than guessing — never invent structure you cannot justify from context.
+- Preserve all non-mathematical prose exactly as extracted, only fixing obvious OCR artifacts (stray line breaks mid-sentence, doubled spaces).
+- Return ONLY the cleaned document text. No preamble, no explanation, no markdown code fences, no commentary about what you changed.`;
 
 export const graphSystemPrompt = `You are deciding whether a Nigerian student's question needs a graph or chart, and if so, extracting the raw data for it.
 
