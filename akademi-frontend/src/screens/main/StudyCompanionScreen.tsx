@@ -592,6 +592,17 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
 
+  const progressLabel = (() => {
+    if (!companionState) return "";
+    const sectionOfTotal = companionState.progress.totalSections
+      ? `Section ${companionState.currentSectionIndex + 1} of ${companionState.progress.totalSections}`
+      : "";
+    const passOfTotal = companionState.passNumber
+      ? `Pass ${companionState.passNumber} of ${companionState.totalPasses}`
+      : "";
+    return [sectionOfTotal, passOfTotal].filter(Boolean).join(" · ");
+  })();
+
   const micStatusText =
     recordingStatus ||
     (runtimeState === "student_speaking"
@@ -663,6 +674,7 @@ export const StudyCompanionScreen: React.FC = () => {
 
         <View style={styles.statusBar}>
           <Text style={styles.statusLabel}>{phaseLabel}</Text>
+          {progressLabel ? <Text style={styles.statusValue}>{progressLabel}</Text> : null}
           <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
         </View>
 
