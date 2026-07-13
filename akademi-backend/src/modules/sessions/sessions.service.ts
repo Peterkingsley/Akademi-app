@@ -13,6 +13,12 @@ import { aiProvider } from '../ai/ai.provider';
 import { questionReconstructionSystemPrompt } from '../ai/ai.prompts';
 import { studyCompanionService } from './study-companion.service';
 import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
+import {
+  isElevenLabsQuotaExceeded,
+  getElevenLabsQuotaMessage,
+  markElevenLabsQuotaExceeded,
+  isQuotaExceededResponse,
+} from '../voice/elevenlabs-quota';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -61,6 +67,10 @@ function parseElevenLabsError(status: number, detail: string) {
       'ElevenLabs voice is not available on this plan.',
       'Set ELEVENLABS_VOICE_ID to a default voice available in your ElevenLabs account, or upgrade the ElevenLabs plan for library voices.',
     ].join(' ');
+  }
+
+  if (isQuotaExceededResponse(status, detail)) {
+    return 'ElevenLabs quota exceeded. Falling back to device voice.';
   }
 
   return `ElevenLabs speech synthesis failed (${status}). ${detail}`.trim();
@@ -680,6 +690,10 @@ export class SessionsService {
       throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
     }
 
+    if (isElevenLabsQuotaExceeded()) {
+      throw new Error(getElevenLabsQuotaMessage());
+    }
+
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${config.elevenLabsVoiceId}?output_format=mp3_44100_128`,
       {
@@ -709,7 +723,11 @@ export class SessionsService {
       } catch {
         detail = '';
       }
-      throw new Error(parseElevenLabsError(response.status, detail));
+      const message = parseElevenLabsError(response.status, detail);
+      if (isQuotaExceededResponse(response.status, detail)) {
+        markElevenLabsQuotaExceeded(message);
+      }
+      throw new Error(message);
     }
 
     const audioBuffer = Buffer.from(await response.arrayBuffer());

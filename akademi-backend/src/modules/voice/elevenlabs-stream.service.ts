@@ -2,6 +2,11 @@ import { Response } from 'express';
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/env';
+import {
+  isElevenLabsQuotaExceeded,
+  getElevenLabsQuotaMessage,
+  markElevenLabsQuotaExceeded,
+} from './elevenlabs-quota';
 
 type PendingStream = {
   id: string;
@@ -45,6 +50,10 @@ export class ElevenLabsStreamService {
 
     if (!config.elevenLabsApiKey) {
       throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
+    }
+
+    if (isElevenLabsQuotaExceeded()) {
+      throw new Error(getElevenLabsQuotaMessage());
     }
 
     this.cleanupExpiredStreams();
@@ -196,6 +205,9 @@ export class ElevenLabsStreamService {
           };
 
           if (parsed.error) {
+            if (/quota_exceeded/i.test(parsed.error)) {
+              markElevenLabsQuotaExceeded('ElevenLabs quota exceeded. Falling back to device voice.');
+            }
             finish(new Error(parsed.error));
             closeSocket();
             return;
