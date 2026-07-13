@@ -117,6 +117,8 @@ export interface StudyCompanionState {
   pendingPrompt: string | null;
   materialId: string;
   courseCode: string;
+  passNumber: number | null;
+  totalPasses: number;
 }
 
 export interface StudyVisualItem {
