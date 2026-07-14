@@ -1,7 +1,0 @@
-Task: Resolve Prisma migration conflict on Render.
-Issue: Migration 20260522090202_add_question_scoring_fields failed because columns already existed. Another migration 20260324170000_sync_schema was in a failed state (duplicate entry).
-Solution:
-1. Created akademi-backend/fix-db.js to manually clean up _prisma_migrations table using Prisma raw queries.
-2. Integrated fix-db.js into the build process in package.json (run after prisma generate).
-3. Documented the resolution in README.md.
-Pattern: For Render-hosted Postgres where raw SQL tools might be read-only, using a script within the application build pipeline (which has the production DATABASE_URL) is an effective way to perform administrative DB tasks like fixing migration records.
