@@ -66,9 +66,29 @@ Akademi is an AI-powered personalized academic companion app built specifically 
 - `tests/`: Test files
 - `docker/`: Docker-related files
 
-## Manual Migration Resolution
-A manual database fix script (`fix-db.js`) has been added to resolve a Prisma migration conflict.
-This script cleans up failed migration records in the `_prisma_migrations` table to allow `prisma migrate deploy` to proceed.
+## Resolving a stuck migration
+
+If `prisma migrate deploy` ever fails because a migration is stuck in a failed
+state (or was applied out-of-band and Prisma doesn't know it), resolve it
+once, by hand, against that database — do not paper over it with a script in
+the build pipeline:
+
+```bash
+# migration is stuck failed and should be discarded (never actually applied)
+npx prisma migrate resolve --rolled-back <migration_name>
+
+# migration's changes are already in the DB (e.g. applied manually) but
+# Prisma's tracking table doesn't reflect it
+npx prisma migrate resolve --applied <migration_name>
+```
+
+Then re-run `prisma migrate deploy`. This previously lived as a `fix-db.js`
+script wired into `npm run build`/`render:build`, which ran hardcoded raw SQL
+against `_prisma_migrations` on every single build — it was removed once the
+one-time conflict it existed for was confirmed resolved (dozens of
+migrations have deployed cleanly since). Keeping that kind of fix in the
+build pipeline permanently risks silently masking real schema drift instead
+of surfacing it.
 
 ## Data Pipeline (Regulatory Sources)
 
