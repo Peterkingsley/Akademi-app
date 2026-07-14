@@ -9,7 +9,6 @@ import {
   Platform,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Lock } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
@@ -19,11 +18,14 @@ import api from "../../services/api";
 export const EmailVerificationScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const email = route.params?.email || "student@unilag.edu.ng";
+  const email: string | undefined = route.params?.email;
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(45);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendStatus, setResendStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const inputs = useRef<TextInput[]>([]);
 
   useEffect(() => {
@@ -34,15 +36,36 @@ export const EmailVerificationScreen: React.FC = () => {
   }, []);
 
   const handleChange = (text: string, index: number) => {
-    const newCode = [...code];
-    newCode[index] = text;
-    setCode(newCode);
+    const digitsOnly = text.replace(/[^0-9]/g, "");
+    setError(null);
 
-    if (text && index < 5) {
-      inputs.current[index + 1].focus();
+    if (digitsOnly.length > 1) {
+      // Pasted or autofilled code — distribute digits across the remaining boxes.
+      const newCode = [...code];
+      let cursor = index;
+      for (const digit of digitsOnly) {
+        if (cursor > 5) break;
+        newCode[cursor] = digit;
+        cursor++;
+      }
+      setCode(newCode);
+      if (newCode.every((digit) => digit !== "")) {
+        Keyboard.dismiss();
+      } else {
+        inputs.current[Math.min(cursor, 5)]?.focus();
+      }
+      return;
     }
 
-    if (newCode.every(digit => digit !== "")) {
+    const newCode = [...code];
+    newCode[index] = digitsOnly;
+    setCode(newCode);
+
+    if (digitsOnly && index < 5) {
+      inputs.current[index + 1]?.focus();
+    }
+
+    if (newCode.every((digit) => digit !== "")) {
       Keyboard.dismiss();
     }
   };
@@ -55,9 +78,10 @@ export const EmailVerificationScreen: React.FC = () => {
 
   const handleVerify = async () => {
     const otpCode = code.join("");
-    if (otpCode.length !== 6) return;
+    if (otpCode.length !== 6 || !email) return;
 
     setLoading(true);
+    setError(null);
     try {
       const response = await api.post("/auth/verify-email", {
         email,
@@ -70,19 +94,51 @@ export const EmailVerificationScreen: React.FC = () => {
 
       const { user, accessToken, refreshToken, adminAccessToken } = response.data;
       navigation.navigate("SetupComplete", { user, accessToken, refreshToken, adminAccessToken });
-    } catch (error: any) {
-      console.error("Verification failed", error);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "That code didn't work. Check it and try again.");
+      setCode(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (timer === 0) {
-      setTimer(45);
+    if (timer > 0 || resending || !email) return;
+
+    setResending(true);
+    setResendStatus(null);
+    try {
       await api.post("/auth/resend-verification", { email });
+      setTimer(45);
+      setResendStatus({ type: "success", message: "Code sent. Check your inbox." });
+    } catch (err: any) {
+      setResendStatus({
+        type: "error",
+        message: err.response?.data?.message || "Couldn't resend the code. Try again.",
+      });
+    } finally {
+      setResending(false);
     }
   };
+
+  if (!email) {
+    return (
+      <Screen scrollable style={{ flex: 1 }} onBack={() => navigation.goBack()} title="Akademi">
+        <View style={styles.container}>
+          <Text style={styles.headline}>Something went wrong</Text>
+          <Text style={styles.body}>
+            We couldn't find the email address to verify. Please go back and try signing up again.
+          </Text>
+          <Button
+            label="Go back"
+            onPress={() => navigation.goBack()}
+            style={styles.verifyButton}
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scrollable style={{ flex: 1 }}
@@ -95,21 +151,31 @@ export const EmailVerificationScreen: React.FC = () => {
           We sent a 6-digit code to <Text style={{ color: colors.primary }}>{email}</Text>. Enter it below to verify your account.
         </Text>
 
+        {error ? (
+          <View style={styles.errorBanner} accessibilityRole="alert">
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.otpContainer}>
           {code.map((digit, index) => (
             <View key={index} style={[
               styles.otpBox,
               digit !== "" && styles.otpBoxFilled,
+              error && styles.otpBoxError,
             ]}>
               <TextInput
                 ref={(ref) => (inputs.current[index] = ref as TextInput)}
                 style={styles.otpInput}
-                maxLength={1}
+                maxLength={6}
                 keyboardType="number-pad"
                 value={digit}
                 onChangeText={(text) => handleChange(text, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
                 selectionColor={colors.primary}
+                autoComplete={index === 0 ? "one-time-code" : "off"}
+                textContentType="oneTimeCode"
+                accessibilityLabel={`Digit ${index + 1} of 6`}
               />
             </View>
           ))}
@@ -125,19 +191,29 @@ export const EmailVerificationScreen: React.FC = () => {
 
         <View style={styles.resendSection}>
           <Text style={styles.resendText}>Didn't get it?</Text>
-          <TouchableOpacity onPress={handleResend} disabled={timer > 0}>
-            <Text style={[styles.resendLink, timer > 0 && styles.resendDisabled]}>
-              Resend code {timer > 0 && <Text style={styles.timer}>0:{timer < 10 ? `0${timer}` : timer}</Text>}
+          <TouchableOpacity
+            onPress={handleResend}
+            disabled={timer > 0 || resending}
+            accessibilityRole="button"
+            accessibilityLabel="Resend verification code"
+          >
+            <Text style={[styles.resendLink, (timer > 0 || resending) && styles.resendDisabled]}>
+              {resending ? "Sending..." : "Resend code"} {timer > 0 && <Text style={styles.timer}>0:{timer < 10 ? `0${timer}` : timer}</Text>}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.changeEmail}>
+          {resendStatus ? (
+            <Text style={[styles.resendStatusText, resendStatus.type === "error" && styles.resendStatusError]}>
+              {resendStatus.message}
+            </Text>
+          ) : null}
+          <TouchableOpacity
+            style={styles.changeEmail}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Change email address"
+          >
             <Text style={styles.changeEmailText}>Change email address</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.footerPill}>
-          <Lock size={12} color={colors.textMuted} />
-          <Text style={styles.footerPillText}>END-TO-END ENCRYPTED VERIFICATION</Text>
         </View>
       </View>
     </Screen>
@@ -158,10 +234,24 @@ const styles = StyleSheet.create({
   },
   body: {
     color: colors.textSecondary,
-    fontSize: 11.25,
+    fontSize: 13,
     fontFamily: "Inter-Regular",
     marginTop: 12,
     lineHeight: 22,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: colors.error,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 12,
+  },
+  errorBannerText: {
+    color: colors.error,
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    lineHeight: 18,
   },
   otpContainer: {
     flexDirection: "row",
@@ -182,6 +272,9 @@ const styles = StyleSheet.create({
   otpBoxFilled: {
     borderColor: colors.primary,
   },
+  otpBoxError: {
+    borderColor: colors.error,
+  },
   otpInput: {
     color: colors.textPrimary,
     fontSize: 18,
@@ -197,17 +290,27 @@ const styles = StyleSheet.create({
   },
   resendText: {
     color: colors.textSecondary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     marginBottom: 8,
   },
   resendLink: {
     color: colors.primary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Bold",
   },
   resendDisabled: {
     color: colors.textSecondary,
+  },
+  resendStatusText: {
+    color: colors.success,
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    marginTop: 8,
+    textAlign: "center",
+  },
+  resendStatusError: {
+    color: colors.error,
   },
   timer: {
     color: colors.primary,
@@ -218,26 +321,7 @@ const styles = StyleSheet.create({
   },
   changeEmailText: {
     color: colors.primary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
-  },
-  footerPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 99,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    position: "absolute",
-    bottom: 40,
-    alignSelf: "center",
-  },
-  footerPillText: {
-    color: colors.textMuted,
-    fontSize: 7.5,
-    fontFamily: "SpaceMono-Regular",
-    marginLeft: 8,
-    letterSpacing: 0.5,
   },
 });

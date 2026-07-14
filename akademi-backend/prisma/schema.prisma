@@ -950,6 +950,16 @@ model Department {
   @@map("departments")
 }
 
+model UniversityRequest {
+  id         String   @id @default(uuid())
+  query      String
+  email      String?
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+  @@map("university_requests")
+}
+
 model ExamPrepPlan {
   id                       String     @id @default(uuid())
   user_id                  String

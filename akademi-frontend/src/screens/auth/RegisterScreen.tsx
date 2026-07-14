@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, GraduationCap, LockKeyhole, Mail, ShieldCheck, Us
 import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { AuthProgressDots } from "../../components/auth/AuthProgressDots";
 import api from "../../services/api";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -65,10 +66,11 @@ export const RegisterScreen: React.FC = () => {
     setError(null);
     try {
       const levelInt = parseInt(String(level || "").replace(/[^0-9]/g, ""), 10) || 100;
+      const normalizedEmail = form.email.trim().toLowerCase();
 
       await api.post("/auth/register", {
         name: form.name.trim(),
-        email: form.email.trim(),
+        email: normalizedEmail,
         password: form.password,
         university,
         faculty,
@@ -81,7 +83,7 @@ export const RegisterScreen: React.FC = () => {
         academicCourses,
       });
 
-      navigation.navigate("EmailVerification", { email: form.email.trim() });
+      navigation.navigate("EmailVerification", { email: normalizedEmail });
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
     } finally {
@@ -105,11 +107,24 @@ export const RegisterScreen: React.FC = () => {
     <Screen hideHeader style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <TouchableOpacity style={styles.profileChip} onPress={() => navigation.navigate("UniversityPicker")} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.profileChip}
+            onPress={() => (hasAcademicProfile ? navigation.goBack() : navigation.navigate("UniversityPicker"))}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Edit academic profile"
+          >
             <GraduationCap size={16} color={colors.primary} />
             <Text style={styles.profileChipText}>Academic Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.authChip} onPress={() => navigation.navigate("Login")} activeOpacity={0.85}>
+          <AuthProgressDots step={4} total={4} />
+          <TouchableOpacity
+            style={styles.authChip}
+            onPress={() => navigation.navigate("Login")}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Go to sign in"
+          >
             <Text style={styles.authChipText}>Sign In</Text>
           </TouchableOpacity>
         </View>
@@ -196,9 +211,23 @@ export const RegisterScreen: React.FC = () => {
 
           <Text style={styles.termsText}>
             By continuing, you agree to Akademi's{" "}
-            <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Terms</Text>
+            <Text
+              style={styles.linkText}
+              onPress={() => navigation.navigate("PrivacyData")}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Service"
+            >
+              Terms
+            </Text>
             {" "}and{" "}
-            <Text style={styles.linkText} onPress={() => navigation.navigate("PrivacyData")}>Privacy Policy</Text>.
+            <Text
+              style={styles.linkText}
+              onPress={() => navigation.navigate("PrivacyData")}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              Privacy Policy
+            </Text>.
           </Text>
 
           <Button
