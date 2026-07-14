@@ -14,6 +14,7 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { AuthProgressDots } from "../../components/auth/AuthProgressDots";
 import api from "../../services/api";
 
 interface Department {
@@ -94,14 +95,7 @@ export const DepartmentPickerScreen: React.FC = () => {
     <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
-      rightAction={
-        <View style={styles.progressDots}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.activeDot]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-      }
+      rightAction={<AuthProgressDots step={2} total={4} />}
       scrollable
     >
       <View style={styles.container}>
@@ -142,6 +136,9 @@ export const DepartmentPickerScreen: React.FC = () => {
                       selectedFaculty === faculty && styles.selectedFacultyChip,
                     ]}
                     onPress={() => setSelectedFaculty(faculty)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selectedFaculty === faculty }}
+                    accessibilityLabel={faculty}
                   >
                     <Text
                       style={[
@@ -176,6 +173,9 @@ export const DepartmentPickerScreen: React.FC = () => {
                           isSelected && styles.selectedDeptItem,
                         ]}
                         onPress={() => setSelectedDept(dept)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: isSelected }}
+                        accessibilityLabel={dept.name}
                       >
                         <Text style={styles.deptName}>{dept.name}</Text>
                         <View
@@ -210,6 +210,9 @@ export const DepartmentPickerScreen: React.FC = () => {
                         isSelected && styles.selectedLevelPill,
                       ]}
                       onPress={() => setSelectedLevel(level)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      accessibilityLabel={level}
                     >
                       <Text
                         style={[
@@ -266,21 +269,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 20,
   },
-  progressDots: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#1F2937",
-    marginLeft: 4,
-  },
-  activeDot: {
-    backgroundColor: colors.primary,
-    width: 12,
-  },
   headline: {
     color: colors.textPrimary,
     fontSize: 21,
@@ -290,7 +278,7 @@ const styles = StyleSheet.create({
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 11.25,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 24,
@@ -306,7 +294,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.textSecondary,
-    fontSize: 9.75,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     textTransform: "uppercase",
     letterSpacing: 1.2,
@@ -319,7 +307,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: "#000000",
-    fontSize: 8.25,
+    fontSize: 12,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
   },
@@ -337,12 +325,12 @@ const styles = StyleSheet.create({
   },
   selectedFacultyChip: {
     borderColor: colors.primary,
-    backgroundColor: "#0D1526",
+    backgroundColor: "rgba(48,64,0,0.35)",
     borderWidth: 2,
   },
   facultyChipText: {
     color: colors.textSecondary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
   },
   selectedFacultyChipText: {
@@ -365,11 +353,11 @@ const styles = StyleSheet.create({
   },
   selectedDeptItem: {
     borderColor: colors.primary,
-    backgroundColor: "#0D1526",
+    backgroundColor: "rgba(48,64,0,0.35)",
   },
   deptName: {
     color: colors.textPrimary,
-    fontSize: 11.25,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
   },
   radioCircle: {
@@ -405,7 +393,7 @@ const styles = StyleSheet.create({
   },
   levelPillText: {
     color: colors.textSecondary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
   },
   selectedLevelPillText: {

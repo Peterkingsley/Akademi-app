@@ -43,10 +43,7 @@ export const SetupCompleteScreen: React.FC = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
   const authPayload = route.params || {};
   const firstName = authPayload.user?.name?.split(" ")[0] || "there";
-  const courses: string[] =
-    Array.isArray(authPayload.user?.courses) && authPayload.user.courses.length > 0
-      ? authPayload.user.courses
-      : ["Your courses"];
+  const courses: string[] = Array.isArray(authPayload.user?.courses) ? authPayload.user.courses : [];
 
   const checkScale = useSharedValue(0);
   const contentOpacity = useSharedValue(0);
@@ -96,14 +93,23 @@ export const SetupCompleteScreen: React.FC = () => {
             </Text>
           </Animated.View>
 
-          <View style={styles.syncSection}>
-            <Text style={styles.syncLabel}>CURRICULUM SYNCED</Text>
-            <View style={styles.courseRow}>
-              {courses.slice(0, 4).map((course, index) => (
-                <CoursePill key={course} course={course} delay={800 + index * 80} />
-              ))}
+          {courses.length > 0 ? (
+            <View style={styles.syncSection}>
+              <Text style={styles.syncLabel}>CURRICULUM SYNCED</Text>
+              <View style={styles.courseRow}>
+                {courses.slice(0, 4).map((course, index) => (
+                  <CoursePill key={course} course={course} delay={800 + index * 80} />
+                ))}
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.syncSection}>
+              <Text style={styles.syncLabel}>NO COURSES ADDED YET</Text>
+              <Text style={styles.noCoursesText}>
+                Add your course codes anytime from your profile.
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.footer}>
@@ -151,7 +157,7 @@ const styles = StyleSheet.create({
   },
   celebrationText: {
     color: colors.textPrimary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Medium",
   },
   textContainer: {
@@ -178,11 +184,17 @@ const styles = StyleSheet.create({
   },
   syncLabel: {
     color: colors.textMuted,
-    fontSize: 8.25,
+    fontSize: 12,
     fontFamily: "SpaceMono-Regular",
     textAlign: "center",
     marginBottom: 16,
     letterSpacing: 1,
+  },
+  noCoursesText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    textAlign: "center",
   },
   courseRow: {
     flexDirection: "row",
@@ -200,7 +212,7 @@ const styles = StyleSheet.create({
   },
   courseText: {
     color: colors.textSecondary,
-    fontSize: 9,
+    fontSize: 12,
     fontFamily: "SpaceMono-Regular",
   },
   footer: {
@@ -209,7 +221,7 @@ const styles = StyleSheet.create({
   },
   footerMotto: {
     color: colors.textMuted,
-    fontSize: 7.5,
+    fontSize: 12,
     fontFamily: "SpaceMono-Regular",
     marginTop: 20,
     letterSpacing: 1,

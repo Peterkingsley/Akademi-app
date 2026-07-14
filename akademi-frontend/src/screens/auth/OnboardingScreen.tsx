@@ -1,6 +1,5 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
-  Dimensions,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -8,9 +7,11 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowRight, BookOpen, ScanLine, Target } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -19,13 +20,14 @@ import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
-const { width, height } = Dimensions.get("window");
-
 const onboardingFemale = require("../../../assets/images/onboarding-female.jpg");
 const onboardingMale = require("../../../assets/images/onboarding-male.jpg");
 
 export const OnboardingScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(width, height, insets.top), [width, height, insets.top]);
   const [activeSlide, setActiveSlide] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -63,7 +65,12 @@ export const OnboardingScreen: React.FC = () => {
               <View style={styles.logoContainer}>
                 <BrandWordmark style={styles.logoText} />
               </View>
-              <TouchableOpacity onPress={handleLogin} activeOpacity={0.8}>
+              <TouchableOpacity
+                onPress={handleLogin}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in"
+              >
                 <Text style={styles.signInTop}>Sign in</Text>
               </TouchableOpacity>
             </View>
@@ -72,7 +79,6 @@ export const OnboardingScreen: React.FC = () => {
               <View style={styles.illustrationCard}>
                 <Image source={onboardingFemale} style={styles.illustrationImage} resizeMode="cover" />
                 <View style={styles.badgeChip}>
-                  <Text style={styles.badgeLabel}>MVP BETA</Text>
                   <Text style={styles.badgeValue}>Materials, CBT practice, and exam prep in one flow.</Text>
                 </View>
               </View>
@@ -131,7 +137,7 @@ export const OnboardingScreen: React.FC = () => {
             </View>
             <Text style={styles.slide2Headline}>
               Your academic command center.{"\n"}
-              <Text style={styles.greenText}>Built for Android beta.</Text>
+              <Text style={styles.greenText}>Built around your course.</Text>
             </Text>
             <Text style={styles.slide2Body}>
               Create your academic profile once. Akademi uses it to match materials, assignment help, study mode, and exam prep.
@@ -158,7 +164,7 @@ export const OnboardingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (width: number, height: number, safeTop: number) => StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     flex: 1,
@@ -175,7 +181,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 26,
+    marginTop: safeTop + 8,
   },
   logoContainer: {
     alignItems: "center",
@@ -199,7 +205,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    height: 292,
+    height: "100%",
     padding: 14,
     position: "relative",
   },
@@ -218,12 +224,6 @@ const styles = StyleSheet.create({
     padding: 12,
     position: "absolute",
     right: 16,
-  },
-  badgeLabel: {
-    ...typography.label,
-    color: colors.primary,
-    fontSize: 8,
-    marginBottom: 4,
   },
   badgeValue: {
     ...typography.caption,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 32,
+    marginTop: safeTop + 12,
     zIndex: 10,
   },
   progressIndicators: {

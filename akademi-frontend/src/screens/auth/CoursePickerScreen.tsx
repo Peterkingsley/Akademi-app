@@ -15,6 +15,7 @@ import { CalendarDays, CheckCircle2, Plus, X } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { AuthProgressDots } from "../../components/auth/AuthProgressDots";
 import api from "../../services/api";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -142,8 +143,8 @@ export const CoursePickerScreen: React.FC = () => {
       academicCourses: selectedCourses.map((course) => ({
         code: course.code,
         name: course.name || undefined,
-        level: levelNumber,
-        semester,
+        level: course.level,
+        semester: course.semester,
       })),
     });
   };
@@ -169,8 +170,11 @@ export const CoursePickerScreen: React.FC = () => {
           isSelected && styles.selectedSuggestionCard,
           pressed && styles.pressedSuggestionCard,
         ]}
-        onPressIn={() => toggleSuggestion(item)}
+        onPress={() => toggleSuggestion(item)}
         hitSlop={8}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: isSelected }}
+        accessibilityLabel={`${item.code}${item.name ? `, ${item.name}` : ""}`}
       >
         <View style={styles.suggestionHeader}>
           <Text style={styles.courseCode}>{item.code}</Text>
@@ -192,7 +196,12 @@ export const CoursePickerScreen: React.FC = () => {
   };
 
   return (
-    <Screen style={{ flex: 1 }} onBack={() => navigation.goBack()} title="">
+    <Screen
+      style={{ flex: 1 }}
+      onBack={() => navigation.goBack()}
+      title=""
+      rightAction={<AuthProgressDots step={3} total={4} />}
+    >
       <View style={styles.container}>
         <FlatList
           data={suggestions}
@@ -204,7 +213,6 @@ export const CoursePickerScreen: React.FC = () => {
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <View>
-              <Text style={styles.stepText}>STEP 3 OF 4</Text>
               <Text style={styles.headline}>Add your course codes</Text>
               <Text style={styles.subtext}>
                 Pick suggestions from your department or type your own. Don't have them handy? You can skip this and add them later from your profile.
@@ -300,7 +308,13 @@ export const CoursePickerScreen: React.FC = () => {
                   </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.selectedRow}>
                     {selectedCourses.map((course) => (
-                      <TouchableOpacity key={course.code} style={styles.selectedPill} onPress={() => removeCourse(course.code)}>
+                      <TouchableOpacity
+                        key={course.code}
+                        style={styles.selectedPill}
+                        onPress={() => removeCourse(course.code)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${course.code}`}
+                      >
                         <Text style={styles.selectedPillText}>{course.code}</Text>
                         <X size={14} color={colors.primary} />
                       </TouchableOpacity>
@@ -350,16 +364,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: 190,
   },
-  stepText: {
-    ...typography.label,
-    color: colors.primary,
-    marginBottom: 8,
-    marginTop: 20,
-  },
   headline: {
     ...typography.h2,
     color: colors.textPrimary,
     fontSize: 22,
+    marginTop: 20,
   },
   subtext: {
     ...typography.bodySmall,
