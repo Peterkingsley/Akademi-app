@@ -114,6 +114,15 @@ export class UniversitiesService {
     });
   }
 
+  async requestUniversity(query: string, email?: string) {
+    return prisma.universityRequest.create({
+      data: {
+        query,
+        email: email || null,
+      },
+    });
+  }
+
   async getCourseSuggestions(departmentId: string, level?: number, semester?: number) {
     const normalizedLevel = level && Number.isFinite(level) ? level : undefined;
     const normalizedSemester = semester && [1, 2].includes(semester) ? semester : undefined;

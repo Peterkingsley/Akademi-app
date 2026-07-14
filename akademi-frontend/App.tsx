@@ -12,6 +12,7 @@ import { SpaceMono_400Regular } from "@expo-google-fonts/space-mono";
 import * as SplashScreenNative from "expo-splash-screen";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 import { clearSentryUserContext, initSentry, Sentry, setSentryRouteTag, setSentryUserContext } from "./src/lib/sentry";
@@ -70,9 +71,11 @@ function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

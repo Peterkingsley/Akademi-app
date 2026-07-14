@@ -8,12 +8,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Search, Sparkles, CheckCircle2 } from "lucide-react-native";
+import { Search, BookOpen, CheckCircle2, Send } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { Input } from "../../components/ui/Input";
+import { AuthProgressDots } from "../../components/auth/AuthProgressDots";
 import api from "../../services/api";
 
 interface University {
@@ -31,6 +32,10 @@ export const UniversityPickerScreen: React.FC = () => {
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [requestEmail, setRequestEmail] = useState("");
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestSubmitted, setRequestSubmitted] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUniversities();
@@ -56,6 +61,31 @@ export const UniversityPickerScreen: React.FC = () => {
     u.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setRequestSubmitted(false);
+    setRequestError(null);
+  };
+
+  const handleRequestUniversity = async () => {
+    const query = searchQuery.trim();
+    if (!query || requestSubmitting) return;
+
+    setRequestSubmitting(true);
+    setRequestError(null);
+    try {
+      await api.post("/universities/requests", {
+        query,
+        email: requestEmail.trim() || undefined,
+      });
+      setRequestSubmitted(true);
+    } catch (err: any) {
+      setRequestError(err.response?.data?.message || "Couldn't send your request. Try again.");
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
+
   const handleContinue = () => {
     const selectedUni = universities.find(u => u.id === selectedId);
     if (selectedUni) {
@@ -80,6 +110,9 @@ export const UniversityPickerScreen: React.FC = () => {
         ]}
         onPress={() => setSelectedId(item.id)}
         activeOpacity={0.7}
+        accessibilityRole="radio"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={`${item.name}, ${city}${stateCode ? `, ${stateCode}` : ""}`}
       >
         <View style={styles.logoPlaceholder}>
           <Text style={styles.logoInitial}>{item.name[0]}</Text>
@@ -99,14 +132,7 @@ export const UniversityPickerScreen: React.FC = () => {
     <Screen style={{ flex: 1 }}
       onBack={() => navigation.goBack()}
       title=""
-      rightAction={
-        <View style={styles.progressDots}>
-          <View style={styles.dot} />
-          <View style={[styles.dot, styles.activeDot]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-      }
+      rightAction={<AuthProgressDots step={1} total={4} />}
     >
       <View style={styles.container}>
         {loading ? (
@@ -134,25 +160,68 @@ export const UniversityPickerScreen: React.FC = () => {
                   label=""
                   placeholder="Search for your university..."
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={handleSearchChange}
                   leftIcon={<Search size={20} color={colors.textMuted} />}
                 />
               </View>
             }
             style={styles.list}
             contentContainerStyle={styles.listContent}
-            ListFooterComponent={
-              <View style={styles.aiBanner}>
-                <View style={styles.aiHeader}>
-                  <Sparkles size={14} color={colors.primary} />
-                  <Text style={styles.aiLabel}>AI RECOMMENDATION</Text>
+            ListEmptyComponent={
+              searchQuery.trim() ? (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyTitle}>No matches for "{searchQuery.trim()}"</Text>
+                  <Text style={styles.emptyText}>
+                    We're adding schools throughout the beta. Tell us yours and we'll prioritise it.
+                  </Text>
+                  {requestSubmitted ? (
+                    <View style={styles.requestConfirmed}>
+                      <Text style={styles.requestConfirmedText}>
+                        Thanks — we've noted "{searchQuery.trim()}" for our roadmap.
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.requestForm}>
+                      <Input
+                        label=""
+                        placeholder="Email (optional) — we'll notify you"
+                        value={requestEmail}
+                        onChangeText={setRequestEmail}
+                        keyboardType="email-address"
+                      />
+                      {requestError ? <Text style={styles.requestErrorText}>{requestError}</Text> : null}
+                      <TouchableOpacity
+                        style={[styles.requestButton, requestSubmitting && styles.requestButtonDisabled]}
+                        onPress={handleRequestUniversity}
+                        disabled={requestSubmitting}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Request that ${searchQuery.trim()} be added`}
+                      >
+                        <Send size={16} color="#FFFFFF" />
+                        <Text style={styles.requestButtonText}>
+                          {requestSubmitting ? "Sending..." : "Request my school"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.aiText}>
-                  Selecting your university unlocks school-specific course
-                  materials and past examination papers curated by top scholars
-                  from your faculty.
-                </Text>
-              </View>
+              ) : null
+            }
+            ListFooterComponent={
+              filteredUniversities.length > 0 ? (
+                <View style={styles.aiBanner}>
+                  <View style={styles.aiHeader}>
+                    <BookOpen size={14} color={colors.primary} />
+                    <Text style={styles.aiLabel}>WHY THIS MATTERS</Text>
+                  </View>
+                  <Text style={styles.aiText}>
+                    Selecting your university unlocks school-specific course
+                    materials and past examination papers shared by students
+                    from your faculty.
+                  </Text>
+                </View>
+              ) : null
             }
           />
         )}
@@ -165,7 +234,7 @@ export const UniversityPickerScreen: React.FC = () => {
             style={styles.continueButton}
           />
           <Text style={styles.footerHint}>
-            More schools can be added by admin during beta.
+            Don't see your school? Search for it above to request it.
           </Text>
         </View>
       </View>
@@ -198,21 +267,6 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 20,
   },
-  progressDots: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#1F2937",
-    marginLeft: 4,
-  },
-  activeDot: {
-    backgroundColor: colors.primary,
-    width: 12,
-  },
   headline: {
     color: colors.textPrimary,
     fontSize: 21,
@@ -221,7 +275,7 @@ const styles = StyleSheet.create({
   },
   subtext: {
     color: colors.textSecondary,
-    fontSize: 11.25,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     marginTop: 8,
     marginBottom: 24,
@@ -246,7 +300,7 @@ const styles = StyleSheet.create({
   selectedUniversityItem: {
     borderColor: colors.primary,
     borderLeftWidth: 3,
-    backgroundColor: "#0D1526",
+    backgroundColor: "rgba(48,64,0,0.35)",
   },
   logoPlaceholder: {
     width: 40,
@@ -274,12 +328,75 @@ const styles = StyleSheet.create({
   },
   universityLocation: {
     color: colors.textSecondary,
-    fontSize: 9.75,
+    fontSize: 12,
     fontFamily: "SpaceMono-Regular",
     marginTop: 2,
   },
+  emptyState: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 20,
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontFamily: "Inter-Bold",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontFamily: "Inter-Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  requestForm: {
+    marginTop: 16,
+    width: "100%",
+  },
+  requestErrorText: {
+    color: colors.error,
+    fontFamily: "Inter-Regular",
+    fontSize: 12,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  requestButton: {
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    flexDirection: "row",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  requestButtonDisabled: {
+    opacity: 0.6,
+  },
+  requestButtonText: {
+    color: "#FFFFFF",
+    fontFamily: "Inter-Bold",
+    fontSize: 12,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+  requestConfirmed: {
+    marginTop: 12,
+  },
+  requestConfirmedText: {
+    color: colors.primary,
+    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    textAlign: "center",
+  },
   aiBanner: {
-    backgroundColor: "#0D1526",
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
     padding: 16,
     marginTop: 12,
@@ -291,7 +408,7 @@ const styles = StyleSheet.create({
   },
   aiLabel: {
     color: colors.primary,
-    fontSize: 8.25,
+    fontSize: 12,
     fontFamily: "Inter-Bold",
     fontWeight: "700",
     marginLeft: 8,
@@ -299,7 +416,7 @@ const styles = StyleSheet.create({
   },
   aiText: {
     color: colors.textSecondary,
-    fontSize: 9.75,
+    fontSize: 12,
     lineHeight: 18,
     fontFamily: "Inter-Regular",
   },
@@ -315,7 +432,7 @@ const styles = StyleSheet.create({
   },
   footerHint: {
     color: colors.textSecondary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
     textAlign: "center",
   },
