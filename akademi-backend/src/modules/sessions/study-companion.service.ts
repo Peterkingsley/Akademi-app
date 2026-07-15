@@ -65,6 +65,7 @@ import {
 } from './study-companion-session-state';
 import {
   buildStudentMemoryContext,
+  loadSessionTranscriptContext,
   loadLatestLearningIntelligenceContext,
   selectThrowbackSection,
   createTeachingDecision,
@@ -791,6 +792,9 @@ export class StudyCompanionService {
     );
     const sectionCalculationContext = buildCalculationTeachingContext(section, teacherBrainSectionContext);
     const sectionDiagramContext = buildDiagramTeachingContext(section, teacherBrainSectionContext);
+    // Loaded once per turn so every teaching pass generated below - including the
+    // next-section turns - continues the conversation instead of restarting it.
+    const sessionTranscriptContext = await loadSessionTranscriptContext(sessionId);
     const contextMeta = {
       sessionId,
       materialId: material.id,
@@ -940,7 +944,7 @@ export class StudyCompanionService {
         const trace = await startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
         try {
           const aiStartedAt = Date.now();
-          const passResult = await buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, { question: state.refresh_question || '', answer: trimmed });
+          const passResult = await buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, { question: state.refresh_question || '', answer: trimmed }, sessionTranscriptContext);
           const content = passResult.content;
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
@@ -977,7 +981,7 @@ export class StudyCompanionService {
         try {
           const aiStartedAt = Date.now();
           const priorInteraction = isAutoContinue ? undefined : { question: state.pending_prompt || '', answer: trimmed };
-          const passResult = await buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, priorInteraction);
+          const passResult = await buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, priorInteraction, sessionTranscriptContext);
           const content = passResult.content;
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
@@ -1036,7 +1040,7 @@ export class StudyCompanionService {
       const trace = await startTutorTrace(buildTraceSeed(PASS_1, 'teaching', 'teaching_pass_1', true));
       try {
         const aiStartedAt = Date.now();
-        const passResult = await buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace);
+        const passResult = await buildTeachingPass(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, undefined, sessionTranscriptContext);
         const content = passResult.content;
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await persistRoadmap(state.id, roadmap, {
@@ -1074,7 +1078,7 @@ export class StudyCompanionService {
         try {
           const aiStartedAt = Date.now();
           const priorInteraction = isAutoContinue ? undefined : { question: state.pending_prompt || '', answer: trimmed };
-          const passResult = await buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, priorInteraction);
+          const passResult = await buildTeachingPass(section, 3, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, priorInteraction, sessionTranscriptContext);
           const content = passResult.content;
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
@@ -1134,7 +1138,7 @@ export class StudyCompanionService {
       const trace = await startTutorTrace(buildTraceSeed(PASS_2, 'teaching', 'teaching_pass_2', true));
       try {
         const aiStartedAt = Date.now();
-        const passResult = await buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace);
+        const passResult = await buildTeachingPass(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', lessonPlan, relevantMaterialContext, sectionContext, qualityTrace, undefined, sessionTranscriptContext);
         const content = passResult.content;
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await persistRoadmap(state.id, roadmap, {
@@ -1907,7 +1911,7 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined, undefined, sessionTranscriptContext);
         const content = passResult.content;
         await persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
@@ -2010,7 +2014,7 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
-        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined);
+        }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined, undefined, sessionTranscriptContext);
         const content = passResult.content;
         await persistRoadmap(state.id, roadmap, {
           current_phase: PASS_1,
