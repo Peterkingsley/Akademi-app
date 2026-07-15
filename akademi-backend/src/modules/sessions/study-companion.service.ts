@@ -748,6 +748,11 @@ export class StudyCompanionService {
         metadata: await buildTurnMetadata(sessionId, 'transition', {
           nextAction: 'continue_teaching',
           questionCount: questionCountForContent(content),
+          // The opening hook/refresh question must pause for the student's
+          // answer. Without this, auto-continue fires, Pass 1 sees its own
+          // unanswered question in the transcript, and answers it itself.
+          waitForStudent: questionCountForContent(content) > 0,
+          autoContinue: questionCountForContent(content) === 0,
         }),
       };
       await finishTutorTrace(introTrace, {
@@ -1946,6 +1951,11 @@ export class StudyCompanionService {
           content,
           metadata: await buildTurnMetadata(sessionId, 'transition', {
             nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(content),
+            // Next-section Pass 1 is directed to end with a micro-question;
+            // it must pause for the answer like every other question turn.
+            waitForStudent: questionCountForContent(content) > 0,
+            autoContinue: questionCountForContent(content) === 0,
           }),
         };
       }
@@ -2049,6 +2059,11 @@ export class StudyCompanionService {
           content,
           metadata: await buildTurnMetadata(sessionId, 'transition', {
             nextAction: 'continue_teaching',
+            questionCount: questionCountForContent(content),
+            // Next-section Pass 1 is directed to end with a micro-question;
+            // it must pause for the answer like every other question turn.
+            waitForStudent: questionCountForContent(content) > 0,
+            autoContinue: questionCountForContent(content) === 0,
           }),
         };
       }
