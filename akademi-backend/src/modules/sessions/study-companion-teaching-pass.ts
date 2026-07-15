@@ -58,6 +58,7 @@ export async function buildTeachingPass(
   sectionContext?: SectionContext,
   qualityTrace?: TutorQualityTraceCapture,
   priorInteraction?: { question: string; answer: string },
+  sessionTranscriptContext = '',
 ): Promise<{ content: string; coveredConcepts: string[] }> {
   const askMicroQuestion = pass === 1 || pass === 2;
   const calculationContext = buildCalculationTeachingContext(
@@ -176,6 +177,7 @@ export async function buildTeachingPass(
 
   const prompt = [
     `Section title: ${section.title}`,
+    sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     studentMemoryPromptContext
       ? `Student memory context:\n${studentMemoryPromptContext}`
