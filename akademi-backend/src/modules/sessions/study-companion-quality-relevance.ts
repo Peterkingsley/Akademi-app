@@ -25,6 +25,7 @@ import {
   sanitizeSingleQuestionTurn,
   removeAccidentalTeachingQuestions,
   truncate,
+  truncateToSentence,
   truncateList,
   safeStringArray,
   hasMathNotation,
@@ -305,7 +306,7 @@ export function applyTutorMessageCorrections(
   }
 
   if (issues.includes('too_long')) {
-    corrected = truncate(
+    corrected = truncateToSentence(
       corrected,
       context.turnType === 'checkpoint_question' ? 260 : 900,
     );
@@ -482,7 +483,7 @@ export function applyTutorMessageCorrections(
     issues.includes('checkpoint_too_long') &&
     context.completionProblemCheckpoint
   ) {
-    corrected = truncate(corrected, 900);
+    corrected = truncateToSentence(corrected, 900);
   }
 
   if (

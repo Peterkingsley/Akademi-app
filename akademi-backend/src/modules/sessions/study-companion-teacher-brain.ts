@@ -84,6 +84,28 @@ export function truncate(value: string, max = 900) {
   return `${value.slice(0, max - 3).trimEnd()}...`;
 }
 
+// For STUDENT-FACING content only. Plain truncate() cuts mid-word ("its
+// accelera...") which reads as a broken message and gets spoken aloud as a
+// broken sentence by TTS. This trims back to the last complete sentence
+// under the cap, so an over-long turn ends cleanly instead of amputated.
+export function truncateToSentence(value: string, max = 900) {
+  if (value.length <= max) return value;
+  const slice = value.slice(0, max);
+  const lastStop = Math.max(
+    slice.lastIndexOf('. '),
+    slice.lastIndexOf('! '),
+    slice.lastIndexOf('? '),
+    slice.lastIndexOf('.\n'),
+  );
+  if (lastStop > max * 0.4) return slice.slice(0, lastStop + 1).trimEnd();
+  // No usable sentence boundary - fall back to the last word boundary so we
+  // at least never split a word in half.
+  const lastSpace = slice.lastIndexOf(' ');
+  return lastSpace > 0
+    ? `${slice.slice(0, lastSpace).trimEnd()}.`
+    : truncate(value, max);
+}
+
 export function truncateList(items: string[], limit = 4, max = 180) {
   return items
     .map((item) => truncate(String(item || '').trim(), max))

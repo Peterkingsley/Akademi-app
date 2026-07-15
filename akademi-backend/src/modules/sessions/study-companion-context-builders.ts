@@ -49,15 +49,18 @@ const TRANSCRIPT_STUDENT_CHAR_BUDGET = 240;
 function truncateTranscriptEntry(value: string, max: number) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   if (normalized.length <= max) return normalized;
-  // Cut at the last sentence boundary under the cap so the model reads
-  // coherent prior statements, not amputated half-sentences.
-  const slice = normalized.slice(0, max);
-  const lastStop = Math.max(
-    slice.lastIndexOf('. '),
-    slice.lastIndexOf('! '),
-    slice.lastIndexOf('? '),
-  );
-  return lastStop > max * 0.5 ? slice.slice(0, lastStop + 1) : `${slice.trimEnd()}…`;
+  // Keep the TAIL of the message, not the head. The end of a tutor turn
+  // carries the newest statements - the worked example just given and the
+  // question just asked - which is exactly what the next generation must not
+  // repeat and must respond to. Keeping the head instead caused the model to
+  // re-derive examples that had been trimmed out of its view.
+  const slice = normalized.slice(normalized.length - max);
+  // Advance to the first full sentence inside the window so the model reads
+  // coherent prior statements, not an amputated half-sentence.
+  const firstStart = slice.search(/(?<=[.!?])\s+[A-Z0-9(]/);
+  return firstStart > -1 && firstStart < max * 0.5
+    ? `…${slice.slice(firstStart).trim()}`
+    : `…${slice.trimStart()}`;
 }
 
 /**
