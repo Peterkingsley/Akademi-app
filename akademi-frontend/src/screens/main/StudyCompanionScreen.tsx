@@ -150,6 +150,43 @@ function hasMeaningfulStudentTranscript(transcript: string, currentAiText = "") 
   return true;
 }
 
+// Memoized row: the word-reveal timer re-renders the screen every ~45ms, and without
+// memoization every bubble re-renders too - handing already-mounted RichMathText WebViews
+// a fresh source object each tick, which can force them to reload and blink. Message
+// objects keep referential identity unless their own displayContent changes, so memo on
+// `item` means only the actively-streaming bubble re-renders.
+const MessageRow = React.memo(
+  ({
+    item,
+    styles,
+    textColor,
+  }: {
+    item: UiMessage;
+    styles: ReturnType<typeof createStyles>;
+    textColor: string;
+  }) => {
+    const isStudent = item.role === "STUDENT";
+    const content = isStudent ? item.content : item.displayContent;
+    const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
+    return (
+      <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
+        <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
+          {isStudent ? (
+            <Text style={styles.studentText}>{content}</Text>
+          ) : content && shouldUseMathRenderer ? (
+            <RichMathText content={content} textColor={textColor} fontSize={15} lineHeight={1.55} />
+          ) : content ? (
+            <Text style={styles.aiText}>{content}</Text>
+          ) : (
+            <Text style={styles.aiFallbackText}>...</Text>
+          )}
+          {!isStudent && item.interrupted ? <Text style={styles.interruptedText}>Interrupted</Text> : null}
+        </View>
+      </View>
+    );
+  },
+);
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -244,11 +281,13 @@ export const StudyCompanionScreen: React.FC = () => {
     runtimeStateRef.current = runtimeState;
   }, [runtimeState]);
 
+  // Depend on messages.length, not the array itself: the word-reveal timer mutates message
+  // objects every ~45ms, and scrolling (animated) on every tick causes visible jitter.
   useEffect(() => {
     if (messages.length > 0) {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
-  }, [messages]);
+  }, [messages.length]);
 
   useEffect(() => {
     if (!sessionId || companionState?.currentSectionIndex === undefined || companionState?.currentSectionIndex === null) {
@@ -395,8 +434,18 @@ export const StudyCompanionScreen: React.FC = () => {
 
     const fullContent = message.content || "";
     currentAiSpeechTextRef.current = fullContent;
+
+    // Math-heavy messages render through RichMathText, which is a WebView rebuilt from its
+    // content prop. Streaming displayContent word-by-word forces a full WebView reload every
+    // ~45ms - the page never finishes loading KaTeX, the bubble blinks at its reset height,
+    // and no text ever appears (while TTS keeps speaking independently). For these messages,
+    // show the full content immediately so the WebView mounts exactly once.
+    if (looksMathHeavy(fullContent)) {
+      finalizeAiMessage(message.id, fullContent);
+    }
+
     const words = fullContent.split(/\s+/).filter(Boolean);
-    if (words.length) {
+    if (words.length && !looksMathHeavy(fullContent)) {
       const durationMs = estimateSpeechDurationMs(fullContent);
       const stepMs = Math.max(45, Math.floor(durationMs / words.length));
       let visibleCount = 0;
@@ -611,27 +660,12 @@ export const StudyCompanionScreen: React.FC = () => {
         ? "Recording..."
         : "Tap mic to record");
 
-  const renderMessage = ({ item }: { item: UiMessage }) => {
-    const isStudent = item.role === "STUDENT";
-    const content = isStudent ? item.content : item.displayContent;
-    const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
-    return (
-      <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
-        <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
-          {isStudent ? (
-            <Text style={styles.studentText}>{content}</Text>
-          ) : content && shouldUseMathRenderer ? (
-            <RichMathText content={content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
-          ) : content ? (
-            <Text style={styles.aiText}>{content}</Text>
-          ) : (
-            <Text style={styles.aiFallbackText}>...</Text>
-          )}
-          {!isStudent && item.interrupted ? <Text style={styles.interruptedText}>Interrupted</Text> : null}
-        </View>
-      </View>
-    );
-  };
+  const renderMessage = useCallback(
+    ({ item }: { item: UiMessage }) => (
+      <MessageRow item={item} styles={styles} textColor={colors.textPrimary} />
+    ),
+    [colors.textPrimary, styles],
+  );
 
   if (loading) {
     return (
