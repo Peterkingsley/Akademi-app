@@ -964,6 +964,10 @@ export class StudyCompanionService {
             metadata: await buildTurnMetadata(sessionId, 'teaching', {
               nextAction: 'ask_followup',
               questionCount: questionCountForContent(content),
+              // A teaching turn that ends with a micro-question must pause for
+              // the student's answer instead of auto-continuing over it.
+              waitForStudent: questionCountForContent(content) > 0,
+              autoContinue: questionCountForContent(content) === 0,
             }),
           };
           trace.quality = qualityTrace;
@@ -999,6 +1003,10 @@ export class StudyCompanionService {
             metadata: await buildTurnMetadata(sessionId, 'teaching', {
               nextAction: 'ask_followup',
               questionCount: questionCountForContent(content),
+              // A teaching turn that ends with a micro-question must pause for
+              // the student's answer instead of auto-continuing over it.
+              waitForStudent: questionCountForContent(content) > 0,
+              autoContinue: questionCountForContent(content) === 0,
             }),
           };
           trace.quality = qualityTrace;
@@ -1015,7 +1023,7 @@ export class StudyCompanionService {
         const trace = await startTutorTrace(buildTraceSeed(PASS_1, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
+          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -1060,6 +1068,10 @@ export class StudyCompanionService {
           metadata: await buildTurnMetadata(sessionId, 'teaching', {
             nextAction: 'ask_followup',
             questionCount: questionCountForContent(content),
+            // A teaching turn that ends with a micro-question must pause for
+            // the student's answer instead of auto-continuing over it.
+            waitForStudent: questionCountForContent(content) > 0,
+            autoContinue: questionCountForContent(content) === 0,
           }),
         };
         trace.quality = qualityTrace;
@@ -1096,6 +1108,10 @@ export class StudyCompanionService {
             metadata: await buildTurnMetadata(sessionId, 'teaching', {
               nextAction: 'continue_teaching',
               questionCount: questionCountForContent(content),
+              // Pass 3 is directed to end without a question; if one slips
+              // through anyway, waiting is still the correct behavior.
+              waitForStudent: questionCountForContent(content) > 0,
+              autoContinue: questionCountForContent(content) === 0,
             }),
           };
           trace.quality = qualityTrace;
@@ -1112,7 +1128,7 @@ export class StudyCompanionService {
         const trace = await startTutorTrace(buildTraceSeed(PASS_2, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
+          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -1157,6 +1173,10 @@ export class StudyCompanionService {
           metadata: await buildTurnMetadata(sessionId, 'teaching', {
             nextAction: 'ask_followup',
             questionCount: questionCountForContent(content),
+            // A teaching turn that ends with a micro-question must pause for
+            // the student's answer instead of auto-continuing over it.
+            waitForStudent: questionCountForContent(content) > 0,
+            autoContinue: questionCountForContent(content) === 0,
           }),
         };
         trace.quality = qualityTrace;
@@ -1174,7 +1194,7 @@ export class StudyCompanionService {
         const trace = await startTutorTrace(buildTraceSeed(PASS_3, 'checkpoint_question', 'interrupt_response', true));
         try {
           const aiStartedAt = Date.now();
-          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace);
+          const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
             current_phase: TEACHBACK_1,
@@ -1200,7 +1220,7 @@ export class StudyCompanionService {
       const trace = await startTutorTrace(buildTraceSeed(TEACHBACK_1, 'checkpoint_question', 'teachback_prompt_1', true));
       try {
         const aiStartedAt = Date.now();
-        const content = await buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
+        const content = await buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace, sessionTranscriptContext);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
         await persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
@@ -1403,7 +1423,7 @@ export class StudyCompanionService {
       }
 
       if (isInterrupt || !isAutoContinue) {
-        const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', lecturerConstraintContext?.promptContext || '', relevantMaterialContext);
+        const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', lecturerConstraintContext?.promptContext || '', relevantMaterialContext, undefined, sessionTranscriptContext);
         await persistRoadmap(state.id, roadmap, {
           current_phase: TEACHBACK_1,
           pending_prompt: content,
@@ -1442,6 +1462,7 @@ export class StudyCompanionService {
               reteachCycleCount: sectionContext.reteachCycleCount,
             },
             qualityTrace,
+            sessionTranscriptContext,
           );
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
@@ -1490,8 +1511,8 @@ export class StudyCompanionService {
         const aiStartedAt = Date.now();
         content =
           sectionContext.nextPromptKind === 'teachback_2'
-            ? await buildTeachBackPrompt(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace)
-            : await buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
+            ? await buildTeachBackPrompt(section, 2, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace, sessionTranscriptContext)
+            : await buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace, sessionTranscriptContext);
         trace.aiLatencyMs += Date.now() - aiStartedAt;
       } catch (error) {
         await failTutorTrace(trace, error);
@@ -1526,7 +1547,7 @@ export class StudyCompanionService {
         let content;
         try {
           const aiStartedAt = Date.now();
-          content = await buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace);
+          content = await buildMemoryDumpPrompt(section, teachingDecision, teacherBrainContext, contextMeta, lecturerConstraintContext?.promptContext || '', lessonPlan, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
         } catch (error) {
           await failTutorTrace(trace, error);
@@ -2053,7 +2074,7 @@ export class StudyCompanionService {
       };
     }
 
-    const fallback = await buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan);
+    const fallback = await buildTeachBackPrompt(section, 1, teachingDecision, teacherBrainContext, contextMeta, teacherBrainSectionContext, lecturerConstraintContext?.promptContext || '', lessonPlan, undefined, sessionTranscriptContext);
     await persistRoadmap(state.id, roadmap, {
       current_phase: TEACHBACK_1,
       pending_prompt: fallback,

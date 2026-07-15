@@ -683,6 +683,7 @@ export async function buildTeachBackPrompt(
   lecturerConstraintPromptContext = '',
   lessonPlan?: StudySectionLessonPlanRecord,
   qualityTrace?: TutorQualityTraceCapture,
+  sessionTranscriptContext = '',
 ) {
   const calculationContext = buildCalculationTeachingContext(
     section,
@@ -737,6 +738,7 @@ export async function buildTeachBackPrompt(
   });
   const prompt = [
     `Section title: ${section.title}`,
+    sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     lecturerConstraintPromptContext
       ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}`
@@ -878,6 +880,7 @@ export async function buildMemoryDumpPrompt(
   lecturerConstraintPromptContext = '',
   lessonPlan?: StudySectionLessonPlanRecord,
   qualityTrace?: TutorQualityTraceCapture,
+  sessionTranscriptContext = '',
 ) {
   const pacing = buildPacingDirectives({
     phase: 'CHECKPOINT',
@@ -921,6 +924,7 @@ export async function buildMemoryDumpPrompt(
   }
   const prompt = [
     `Section title: ${section.title}`,
+    sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     lecturerConstraintPromptContext
       ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}`
@@ -1028,6 +1032,7 @@ export async function buildGapReteach(
     reteachCycleCount?: number;
   },
   qualityTrace?: TutorQualityTraceCapture,
+  sessionTranscriptContext = '',
 ) {
   const halveStep =
     options?.repairMode !== 'medium_prerequisite_repair' &&
@@ -1116,6 +1121,7 @@ export async function buildGapReteach(
   });
   const prompt = [
     `Section title: ${section.title}`,
+    sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     lecturerConstraintPromptContext
       ? `Lecturer constraint context:\n${lecturerConstraintPromptContext}`
@@ -1235,6 +1241,7 @@ export async function buildInterruptResponse(
   lecturerConstraintPromptContext = '',
   relevantMaterialContext?: RelevantMaterialContext,
   qualityTrace?: TutorQualityTraceCapture,
+  sessionTranscriptContext = '',
 ) {
   const interruptPacing = buildPacingDirectives({
     phase: 'CHECKPOINT',
@@ -1269,6 +1276,7 @@ export async function buildInterruptResponse(
   });
   const prompt = [
     `Section title: ${section.title}`,
+    sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     studentMemoryPromptContext
       ? `Student memory context:\n${studentMemoryPromptContext}`
