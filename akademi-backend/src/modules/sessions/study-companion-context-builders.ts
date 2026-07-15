@@ -42,6 +42,60 @@ import {
 import { parseLecturerConstraintContext } from './study-companion-quality-relevance';
 import { sectionAt } from './study-companion-session-state';
 
+const TRANSCRIPT_MESSAGE_LIMIT = 12;
+const TRANSCRIPT_AI_CHAR_BUDGET = 700;
+const TRANSCRIPT_STUDENT_CHAR_BUDGET = 240;
+
+function truncateTranscriptEntry(value: string, max: number) {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= max) return normalized;
+  // Cut at the last sentence boundary under the cap so the model reads
+  // coherent prior statements, not amputated half-sentences.
+  const slice = normalized.slice(0, max);
+  const lastStop = Math.max(
+    slice.lastIndexOf('. '),
+    slice.lastIndexOf('! '),
+    slice.lastIndexOf('? '),
+  );
+  return lastStop > max * 0.5 ? slice.slice(0, lastStop + 1) : `${slice.trimEnd()}…`;
+}
+
+/**
+ * Session transcript memory: the tutor must remember everything it already
+ * said in this chat. Without this, every pass is generated in isolation and
+ * the model re-introduces the topic from scratch each turn ("We define
+ * Physics as..." x4). This loads the most recent turns of the actual
+ * conversation - both what the tutor said and what the student said - and
+ * formats them as prompt context with a hard anti-repetition directive.
+ */
+export async function loadSessionTranscriptContext(sessionId: string): Promise<string> {
+  const rows = await prisma.message.findMany({
+    where: { session_id: sessionId },
+    orderBy: { created_at: 'desc' },
+    take: TRANSCRIPT_MESSAGE_LIMIT,
+    select: { role: true, content: true },
+  });
+  if (!rows.length) return '';
+
+  const lines = rows
+    .reverse()
+    .map((row: { role: string; content: string }) => {
+      const isAi = row.role === 'AI';
+      const label = isAi ? 'You (tutor) said' : 'Student said';
+      const budget = isAi ? TRANSCRIPT_AI_CHAR_BUDGET : TRANSCRIPT_STUDENT_CHAR_BUDGET;
+      const text = truncateTranscriptEntry(String(row.content || ''), budget);
+      return text ? `${label}: ${text}` : '';
+    })
+    .filter(Boolean);
+  if (!lines.length) return '';
+
+  return [
+    'Conversation so far in this session (most recent last):',
+    ...lines,
+    'You remember everything above. Never restate a definition, introduction, or example you already gave. Continue from exactly where the conversation left off, referring back to your earlier words naturally ("as we saw with the falling book...") instead of re-explaining them. If the student answered your last question, acknowledge their answer first.',
+  ].join('\n');
+}
+
 export async function buildStudentMemoryContext(
   userId: string,
   materialId: string,
