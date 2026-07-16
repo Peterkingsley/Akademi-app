@@ -304,29 +304,84 @@ const getAccessToken = async () => {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+type FailureInfo = {
+  status: number | null;
+  reason?: string;
+  limitScope?: string;
+  resetSeconds?: number;
+};
+
 // The Audio.Sound request below hits the raw stream URL directly and never
-// goes through axios, so a 503 (backend/upstream busy) or 404 (stream record
-// missing/expired on this replica) never gets the retry/refresh treatment
-// axios calls get automatically. This does a lightweight status probe so we
-// can react to those specific cases before giving up on streamed voice - the
-// backend's re-read window (see elevenlabs-stream.service.ts) is what makes
-// probing the same URL safe to do without breaking the real playback fetch.
-const probeStreamAudioStatus = async (url: string, token: string): Promise<number | null> => {
+// goes through axios, so a 429 (rate limited), 503 (backend/upstream busy),
+// or 404 (stream record missing/expired on this replica) never gets the
+// retry/refresh treatment axios calls get automatically. This does a
+// lightweight status probe so we can react to those specific cases before
+// giving up on streamed voice - the backend's re-read window (see
+// elevenlabs-stream.service.ts) is what makes probing the same URL safe to
+// do without breaking the real playback fetch.
+const probeStreamAudioStatus = async (url: string, token: string): Promise<FailureInfo> => {
   try {
     const response = await fetch(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
-    try {
-      await response.body?.cancel?.();
-    } catch {
-      // best effort only; not every RN fetch polyfill supports stream cancellation
+
+    let reason: string | undefined;
+    let limitScope: string | undefined;
+
+    if (!response.ok) {
+      // Error responses are always small JSON bodies ({ message, reason,
+      // limitScope? }) - safe to fully read.
+      try {
+        const body = await response.json();
+        reason = body?.reason;
+        limitScope = body?.limitScope;
+      } catch {
+        // status code alone still drives retry logic below
+      }
+    } else {
+      try {
+        await response.body?.cancel?.();
+      } catch {
+        // best effort only; not every RN fetch polyfill supports stream cancellation
+      }
     }
-    return response.status;
+
+    const resetHeader = response.headers.get("RateLimit-Reset") || response.headers.get("Retry-After");
+    const resetSeconds = resetHeader ? Number(resetHeader) : undefined;
+
+    return {
+      status: response.status,
+      reason,
+      limitScope,
+      resetSeconds: Number.isFinite(resetSeconds) ? resetSeconds : undefined,
+    };
   } catch {
-    return null;
+    return { status: null };
   }
 };
+
+// axios rejects with error.response for non-2xx, carrying the same JSON body
+// and rate-limit headers the raw fetch probe above reads for Audio.Sound
+// failures - unify both into the same shape so the retry loop doesn't need
+// to know which path a failure came from.
+const extractAxiosFailureInfo = (error: any): FailureInfo => {
+  const response = error?.response;
+  if (!response) return { status: null };
+  const resetHeader = response.headers?.["ratelimit-reset"] || response.headers?.["retry-after"];
+  const resetSeconds = resetHeader ? Number(resetHeader) : undefined;
+  return {
+    status: response.status ?? null,
+    reason: response.data?.reason,
+    limitScope: response.data?.limitScope,
+    resetSeconds: Number.isFinite(resetSeconds) ? resetSeconds : undefined,
+  };
+};
+
+// Retrying against a 15-minute rate-limit window with a few seconds of
+// backoff is pointless - it only burns more requests from the same bucket.
+// Only worth retrying when the limiter is about to reset anyway.
+const RATE_LIMIT_RETRY_THRESHOLD_SECONDS = 10;
 
 export type TtsResult = { ok: true } | { ok: false; reason: string; statusCode?: number };
 
@@ -416,7 +471,12 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
 
   let lastReason = "unknown_error";
   let lastStatusCode: number | undefined;
+  let lastStage: "create_stream" | "probe" | "playback" = "create_stream";
   let skipNextBackoff = false;
+  // A 429 with a long reset window means the bucket won't clear within our
+  // retry budget - burning the remaining attempts against it only makes the
+  // next request's wait longer, so stop the loop immediately instead.
+  let stopRetrying = false;
   const maxAttempts = RETRY_BACKOFF_MS.length + 1; // 1 initial attempt + 3 retries
 
   try {
@@ -443,9 +503,21 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
         streamUrl = `${currentApiBaseUrl}${data.path}`;
         token = freshToken;
       } catch (error) {
-        lastReason = "stream_setup_failed";
-        lastStatusCode = undefined;
-        console.warn("tts_stream_retry", { sessionId, attempt, reason: lastReason, error });
+        const failure = extractAxiosFailureInfo(error);
+        lastStage = "create_stream";
+        lastStatusCode = failure.status ?? undefined;
+
+        if (failure.status === 429) {
+          lastReason = failure.reason || "rate_limited";
+          if (failure.resetSeconds !== undefined && failure.resetSeconds > RATE_LIMIT_RETRY_THRESHOLD_SECONDS) {
+            stopRetrying = true;
+          }
+        } else {
+          lastReason = "stream_setup_failed";
+        }
+
+        console.warn("tts_stream_retry", { sessionId, attempt, status: lastStatusCode, reason: lastReason, error });
+        if (stopRetrying) break;
         continue;
       }
 
@@ -453,10 +525,11 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
         await playStream(streamUrl, token);
         return { ok: true };
       } catch (playError) {
-        const status = await probeStreamAudioStatus(streamUrl, token);
-        lastStatusCode = status ?? undefined;
+        const failure = await probeStreamAudioStatus(streamUrl, token);
+        lastStatusCode = failure.status ?? undefined;
+        lastStage = failure.status === null ? "probe" : "playback";
 
-        if (status === 401) {
+        if (failure.status === 401) {
           const refreshed = await refreshAccessToken().catch(() => null);
           if (refreshed?.accessToken) {
             try {
@@ -468,23 +541,40 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
           } else {
             lastReason = "auth_failed";
           }
-        } else if (status === 404) {
-          lastReason = "stream_not_found";
+        } else if (failure.status === 404) {
+          lastReason = failure.reason || "stream_not_found";
           skipNextBackoff = true;
-        } else if (status === 409) {
-          lastReason = "stream_consumed";
+        } else if (failure.status === 409) {
+          lastReason = failure.reason || "stream_consumed";
           skipNextBackoff = true;
-        } else if (status === 503) {
+        } else if (failure.status === 429) {
+          lastReason = failure.reason || "rate_limited";
+          if (failure.resetSeconds !== undefined && failure.resetSeconds > RATE_LIMIT_RETRY_THRESHOLD_SECONDS) {
+            stopRetrying = true;
+          }
+        } else if (failure.status === 503) {
           lastReason = "upstream_unavailable";
         } else {
-          lastReason = status ? `http_${status}` : "network_error";
+          lastReason = failure.status ? `http_${failure.status}` : "network_error";
         }
 
-        console.warn("tts_stream_retry", { sessionId, attempt, status, reason: lastReason, error: playError });
+        console.warn("tts_stream_retry", {
+          sessionId,
+          attempt,
+          status: lastStatusCode,
+          reason: lastReason,
+          error: playError,
+        });
+        if (stopRetrying) break;
       }
     }
 
-    console.warn("tts_unavailable", { sessionId, reason: lastReason, statusCode: lastStatusCode });
+    console.warn("tts_pipeline_failed", {
+      sessionId,
+      stage: lastStage,
+      status: lastStatusCode,
+      reason: lastReason,
+    });
     return { ok: false, reason: lastReason, statusCode: lastStatusCode };
   } finally {
     activeAiPlaybackResolver = null;

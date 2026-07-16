@@ -54,6 +54,15 @@ export class AdminController {
     }
   }
 
+  async getVoiceHealth(req: Request, res: Response) {
+    try {
+      const health = await adminService.getVoiceHealth();
+      res.json(health);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async listTournaments(req: Request, res: Response) {
     try {
       const tournaments = await competitionsService.listAdminTournaments();

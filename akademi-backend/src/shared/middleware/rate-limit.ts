@@ -138,7 +138,11 @@ export const createRateLimiter = ({
         userId: req.user?.userId ?? req.admin?.adminId ?? null,
         retryAfterSeconds: resetSeconds,
       });
-      return res.status(429).json({ message });
+      // limitScope/reason let the client (and logs) tell a rate limit apart
+      // from every other kind of failure without guessing from status alone -
+      // this is what made a prior voice-TTS rate-limit bug take several
+      // rounds to root-cause, since every limiter returned the same {message}.
+      return res.status(429).json({ message, limitScope: namespace, reason: 'rate_limited' });
     }
 
     return next();
@@ -241,10 +245,24 @@ export const companionTurnRateLimiter = createRateLimiter({
 // Normal tutor use can generate several requests per spoken turn, especially when
 // voice playback, streaming, and tutor turns happen together. Keep voice traffic
 // separate so audio requests do not consume the same bucket as teaching turns.
+//
+// This limiter only gates POST /voice/stream and POST /voice/tts (stream
+// CREATION). GET /voice/stream-audio/:streamId (stream CONSUMPTION) is
+// intentionally exempt in sessions.routes.ts - a valid streamId only exists
+// because a prior POST already passed this limiter, so metering the GET too
+// would double-count the same speech attempt.
+//
+// Budget math (10-minute window): a heavy tutoring session speaks once every
+// ~20s, i.e. 30 speech attempts per 10 minutes. speakAiTextStream retries a
+// failed attempt up to 3 times (4 POSTs total) before giving up, so a run of
+// sustained upstream trouble costs up to 30 * 4 = 120 requests/10min. At 2x
+// that intensity (a speech every ~10s) with full retries: 240/10min. Round
+// up with ~1.6x headroom for jitter/overlap with occasional POST /voice/tts
+// calls from other screens -> 400.
 export const voiceSessionRateLimiter = createRateLimiter({
   namespace: 'voice-session',
   windowMs: 10 * 60 * 1000,
-  max: 180,
+  max: 400,
   strategy: 'hybrid',
   message: 'Too many voice requests. Please slow down and try again shortly.',
 });
