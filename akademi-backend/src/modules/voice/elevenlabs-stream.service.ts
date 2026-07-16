@@ -446,3 +446,80 @@ export class ElevenLabsStreamService {
 }
 
 export const elevenLabsStreamService = new ElevenLabsStreamService();
+
+export type ElevenLabsHealthReport = {
+  keyValid: boolean;
+  voiceId: string;
+  voiceExists: boolean;
+  quota: { characterCount: number; characterLimit: number } | null;
+  error: string | null;
+};
+
+// Cheap credential/quota/voice check for GET /admin/voice/health - plain REST
+// GETs against ElevenLabs, no WebSocket, no synthesis cost. Complements
+// `npm run check:elevenlabs` (which does a real synthesis over the
+// stream-input WS) with something safe to poll from production.
+export async function checkElevenLabsHealth(): Promise<ElevenLabsHealthReport> {
+  if (!config.elevenLabsApiKey) {
+    return {
+      keyValid: false,
+      voiceId: config.elevenLabsVoiceId,
+      voiceExists: false,
+      quota: null,
+      error: 'ELEVENLABS_API_KEY is not set.',
+    };
+  }
+
+  const headers = { 'xi-api-key': config.elevenLabsApiKey };
+
+  const [userResult, voiceResult] = await Promise.allSettled([
+    fetch('https://api.elevenlabs.io/v1/user', { headers }),
+    fetch(`https://api.elevenlabs.io/v1/voices/${config.elevenLabsVoiceId}`, { headers }),
+  ]);
+
+  let keyValid = false;
+  let quota: ElevenLabsHealthReport['quota'] = null;
+  const errors: string[] = [];
+
+  if (userResult.status === 'fulfilled') {
+    if (userResult.value.ok) {
+      keyValid = true;
+      try {
+        const body = (await userResult.value.json()) as { subscription?: { character_count?: number; character_limit?: number } };
+        const subscription = body?.subscription;
+        if (subscription) {
+          quota = {
+            characterCount: Number(subscription.character_count ?? 0),
+            characterLimit: Number(subscription.character_limit ?? 0),
+          };
+        }
+      } catch {
+        errors.push('Could not parse ElevenLabs /v1/user response body.');
+      }
+    } else {
+      const detail = await userResult.value.text().catch(() => '');
+      errors.push(`Key check failed (${userResult.value.status}): ${detail.slice(0, 300)}`);
+    }
+  } else {
+    errors.push(`Key check request failed: ${userResult.reason?.message || userResult.reason}`);
+  }
+
+  let voiceExists = false;
+  if (voiceResult.status === 'fulfilled') {
+    voiceExists = voiceResult.value.ok;
+    if (!voiceResult.value.ok) {
+      const detail = await voiceResult.value.text().catch(() => '');
+      errors.push(`Voice check failed (${voiceResult.value.status}): ${detail.slice(0, 300)}`);
+    }
+  } else {
+    errors.push(`Voice check request failed: ${voiceResult.reason?.message || voiceResult.reason}`);
+  }
+
+  return {
+    keyValid,
+    voiceId: config.elevenLabsVoiceId,
+    voiceExists,
+    quota,
+    error: errors.length ? errors.join(' ') : null,
+  };
+}
