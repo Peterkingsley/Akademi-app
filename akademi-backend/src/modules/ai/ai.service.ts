@@ -1,4 +1,5 @@
 import { ReplyMode } from '@prisma/client';
+import { config } from '../../config/env';
 import prisma from '../../config/db';
 import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent, stripTeacherNotebook } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
@@ -961,7 +962,10 @@ Important:
     if (notebookMalformed) {
       console.warn('teacher_notebook_malformed', { sessionId, userId });
     }
-    if (notebook) {
+    // Sampled rather than logged unconditionally - config.notebookLogSampleRate (env
+    // NOTEBOOK_LOG_SAMPLE_RATE, default 1.0) lets this be dialed down once volume makes
+    // logging every single teaching decision expensive, without touching this code path.
+    if (notebook && Math.random() < config.notebookLogSampleRate) {
       console.debug('teacher_notebook', { sessionId, userId, notebook });
     }
 
