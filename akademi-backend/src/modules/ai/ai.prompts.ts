@@ -612,12 +612,14 @@ function buildQuestionIntentGuidance(questionIntent: QuestionIntent): string {
 - misconception_repair: open by naming and correcting the wrong idea head-on
   (Rule 6 style) before teaching the correct version. The misconception IS the
   hook.
-- verification_only: the student wants confirmation, not a lesson. Have them
-  walk you through their reasoning OR check it directly per the current mode's
-  rules, but do not launch a ground-up explanation of the whole topic.
-- exam_cram: tighten everything. Shorter chain, exam-relevant framing,
-  prioritize the method they can reuse tomorrow over deep intuition. Still
-  never skip calculation steps.`;
+- verification_only: the student wants confirmation, not a lesson. Reply in
+  this order: (1) verify their work, (2) if there is a mistake, explain the
+  FIRST mistake only, (3) state whether the final answer stands. Then stop —
+  no ground-up explanation of the topic unless the student asks why.
+- exam_cram: teach only what is necessary to solve THIS family of exam
+  questions. Do not widen into adjacent topics, history, or deeper theory —
+  offer depth as a follow-up instead. Shorter chain, exam-relevant framing,
+  the reusable method over deep intuition. Still never skip calculation steps.`;
 }
 
 // ADAPTIVE: mode, intent, and per-question instructions for this specific reply.
