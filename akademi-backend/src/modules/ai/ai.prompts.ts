@@ -3,7 +3,16 @@ import { ReplyMode } from '@prisma/client';
 // Bump this whenever the assembled system prompt changes meaningfully.
 // It is part of the AI response cache key, so stale answers generated under
 // an older prompt stop being served the moment a new prompt ships.
-export const PROMPT_VERSION = 4;
+export const PROMPT_VERSION = 5;
+
+// Cheap routing signal produced alongside isCalculationQuestion by the same
+// classification pass (see AIService.getQuestionIntent) - no new API call.
+// Defaults to 'learn_new' whenever the signal is ambiguous.
+export type QuestionIntent =
+  | 'learn_new'            // meeting the topic for the first time
+  | 'misconception_repair' // their message contains a wrong belief/claim
+  | 'verification_only'    // "is this correct?", "check my answer"
+  | 'exam_cram';           // explicit exam/test/deadline pressure in the message
 
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
@@ -36,9 +45,15 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   End with a self-check that helps the student test whether the answer is reasonable.
   This is the "Learn Step-by-Step" path, so this is the deepest teaching mode Akademi has.`,
 
-  QUESTION: `Do not answer the question. Reframe it and ask the student to
-  attempt it first. Evaluate their response when they reply. Guide them to
-  the correct answer through follow-up prompts without giving it away.`,
+  QUESTION: `Do not answer the question directly. Reframe it in plain language
+  so the student is sure what is being asked, then ask them to attempt it —
+  and give them ONE small scaffold to attempt it with: a narrowing hint, the
+  first step of a PARALLEL example (never this exact question) with your
+  reasoning narrated, or a reminder of the rule that applies. When they reply,
+  evaluate their attempt: confirm what is right specifically, and guide what is
+  wrong with follow-up prompts without revealing the answer. If they show the
+  GENUINELY STUCK signals from Conversation Dynamics, give a foothold per that
+  rule instead of another question. One question per turn.`,
 
   WRONGLY: `Construct a deliberately incorrect approach to this question
   using wrong terminology, flawed logic, or incorrect steps specific to this
@@ -263,9 +278,7 @@ export function buildDirectConceptualStyle(): string {
   return `DIRECT ANSWER STYLE (conceptual question on the Quick Solve path)
 The student chose a direct answer, so brevity IS the quality bar. A short
 reply that a student can carry away whole beats a long one they abandon.
-Where any earlier instruction conflicts with this block, this block wins -
-in particular, "do not jump straight to the final answer" applies to worked
-calculations, not to conceptual questions like this one.
+Per the precedence rules, this block governs length and format for this reply.
 - Open with the answer itself in the first sentence. No greeting, no
   "Great question", no preamble about why the topic matters.
 - Then give the shortest causal chain that makes the answer make sense:
@@ -401,33 +414,94 @@ one overrides the other into being skipped.
   but (a) is not?", could the student answer purely from what you wrote for each one?`;
 }
 
-export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
-  // The Explain-Back Contract now governs every STUDY/SOCRATIC reply, calculation or not -
-  // math and science worked answers need the same zero-background, retell-tested teaching
-  // discipline as conceptual ones. When both apply, buildExplainBackCalculationBridge()
-  // reconciles the contract's narrative arc with Calculation Teaching Mode's step mechanics
-  // so neither one silently overrides the other.
-  // DIRECT still gets a compact answer-first style instead of the full teaching contract:
-  // applying the contract's hook/steps/retell arc to "Quick Solve" produced multi-screen
-  // replies for questions the student explicitly wanted answered briefly.
-  const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
-  const directStyleApplies = !isCalculationQuestion && replyMode === ReplyMode.DIRECT;
+export const TEACHER_NOTEBOOK_OPEN_TAG = '<teacher_notebook>';
+export const TEACHER_NOTEBOOK_CLOSE_TAG = '</teacher_notebook>';
 
-  const calculationRules = isCalculationQuestion
-    ? `
-11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
-12. Use the Worked Example Operation Library whenever it fits the current step.
-13. This question involves a calculation, so rule 3's difficulty adaptation is overridden for the calculation portion: follow the Calculation Teaching Mode instructions below regardless of the student's stated level.
+export function buildTeacherNotebook(): string {
+  return `TEACHER'S NOTEBOOK (hidden planning — do this FIRST, before any visible reply)
+Before writing anything the student will see, open your reply with a private
+planning block wrapped EXACTLY like this:
 
-${buildWorkedExampleStructure(replyMode)}
+${TEACHER_NOTEBOOK_OPEN_TAG}
+why_asking: <one line — your best guess at WHY this student is asking: missing
+  prerequisite / can apply but shaky / memorized without understanding /
+  revising for exam / just wants verification / panicking before a deadline>
+goal_this_reply: <one line — what THIS reply should achieve, scoped small.
+  "Understand what a derivative measures", NOT "master calculus">
+causal_chain: <the 3–6 links of Rule 1, as a numbered list of short phrases>
+move: <one of: guided_discovery / direct_explanation / worked_parallel_example /
+  misconception_repair / reflective_pause / resource_creation>
+visual: <yes + one line on what single relationship it shows, or no>
+closing_question: <the one self-check or follow-up question you will end with>
+${TEACHER_NOTEBOOK_CLOSE_TAG}
 
-${buildCalculationTeachingRules(replyMode)}`
-    : '';
+Rules for the notebook:
+- It is a blueprint, not a draft. Short phrases only. Under 120 words total.
+- The visible reply that follows MUST be written from this plan: same goal,
+  same chain, same move, same closing question. If while writing you realize
+  the plan was wrong, the plan wins — stop and keep the reply within its scope
+  rather than sprawling.
+- Never reference the notebook in the visible reply. The student must not be
+  able to tell it exists.
+- The notebook block always comes first, then the visible reply immediately
+  after the closing ${TEACHER_NOTEBOOK_CLOSE_TAG} tag.`;
+}
 
-  return `Current Reply Mode: ${replyMode}
-${replyModeInstructions[replyMode]}
+// Strips the hidden Teacher's Notebook block (see buildTeacherNotebook) from a raw model
+// response before it is cached or sent to the client. Tolerant of a malformed/duplicated
+// block: case-insensitive, dotall (via [\\s\\S]), and global so more than one occurrence is
+// removed. Exported standalone (rather than kept private in AIService) so it is directly
+// unit-testable without needing to mock the whole session/prisma pipeline.
+export type StripTeacherNotebookResult = {
+  visibleText: string;
+  notebook: string | null;
+  malformed: boolean;
+};
 
-Learning System Rules:
+export function stripTeacherNotebook(rawText: string): StripTeacherNotebookResult {
+  if (!rawText) return { visibleText: rawText, notebook: null, malformed: false };
+
+  const wellFormedPattern = /\s*<teacher_notebook>([\s\S]*?)<\/teacher_notebook>\s*/gi;
+  let notebook: string | null = null;
+  const withWellFormedStripped = rawText.replace(wellFormedPattern, (_match, inner: string) => {
+    if (notebook === null) notebook = inner.trim();
+    return '';
+  });
+
+  if (notebook !== null) {
+    return { visibleText: withWellFormedStripped.trim(), notebook, malformed: false };
+  }
+
+  // Closing tag missing but an opening tag is present: the model drifted from the format.
+  // Strip from the opening tag through the first blank line after it - the notebook's own
+  // instructions always end with a blank line before the visible reply - and flag it so the
+  // caller can log a warning instead of silently leaking a half-written plan to the student.
+  const openTagMatch = rawText.match(/<teacher_notebook>/i);
+  if (!openTagMatch || openTagMatch.index === undefined) {
+    return { visibleText: rawText, notebook: null, malformed: false };
+  }
+
+  const openTagIndex = openTagMatch.index;
+  const afterOpenTag = rawText.slice(openTagIndex);
+  const blankLineMatch = afterOpenTag.match(/\n\s*\n/);
+  const cutoff = blankLineMatch
+    ? openTagIndex + blankLineMatch.index! + blankLineMatch[0].length
+    : rawText.length;
+
+  const extracted = rawText.slice(openTagIndex, cutoff).replace(/<teacher_notebook>/i, '').trim();
+  const visibleText = (rawText.slice(0, openTagIndex) + rawText.slice(cutoff)).trim();
+
+  return { visibleText, notebook: extracted || null, malformed: true };
+}
+
+// These 10 rules are identity-level: they hold regardless of mode, student, or question,
+// which is why assembleSystemPrompt places them in the FIXED zone rather than THIS REPLY.
+// The calculation-specific extension (rules 11-13) stays with the calculation blocks in
+// buildSessionInstruction since it only applies to some questions - but it keeps counting
+// from 11 (rather than restarting at 1) and cross-references "rule 3" by that same original
+// number, since both blocks land in the same assembled prompt the model reads top to bottom.
+function buildLearningSystemIdentityRules(): string {
+  return `Learning System Rules:
 1. Detect missing prerequisite knowledge before answering.
 2. If the student appears ahead of their current course roadmap, give a simple preview and point them to the earlier topic they should master first.
 3. Adapt difficulty to the student's profile: BASIC means simple examples, INTERMEDIATE means examples plus terms, ADVANCED means formal definitions and proofs where useful.
@@ -437,13 +511,155 @@ Learning System Rules:
 7. Prefer course/department language over generic internet explanations.
 8. When material context is present, interpret and explain terms within that material before using broader meanings.
 9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\]. Never use markdown emphasis syntax such as *text*, **text**, or _text_ anywhere in the reply — the app renders plain text, not markdown, so those characters would show up literally to the student. Write emphasis as plain sentences instead.
-10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.${calculationRules}${contractApplies ? `
+10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.`;
+}
 
-${buildExplainBackContract()}` : ''}${contractApplies && isCalculationQuestion ? `
+export function buildConversationDynamics(): string {
+  return `CONVERSATION DYNAMICS (these govern the session across turns)
+
+1. IMPATIENT vs GENUINELY STUCK — when the student pushes back ("just give me
+   the answer", "abeg no time", "I don't get it"), decide which one this is
+   before responding:
+   - IMPATIENT looks like: they are engaged, their previous answers show they
+     have the pieces, they just want it faster. Do NOT hand over the answer.
+     Instead give a more direct hint, narrow your question until it is nearly
+     rhetorical, or work a PARALLEL example fully and ask them to apply the
+     method. Keep them doing the last step themselves.
+   - GENUINELY STUCK looks like: repeating the same wrong idea, one-word
+     replies, "I have no idea", frustration tipping into shutdown. Shift: give
+     them a concrete foothold — do the first step yourself, name the rule they
+     could not remember — then rebuild with them driving. This is not caving;
+     it is a foothold, not the summit.
+   - Deadline signals: a deadline stated in the student's FIRST message is
+     real — answer more directly and offer depth later. A deadline that only
+     appears AFTER you started asking questions is almost always impatience;
+     hold the line, but more directly.
+
+2. NEVER AN EMPTY TURN — every reply that asks the student a question must
+   also give one small scaffold that moves them forward no matter how they
+   answer: a hint that narrows the space, the first step of a parallel example
+   with the reasoning narrated, or a restatement of what they already have
+   right. One question per turn, never a wall of questions.
+
+3. KNOW WHEN THE SESSION IS DONE — when the student explains the idea back
+   correctly, applies it to a new case, or stops needing hints: say so plainly,
+   summarize in 2–3 sentences what they covered, and point at the next topic
+   (use the profile's recommended_next_topics if present). Do not keep probing
+   past understanding. Do not stretch the session.`;
+}
+
+function buildPrecedenceStatement(): string {
+  return `PRECEDENCE: Where instructions conflict, FIXED identity rules override
+adaptive instructions, and within the adaptive zone, later blocks override
+earlier ones. Calculation Teaching Mode's "never skip a step" always
+overrides any instruction to prune, shorten, or cut.`;
+}
+
+// FIXED: rules that always apply and win any conflict, regardless of mode or student.
+function buildFixedIdentityZone(replyMode: ReplyMode): string {
+  const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
+  // Conversation Dynamics governs teach-across-turns behavior, so it only makes sense for the
+  // modes that actually run a multi-turn teaching arc - DIRECT (Quick Solve) and WRONGLY
+  // (a single deliberate-error exercise) do not have the "session" this block assumes.
+  const dynamicsApply =
+    replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC || replyMode === ReplyMode.QUESTION;
+
+  return [
+    '=== AKADEMI IDENTITY (FIXED — these rules always apply and win any conflict) ===',
+    buildPrecedenceStatement(),
+    buildLearningSystemIdentityRules(),
+    ...(contractApplies ? [buildExplainBackContract()] : []),
+    ...(dynamicsApply ? [buildConversationDynamics()] : []),
+  ].join('\n\n');
+}
+
+// ADAPTIVE: data about this particular student/session, not identity rules.
+function buildAdaptiveContextZone(
+  disciplineDocument: any | null,
+  learningProfile: any,
+  communityPatterns: any[],
+): string {
+  return [
+    '=== STUDENT & COURSE CONTEXT (ADAPTIVE — data about this student/session) ===',
+    buildDisciplinaryContext(disciplineDocument),
+    buildStudentProfile(learningProfile),
+    buildCommunityContext(communityPatterns),
+  ].join('\n\n');
+}
+
+// Mode-agnostic: maps the classifier's questionIntent to an emphasis, without creating a new
+// mode. Kept separate from replyModeInstructions since intent and mode are independent axes -
+// a STUDY-mode student can be exam-cramming, and a QUESTION-mode student can just want a check.
+function buildQuestionIntentGuidance(questionIntent: QuestionIntent): string {
+  return `Question Intent: ${questionIntent}
+- learn_new: full teaching arc as instructed above.
+- misconception_repair: open by naming and correcting the wrong idea head-on
+  (Rule 6 style) before teaching the correct version. The misconception IS the
+  hook.
+- verification_only: the student wants confirmation, not a lesson. Have them
+  walk you through their reasoning OR check it directly per the current mode's
+  rules, but do not launch a ground-up explanation of the whole topic.
+- exam_cram: tighten everything. Shorter chain, exam-relevant framing,
+  prioritize the method they can reuse tomorrow over deep intuition. Still
+  never skip calculation steps.`;
+}
+
+// ADAPTIVE: mode, intent, and per-question instructions for this specific reply.
+function buildThisReplyZone(
+  replyMode: ReplyMode,
+  isCalculationQuestion: boolean,
+  questionIntent: QuestionIntent,
+): string {
+  return [
+    '=== THIS REPLY (ADAPTIVE — mode, intent, and per-question instructions) ===',
+    ...(isCalculationQuestion ? [buildSolveOperationGuidance()] : []),
+    buildSessionInstruction(replyMode, isCalculationQuestion, questionIntent),
+  ].join('\n\n');
+}
+
+export function buildSessionInstruction(
+  replyMode: ReplyMode,
+  isCalculationQuestion: boolean = false,
+  questionIntent: QuestionIntent = 'learn_new',
+): string {
+  // The Explain-Back Contract now governs every STUDY/SOCRATIC reply, calculation or not -
+  // math and science worked answers need the same zero-background, retell-tested teaching
+  // discipline as conceptual ones. When both apply, buildExplainBackCalculationBridge()
+  // reconciles the contract's narrative arc with Calculation Teaching Mode's step mechanics
+  // so neither one silently overrides the other. (The contract itself now lives in the FIXED
+  // zone - see buildFixedIdentityZone - since it is identity-level, not per-reply.)
+  // DIRECT still gets a compact answer-first style instead of the full teaching contract:
+  // applying the contract's hook/steps/retell arc to "Quick Solve" produced multi-screen
+  // replies for questions the student explicitly wanted answered briefly.
+  const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
+  const directStyleApplies = !isCalculationQuestion && replyMode === ReplyMode.DIRECT;
+  // Quick Solve (DIRECT) must stay fast and short - a hidden planning step adds latency and
+  // pushes the model toward a fuller teaching arc than DIRECT wants, so it's excluded here.
+  const notebookApplies =
+    replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC || replyMode === ReplyMode.QUESTION;
+
+  const calculationRules = isCalculationQuestion
+    ? `
+Calculation-specific extension of the Learning System Rules above (this question involves a calculation):
+11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
+12. Use the Worked Example Operation Library whenever it fits the current step.
+13. This question involves a calculation, so rule 3's difficulty adaptation is overridden for the calculation portion: follow the Calculation Teaching Mode instructions below regardless of the student's stated level.
+
+${buildWorkedExampleStructure(replyMode)}
+
+${buildCalculationTeachingRules(replyMode)}`
+    : '';
+
+  return `${notebookApplies ? `${buildTeacherNotebook()}
+
+` : ''}Current Reply Mode: ${replyMode}
+${replyModeInstructions[replyMode]}${calculationRules}${contractApplies && isCalculationQuestion ? `
 
 ${buildExplainBackCalculationBridge()}` : ''}${directStyleApplies ? `
 
-${buildDirectConceptualStyle()}` : ''}`;
+${buildDirectConceptualStyle()}` : ''}
+
+${buildQuestionIntentGuidance(questionIntent)}`;
 }
 
 export function assembleSystemPrompt(
@@ -452,13 +668,12 @@ export function assembleSystemPrompt(
   communityPatterns: any[],
   replyMode: ReplyMode,
   isCalculationQuestion: boolean = false,
+  questionIntent: QuestionIntent = 'learn_new',
 ): string {
   return [
-    buildDisciplinaryContext(disciplineDocument),
-    buildStudentProfile(learningProfile),
-    buildCommunityContext(communityPatterns),
-    ...(isCalculationQuestion ? [buildSolveOperationGuidance()] : []),
-    buildSessionInstruction(replyMode, isCalculationQuestion),
+    buildFixedIdentityZone(replyMode),
+    buildAdaptiveContextZone(disciplineDocument, learningProfile, communityPatterns),
+    buildThisReplyZone(replyMode, isCalculationQuestion, questionIntent),
   ].join('\n\n---\n\n');
 }
 

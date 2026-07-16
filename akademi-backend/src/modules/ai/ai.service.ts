@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent, stripTeacherNotebook } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -336,6 +336,41 @@ export class AIService {
     });
 
     return symbolSignals || keywordSignal;
+  }
+
+  // Extends the same heuristic classification pass that produces isCalculationQuestion with a
+  // second, independent signal - no new API call. Order matters: exam pressure and a request for
+  // verification are both usually explicit and unambiguous, so they're checked before the fuzzier
+  // misconception heuristic; anything that matches none of them defaults to learn_new.
+  private getQuestionIntent(studentMessage: string): QuestionIntent {
+    const text = studentMessage.toLowerCase();
+    const matchesAny = (signals: string[]) =>
+      signals.some((signal) => {
+        const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+      });
+
+    const examCramSignals = [
+      'exam tomorrow', 'exam is tomorrow', 'test tomorrow', 'test is tomorrow',
+      'exam on', 'test on', 'exam in', 'test in', 'exam next', 'test next',
+      'due tomorrow', 'due tonight', 'deadline', 'final exam', 'exams start',
+    ];
+    if (matchesAny(examCramSignals)) return 'exam_cram';
+
+    const verificationOnlySignals = [
+      'is this correct', 'is this right', 'is that correct', 'is that right',
+      'check my', 'did i get this right', 'did i do this right',
+      'does this look right', 'can you confirm', 'am i right',
+    ];
+    if (matchesAny(verificationOnlySignals)) return 'verification_only';
+
+    const misconceptionRepairSignals = [
+      "i thought", "isn't it always", "isn't it supposed to", "shouldn't it be",
+      "correct me if i'm wrong", "i was taught that", "i learnt that", "i learned that",
+    ];
+    if (matchesAny(misconceptionRepairSignals)) return 'misconception_repair';
+
+    return 'learn_new';
   }
 
   private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
@@ -890,6 +925,7 @@ Important:
 
     // 4. Assemble system prompt
     const isCalculationQuestion = this.hasCalculationSignals(studentMessage);
+    const questionIntent = this.getQuestionIntent(studentMessage);
     const isBoardEligible = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
@@ -898,6 +934,7 @@ Important:
       relevantCommunityPatterns,
       effectiveReplyMode,
       isCalculationQuestion,
+      questionIntent,
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
@@ -912,9 +949,25 @@ Important:
       extendedTimeouts: standalone,
     });
 
+    // The Teacher's Notebook (see buildTeacherNotebook) is a hidden planning block the model
+    // is instructed to open every STUDY/SOCRATIC/QUESTION reply with. It must never reach the
+    // student: strip it here, before anything derived from the response text - practice
+    // extraction, the cache, the DB row, or the client - ever sees it. There is no streaming
+    // of chat text in this pipeline (aiProvider.generateResponse resolves with the full text,
+    // and the websocket handler awaits sendMessage() before emitting), so there is no partial
+    // output that could flash the notebook on screen mid-generation.
+    const { visibleText: notebookStrippedText, notebook, malformed: notebookMalformed } =
+      stripTeacherNotebook(aiResponseText);
+    if (notebookMalformed) {
+      console.warn('teacher_notebook_malformed', { sessionId, userId });
+    }
+    if (notebook) {
+      console.debug('teacher_notebook', { sessionId, userId, notebook });
+    }
+
     const { content: cleanedResponseText, practice: practiceBlock } = standalone
-      ? this.extractPracticeBlock(aiResponseText)
-      : { content: aiResponseText, practice: null };
+      ? this.extractPracticeBlock(notebookStrippedText)
+      : { content: notebookStrippedText, practice: null };
 
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
     const isEssayBlueprintEligible = this.isEssayBlueprintEligibleQuestion(studentMessage, session);
