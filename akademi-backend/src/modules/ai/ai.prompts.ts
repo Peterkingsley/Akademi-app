@@ -43,7 +43,13 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   Normalize struggle lightly when needed, for example by saying that a confusing step is common.
   Ask one guided follow-up question during or after the explanation when it helps the student feel involved.
   End with a self-check that helps the student test whether the answer is reasonable.
-  This is the "Learn Step-by-Step" path, so this is the deepest teaching mode Akademi has.`,
+  This is the "Learn Step-by-Step" path, so this is the deepest teaching mode Akademi has.
+  Before the teaching begins, state in one sentence what the student should be
+  able to DO after reading this reply — a capability, not a topic name. For
+  example: "After this, you should be able to spot when a question needs
+  integration by parts." This objective must match the notebook's
+  goal_this_reply, and the closing self-check must test exactly this
+  capability.`,
 
   QUESTION: `Do not answer the question directly. Reframe it in plain language
   so the student is sure what is being asked, then ask them to attempt it —
