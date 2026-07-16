@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
-import * as Speech from "expo-speech";
 import api, { currentApiBaseUrl, refreshAccessToken } from "./api";
 import { readAccessToken } from "./tokenStorage";
 
@@ -120,7 +119,6 @@ export const setAiVoiceEnabled = async (enabled: boolean) => {
 };
 
 export const stopAiSpeech = async () => {
-  await Speech.stop();
   activeAiPlaybackResolver?.();
   activeAiPlaybackResolver = null;
   if (activeAiSound) {
@@ -234,30 +232,6 @@ export const estimateSpeechDurationMs = (content: string) => {
 
 export const sanitizeAiSpeechText = (content: string) => sanitizeSpeechText(content);
 
-const speakWithDeviceVoice = async (content: string) => {
-  const sanitized = sanitizeSpeechText(content);
-  if (!sanitized) return;
-
-  await Speech.stop();
-  await new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    Speech.speak(sanitized, {
-      rate: 0.95,
-      pitch: 1,
-      language: "en",
-      onDone: finish,
-      onStopped: finish,
-      onError: finish,
-    });
-  });
-};
-
 export const speakAiText = async (content: string) => {
   const sanitized = sanitizeSpeechText(content);
   if (!sanitized) return;
@@ -308,8 +282,7 @@ export const speakAiText = async (content: string) => {
       });
     });
   } catch (error) {
-    console.warn("ElevenLabs AI voice failed, falling back to device voice.", error);
-    await speakWithDeviceVoice(sanitized);
+    console.warn("tts_unavailable", { source: "speakAiText", error });
   } finally {
     activeAiPlaybackResolver = null;
     if (activeAiSound) {
@@ -355,9 +328,17 @@ const probeStreamAudioStatus = async (url: string, token: string): Promise<numbe
   }
 };
 
-export const speakAiTextStream = async (sessionId: string, content: string) => {
+export type TtsResult = { ok: true } | { ok: false; reason: string; statusCode?: number };
+
+// ElevenLabs is the only tutor voice - there is no device-voice fallback.
+// A retry is worth one of these delays only when the previous failure looks
+// transient (upstream busy, network blip); a stale/missing stream record
+// (404/409) is retried immediately with a freshly minted stream instead.
+const RETRY_BACKOFF_MS = [1000, 2000, 4000];
+
+export const speakAiTextStream = async (sessionId: string, content: string): Promise<TtsResult> => {
   const sanitized = sanitizeSpeechText(content);
-  if (!sanitized) return;
+  if (!sanitized) return { ok: true };
 
   console.log("ai_message_received", {
     sessionId,
@@ -433,57 +414,78 @@ export const speakAiTextStream = async (sessionId: string, content: string) => {
     });
   };
 
+  let lastReason = "unknown_error";
+  let lastStatusCode: number | undefined;
+  let skipNextBackoff = false;
+  const maxAttempts = RETRY_BACKOFF_MS.length + 1; // 1 initial attempt + 3 retries
+
   try {
-    console.log("tts_ws_connect_start", {
-      sessionId,
-      timestamp: new Date().toISOString(),
-    });
-
-    const data = await requestStream();
-    const token = await getAccessToken();
-    if (!data?.path || !token) {
-      throw new Error("Streaming voice setup failed.");
-    }
-
-    const streamUrl = `${currentApiBaseUrl}${data.path}`;
-
-    try {
-      await playStream(streamUrl, token);
-      return;
-    } catch (firstError) {
-      const status = await probeStreamAudioStatus(streamUrl, token);
-      console.warn("tts_stream_retry", { sessionId, status });
-
-      if (status === 401) {
-        const refreshed = await refreshAccessToken().catch(() => null);
-        if (refreshed?.accessToken) {
-          await playStream(streamUrl, refreshed.accessToken);
-          return;
-        }
-        throw firstError;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1 && !skipNextBackoff) {
+        await sleep(RETRY_BACKOFF_MS[attempt - 2]);
       }
+      skipNextBackoff = false;
 
-      if (status === 503) {
-        await sleep(1000);
-        await playStream(streamUrl, token);
-        return;
-      }
+      console.log("tts_ws_connect_start", {
+        sessionId,
+        attempt,
+        timestamp: new Date().toISOString(),
+      });
 
-      if (status === 404) {
-        const freshData = await requestStream();
+      let streamUrl: string;
+      let token: string;
+      try {
+        const data = await requestStream();
         const freshToken = await getAccessToken();
-        if (!freshData?.path || !freshToken) {
+        if (!data?.path || !freshToken) {
           throw new Error("Streaming voice setup failed.");
         }
-        await playStream(`${currentApiBaseUrl}${freshData.path}`, freshToken);
-        return;
+        streamUrl = `${currentApiBaseUrl}${data.path}`;
+        token = freshToken;
+      } catch (error) {
+        lastReason = "stream_setup_failed";
+        lastStatusCode = undefined;
+        console.warn("tts_stream_retry", { sessionId, attempt, reason: lastReason, error });
+        continue;
       }
 
-      throw firstError;
+      try {
+        await playStream(streamUrl, token);
+        return { ok: true };
+      } catch (playError) {
+        const status = await probeStreamAudioStatus(streamUrl, token);
+        lastStatusCode = status ?? undefined;
+
+        if (status === 401) {
+          const refreshed = await refreshAccessToken().catch(() => null);
+          if (refreshed?.accessToken) {
+            try {
+              await playStream(streamUrl, refreshed.accessToken);
+              return { ok: true };
+            } catch {
+              lastReason = "auth_failed";
+            }
+          } else {
+            lastReason = "auth_failed";
+          }
+        } else if (status === 404) {
+          lastReason = "stream_not_found";
+          skipNextBackoff = true;
+        } else if (status === 409) {
+          lastReason = "stream_consumed";
+          skipNextBackoff = true;
+        } else if (status === 503) {
+          lastReason = "upstream_unavailable";
+        } else {
+          lastReason = status ? `http_${status}` : "network_error";
+        }
+
+        console.warn("tts_stream_retry", { sessionId, attempt, status, reason: lastReason, error: playError });
+      }
     }
-  } catch (error) {
-    console.warn("tts_stream_failed", error);
-    await speakWithDeviceVoice(sanitized);
+
+    console.warn("tts_unavailable", { sessionId, reason: lastReason, statusCode: lastStatusCode });
+    return { ok: false, reason: lastReason, statusCode: lastStatusCode };
   } finally {
     activeAiPlaybackResolver = null;
     if (activeAiSound) {
