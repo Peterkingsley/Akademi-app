@@ -210,6 +210,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
+  const [voiceUnavailable, setVoiceUnavailable] = useState<{ messageId: string; content: string } | null>(null);
   const whiteboardExperimentsEnabled =
     __DEV__ || process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
 
@@ -466,10 +467,11 @@ export const StudyCompanionScreen: React.FC = () => {
     }
 
     beginAutoContinuePrefetch(message);
-    await speakAiTextStream(sessionId, fullContent);
+    const voiceResult = await speakAiTextStream(sessionId, fullContent);
     if (playbackTokenRef.current !== token) {
       return null;
     }
+    setVoiceUnavailable(voiceResult.ok ? null : { messageId: message.id, content: fullContent });
 
     cancelRevealTimer();
     finalizeAiMessage(message.id, fullContent);
@@ -482,6 +484,16 @@ export const StudyCompanionScreen: React.FC = () => {
     }
     return null;
   }, [beginAutoContinuePrefetch, cancelRevealTimer, finalizeAiMessage, resolveAutoContinueAfterSpeech, setTutorState]);
+
+  const retryVoicePlayback = useCallback(async () => {
+    if (!voiceUnavailable) return;
+    const { messageId, content } = voiceUnavailable;
+    setVoiceUnavailable(null);
+    const result = await speakAiTextStream(sessionId, content);
+    if (!result.ok) {
+      setVoiceUnavailable({ messageId, content });
+    }
+  }, [sessionId, voiceUnavailable]);
 
   const processTutorMessage = useCallback(async (message: Message) => {
     setMessages((prev) => [...prev, { ...toUiMessage(message), displayContent: "" }]);
@@ -789,6 +801,14 @@ export const StudyCompanionScreen: React.FC = () => {
           }
         />
 
+        {voiceUnavailable ? (
+          <View style={styles.voiceUnavailableRow}>
+            <Pressable onPress={() => void retryVoicePlayback()} style={styles.voiceUnavailableChip}>
+              <Text style={styles.voiceUnavailableText}>Voice unavailable · Tap to retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={styles.composer}>
           <View style={styles.composerBox}>
             <TextInput
@@ -1038,6 +1058,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     whiteboardDevChipTextActive: {
       color: "#08130C",
+    },
+    voiceUnavailableRow: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      alignItems: "flex-start",
+    },
+    voiceUnavailableChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    voiceUnavailableText: {
+      ...typography.bodySmall,
+      color: colors.warning,
+      fontSize: 11,
+      fontWeight: "700",
     },
     whiteboardPanel: {
       marginBottom: 16,

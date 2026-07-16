@@ -12,16 +12,31 @@ type PendingStreamRecord = {
   consumedAt?: number;
 };
 
+export type VoiceStreamErrorReason =
+  | 'elevenlabs_not_configured'
+  | 'elevenlabs_auth_failed'
+  | 'elevenlabs_voice_not_found'
+  | 'elevenlabs_quota_exceeded'
+  | 'elevenlabs_concurrency_limit'
+  | 'elevenlabs_timeout'
+  | 'elevenlabs_ws_error'
+  | 'stream_not_found'
+  | 'stream_consumed'
+  | 'client_disconnected';
+
 const STREAM_TTL_SECONDS = 5 * 60;
 const RE_READ_WINDOW_MS = 60 * 1000;
+const NO_AUDIO_TIMEOUT_MS = 10 * 1000;
 
 export class VoiceStreamError extends Error {
   statusCode: number;
+  reason: VoiceStreamErrorReason;
 
-  constructor(message: string, statusCode: number) {
+  constructor(message: string, statusCode: number, reason: VoiceStreamErrorReason) {
     super(message);
     this.name = 'VoiceStreamError';
     this.statusCode = statusCode;
+    this.reason = reason;
   }
 }
 
@@ -40,33 +55,77 @@ function sanitizeSpeechText(content: string) {
     .trim();
 }
 
-// ElevenLabs reports concurrency/rate limits as plain-text WS error payloads
-// rather than a structured error code, so telling them apart from genuine
-// upstream unavailability requires a small classification step.
-function classifyElevenLabsErrorStatus(message: string): number {
+// ElevenLabs reports most failures (auth, quota, concurrency, missing voice)
+// as plain-text WS error payloads rather than a structured error code, so
+// telling them apart from genuine upstream unavailability requires a small
+// classification step.
+function classifyElevenLabsError(message: string): { statusCode: number; reason: VoiceStreamErrorReason } {
   const normalized = message.toLowerCase();
-  if (
-    normalized.includes('concurrent') ||
-    normalized.includes('too many requests') ||
-    normalized.includes('rate limit') ||
-    normalized.includes('quota') ||
-    normalized.includes('429')
-  ) {
-    return 429;
+  if (normalized.includes('concurrent')) {
+    return { statusCode: 429, reason: 'elevenlabs_concurrency_limit' };
   }
-  return 503;
+  if (normalized.includes('quota') || normalized.includes('rate limit') || normalized.includes('too many requests') || normalized.includes('429')) {
+    return { statusCode: 429, reason: 'elevenlabs_quota_exceeded' };
+  }
+  if (normalized.includes('api key') || normalized.includes('api_key') || normalized.includes('unauthorized') || normalized.includes('401')) {
+    return { statusCode: 401, reason: 'elevenlabs_auth_failed' };
+  }
+  if (normalized.includes('voice') && (normalized.includes('not found') || normalized.includes('does not exist') || normalized.includes('404'))) {
+    return { statusCode: 404, reason: 'elevenlabs_voice_not_found' };
+  }
+  return { statusCode: 503, reason: 'elevenlabs_ws_error' };
+}
+
+// WebSocket close codes ElevenLabs is known to send, so logs read as English
+// instead of requiring a lookup every time someone investigates a failure.
+function describeCloseCode(code: number): string {
+  switch (code) {
+    case 1000:
+      return 'normal closure';
+    case 1006:
+      return 'abnormal closure (connection dropped without a close frame)';
+    case 1008:
+      return 'policy violation (commonly an auth/API key rejection)';
+    case 1011:
+      return 'server error';
+    default:
+      return 'unrecognized close code';
+  }
 }
 
 export class ElevenLabsStreamService {
+  constructor() {
+    const apiKeySet = Boolean(config.elevenLabsApiKey);
+    console.log('elevenlabs_config_checked', {
+      apiKeySet,
+      apiKeySuffix: apiKeySet ? config.elevenLabsApiKey.slice(-4) : null,
+      voiceId: config.elevenLabsVoiceId,
+      modelId: config.elevenLabsModelId,
+    });
+    if (!apiKeySet) {
+      console.error('elevenlabs_config_missing', {
+        message: 'ELEVENLABS_API_KEY is not set; every voice streaming request will fail until it is configured.',
+      });
+    }
+  }
+
+  private assertConfigured() {
+    if (!config.elevenLabsApiKey) {
+      throw new VoiceStreamError(
+        'ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.',
+        500,
+        'elevenlabs_not_configured',
+      );
+    }
+  }
+
   async createPendingStream(sessionId: string, userId: string, text: string) {
     const sanitized = sanitizeSpeechText(text || '');
     if (!sanitized) {
       throw new Error('Text is required for speech synthesis.');
     }
 
-    if (!config.elevenLabsApiKey) {
-      throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
-    }
+    this.assertConfigured();
 
     const id = uuidv4();
     const record: PendingStreamRecord = {
@@ -114,18 +173,21 @@ export class ElevenLabsStreamService {
       streamId,
       message: error.message,
       statusCode: error.statusCode,
+      reason: error.reason,
     });
   }
 
   async streamPendingAudio(sessionId: string, userId: string, streamId: string, res: Response) {
+    this.assertConfigured();
+
     const pending = await this.loadPendingStream(streamId);
 
     if (!pending || pending.sessionId !== sessionId || pending.userId !== userId) {
       // If the record is missing because Redis itself is unreachable, this is
       // not "the stream doesn't exist" - it's "we can't tell right now".
       const error = !pending && isRedisDegraded()
-        ? new VoiceStreamError('Voice stream storage is temporarily unavailable.', 503)
-        : new VoiceStreamError('Voice stream not found or has expired.', 404);
+        ? new VoiceStreamError('Voice stream storage is temporarily unavailable.', 503, 'elevenlabs_ws_error')
+        : new VoiceStreamError('Voice stream not found or has expired.', 404, 'stream_not_found');
       this.logStreamError(sessionId, streamId, error);
       throw error;
     }
@@ -133,7 +195,7 @@ export class ElevenLabsStreamService {
     const now = Date.now();
     if (pending.consumedAt !== undefined) {
       if (now - pending.consumedAt > RE_READ_WINDOW_MS) {
-        const error = new VoiceStreamError('Voice stream has already been used.', 409);
+        const error = new VoiceStreamError('Voice stream has already been used.', 409, 'stream_consumed');
         this.logStreamError(sessionId, streamId, error);
         throw error;
       }
@@ -162,25 +224,37 @@ export class ElevenLabsStreamService {
   private pipeElevenLabsStream(text: string, sessionId: string, streamId: string, res: Response) {
     return new Promise<void>((resolve, reject) => {
       const startedAt = Date.now();
+      const logContext = {
+        sessionId,
+        streamId,
+        voiceId: config.elevenLabsVoiceId,
+        modelId: config.elevenLabsModelId,
+      };
       let settled = false;
       let firstChunkLogged = false;
+      let noAudioTimeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
-      const finish = (error?: Error & { statusCode?: number }) => {
+      const finish = (error?: Error & { statusCode?: number; reason?: VoiceStreamErrorReason }) => {
         if (settled) return;
         settled = true;
+        if (noAudioTimeoutHandle) {
+          clearTimeout(noAudioTimeoutHandle);
+          noAudioTimeoutHandle = null;
+        }
 
         if (error) {
           const statusCode = error.statusCode ?? 503;
+          const reason = error.reason ?? 'elevenlabs_ws_error';
           console.error('tts_stream_error', {
-            sessionId,
-            streamId,
+            ...logContext,
             message: error.message,
             statusCode,
+            reason,
             elapsedMs: Date.now() - startedAt,
           });
 
           if (!res.headersSent) {
-            res.status(statusCode).json({ message: error.message });
+            res.status(statusCode).json({ message: error.message, reason });
           } else {
             res.destroy(error);
           }
@@ -189,8 +263,7 @@ export class ElevenLabsStreamService {
         }
 
         console.log('audio_stream_completed', {
-          sessionId,
-          streamId,
+          ...logContext,
           elapsedMs: Date.now() - startedAt,
         });
         res.end();
@@ -213,14 +286,45 @@ export class ElevenLabsStreamService {
       res.on('close', () => {
         closeSocket();
         if (!settled) {
-          finish(new Error('Client closed the audio stream.'));
+          finish(new VoiceStreamError('Client closed the audio stream.', 503, 'client_disconnected'));
         }
+      });
+
+      // The server can reject the WS upgrade outright (wrong API key, bad
+      // voice id) with a plain HTTP response instead of ever completing the
+      // handshake. Without this handler `ws` aborts the connection with a
+      // generic "Unexpected server response" error and we lose the actual
+      // status code and the response body, which is where ElevenLabs puts
+      // "invalid_api_key" / "voice_not_found" / quota details.
+      socket.on('unexpected-response', (_request, response) => {
+        let body = '';
+        response.on('data', (chunk) => {
+          body += chunk;
+        });
+        response.on('end', () => {
+          const upstreamStatus = response.statusCode || 502;
+          const { statusCode, reason } =
+            upstreamStatus === 401 || upstreamStatus === 403
+              ? { statusCode: 401, reason: 'elevenlabs_auth_failed' as const }
+              : upstreamStatus === 404
+                ? { statusCode: 404, reason: 'elevenlabs_voice_not_found' as const }
+                : upstreamStatus === 429
+                  ? { statusCode: 429, reason: 'elevenlabs_quota_exceeded' as const }
+                  : { statusCode: 503, reason: 'elevenlabs_ws_error' as const };
+
+          console.error('elevenlabs_ws_unexpected_response', {
+            ...logContext,
+            upstreamStatus,
+            body: body.slice(0, 1000),
+            elapsedMs: Date.now() - startedAt,
+          });
+          finish(new VoiceStreamError(`ElevenLabs rejected the connection (${upstreamStatus}).`, statusCode, reason));
+        });
       });
 
       socket.on('open', () => {
         console.log('elevenlabs_ws_opened', {
-          sessionId,
-          streamId,
+          ...logContext,
           elapsedMs: Date.now() - startedAt,
         });
 
@@ -249,54 +353,93 @@ export class ElevenLabsStreamService {
         );
 
         socket.send(JSON.stringify({ text: '' }));
+
+        noAudioTimeoutHandle = setTimeout(() => {
+          if (firstChunkLogged || settled) return;
+          console.error('elevenlabs_no_audio_timeout', {
+            ...logContext,
+            elapsedMs: Date.now() - startedAt,
+            textLength: text.length,
+          });
+          finish(new VoiceStreamError('ElevenLabs did not return any audio in time.', 503, 'elevenlabs_timeout'));
+          closeSocket();
+        }, NO_AUDIO_TIMEOUT_MS);
       });
 
       socket.on('message', (payload) => {
+        let parsed: { audio?: string; isFinal?: boolean; error?: string; message?: string };
         try {
-          const parsed = JSON.parse(payload.toString()) as {
-            audio?: string;
-            isFinal?: boolean;
-            error?: string;
-          };
-
-          if (parsed.error) {
-            finish(new VoiceStreamError(parsed.error, classifyElevenLabsErrorStatus(parsed.error)));
-            closeSocket();
-            return;
-          }
-
-          if (parsed.audio) {
-            if (!firstChunkLogged) {
-              firstChunkLogged = true;
-              console.log('first_audio_chunk_received', {
-                sessionId,
-                streamId,
-                elapsedMs: Date.now() - startedAt,
-              });
-            }
-
-            res.write(Buffer.from(parsed.audio, 'base64'));
-          }
-
-          if (parsed.isFinal) {
-            closeSocket();
-            finish();
-          }
+          parsed = JSON.parse(payload.toString());
         } catch (error: any) {
-          finish(new Error(error?.message || 'Could not parse ElevenLabs stream payload.'));
+          finish(new VoiceStreamError(error?.message || 'Could not parse ElevenLabs stream payload.', 503, 'elevenlabs_ws_error'));
           closeSocket();
+          return;
+        }
+
+        if (parsed.error || parsed.message) {
+          const errorText = parsed.error || parsed.message || 'ElevenLabs reported an error.';
+          console.error('elevenlabs_message_error', {
+            ...logContext,
+            payload: parsed,
+            elapsedMs: Date.now() - startedAt,
+          });
+          const { statusCode, reason } = classifyElevenLabsError(errorText);
+          finish(new VoiceStreamError(errorText, statusCode, reason));
+          closeSocket();
+          return;
+        }
+
+        if (parsed.audio) {
+          if (!firstChunkLogged) {
+            firstChunkLogged = true;
+            console.log('first_audio_chunk_received', {
+              ...logContext,
+              elapsedMs: Date.now() - startedAt,
+            });
+          }
+
+          res.write(Buffer.from(parsed.audio, 'base64'));
+        }
+
+        if (parsed.isFinal) {
+          closeSocket();
+          finish();
         }
       });
 
       socket.on('error', (error) => {
         const message = error.message || 'ElevenLabs WebSocket failed.';
-        finish(new VoiceStreamError(message, classifyElevenLabsErrorStatus(message)));
+        console.error('elevenlabs_ws_error_event', {
+          ...logContext,
+          message,
+          elapsedMs: Date.now() - startedAt,
+        });
+        const { statusCode, reason } = classifyElevenLabsError(message);
+        finish(new VoiceStreamError(message, statusCode, reason));
       });
 
-      socket.on('close', () => {
-        if (!settled) {
-          finish();
-        }
+      socket.on('close', (code, reasonBuffer) => {
+        if (settled) return;
+        // Reaching here means the socket closed before we ever saw `isFinal`
+        // (that path settles synchronously and short-circuits this handler
+        // via the `settled` guard) - so this is always a premature close,
+        // never a legitimate completion, and must not be treated as success.
+        const reasonText = reasonBuffer?.toString() || '';
+        console.error('elevenlabs_ws_closed_prematurely', {
+          ...logContext,
+          code,
+          reason: reasonText,
+          codeMeaning: describeCloseCode(code),
+          elapsedMs: Date.now() - startedAt,
+        });
+        const isAuthClose = code === 1008;
+        finish(
+          new VoiceStreamError(
+            `ElevenLabs closed the connection before completing the response (code ${code}: ${describeCloseCode(code)}).`,
+            isAuthClose ? 401 : 503,
+            isAuthClose ? 'elevenlabs_auth_failed' : 'elevenlabs_ws_error',
+          ),
+        );
       });
     });
   }
