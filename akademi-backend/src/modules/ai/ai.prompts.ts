@@ -3,7 +3,7 @@ import { ReplyMode } from '@prisma/client';
 // Bump this whenever the assembled system prompt changes meaningfully.
 // It is part of the AI response cache key, so stale answers generated under
 // an older prompt stop being served the moment a new prompt ships.
-export const PROMPT_VERSION = 4;
+export const PROMPT_VERSION = 5;
 
 // Cheap routing signal produced alongside isCalculationQuestion by the same
 // classification pass (see AIService.getQuestionIntent) - no new API call.
@@ -414,6 +414,86 @@ one overrides the other into being skipped.
   but (a) is not?", could the student answer purely from what you wrote for each one?`;
 }
 
+export const TEACHER_NOTEBOOK_OPEN_TAG = '<teacher_notebook>';
+export const TEACHER_NOTEBOOK_CLOSE_TAG = '</teacher_notebook>';
+
+export function buildTeacherNotebook(): string {
+  return `TEACHER'S NOTEBOOK (hidden planning — do this FIRST, before any visible reply)
+Before writing anything the student will see, open your reply with a private
+planning block wrapped EXACTLY like this:
+
+${TEACHER_NOTEBOOK_OPEN_TAG}
+why_asking: <one line — your best guess at WHY this student is asking: missing
+  prerequisite / can apply but shaky / memorized without understanding /
+  revising for exam / just wants verification / panicking before a deadline>
+goal_this_reply: <one line — what THIS reply should achieve, scoped small.
+  "Understand what a derivative measures", NOT "master calculus">
+causal_chain: <the 3–6 links of Rule 1, as a numbered list of short phrases>
+move: <one of: guided_discovery / direct_explanation / worked_parallel_example /
+  misconception_repair / reflective_pause / resource_creation>
+visual: <yes + one line on what single relationship it shows, or no>
+closing_question: <the one self-check or follow-up question you will end with>
+${TEACHER_NOTEBOOK_CLOSE_TAG}
+
+Rules for the notebook:
+- It is a blueprint, not a draft. Short phrases only. Under 120 words total.
+- The visible reply that follows MUST be written from this plan: same goal,
+  same chain, same move, same closing question. If while writing you realize
+  the plan was wrong, the plan wins — stop and keep the reply within its scope
+  rather than sprawling.
+- Never reference the notebook in the visible reply. The student must not be
+  able to tell it exists.
+- The notebook block always comes first, then the visible reply immediately
+  after the closing ${TEACHER_NOTEBOOK_CLOSE_TAG} tag.`;
+}
+
+// Strips the hidden Teacher's Notebook block (see buildTeacherNotebook) from a raw model
+// response before it is cached or sent to the client. Tolerant of a malformed/duplicated
+// block: case-insensitive, dotall (via [\\s\\S]), and global so more than one occurrence is
+// removed. Exported standalone (rather than kept private in AIService) so it is directly
+// unit-testable without needing to mock the whole session/prisma pipeline.
+export type StripTeacherNotebookResult = {
+  visibleText: string;
+  notebook: string | null;
+  malformed: boolean;
+};
+
+export function stripTeacherNotebook(rawText: string): StripTeacherNotebookResult {
+  if (!rawText) return { visibleText: rawText, notebook: null, malformed: false };
+
+  const wellFormedPattern = /\s*<teacher_notebook>([\s\S]*?)<\/teacher_notebook>\s*/gi;
+  let notebook: string | null = null;
+  const withWellFormedStripped = rawText.replace(wellFormedPattern, (_match, inner: string) => {
+    if (notebook === null) notebook = inner.trim();
+    return '';
+  });
+
+  if (notebook !== null) {
+    return { visibleText: withWellFormedStripped.trim(), notebook, malformed: false };
+  }
+
+  // Closing tag missing but an opening tag is present: the model drifted from the format.
+  // Strip from the opening tag through the first blank line after it - the notebook's own
+  // instructions always end with a blank line before the visible reply - and flag it so the
+  // caller can log a warning instead of silently leaking a half-written plan to the student.
+  const openTagMatch = rawText.match(/<teacher_notebook>/i);
+  if (!openTagMatch || openTagMatch.index === undefined) {
+    return { visibleText: rawText, notebook: null, malformed: false };
+  }
+
+  const openTagIndex = openTagMatch.index;
+  const afterOpenTag = rawText.slice(openTagIndex);
+  const blankLineMatch = afterOpenTag.match(/\n\s*\n/);
+  const cutoff = blankLineMatch
+    ? openTagIndex + blankLineMatch.index! + blankLineMatch[0].length
+    : rawText.length;
+
+  const extracted = rawText.slice(openTagIndex, cutoff).replace(/<teacher_notebook>/i, '').trim();
+  const visibleText = (rawText.slice(0, openTagIndex) + rawText.slice(cutoff)).trim();
+
+  return { visibleText, notebook: extracted || null, malformed: true };
+}
+
 // These 10 rules are identity-level: they hold regardless of mode, student, or question,
 // which is why assembleSystemPrompt places them in the FIXED zone rather than THIS REPLY.
 // The calculation-specific extension (rules 11-13) stays with the calculation blocks in
@@ -553,6 +633,10 @@ export function buildSessionInstruction(
   // replies for questions the student explicitly wanted answered briefly.
   const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
   const directStyleApplies = !isCalculationQuestion && replyMode === ReplyMode.DIRECT;
+  // Quick Solve (DIRECT) must stay fast and short - a hidden planning step adds latency and
+  // pushes the model toward a fuller teaching arc than DIRECT wants, so it's excluded here.
+  const notebookApplies =
+    replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC || replyMode === ReplyMode.QUESTION;
 
   const calculationRules = isCalculationQuestion
     ? `
@@ -566,7 +650,9 @@ ${buildWorkedExampleStructure(replyMode)}
 ${buildCalculationTeachingRules(replyMode)}`
     : '';
 
-  return `Current Reply Mode: ${replyMode}
+  return `${notebookApplies ? `${buildTeacherNotebook()}
+
+` : ''}Current Reply Mode: ${replyMode}
 ${replyModeInstructions[replyMode]}${calculationRules}${contractApplies && isCalculationQuestion ? `
 
 ${buildExplainBackCalculationBridge()}` : ''}${directStyleApplies ? `

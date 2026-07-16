@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent, stripTeacherNotebook } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -949,9 +949,25 @@ Important:
       extendedTimeouts: standalone,
     });
 
+    // The Teacher's Notebook (see buildTeacherNotebook) is a hidden planning block the model
+    // is instructed to open every STUDY/SOCRATIC/QUESTION reply with. It must never reach the
+    // student: strip it here, before anything derived from the response text - practice
+    // extraction, the cache, the DB row, or the client - ever sees it. There is no streaming
+    // of chat text in this pipeline (aiProvider.generateResponse resolves with the full text,
+    // and the websocket handler awaits sendMessage() before emitting), so there is no partial
+    // output that could flash the notebook on screen mid-generation.
+    const { visibleText: notebookStrippedText, notebook, malformed: notebookMalformed } =
+      stripTeacherNotebook(aiResponseText);
+    if (notebookMalformed) {
+      console.warn('teacher_notebook_malformed', { sessionId, userId });
+    }
+    if (notebook) {
+      console.debug('teacher_notebook', { sessionId, userId, notebook });
+    }
+
     const { content: cleanedResponseText, practice: practiceBlock } = standalone
-      ? this.extractPracticeBlock(aiResponseText)
-      : { content: aiResponseText, practice: null };
+      ? this.extractPracticeBlock(notebookStrippedText)
+      : { content: notebookStrippedText, practice: null };
 
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
     const isEssayBlueprintEligible = this.isEssayBlueprintEligibleQuestion(studentMessage, session);
