@@ -2,17 +2,32 @@ import { Response } from 'express';
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../../config/env';
+import redisClient, { isRedisDegraded } from '../../config/redis';
 
-type PendingStream = {
-  id: string;
+type PendingStreamRecord = {
   sessionId: string;
   userId: string;
   text: string;
   createdAt: number;
-  consumed: boolean;
+  consumedAt?: number;
 };
 
-const STREAM_TTL_MS = 5 * 60 * 1000;
+const STREAM_TTL_SECONDS = 5 * 60;
+const RE_READ_WINDOW_MS = 60 * 1000;
+
+export class VoiceStreamError extends Error {
+  statusCode: number;
+
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = 'VoiceStreamError';
+    this.statusCode = statusCode;
+  }
+}
+
+function streamKey(streamId: string) {
+  return `voice-stream:${streamId}`;
+}
 
 function sanitizeSpeechText(content: string) {
   return content
@@ -25,19 +40,25 @@ function sanitizeSpeechText(content: string) {
     .trim();
 }
 
-export class ElevenLabsStreamService {
-  private pendingStreams = new Map<string, PendingStream>();
-
-  private cleanupExpiredStreams() {
-    const now = Date.now();
-    for (const [streamId, stream] of this.pendingStreams.entries()) {
-      if (now - stream.createdAt > STREAM_TTL_MS) {
-        this.pendingStreams.delete(streamId);
-      }
-    }
+// ElevenLabs reports concurrency/rate limits as plain-text WS error payloads
+// rather than a structured error code, so telling them apart from genuine
+// upstream unavailability requires a small classification step.
+function classifyElevenLabsErrorStatus(message: string): number {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes('concurrent') ||
+    normalized.includes('too many requests') ||
+    normalized.includes('rate limit') ||
+    normalized.includes('quota') ||
+    normalized.includes('429')
+  ) {
+    return 429;
   }
+  return 503;
+}
 
-  createPendingStream(sessionId: string, userId: string, text: string) {
+export class ElevenLabsStreamService {
+  async createPendingStream(sessionId: string, userId: string, text: string) {
     const sanitized = sanitizeSpeechText(text || '');
     if (!sanitized) {
       throw new Error('Text is required for speech synthesis.');
@@ -47,16 +68,19 @@ export class ElevenLabsStreamService {
       throw new Error('ElevenLabs is not configured. Add ELEVENLABS_API_KEY to the backend environment.');
     }
 
-    this.cleanupExpiredStreams();
     const id = uuidv4();
-    this.pendingStreams.set(id, {
-      id,
+    const record: PendingStreamRecord = {
       sessionId,
       userId,
       text: sanitized,
       createdAt: Date.now(),
-      consumed: false,
-    });
+    };
+
+    // Pending streams must be readable from whichever replica the follow-up
+    // GET lands on, so they live in Redis (shared across pods) rather than an
+    // in-process Map. TTL is a safety net; the re-read window below is what
+    // actually governs how long a stream stays usable after being consumed.
+    await redisClient.setEx(streamKey(id), STREAM_TTL_SECONDS, JSON.stringify(record));
 
     console.log('tts_stream_request_received', {
       sessionId,
@@ -73,20 +97,58 @@ export class ElevenLabsStreamService {
     };
   }
 
+  private async loadPendingStream(streamId: string): Promise<PendingStreamRecord | null> {
+    const raw = await redisClient.get(streamKey(streamId));
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw) as PendingStreamRecord;
+    } catch {
+      return null;
+    }
+  }
+
+  private logStreamError(sessionId: string, streamId: string, error: VoiceStreamError) {
+    console.error('tts_stream_error', {
+      sessionId,
+      streamId,
+      message: error.message,
+      statusCode: error.statusCode,
+    });
+  }
+
   async streamPendingAudio(sessionId: string, userId: string, streamId: string, res: Response) {
-    this.cleanupExpiredStreams();
-    const pending = this.pendingStreams.get(streamId);
+    const pending = await this.loadPendingStream(streamId);
 
     if (!pending || pending.sessionId !== sessionId || pending.userId !== userId) {
-      throw new Error('Voice stream not found or has expired.');
+      // If the record is missing because Redis itself is unreachable, this is
+      // not "the stream doesn't exist" - it's "we can't tell right now".
+      const error = !pending && isRedisDegraded()
+        ? new VoiceStreamError('Voice stream storage is temporarily unavailable.', 503)
+        : new VoiceStreamError('Voice stream not found or has expired.', 404);
+      this.logStreamError(sessionId, streamId, error);
+      throw error;
     }
 
-    if (pending.consumed) {
-      throw new Error('Voice stream has already been used.');
+    const now = Date.now();
+    if (pending.consumedAt !== undefined) {
+      if (now - pending.consumedAt > RE_READ_WINDOW_MS) {
+        const error = new VoiceStreamError('Voice stream has already been used.', 409);
+        this.logStreamError(sessionId, streamId, error);
+        throw error;
+      }
+      // Within the re-read window: this is expo-av/AVPlayer re-requesting the
+      // same URI (probe, range re-request, retry), not a new playback - allow
+      // it without extending the window further.
+    } else {
+      // First read: mark consumed so any request outside the window below is
+      // rejected instead of treated as a fresh, unconsumed stream. This write
+      // is intentionally not atomic - a near-simultaneous second read landing
+      // on another replica may also observe consumedAt unset and write it
+      // again, and that's fine, since both requests are meant to succeed.
+      const updated: PendingStreamRecord = { ...pending, consumedAt: now };
+      await redisClient.setEx(streamKey(streamId), STREAM_TTL_SECONDS, JSON.stringify(updated));
     }
-
-    pending.consumed = true;
-    this.pendingStreams.delete(streamId);
 
     res.status(200);
     res.setHeader('Content-Type', 'audio/mpeg');
@@ -103,20 +165,22 @@ export class ElevenLabsStreamService {
       let settled = false;
       let firstChunkLogged = false;
 
-      const finish = (error?: Error) => {
+      const finish = (error?: Error & { statusCode?: number }) => {
         if (settled) return;
         settled = true;
 
         if (error) {
+          const statusCode = error.statusCode ?? 503;
           console.error('tts_stream_error', {
             sessionId,
             streamId,
             message: error.message,
+            statusCode,
             elapsedMs: Date.now() - startedAt,
           });
 
           if (!res.headersSent) {
-            res.status(503).json({ message: error.message });
+            res.status(statusCode).json({ message: error.message });
           } else {
             res.destroy(error);
           }
@@ -196,7 +260,7 @@ export class ElevenLabsStreamService {
           };
 
           if (parsed.error) {
-            finish(new Error(parsed.error));
+            finish(new VoiceStreamError(parsed.error, classifyElevenLabsErrorStatus(parsed.error)));
             closeSocket();
             return;
           }
@@ -225,7 +289,8 @@ export class ElevenLabsStreamService {
       });
 
       socket.on('error', (error) => {
-        finish(new Error(error.message || 'ElevenLabs WebSocket failed.'));
+        const message = error.message || 'ElevenLabs WebSocket failed.';
+        finish(new VoiceStreamError(message, classifyElevenLabsErrorStatus(message)));
       });
 
       socket.on('close', () => {

@@ -220,4 +220,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { currentApiBaseUrl, findHealthyApiBaseUrl };
+export { currentApiBaseUrl, findHealthyApiBaseUrl, refreshAccessToken };
