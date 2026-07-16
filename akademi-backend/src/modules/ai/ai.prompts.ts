@@ -443,10 +443,12 @@ ${TEACHER_NOTEBOOK_CLOSE_TAG}
 
 Rules for the notebook:
 - It is a blueprint, not a draft. Short phrases only. Under 120 words total.
-- The visible reply that follows MUST be written from this plan: same goal,
-  same chain, same move, same closing question. If while writing you realize
-  the plan was wrong, the plan wins — stop and keep the reply within its scope
-  rather than sprawling.
+- The visible reply that follows should be written from this plan: same goal,
+  same chain, same move, same closing question. If while writing it becomes
+  clear the diagnosis was wrong (e.g. the student clearly knows the
+  prerequisite you planned to teach), adjust the plan mentally and teach the
+  right thing — but keep the reply focused on ONE goal. Never expand scope;
+  a wrong plan is fixed by replacing it, not by teaching both versions.
 - Never reference the notebook in the visible reply. The student must not be
   able to tell it exists.
 - The notebook block always comes first, then the visible reply immediately
