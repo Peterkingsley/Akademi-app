@@ -13,6 +13,7 @@ import { MaterialsService } from '../materials/materials.service';
 import { notificationsService } from '../notifications/notifications.service';
 import { Resend } from 'resend';
 import { getSystemHealthSnapshot } from '../../shared/system/system-health';
+import { checkElevenLabsHealth } from '../voice/elevenlabs-stream.service';
 import { getQueueHealth } from '../../config/queue';
 import { queueMaterialIngestion } from '../materials/material-processing';
 import { getUniversityCoverageAudit } from '../universities/university-coverage';
@@ -233,6 +234,10 @@ export class AdminService {
 
   async getSystemHealth(): Promise<SystemHealth> {
     return getSystemHealthSnapshot();
+  }
+
+  async getVoiceHealth() {
+    return checkElevenLabsHealth();
   }
 
   // Pillar 2: User Management
