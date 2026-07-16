@@ -5,6 +5,15 @@ import { ReplyMode } from '@prisma/client';
 // an older prompt stop being served the moment a new prompt ships.
 export const PROMPT_VERSION = 4;
 
+// Cheap routing signal produced alongside isCalculationQuestion by the same
+// classification pass (see AIService.getQuestionIntent) - no new API call.
+// Defaults to 'learn_new' whenever the signal is ambiguous.
+export type QuestionIntent =
+  | 'learn_new'            // meeting the topic for the first time
+  | 'misconception_repair' // their message contains a wrong belief/claim
+  | 'verification_only'    // "is this correct?", "check my answer"
+  | 'exam_cram';           // explicit exam/test/deadline pressure in the message
+
 export const replyModeInstructions: Record<ReplyMode, string> = {
   DIRECT: `Deliver a clean, structured, course-accurate answer that still helps the student learn.
   Frame everything within the student's department and course context.
@@ -498,16 +507,41 @@ function buildAdaptiveContextZone(
   ].join('\n\n');
 }
 
+// Mode-agnostic: maps the classifier's questionIntent to an emphasis, without creating a new
+// mode. Kept separate from replyModeInstructions since intent and mode are independent axes -
+// a STUDY-mode student can be exam-cramming, and a QUESTION-mode student can just want a check.
+function buildQuestionIntentGuidance(questionIntent: QuestionIntent): string {
+  return `Question Intent: ${questionIntent}
+- learn_new: full teaching arc as instructed above.
+- misconception_repair: open by naming and correcting the wrong idea head-on
+  (Rule 6 style) before teaching the correct version. The misconception IS the
+  hook.
+- verification_only: the student wants confirmation, not a lesson. Have them
+  walk you through their reasoning OR check it directly per the current mode's
+  rules, but do not launch a ground-up explanation of the whole topic.
+- exam_cram: tighten everything. Shorter chain, exam-relevant framing,
+  prioritize the method they can reuse tomorrow over deep intuition. Still
+  never skip calculation steps.`;
+}
+
 // ADAPTIVE: mode, intent, and per-question instructions for this specific reply.
-function buildThisReplyZone(replyMode: ReplyMode, isCalculationQuestion: boolean): string {
+function buildThisReplyZone(
+  replyMode: ReplyMode,
+  isCalculationQuestion: boolean,
+  questionIntent: QuestionIntent,
+): string {
   return [
     '=== THIS REPLY (ADAPTIVE — mode, intent, and per-question instructions) ===',
     ...(isCalculationQuestion ? [buildSolveOperationGuidance()] : []),
-    buildSessionInstruction(replyMode, isCalculationQuestion),
+    buildSessionInstruction(replyMode, isCalculationQuestion, questionIntent),
   ].join('\n\n');
 }
 
-export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
+export function buildSessionInstruction(
+  replyMode: ReplyMode,
+  isCalculationQuestion: boolean = false,
+  questionIntent: QuestionIntent = 'learn_new',
+): string {
   // The Explain-Back Contract now governs every STUDY/SOCRATIC reply, calculation or not -
   // math and science worked answers need the same zero-background, retell-tested teaching
   // discipline as conceptual ones. When both apply, buildExplainBackCalculationBridge()
@@ -537,7 +571,9 @@ ${replyModeInstructions[replyMode]}${calculationRules}${contractApplies && isCal
 
 ${buildExplainBackCalculationBridge()}` : ''}${directStyleApplies ? `
 
-${buildDirectConceptualStyle()}` : ''}`;
+${buildDirectConceptualStyle()}` : ''}
+
+${buildQuestionIntentGuidance(questionIntent)}`;
 }
 
 export function assembleSystemPrompt(
@@ -546,11 +582,12 @@ export function assembleSystemPrompt(
   communityPatterns: any[],
   replyMode: ReplyMode,
   isCalculationQuestion: boolean = false,
+  questionIntent: QuestionIntent = 'learn_new',
 ): string {
   return [
     buildFixedIdentityZone(replyMode),
     buildAdaptiveContextZone(disciplineDocument, learningProfile, communityPatterns),
-    buildThisReplyZone(replyMode, isCalculationQuestion),
+    buildThisReplyZone(replyMode, isCalculationQuestion, questionIntent),
   ].join('\n\n---\n\n');
 }
 

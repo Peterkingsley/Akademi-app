@@ -1,6 +1,6 @@
 import { ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -336,6 +336,41 @@ export class AIService {
     });
 
     return symbolSignals || keywordSignal;
+  }
+
+  // Extends the same heuristic classification pass that produces isCalculationQuestion with a
+  // second, independent signal - no new API call. Order matters: exam pressure and a request for
+  // verification are both usually explicit and unambiguous, so they're checked before the fuzzier
+  // misconception heuristic; anything that matches none of them defaults to learn_new.
+  private getQuestionIntent(studentMessage: string): QuestionIntent {
+    const text = studentMessage.toLowerCase();
+    const matchesAny = (signals: string[]) =>
+      signals.some((signal) => {
+        const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+      });
+
+    const examCramSignals = [
+      'exam tomorrow', 'exam is tomorrow', 'test tomorrow', 'test is tomorrow',
+      'exam on', 'test on', 'exam in', 'test in', 'exam next', 'test next',
+      'due tomorrow', 'due tonight', 'deadline', 'final exam', 'exams start',
+    ];
+    if (matchesAny(examCramSignals)) return 'exam_cram';
+
+    const verificationOnlySignals = [
+      'is this correct', 'is this right', 'is that correct', 'is that right',
+      'check my', 'did i get this right', 'did i do this right',
+      'does this look right', 'can you confirm', 'am i right',
+    ];
+    if (matchesAny(verificationOnlySignals)) return 'verification_only';
+
+    const misconceptionRepairSignals = [
+      "i thought", "isn't it always", "isn't it supposed to", "shouldn't it be",
+      "correct me if i'm wrong", "i was taught that", "i learnt that", "i learned that",
+    ];
+    if (matchesAny(misconceptionRepairSignals)) return 'misconception_repair';
+
+    return 'learn_new';
   }
 
   private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
@@ -890,6 +925,7 @@ Important:
 
     // 4. Assemble system prompt
     const isCalculationQuestion = this.hasCalculationSignals(studentMessage);
+    const questionIntent = this.getQuestionIntent(studentMessage);
     const isBoardEligible = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
@@ -898,6 +934,7 @@ Important:
       relevantCommunityPatterns,
       effectiveReplyMode,
       isCalculationQuestion,
+      questionIntent,
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
