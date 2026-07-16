@@ -263,9 +263,7 @@ export function buildDirectConceptualStyle(): string {
   return `DIRECT ANSWER STYLE (conceptual question on the Quick Solve path)
 The student chose a direct answer, so brevity IS the quality bar. A short
 reply that a student can carry away whole beats a long one they abandon.
-Where any earlier instruction conflicts with this block, this block wins -
-in particular, "do not jump straight to the final answer" applies to worked
-calculations, not to conceptual questions like this one.
+Per the precedence rules, this block governs length and format for this reply.
 - Open with the answer itself in the first sentence. No greeting, no
   "Great question", no preamble about why the topic matters.
 - Then give the shortest causal chain that makes the answer make sense:
@@ -401,12 +399,75 @@ one overrides the other into being skipped.
   but (a) is not?", could the student answer purely from what you wrote for each one?`;
 }
 
+// These 10 rules are identity-level: they hold regardless of mode, student, or question,
+// which is why assembleSystemPrompt places them in the FIXED zone rather than THIS REPLY.
+// The calculation-specific extension (rules 11-13) stays with the calculation blocks in
+// buildSessionInstruction since it only applies to some questions - but it keeps counting
+// from 11 (rather than restarting at 1) and cross-references "rule 3" by that same original
+// number, since both blocks land in the same assembled prompt the model reads top to bottom.
+function buildLearningSystemIdentityRules(): string {
+  return `Learning System Rules:
+1. Detect missing prerequisite knowledge before answering.
+2. If the student appears ahead of their current course roadmap, give a simple preview and point them to the earlier topic they should master first.
+3. Adapt difficulty to the student's profile: BASIC means simple examples, INTERMEDIATE means examples plus terms, ADVANCED means formal definitions and proofs where useful.
+4. If confusion is high, slow down, use analogies, and avoid long dense paragraphs.
+5. Correct common misconceptions proactively, but do not shame the student.
+6. End with one useful follow-up question unless the reply mode forbids it.
+7. Prefer course/department language over generic internet explanations.
+8. When material context is present, interpret and explain terms within that material before using broader meanings.
+9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\]. Never use markdown emphasis syntax such as *text*, **text**, or _text_ anywhere in the reply — the app renders plain text, not markdown, so those characters would show up literally to the student. Write emphasis as plain sentences instead.
+10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.`;
+}
+
+function buildPrecedenceStatement(): string {
+  return `PRECEDENCE: Where instructions conflict, FIXED identity rules override
+adaptive instructions, and within the adaptive zone, later blocks override
+earlier ones. Calculation Teaching Mode's "never skip a step" always
+overrides any instruction to prune, shorten, or cut.`;
+}
+
+// FIXED: rules that always apply and win any conflict, regardless of mode or student.
+function buildFixedIdentityZone(replyMode: ReplyMode): string {
+  const contractApplies = replyMode === ReplyMode.STUDY || replyMode === ReplyMode.SOCRATIC;
+
+  return [
+    '=== AKADEMI IDENTITY (FIXED — these rules always apply and win any conflict) ===',
+    buildPrecedenceStatement(),
+    buildLearningSystemIdentityRules(),
+    ...(contractApplies ? [buildExplainBackContract()] : []),
+  ].join('\n\n');
+}
+
+// ADAPTIVE: data about this particular student/session, not identity rules.
+function buildAdaptiveContextZone(
+  disciplineDocument: any | null,
+  learningProfile: any,
+  communityPatterns: any[],
+): string {
+  return [
+    '=== STUDENT & COURSE CONTEXT (ADAPTIVE — data about this student/session) ===',
+    buildDisciplinaryContext(disciplineDocument),
+    buildStudentProfile(learningProfile),
+    buildCommunityContext(communityPatterns),
+  ].join('\n\n');
+}
+
+// ADAPTIVE: mode, intent, and per-question instructions for this specific reply.
+function buildThisReplyZone(replyMode: ReplyMode, isCalculationQuestion: boolean): string {
+  return [
+    '=== THIS REPLY (ADAPTIVE — mode, intent, and per-question instructions) ===',
+    ...(isCalculationQuestion ? [buildSolveOperationGuidance()] : []),
+    buildSessionInstruction(replyMode, isCalculationQuestion),
+  ].join('\n\n');
+}
+
 export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuestion: boolean = false): string {
   // The Explain-Back Contract now governs every STUDY/SOCRATIC reply, calculation or not -
   // math and science worked answers need the same zero-background, retell-tested teaching
   // discipline as conceptual ones. When both apply, buildExplainBackCalculationBridge()
   // reconciles the contract's narrative arc with Calculation Teaching Mode's step mechanics
-  // so neither one silently overrides the other.
+  // so neither one silently overrides the other. (The contract itself now lives in the FIXED
+  // zone - see buildFixedIdentityZone - since it is identity-level, not per-reply.)
   // DIRECT still gets a compact answer-first style instead of the full teaching contract:
   // applying the contract's hook/steps/retell arc to "Quick Solve" produced multi-screen
   // replies for questions the student explicitly wanted answered briefly.
@@ -415,6 +476,7 @@ export function buildSessionInstruction(replyMode: ReplyMode, isCalculationQuest
 
   const calculationRules = isCalculationQuestion
     ? `
+Calculation-specific extension of the Learning System Rules above (this question involves a calculation):
 11. For maths, physics, chemistry, economics, statistics, and other worked problems, always show the actual substitution into the formula or method before jumping to the result.
 12. Use the Worked Example Operation Library whenever it fits the current step.
 13. This question involves a calculation, so rule 3's difficulty adaptation is overridden for the calculation portion: follow the Calculation Teaching Mode instructions below regardless of the student's stated level.
@@ -425,21 +487,7 @@ ${buildCalculationTeachingRules(replyMode)}`
     : '';
 
   return `Current Reply Mode: ${replyMode}
-${replyModeInstructions[replyMode]}
-
-Learning System Rules:
-1. Detect missing prerequisite knowledge before answering.
-2. If the student appears ahead of their current course roadmap, give a simple preview and point them to the earlier topic they should master first.
-3. Adapt difficulty to the student's profile: BASIC means simple examples, INTERMEDIATE means examples plus terms, ADVANCED means formal definitions and proofs where useful.
-4. If confusion is high, slow down, use analogies, and avoid long dense paragraphs.
-5. Correct common misconceptions proactively, but do not shame the student.
-6. End with one useful follow-up question unless the reply mode forbids it.
-7. Prefer course/department language over generic internet explanations.
-8. When material context is present, interpret and explain terms within that material before using broader meanings.
-9. Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\]. Never use markdown emphasis syntax such as *text*, **text**, or _text_ anywhere in the reply — the app renders plain text, not markdown, so those characters would show up literally to the student. Write emphasis as plain sentences instead.
-10. For solve-style answers, help the student feel they could do a similar question next time, not just copy the final answer.${calculationRules}${contractApplies ? `
-
-${buildExplainBackContract()}` : ''}${contractApplies && isCalculationQuestion ? `
+${replyModeInstructions[replyMode]}${calculationRules}${contractApplies && isCalculationQuestion ? `
 
 ${buildExplainBackCalculationBridge()}` : ''}${directStyleApplies ? `
 
@@ -454,11 +502,9 @@ export function assembleSystemPrompt(
   isCalculationQuestion: boolean = false,
 ): string {
   return [
-    buildDisciplinaryContext(disciplineDocument),
-    buildStudentProfile(learningProfile),
-    buildCommunityContext(communityPatterns),
-    ...(isCalculationQuestion ? [buildSolveOperationGuidance()] : []),
-    buildSessionInstruction(replyMode, isCalculationQuestion),
+    buildFixedIdentityZone(replyMode),
+    buildAdaptiveContextZone(disciplineDocument, learningProfile, communityPatterns),
+    buildThisReplyZone(replyMode, isCalculationQuestion),
   ].join('\n\n---\n\n');
 }
 
