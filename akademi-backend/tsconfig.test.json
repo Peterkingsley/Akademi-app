@@ -1,0 +1,55 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    // TypeScript 6's automatic @types/* inclusion does not pick up ambient
+    // test-runner globals (describe/it/expect/jest) the way it used to when
+    // "types" is left unset, so every currently-installed @types package is
+    // listed explicitly here to preserve the same coverage the project
+    // relied on implicitly. This file is test-only; it never affects the
+    // production "src" typecheck that CI runs (tsconfig.json is unchanged).
+    "types": [
+      "babel__core",
+      "babel__generator",
+      "babel__template",
+      "babel__traverse",
+      "bcrypt",
+      "body-parser",
+      "connect",
+      "cookiejar",
+      "cors",
+      "express",
+      "express-serve-static-core",
+      "graceful-fs",
+      "http-errors",
+      "istanbul-lib-coverage",
+      "istanbul-lib-report",
+      "istanbul-reports",
+      "jest",
+      "jsonwebtoken",
+      "methods",
+      "mime",
+      "ms",
+      "multer",
+      "node",
+      "pdf-parse",
+      "qs",
+      "range-parser",
+      "send",
+      "serve-static",
+      "socket.io-client",
+      "stack-utils",
+      "strip-bom",
+      "strip-json-comments",
+      "superagent",
+      "supertest",
+      "uuid",
+      "ws",
+      "yargs",
+      "yargs-parser"
+    ]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules"]
+}

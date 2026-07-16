@@ -4,6 +4,7 @@ import { SessionsService } from './sessions.service';
 const sessionsService = new SessionsService();
 
 function statusForError(error: any, fallbackStatus = 400) {
+  if (typeof error?.statusCode === 'number') return error.statusCode;
   const message = error?.message || '';
   if (message.includes('AI is temporarily busy')) return 503;
   return fallbackStatus;

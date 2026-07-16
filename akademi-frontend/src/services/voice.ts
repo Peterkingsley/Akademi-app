@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
 import * as Speech from "expo-speech";
-import api, { currentApiBaseUrl } from "./api";
+import api, { currentApiBaseUrl, refreshAccessToken } from "./api";
 import { readAccessToken } from "./tokenStorage";
 
 const AI_VOICE_ENABLED_KEY = "ai-voice-enabled";
@@ -329,6 +329,32 @@ const getAccessToken = async () => {
   return readAccessToken();
 };
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// The Audio.Sound request below hits the raw stream URL directly and never
+// goes through axios, so a 503 (backend/upstream busy) or 404 (stream record
+// missing/expired on this replica) never gets the retry/refresh treatment
+// axios calls get automatically. This does a lightweight status probe so we
+// can react to those specific cases before giving up on streamed voice - the
+// backend's re-read window (see elevenlabs-stream.service.ts) is what makes
+// probing the same URL safe to do without breaking the real playback fetch.
+const probeStreamAudioStatus = async (url: string, token: string): Promise<number | null> => {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    try {
+      await response.body?.cancel?.();
+    } catch {
+      // best effort only; not every RN fetch polyfill supports stream cancellation
+    }
+    return response.status;
+  } catch {
+    return null;
+  }
+};
+
 export const speakAiTextStream = async (sessionId: string, content: string) => {
   const sanitized = sanitizeSpeechText(content);
   if (!sanitized) return;
@@ -341,25 +367,17 @@ export const speakAiTextStream = async (sessionId: string, content: string) => {
 
   await stopAiSpeech();
 
-  try {
-    console.log("tts_ws_connect_start", {
-      sessionId,
-      timestamp: new Date().toISOString(),
-    });
-
+  const requestStream = async () => {
     const { data } = await api.post<{
       streamId: string;
       path: string;
       mimeType: string;
       provider: string;
     }>(`/sessions/${sessionId}/voice/stream`, { text: sanitized }, { timeout: 30000 });
+    return data;
+  };
 
-    const token = await getAccessToken();
-    if (!data?.path || !token) {
-      throw new Error("Streaming voice setup failed.");
-    }
-
-    const streamUrl = `${currentApiBaseUrl}${data.path}`;
+  const playStream = async (streamUrl: string, token: string) => {
     let firstChunkLogged = false;
     let playbackStartedLogged = false;
 
@@ -413,6 +431,56 @@ export const speakAiTextStream = async (sessionId: string, content: string) => {
         }
       });
     });
+  };
+
+  try {
+    console.log("tts_ws_connect_start", {
+      sessionId,
+      timestamp: new Date().toISOString(),
+    });
+
+    const data = await requestStream();
+    const token = await getAccessToken();
+    if (!data?.path || !token) {
+      throw new Error("Streaming voice setup failed.");
+    }
+
+    const streamUrl = `${currentApiBaseUrl}${data.path}`;
+
+    try {
+      await playStream(streamUrl, token);
+      return;
+    } catch (firstError) {
+      const status = await probeStreamAudioStatus(streamUrl, token);
+      console.warn("tts_stream_retry", { sessionId, status });
+
+      if (status === 401) {
+        const refreshed = await refreshAccessToken().catch(() => null);
+        if (refreshed?.accessToken) {
+          await playStream(streamUrl, refreshed.accessToken);
+          return;
+        }
+        throw firstError;
+      }
+
+      if (status === 503) {
+        await sleep(1000);
+        await playStream(streamUrl, token);
+        return;
+      }
+
+      if (status === 404) {
+        const freshData = await requestStream();
+        const freshToken = await getAccessToken();
+        if (!freshData?.path || !freshToken) {
+          throw new Error("Streaming voice setup failed.");
+        }
+        await playStream(`${currentApiBaseUrl}${freshData.path}`, freshToken);
+        return;
+      }
+
+      throw firstError;
+    }
   } catch (error) {
     console.warn("tts_stream_failed", error);
     await speakWithDeviceVoice(sanitized);
