@@ -41,8 +41,8 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
     <style>
       html, body {
@@ -112,13 +112,42 @@ export const MathFormula: React.FC<MathFormulaProps> = ({
         });
       }
 
+      let triedFallbackKatexCdn = false;
+
+      // The primary CDN (jsdelivr) can be slow or unreachable on a poor connection - with
+      // no fallback, window.katex never becomes available and the student is left staring
+      // at raw LaTeX source with no formula ever rendered. This swaps in a second CDN
+      // mirror if the primary errors outright, or hasn't come through within a second or so.
+      window.loadFallbackKatexAssets = function () {
+        if (triedFallbackKatexCdn) return;
+        triedFallbackKatexCdn = true;
+
+        var fallbackCss = document.createElement('link');
+        fallbackCss.rel = 'stylesheet';
+        fallbackCss.href = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.css';
+        document.head.appendChild(fallbackCss);
+
+        var fallbackJs = document.createElement('script');
+        fallbackJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.js';
+        // Event-driven backstop: render the moment the fallback is actually ready,
+        // whenever that is, instead of depending on the poll loop's ceiling below.
+        fallbackJs.onload = function () { render(); };
+        document.head.appendChild(fallbackJs);
+      };
+
       function waitForKatex(attempt) {
         if (window.katex) {
           render();
           return;
         }
 
-        if (attempt >= 20) {
+        // ~1.2s in, the primary CDN clearly isn't coming through fast enough - try the
+        // fallback mirror instead of just continuing to wait on it.
+        if (attempt === 20) {
+          window.loadFallbackKatexAssets();
+        }
+
+        if (attempt >= 45) {
           render();
           return;
         }

@@ -2,10 +2,10 @@ export const darkPalette = {
   background: "#0B0B0B",        // deep black (eye-friendly)
   surface: "#111111",           // base cards
   surfaceElevated: "#1A1A1A",   // raised elements
-  primary: "#304000",           // vibrant green (main brand) — for FILLS behind white text only
-  primaryDark: "#304000",       // deeper green for press states
-  accentPurple: "#304000",      // lighter green accent
-  success: "#304000",           // aligns perfectly
+  primary: "#16A34A",           // vibrant green (main brand) — for FILLS behind white text only
+  primaryDark: "#15803D",       // deeper green for press states
+  accentPurple: "#A855F7",      // lighter green accent -> now a distinct purple
+  success: "#22C55E",           // aligns perfectly
   accent: "#4ADE80",            // bright green for text/icons/borders drawn ON dark surfaces
   warning: "#F59E0B",
   error: "#EF4444",
@@ -19,11 +19,11 @@ export const lightPalette = {
   background: "#F9FAFB",
   surface: "#FFFFFF",
   surfaceElevated: "#F3F4F6",
-  primary: "#304000",
-  primaryDark: "#304000",
-  accentPurple: "#304000",
-  success: "#304000",
-  accent: "#304000",            // dark green already has strong contrast on light surfaces
+  primary: "#16A34A",
+  primaryDark: "#15803D",
+  accentPurple: "#A855F7",
+  success: "#22C55E",
+  accent: "#16A34A",            // dark green already has strong contrast on light surfaces
   warning: "#D97706",
   error: "#DC2626",
   textPrimary: "#111827",

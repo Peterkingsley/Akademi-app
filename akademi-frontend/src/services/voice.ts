@@ -1,8 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system";
-import * as Speech from "expo-speech";
-import api, { currentApiBaseUrl } from "./api";
+import api, { currentApiBaseUrl, refreshAccessToken } from "./api";
 import { readAccessToken } from "./tokenStorage";
 
 const AI_VOICE_ENABLED_KEY = "ai-voice-enabled";
@@ -120,7 +119,6 @@ export const setAiVoiceEnabled = async (enabled: boolean) => {
 };
 
 export const stopAiSpeech = async () => {
-  await Speech.stop();
   activeAiPlaybackResolver?.();
   activeAiPlaybackResolver = null;
   if (activeAiSound) {
@@ -234,30 +232,6 @@ export const estimateSpeechDurationMs = (content: string) => {
 
 export const sanitizeAiSpeechText = (content: string) => sanitizeSpeechText(content);
 
-const speakWithDeviceVoice = async (content: string) => {
-  const sanitized = sanitizeSpeechText(content);
-  if (!sanitized) return;
-
-  await Speech.stop();
-  await new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    Speech.speak(sanitized, {
-      rate: 0.95,
-      pitch: 1,
-      language: "en",
-      onDone: finish,
-      onStopped: finish,
-      onError: finish,
-    });
-  });
-};
-
 export const speakAiText = async (content: string) => {
   const sanitized = sanitizeSpeechText(content);
   if (!sanitized) return;
@@ -308,8 +282,7 @@ export const speakAiText = async (content: string) => {
       });
     });
   } catch (error) {
-    console.warn("ElevenLabs AI voice failed, falling back to device voice.", error);
-    await speakWithDeviceVoice(sanitized);
+    console.warn("tts_unavailable", { source: "speakAiText", error });
   } finally {
     activeAiPlaybackResolver = null;
     if (activeAiSound) {
@@ -329,9 +302,98 @@ const getAccessToken = async () => {
   return readAccessToken();
 };
 
-export const speakAiTextStream = async (sessionId: string, content: string) => {
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+type FailureInfo = {
+  status: number | null;
+  reason?: string;
+  limitScope?: string;
+  resetSeconds?: number;
+};
+
+// The Audio.Sound request below hits the raw stream URL directly and never
+// goes through axios, so a 429 (rate limited), 503 (backend/upstream busy),
+// or 404 (stream record missing/expired on this replica) never gets the
+// retry/refresh treatment axios calls get automatically. This does a
+// lightweight status probe so we can react to those specific cases before
+// giving up on streamed voice - the backend's re-read window (see
+// elevenlabs-stream.service.ts) is what makes probing the same URL safe to
+// do without breaking the real playback fetch.
+const probeStreamAudioStatus = async (url: string, token: string): Promise<FailureInfo> => {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    let reason: string | undefined;
+    let limitScope: string | undefined;
+
+    if (!response.ok) {
+      // Error responses are always small JSON bodies ({ message, reason,
+      // limitScope? }) - safe to fully read.
+      try {
+        const body = await response.json();
+        reason = body?.reason;
+        limitScope = body?.limitScope;
+      } catch {
+        // status code alone still drives retry logic below
+      }
+    } else {
+      try {
+        await response.body?.cancel?.();
+      } catch {
+        // best effort only; not every RN fetch polyfill supports stream cancellation
+      }
+    }
+
+    const resetHeader = response.headers.get("RateLimit-Reset") || response.headers.get("Retry-After");
+    const resetSeconds = resetHeader ? Number(resetHeader) : undefined;
+
+    return {
+      status: response.status,
+      reason,
+      limitScope,
+      resetSeconds: Number.isFinite(resetSeconds) ? resetSeconds : undefined,
+    };
+  } catch {
+    return { status: null };
+  }
+};
+
+// axios rejects with error.response for non-2xx, carrying the same JSON body
+// and rate-limit headers the raw fetch probe above reads for Audio.Sound
+// failures - unify both into the same shape so the retry loop doesn't need
+// to know which path a failure came from.
+const extractAxiosFailureInfo = (error: any): FailureInfo => {
+  const response = error?.response;
+  if (!response) return { status: null };
+  const resetHeader = response.headers?.["ratelimit-reset"] || response.headers?.["retry-after"];
+  const resetSeconds = resetHeader ? Number(resetHeader) : undefined;
+  return {
+    status: response.status ?? null,
+    reason: response.data?.reason,
+    limitScope: response.data?.limitScope,
+    resetSeconds: Number.isFinite(resetSeconds) ? resetSeconds : undefined,
+  };
+};
+
+// Retrying against a 15-minute rate-limit window with a few seconds of
+// backoff is pointless - it only burns more requests from the same bucket.
+// Only worth retrying when the limiter is about to reset anyway.
+const RATE_LIMIT_RETRY_THRESHOLD_SECONDS = 10;
+
+export type TtsResult = { ok: true } | { ok: false; reason: string; statusCode?: number };
+
+// ElevenLabs is the only tutor voice - there is no device-voice fallback.
+// A retry is worth one of these delays only when the previous failure looks
+// transient (upstream busy, network blip); a stale/missing stream record
+// (404/409) is retried immediately with a freshly minted stream instead.
+const RETRY_BACKOFF_MS = [1000, 2000, 4000];
+
+export const speakAiTextStream = async (sessionId: string, content: string): Promise<TtsResult> => {
   const sanitized = sanitizeSpeechText(content);
-  if (!sanitized) return;
+  if (!sanitized) return { ok: true };
 
   console.log("ai_message_received", {
     sessionId,
@@ -341,25 +403,17 @@ export const speakAiTextStream = async (sessionId: string, content: string) => {
 
   await stopAiSpeech();
 
-  try {
-    console.log("tts_ws_connect_start", {
-      sessionId,
-      timestamp: new Date().toISOString(),
-    });
-
+  const requestStream = async () => {
     const { data } = await api.post<{
       streamId: string;
       path: string;
       mimeType: string;
       provider: string;
     }>(`/sessions/${sessionId}/voice/stream`, { text: sanitized }, { timeout: 30000 });
+    return data;
+  };
 
-    const token = await getAccessToken();
-    if (!data?.path || !token) {
-      throw new Error("Streaming voice setup failed.");
-    }
-
-    const streamUrl = `${currentApiBaseUrl}${data.path}`;
+  const playStream = async (streamUrl: string, token: string) => {
     let firstChunkLogged = false;
     let playbackStartedLogged = false;
 
@@ -413,9 +467,115 @@ export const speakAiTextStream = async (sessionId: string, content: string) => {
         }
       });
     });
-  } catch (error) {
-    console.warn("tts_stream_failed", error);
-    await speakWithDeviceVoice(sanitized);
+  };
+
+  let lastReason = "unknown_error";
+  let lastStatusCode: number | undefined;
+  let lastStage: "create_stream" | "probe" | "playback" = "create_stream";
+  let skipNextBackoff = false;
+  // A 429 with a long reset window means the bucket won't clear within our
+  // retry budget - burning the remaining attempts against it only makes the
+  // next request's wait longer, so stop the loop immediately instead.
+  let stopRetrying = false;
+  const maxAttempts = RETRY_BACKOFF_MS.length + 1; // 1 initial attempt + 3 retries
+
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1 && !skipNextBackoff) {
+        await sleep(RETRY_BACKOFF_MS[attempt - 2]);
+      }
+      skipNextBackoff = false;
+
+      console.log("tts_ws_connect_start", {
+        sessionId,
+        attempt,
+        timestamp: new Date().toISOString(),
+      });
+
+      let streamUrl: string;
+      let token: string;
+      try {
+        const data = await requestStream();
+        const freshToken = await getAccessToken();
+        if (!data?.path || !freshToken) {
+          throw new Error("Streaming voice setup failed.");
+        }
+        streamUrl = `${currentApiBaseUrl}${data.path}`;
+        token = freshToken;
+      } catch (error) {
+        const failure = extractAxiosFailureInfo(error);
+        lastStage = "create_stream";
+        lastStatusCode = failure.status ?? undefined;
+
+        if (failure.status === 429) {
+          lastReason = failure.reason || "rate_limited";
+          if (failure.resetSeconds !== undefined && failure.resetSeconds > RATE_LIMIT_RETRY_THRESHOLD_SECONDS) {
+            stopRetrying = true;
+          }
+        } else {
+          lastReason = "stream_setup_failed";
+        }
+
+        console.warn("tts_stream_retry", { sessionId, attempt, status: lastStatusCode, reason: lastReason, error });
+        if (stopRetrying) break;
+        continue;
+      }
+
+      try {
+        await playStream(streamUrl, token);
+        return { ok: true };
+      } catch (playError) {
+        const failure = await probeStreamAudioStatus(streamUrl, token);
+        lastStatusCode = failure.status ?? undefined;
+        lastStage = failure.status === null ? "probe" : "playback";
+
+        if (failure.status === 401) {
+          const refreshed = await refreshAccessToken().catch(() => null);
+          if (refreshed?.accessToken) {
+            try {
+              await playStream(streamUrl, refreshed.accessToken);
+              return { ok: true };
+            } catch {
+              lastReason = "auth_failed";
+            }
+          } else {
+            lastReason = "auth_failed";
+          }
+        } else if (failure.status === 404) {
+          lastReason = failure.reason || "stream_not_found";
+          skipNextBackoff = true;
+        } else if (failure.status === 409) {
+          lastReason = failure.reason || "stream_consumed";
+          skipNextBackoff = true;
+        } else if (failure.status === 429) {
+          lastReason = failure.reason || "rate_limited";
+          if (failure.resetSeconds !== undefined && failure.resetSeconds > RATE_LIMIT_RETRY_THRESHOLD_SECONDS) {
+            stopRetrying = true;
+          }
+        } else if (failure.status === 503) {
+          lastReason = "upstream_unavailable";
+        } else {
+          lastReason = failure.status ? `http_${failure.status}` : "network_error";
+        }
+
+        console.warn("tts_stream_retry", {
+          sessionId,
+          attempt,
+          status: lastStatusCode,
+          reason: lastReason,
+          error: playError,
+        });
+        if (stopRetrying) break;
+      }
+    }
+
+    console.warn("tts_pipeline_failed", {
+      sessionId,
+      stage: lastStage,
+      status: lastStatusCode,
+      reason: lastReason,
+    });
+    return { ok: false, reason: lastReason, statusCode: lastStatusCode };
   } finally {
     activeAiPlaybackResolver = null;
     if (activeAiSound) {

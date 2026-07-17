@@ -63,11 +63,29 @@ const audioUpload = multer({
   },
 });
 
+// Voice endpoints have their own budget (voiceSessionRateLimiter) sized for
+// how often a tutoring session actually speaks. They used to also count
+// against this general bucket via router.use() below, so an active session
+// exhausted it from turn/message/poll traffic alone and every subsequent
+// request - including all voice audio - started 429ing even though
+// voiceSessionRateLimiter itself had headroom left. Skip voice paths here so
+// they are governed only by the limiter that was actually sized for them.
+//
+// Budget math (15-minute window): the remaining routes this limiter guards
+// are the unmetered polling/read GETs (list, getOne, companion state, visual
+// plan, tutor traces, messages, summary) plus PATCH /:id/end - none of these
+// run on a fixed client-side timer, they fire once per meaningful state
+// change. A heavy hour-long session doing a teaching turn every ~20s is ~45
+// turns per 15 minutes, each touching ~2-3 of these GETs -> ~112/15min. At 2x
+// that intensity: ~225/15min. Round up with ~1.6x headroom -> 400.
+export const isVoicePath = (path: string) => path.includes('/voice/');
+
 const sessionsGeneralRateLimiter = createRateLimiter({
   namespace: 'general-authenticated-sessions',
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 400,
   strategy: 'hybrid',
+  skip: (req) => isVoicePath(req.path),
 });
 
 router.use(authenticate);
@@ -78,7 +96,12 @@ router.post('/ingest/document', sessionIngestRateLimiter, documentUpload.single(
 router.post('/ingest/audio', sessionIngestRateLimiter, audioUpload.single('audio'), sessionsController.transcribeAudio);
 router.post('/voice/tts', voiceSessionRateLimiter, sessionsController.synthesizeTutorSpeech);
 router.post('/:id/voice/stream', voiceSessionRateLimiter, sessionsController.createTutorSpeechStream);
-router.get('/:id/voice/stream-audio/:streamId', voiceSessionRateLimiter, sessionsController.streamTutorSpeech);
+// Not rate limited: a valid streamId only exists because the POST above
+// already passed voiceSessionRateLimiter, and streamIds are unguessable
+// UUIDs, so this GET can't be reached at volume without first paying that
+// cost. This is also what lets AVPlayer's own probe/range re-requests for
+// the same URI succeed instead of contending for a shared request budget.
+router.get('/:id/voice/stream-audio/:streamId', sessionsController.streamTutorSpeech);
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
 router.get('/:id/companion', sessionsController.getCompanionState);

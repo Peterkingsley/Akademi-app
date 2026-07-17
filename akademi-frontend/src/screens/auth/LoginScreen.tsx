@@ -32,7 +32,7 @@ export const LoginScreen: React.FC = () => {
     setError(null);
     try {
       const response = await api.post("/auth/login", {
-        email: form.email.trim(),
+        email: form.email.trim().toLowerCase(),
         password: form.password,
         deviceInfo: {
           name: Platform.OS === "ios" ? "iPhone" : "Android Device",
@@ -60,7 +60,13 @@ export const LoginScreen: React.FC = () => {
             <View style={styles.utilityIcon}>
               <Search size={16} color={colors.textPrimary} />
             </View>
-            <TouchableOpacity style={styles.authChip} onPress={() => navigation.navigate("UniversityPicker")} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.authChip}
+              onPress={() => navigation.navigate("UniversityPicker")}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Sign up"
+            >
               <Text style={styles.authChipText}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -102,7 +108,13 @@ export const LoginScreen: React.FC = () => {
             style={styles.passwordInput}
           />
 
-          <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword", { email: form.email })} style={styles.forgotButton} activeOpacity={0.85}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ForgotPassword", { email: form.email })}
+            style={styles.forgotButton}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot password"
+          >
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
 
@@ -121,7 +133,13 @@ export const LoginScreen: React.FC = () => {
             <View style={styles.divider} />
           </View>
 
-          <TouchableOpacity onPress={() => navigation.navigate("UniversityPicker")} style={styles.secondaryCard} activeOpacity={0.85}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("UniversityPicker")}
+            style={styles.secondaryCard}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Create your academic profile"
+          >
             <View style={styles.secondaryIcon}>
               <BookOpen size={18} color={colors.primary} />
             </View>

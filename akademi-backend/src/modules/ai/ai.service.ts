@@ -1,6 +1,7 @@
 import { ReplyMode } from '@prisma/client';
+import { config } from '../../config/env';
 import prisma from '../../config/db';
-import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION } from './ai.prompts';
+import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent, stripTeacherNotebook } from './ai.prompts';
 import { getAICacheKey, getCachedAIResponse, setCachedAIResponse, checkDailyLimit } from './ai.cache';
 import { aiProvider } from './ai.provider';
 import { OrchestratedAIResponse } from '../../shared/utils/ai-orchestrator';
@@ -326,9 +327,51 @@ export class AIService {
     ];
 
     const symbolSignals = /[\d]+\s*[\+\-\*\/=]|[÷×√π∫Σ]|\bdy\/dx\b|\bdx\b|\bx\^|\bx²|\bx³/.test(studentMessage);
-    const keywordSignal = mathSignals.some((signal) => text.includes(signal));
+    // Word-boundary match, not substring: a plain .includes() check false-positives on prose
+    // that merely contains the letters (e.g. "sin" inside "business", "tan" inside "important",
+    // "mean"/"force" as ordinary words), which was misrouting essay questions to the calculation
+    // prompt and the Board.
+    const keywordSignal = mathSignals.some((signal) => {
+      const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+    });
 
     return symbolSignals || keywordSignal;
+  }
+
+  // Extends the same heuristic classification pass that produces isCalculationQuestion with a
+  // second, independent signal - no new API call. Order matters: exam pressure and a request for
+  // verification are both usually explicit and unambiguous, so they're checked before the fuzzier
+  // misconception heuristic; anything that matches none of them defaults to learn_new.
+  private getQuestionIntent(studentMessage: string): QuestionIntent {
+    const text = studentMessage.toLowerCase();
+    const matchesAny = (signals: string[]) =>
+      signals.some((signal) => {
+        const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+      });
+
+    const examCramSignals = [
+      'exam tomorrow', 'exam is tomorrow', 'test tomorrow', 'test is tomorrow',
+      'exam on', 'test on', 'exam in', 'test in', 'exam next', 'test next',
+      'due tomorrow', 'due tonight', 'deadline', 'final exam', 'exams start',
+    ];
+    if (matchesAny(examCramSignals)) return 'exam_cram';
+
+    const verificationOnlySignals = [
+      'is this correct', 'is this right', 'is that correct', 'is that right',
+      'check my', 'did i get this right', 'did i do this right',
+      'does this look right', 'can you confirm', 'am i right',
+    ];
+    if (matchesAny(verificationOnlySignals)) return 'verification_only';
+
+    const misconceptionRepairSignals = [
+      "i thought", "isn't it always", "isn't it supposed to", "shouldn't it be",
+      "correct me if i'm wrong", "i was taught that", "i learnt that", "i learned that",
+    ];
+    if (matchesAny(misconceptionRepairSignals)) return 'misconception_repair';
+
+    return 'learn_new';
   }
 
   private isBoardEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
@@ -336,10 +379,36 @@ export class AIService {
     // in an assignment solve - only exam prep (a different, quiz-style flow) is excluded.
     if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
-    // The board keeps the broader net (course code counts as a signal): offering a board on a
-    // quantitative course rarely hurts, whereas the prompt-level calculation gate must stay strict.
-    const courseSignal = /mth|mat|phy|chm|sta/i.test(session.course_code || '');
-    return this.hasCalculationSignals(studentMessage) || courseSignal;
+    // The board used to accept the course code alone as a signal, on the theory that offering a
+    // board on a quantitative course rarely hurts. In practice this let pure essay questions
+    // inside MTH/PHY/CHM/STA-coded courses reach the calculation-flavored whiteboard prompt,
+    // which then invented pseudo-math to fill the step schema. The message itself must now show
+    // an actual calculation signal - the course code alone is no longer sufficient.
+    return this.hasCalculationSignals(studentMessage);
+  }
+
+  // Command words examiners use to ask for a written case rather than a number - the essay
+  // counterpart to hasCalculationSignals. Word-boundary matched for the same reason: a bare
+  // substring check would false-positive inside unrelated prose.
+  private hasEssayDirectiveSignals(studentMessage: string) {
+    const text = studentMessage.toLowerCase();
+    const essaySignals = [
+      'critically examine', 'critically evaluate', 'critically discuss', 'critically assess',
+      'discuss', 'evaluate', 'assess', 'examine', 'analyze', 'analyse', 'to what extent',
+      'compare and contrast', 'justify', 'account for', 'explain the significance',
+      'explain the role', 'what is the relationship between',
+    ];
+    return essaySignals.some((signal) => {
+      const escaped = signal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+    });
+  }
+
+  // Mutually exclusive with the calculation Board by construction: a question only qualifies for
+  // an essay blueprint when it shows no calculation signal but does show an essay command word.
+  private isEssayBlueprintEligibleQuestion(studentMessage: string, session: { session_type: string; course_code?: string | null }) {
+    if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
+    return !this.hasCalculationSignals(studentMessage) && this.hasEssayDirectiveSignals(studentMessage);
   }
 
   private extractJsonObject(raw: string) {
@@ -448,6 +517,117 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
     }
   }
 
+  private parseEssayBlueprintPayload(raw: string) {
+    try {
+      const parsed = JSON.parse(this.extractJsonObject(raw));
+      const rawSteps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+      if (typeof parsed?.final_answer !== 'string' || rawSteps.length === 0) {
+        return null;
+      }
+
+      // Essay steps carry no math to normalize - unlike board steps, "math" is always forced
+      // empty here rather than parsed, so a conceptual step can never smuggle in pseudo-math.
+      const steps = rawSteps
+        .map((step: any) => ({
+          id: String(step?.id || ''),
+          type: step?.type === 'highlight' || step?.type === 'answer' ? step.type : 'write',
+          phase: String(step?.phase || ''),
+          text: this.cleanBoardCopy(String(step?.text || '').trim()),
+          math: '',
+          note: this.cleanBoardCopy(String(step?.note || '').trim()),
+        }))
+        .filter((step: { text: string }) => step.text.length > 0);
+
+      if (steps.length === 0) return null;
+
+      return {
+        title: String(parsed?.title || 'Essay blueprint'),
+        board_style: 'essay-blueprint' as const,
+        steps,
+        final_answer: parsed.final_answer.trim(),
+        summary: String(parsed?.summary || '').trim(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // Mirrors hasValidPedagogicalArc's shape check, but for the essay arc: "decode" opens,
+  // "checklist" closes, "conclusion" sits immediately before it, and at least one "argument"
+  // step appears somewhere in between. "counter" is optional (some command words don't support
+  // one) so it is deliberately not required here.
+  private hasValidEssayArc(steps: Array<{ phase?: string }>) {
+    if (steps.length < 4) return true;
+    const interiorSteps = steps.slice(2, steps.length - 2);
+    return steps[0]?.phase === 'decode'
+      && steps[1]?.phase === 'thesis'
+      && steps[steps.length - 2]?.phase === 'conclusion'
+      && steps[steps.length - 1]?.phase === 'checklist'
+      && interiorSteps.some((step) => step.phase === 'argument');
+  }
+
+  private async buildEssayBlueprintPayload(studentMessage: string, answer: string) {
+    const requestBlueprint = async (correctiveInstruction?: string) => {
+      const raw = await aiProvider.generateResponse(
+        `Question: ${studentMessage}
+
+Reference answer:
+${answer}
+
+Create an essay blueprint plan for this question.${correctiveInstruction ? `\n\n${correctiveInstruction}` : ''}`,
+        {
+          systemPrompt: buildEssayBlueprintSystemPrompt(),
+          maxTokens: 900,
+        }
+      );
+
+      return this.parseEssayBlueprintPayload(raw);
+    };
+
+    const isAttemptValid = (attempt: ReturnType<AIService['parseEssayBlueprintPayload']>) =>
+      !!attempt && !this.hasConsecutiveDuplicateSteps(attempt.steps) && this.hasValidEssayArc(attempt.steps);
+
+    try {
+      const firstAttempt = await requestBlueprint();
+      if (isAttemptValid(firstAttempt)) return firstAttempt;
+      if (!firstAttempt) return null;
+
+      const missingArc = !this.hasValidEssayArc(firstAttempt.steps);
+      const hasDuplicates = this.hasConsecutiveDuplicateSteps(firstAttempt.steps);
+      const correctiveNotes = [
+        hasDuplicates
+          ? 'Your previous attempt repeated the same "text" across multiple consecutive steps. Each step must argue something the previous step did not already say.'
+          : '',
+        missingArc
+          ? 'Your previous attempt did not follow the required arc. Step 1 must have "phase": "decode", step 2 must have "phase": "thesis", the second-to-last step must have "phase": "conclusion", and the last step must have "phase": "checklist". Do not skip straight into argument points.'
+          : '',
+      ].filter(Boolean).join(' ');
+
+      const retryAttempt = await requestBlueprint(correctiveNotes);
+      if (isAttemptValid(retryAttempt)) return retryAttempt;
+
+      return null;
+    } catch (error) {
+      console.error('Essay blueprint payload generation failed:', error);
+      return null;
+    }
+  }
+
+  // Standalone (pager) replies end with a tagged practice question since that screen has no
+  // chat input for a real follow-up. Split it out of the displayed content so it renders as
+  // its own "Now You Try" block instead of leaning on the model to format it inline.
+  private extractPracticeBlock(text: string): { content: string; practice: { question: string; answer: string } | null } {
+    const match = text.match(/\[PRACTICE\]([\s\S]*?)\[\/PRACTICE\]\s*\[PRACTICE_ANSWER\]([\s\S]*?)\[\/PRACTICE_ANSWER\]/);
+    if (!match) return { content: text, practice: null };
+
+    const question = match[1].trim();
+    const answer = match[2].trim();
+    const content = (text.slice(0, match.index) + text.slice(match.index! + match[0].length)).trim();
+
+    if (!question || !answer) return { content, practice: null };
+    return { content, practice: { question, answer } };
+  }
+
   private isGraphEligibleQuestion(studentMessage: string, session: { session_type: string }) {
     if (session.session_type !== 'ASSIGNMENT' && session.session_type !== 'STUDY') return false;
 
@@ -476,7 +656,23 @@ Create a board replay plan for this solution.${correctiveInstruction ? `\n\n${co
       'pictogram',
     ];
 
-    return graphSignals.some((signal) => text.includes(signal));
+    // Function-analysis questions (injective/surjective/domain/range checks) rarely say the
+    // word "graph" outright, but a plotted curve is exactly the visual that makes a collision
+    // or a gap in the range visible - so these count as graph signals too, gated to sessions
+    // that already look quantitative enough for a graph to make sense (checked by the caller).
+    const functionAnalysisSignals = [
+      'injective',
+      'surjective',
+      'bijective',
+      'one-to-one',
+      'onto',
+      'domain and range',
+      'domain of the function',
+      'range of the function',
+      'is the function',
+    ];
+
+    return [...graphSignals, ...functionAnalysisSignals].some((signal) => text.includes(signal));
   }
 
   private normalizeGraphResponse(raw: RawGraphResponse | null | undefined): GraphSpec | null {
@@ -690,7 +886,10 @@ Important:
 - Assume the student reading this has ZERO background knowledge of the topic. Before working the first sub-part, explain in plain everyday words what the question is asking and what each key term means, as if teaching it for the very first time.
 - For every verdict or result you state, walk the full reasoning in small steps with the "why" of each step spelled out in plain language — never state a conclusion whose reason a complete beginner could not retell in their own words.
 - The success bar: a student who reads this once should be able to explain each answer back to a friend and solve a similar question alone. If a step would be unclear to a complete beginner, expand it rather than shorten it.
+- The Explain-Back Contract and Calculation Teaching Mode in your instructions both apply here, and this is a multi-part question, so apply them per sub-part: open each lettered/numbered sub-part with a one-line hook or reframing before its working starts, walk that sub-part's causal chain step by step with nothing skipped, then close that sub-part with a short 1-2 sentence retell of what it showed. After every sub-part is done, end the whole reply with one short "whole story" retell (3-6 plain sentences) that ties every sub-part together into one takeaway the student could repeat about the entire question.
 - Format math with LaTeX delimiters the app can typeset: inline math in \\(...\\) and standalone equations in \\[...\\]. Never leave raw LaTeX outside delimiters.
+- This screen has no chat input, so the student cannot ask a follow-up here. After the whole-story retell, give them one concrete way to test their own understanding: add exactly one practice question of the same type but with different numbers, wrapped EXACTLY like this at the very end of your reply, with nothing after it:
+[PRACTICE]the practice question, in plain text[/PRACTICE][PRACTICE_ANSWER]a short worked answer to that practice question, using the same LaTeX rules[/PRACTICE_ANSWER]
 
 Question:
 ${studentMessage}`
@@ -727,6 +926,7 @@ Important:
 
     // 4. Assemble system prompt
     const isCalculationQuestion = this.hasCalculationSignals(studentMessage);
+    const questionIntent = this.getQuestionIntent(studentMessage);
     const isBoardEligible = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
       assembleSystemPrompt(
@@ -735,32 +935,59 @@ Important:
       relevantCommunityPatterns,
       effectiveReplyMode,
       isCalculationQuestion,
+      questionIntent,
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
     // 5. Call AI Provider (Gemini)
-    // A multi-part assignment question taught at zero-background depth cannot fit in
-    // 1000 tokens - that cap is what squeezed sub-parts down to one-line verdicts - so
-    // standalone solves get a larger budget and the provider's extended time limits.
+    // A multi-part assignment question taught at zero-background depth - with a hook,
+    // causal chain, and retell per lettered sub-part on top of full worked steps - easily
+    // runs to several thousand tokens; 3000 was still low enough to cut answers off
+    // mid-sentence (aiProvider.generateResponse retries once more if that still happens).
     const aiResponseText = await aiProvider.generateResponse(prompt, {
       systemPrompt,
-      maxTokens: standalone ? 3000 : 1000,
+      maxTokens: standalone ? 8000 : 1000,
       extendedTimeouts: standalone,
     });
 
+    // The Teacher's Notebook (see buildTeacherNotebook) is a hidden planning block the model
+    // is instructed to open every STUDY/SOCRATIC/QUESTION reply with. It must never reach the
+    // student: strip it here, before anything derived from the response text - practice
+    // extraction, the cache, the DB row, or the client - ever sees it. There is no streaming
+    // of chat text in this pipeline (aiProvider.generateResponse resolves with the full text,
+    // and the websocket handler awaits sendMessage() before emitting), so there is no partial
+    // output that could flash the notebook on screen mid-generation.
+    const { visibleText: notebookStrippedText, notebook, malformed: notebookMalformed } =
+      stripTeacherNotebook(aiResponseText);
+    if (notebookMalformed) {
+      console.warn('teacher_notebook_malformed', { sessionId, userId });
+    }
+    // Sampled rather than logged unconditionally - config.notebookLogSampleRate (env
+    // NOTEBOOK_LOG_SAMPLE_RATE, default 1.0) lets this be dialed down once volume makes
+    // logging every single teaching decision expensive, without touching this code path.
+    if (notebook && Math.random() < config.notebookLogSampleRate) {
+      console.debug('teacher_notebook', { sessionId, userId, notebook });
+    }
+
+    const { content: cleanedResponseText, practice: practiceBlock } = standalone
+      ? this.extractPracticeBlock(notebookStrippedText)
+      : { content: notebookStrippedText, practice: null };
+
     const isGraphQuestion = this.isGraphEligibleQuestion(studentMessage, session);
-    const [whiteboardPayload, graphPayload] = await Promise.all([
-      isBoardEligible ? this.buildWhiteboardPayload(studentMessage, aiResponseText) : Promise.resolve(null),
-      isGraphQuestion ? this.buildGraphPayload(studentMessage, aiResponseText) : Promise.resolve(null),
+    const isEssayBlueprintEligible = this.isEssayBlueprintEligibleQuestion(studentMessage, session);
+    const [whiteboardPayload, graphPayload, essayBlueprintPayload] = await Promise.all([
+      isBoardEligible ? this.buildWhiteboardPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
+      isGraphQuestion ? this.buildGraphPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
+      isEssayBlueprintEligible ? this.buildEssayBlueprintPayload(studentMessage, cleanedResponseText) : Promise.resolve(null),
     ]);
 
     // 6. Cache response
     if (!isFollowUp && !standalone) {
-      await setCachedAIResponse(cacheKey, aiResponseText);
+      await setCachedAIResponse(cacheKey, cleanedResponseText);
     }
 
     return {
-      content: aiResponseText,
+      content: cleanedResponseText,
       metadata: {
         ...(whiteboardPayload
           ? {
@@ -777,6 +1004,20 @@ Important:
                 available: true,
                 payload: graphPayload,
               },
+            }
+          : {}),
+        ...(essayBlueprintPayload
+          ? {
+              essay_blueprint: {
+                available: true,
+                subject_family: 'conceptual',
+                payload: essayBlueprintPayload,
+              },
+            }
+          : {}),
+        ...(practiceBlock
+          ? {
+              practice: practiceBlock,
             }
           : {}),
       },

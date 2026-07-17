@@ -4,6 +4,7 @@ import { SessionsService } from './sessions.service';
 const sessionsService = new SessionsService();
 
 function statusForError(error: any, fallbackStatus = 400) {
+  if (typeof error?.statusCode === 'number') return error.statusCode;
   const message = error?.message || '';
   if (message.includes('AI is temporarily busy')) return 503;
   return fallbackStatus;
@@ -133,7 +134,7 @@ export class SessionsController {
       );
       res.status(201).json(result);
     } catch (error: any) {
-      res.status(statusForError(error, 503)).json({ message: error.message });
+      res.status(statusForError(error, 503)).json({ message: error.message, reason: error?.reason });
     }
   }
 
@@ -147,7 +148,7 @@ export class SessionsController {
       );
     } catch (error: any) {
       if (!res.headersSent) {
-        res.status(statusForError(error, 503)).json({ message: error.message });
+        res.status(statusForError(error, 503)).json({ message: error.message, reason: error?.reason });
       }
     }
   }

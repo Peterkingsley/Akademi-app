@@ -28,7 +28,7 @@ export const UserManagementScreen: React.FC = () => {
   const [campaignDesign, setCampaignDesign] = useState({
     preheader: "",
     bannerImageUrl: "",
-    accentColor: "#304000",
+    accentColor: "#16A34A",
     ctaLabel: "",
     ctaUrl: "",
   });
@@ -515,7 +515,7 @@ export const UserManagementScreen: React.FC = () => {
             <View style={styles.designRow}>
               <TextInput
                 style={[styles.modalInput, styles.designInput, { color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="#304000"
+                placeholder="#16A34A"
                 placeholderTextColor={colors.textMuted}
                 value={campaignDesign.accentColor}
                 onChangeText={(accentColor) => {

@@ -69,4 +69,7 @@ export const config = {
   unlockAllFeatures: process.env.UNLOCK_ALL_FEATURES === 'true',
   tournamentActivationIntervalMs: parseInt(process.env.TOURNAMENT_ACTIVATION_INTERVAL_MS || '15000', 10),
   adminReingestSecret: process.env.ADMIN_REINGEST_SECRET || '',
+  // Fraction of stripped Teacher's Notebook blocks (see ai.prompts.ts) to log as telemetry.
+  // Defaults to logging everything; dial down once volume makes that expensive at scale.
+  notebookLogSampleRate: Math.min(1, Math.max(0, parseFloat(process.env.NOTEBOOK_LOG_SAMPLE_RATE ?? '1.0') || 0)),
 };

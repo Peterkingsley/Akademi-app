@@ -10,6 +10,7 @@ import * as vision from '@google-cloud/vision';
 import { extractDisciplineDocumentText } from '../admin/document-extraction';
 import { segmentQuestions } from './question-segmentation';
 import { aiProvider } from '../ai/ai.provider';
+import { questionReconstructionSystemPrompt } from '../ai/ai.prompts';
 import { studyCompanionService } from './study-companion.service';
 import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
 
@@ -104,6 +105,30 @@ async function extractTextFromImage(buffer: Buffer) {
   });
 
   return normalizeExtractedText(result.fullTextAnnotation?.text || '');
+}
+
+// Mechanical text extraction (Vision OCR, pdf-parse, mammoth) reliably flattens math
+// structure - superscripts collapse onto the baseline, piecewise braces vanish, function
+// notation loses its arrow. Running the extracted text through one Gemini pass to
+// reconstruct that structure fixes the question card before it ever reaches the student,
+// instead of asking the solver prompt to work around already-mangled input. Falls back to
+// the raw extraction on any failure so a flaky AI call never blocks the upload.
+async function reconstructQuestionText(rawText: string): Promise<string> {
+  if (!rawText.trim()) return rawText;
+
+  try {
+    const reconstructed = await aiProvider.generateResponse(rawText, {
+      systemPrompt: questionReconstructionSystemPrompt,
+      maxTokens: Math.min(8000, Math.max(1200, Math.ceil(rawText.length * 1.5))),
+      extendedTimeouts: true,
+    });
+
+    const cleaned = normalizeExtractedText(reconstructed);
+    return cleaned || rawText;
+  } catch (error) {
+    console.error('Question text reconstruction failed, using raw extraction:', error);
+    return rawText;
+  }
 }
 
 export class SessionsService {
@@ -497,11 +522,13 @@ export class SessionsService {
       throw new Error('Uploaded file must be an image');
     }
 
-    const extractedText = await extractTextFromImage(file.buffer);
+    const rawExtractedText = await extractTextFromImage(file.buffer);
 
-    if (!extractedText) {
+    if (!rawExtractedText) {
       throw new Error('Could not read text from this image. Please retake it with clearer lighting.');
     }
+
+    const extractedText = await reconstructQuestionText(rawExtractedText);
 
     const message = await this.sendMessage(userId, sessionId, {
       content: extractedText,
@@ -519,11 +546,13 @@ export class SessionsService {
       throw new Error('No document uploaded');
     }
 
-    const extractedText = normalizeExtractedText(await extractDisciplineDocumentText(file));
+    const rawExtractedText = normalizeExtractedText(await extractDisciplineDocumentText(file));
 
-    if (!extractedText) {
+    if (!rawExtractedText) {
       throw new Error('No readable text could be extracted from this document.');
     }
+
+    const extractedText = await reconstructQuestionText(rawExtractedText);
 
     // Segmentation runs on the full extracted text (no length cap), so a
     // document with any number of numbered questions is detected in full.

@@ -24,17 +24,17 @@ export const ForgotPasswordScreen: React.FC = () => {
   const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleReset = async () => {
     if (!email) return;
     setLoading(true);
+    setError(null);
     try {
-      await api.post("/auth/forgot-password", { email });
+      await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
       setSuccess(true);
-    } catch (error) {
-      console.error("Forgot password failed", error);
-      // For demo, show success anyway
-      setSuccess(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Couldn't send the reset link. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -87,20 +87,20 @@ export const ForgotPasswordScreen: React.FC = () => {
           style={styles.input}
         />
 
-        <View style={styles.noticeBanner}>
-          <Info size={20} color={colors.primary} />
-          <Text style={styles.noticeText}>
-            SYSTEM_NOTICE: ENSURE ACCESS TO YOUR REGISTERED INSTITUTIONAL EMAIL FOR FASTER VERIFICATION.
-          </Text>
-        </View>
+        {error ? (
+          <View style={styles.errorBanner} accessibilityRole="alert">
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+        ) : (
+          <View style={styles.noticeBanner}>
+            <Info size={20} color={colors.primary} />
+            <Text style={styles.noticeText}>
+              Use the email address you registered with for the fastest verification.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.spacer} />
-
-        <View style={styles.techTextContainer}>
-          <Text style={styles.techText}>
-            010101 RECOVER_SEQ_INITIATED // AUTH_KEY_GENERATION // SYNC_LIBRARY_ACCESS // 010101
-          </Text>
-        </View>
 
         <Button
           label="Send Reset Link"
@@ -113,6 +113,8 @@ export const ForgotPasswordScreen: React.FC = () => {
         <TouchableOpacity
           onPress={() => navigation.navigate("Login")}
           style={styles.backLink}
+          accessibilityRole="button"
+          accessibilityLabel="Back to sign in"
         >
           <Text style={styles.backLinkText}>
             Remembered your password? <Text style={styles.linkText}>Sign In</Text>
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 48,
     height: 48,
-    backgroundColor: "#0D1526",
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   noticeBanner: {
-    backgroundColor: "#0D1526",
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 10,
     padding: 14,
     flexDirection: "row",
@@ -170,24 +172,27 @@ const styles = StyleSheet.create({
   },
   noticeText: {
     color: colors.textSecondary,
-    fontSize: 8.25,
-    fontFamily: "SpaceMono-Regular",
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
     marginLeft: 12,
     flex: 1,
+  },
+  errorBanner: {
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderColor: colors.error,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 14,
+  },
+  errorBannerText: {
+    color: colors.error,
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    lineHeight: 18,
   },
   spacer: {
     flex: 1,
     minHeight: 40,
-  },
-  techTextContainer: {
-    marginBottom: 24,
-    alignItems: "center",
-  },
-  techText: {
-    color: colors.border,
-    fontSize: 7.5,
-    fontFamily: "SpaceMono-Regular",
-    textAlign: "center",
   },
   button: {
     marginBottom: 24,
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
   },
   backLinkText: {
     color: colors.textSecondary,
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: "Inter-Regular",
   },
   linkText: {

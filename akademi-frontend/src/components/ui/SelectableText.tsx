@@ -18,6 +18,11 @@ interface SelectableTextProps {
   onAskAkademi: (selectedText: string) => void;
   onHighlight?: (selectedText: string) => void;
   fixedHeight?: number;
+  // Fires once the WebView has finished its first full settle pass (math rendered or given
+  // up on, height measured). Callers that show their own loading state while content loads
+  // can wait for this instead of revealing the card mid-resize, which is what caused the
+  // "writing then stopping"/flicker look on the assignment Solve screen.
+  onReady?: () => void;
 }
 
 const escapeHtml = (value: string) =>
@@ -33,6 +38,11 @@ const normalizeText = (value: string) =>
     .replace(/\r\n/g, "\n")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
+    // Single-asterisk emphasis (*word*). The leading "no space right after the opening
+    // asterisk" check keeps this from touching a bullet marker ("* item") or a raw
+    // multiplication sign the model left unescaped (e.g. "2*x" - the char right before
+    // that asterisk is "2", not whitespace/start, so it never even reaches this branch).
+    .replace(/(^|\s)\*([^\s*][^*\n]*?)\*(?=[\s.,;:!?)]|$)/g, "$1$2")
     .replace(/__(.*?)__/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^\s*\*\s+/gm, "- ")
@@ -238,7 +248,8 @@ const buildHtmlContent = (content: string) => {
 
 type WebMessage =
   | { type: "height"; value: number }
-  | { type: "selection"; value: string };
+  | { type: "selection"; value: string }
+  | { type: "ready"; value: number };
 
 const contentHasMath = (content: string) => {
   const normalized = normalizeText(content);
@@ -266,6 +277,7 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   onAskAkademi,
   onHighlight,
   fixedHeight,
+  onReady,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   // This renders inside cards/screens with their own horizontal padding, which varies by
@@ -280,8 +292,18 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [height, setHeight] = useState(64);
+  const [isReady, setIsReady] = useState(false);
+  // Height messages arrive continuously while the WebView is still settling (math loading,
+  // fonts swapping in). Applying each one to `height` immediately is what made the card
+  // visibly grow/shrink in steps - "blinking" - while the answer was still loading. This
+  // banks the latest measurement without touching visible state until the WebView reports
+  // it's actually done, so the card can jump straight to its final height in one step.
+  const latestMeasuredHeightRef = useRef(64);
 
   useEffect(() => {
+    setIsReady(false);
+    latestMeasuredHeightRef.current = fixedHeight ?? 64;
+
     if (fixedHeight) {
       setHeight(fixedHeight);
       return;
@@ -297,9 +319,9 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    ${shouldLoadKatex ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">' : ""}
-    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>' : ""}
-    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>' : ""}
+    ${shouldLoadKatex ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()">' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()"></script>' : ""}
+    ${shouldLoadKatex ? '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()"></script>' : ""}
     <style>
       html, body {
         margin: 0;
@@ -404,6 +426,18 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         post({ type: 'selection', value: text });
       }
 
+      let hasSignaledReady = false;
+
+      // Fires exactly once, after the first full settle pass (math rendered, or given up
+      // on, and height measured). The native side waits for this before revealing the
+      // card, instead of showing it mid-resize while math is still popping in - which is
+      // what read as the answer "writing then stopping" or "blinking" while loading.
+      function markReady() {
+        if (hasSignaledReady) return;
+        hasSignaledReady = true;
+        post({ type: 'ready', value: 1 });
+      }
+
       let hasRenderedMath = false;
 
       function renderMath() {
@@ -427,14 +461,47 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         hasRenderedMath = true;
         requestAnimationFrame(function () {
           requestAnimationFrame(function () {
-            setTimeout(postFinalHeight, 80);
+            setTimeout(function () {
+              postFinalHeight();
+              markReady();
+            }, 80);
           });
         });
       }
 
+      let triedFallbackKatexCdn = false;
+
+      // The primary CDN (jsdelivr) can be slow or unreachable on a poor connection - with
+      // no fallback, renderMathInElement never becomes available and the student is left
+      // staring at raw "$f(x) = ...$" source text with no math ever rendered. This swaps
+      // in a second CDN mirror if the primary errors outright, or hasn't come through
+      // within a couple of seconds.
+      window.loadFallbackKatexAssets = function () {
+        if (triedFallbackKatexCdn) return;
+        triedFallbackKatexCdn = true;
+
+        var fallbackCss = document.createElement('link');
+        fallbackCss.rel = 'stylesheet';
+        fallbackCss.href = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.css';
+        document.head.appendChild(fallbackCss);
+
+        var fallbackJs = document.createElement('script');
+        fallbackJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.js';
+        fallbackJs.onload = function () {
+          var autoRenderJs = document.createElement('script');
+          autoRenderJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/contrib/auto-render.min.js';
+          // Event-driven backstop: render the moment the fallback is actually ready,
+          // whenever that is, instead of depending on the poll loop's ceiling below.
+          autoRenderJs.onload = function () { renderMath(); };
+          document.head.appendChild(autoRenderJs);
+        };
+        document.head.appendChild(fallbackJs);
+      };
+
       function waitForMathRenderer(attempt) {
         if (!${shouldLoadKatex ? "true" : "false"}) {
           postFinalHeight();
+          markReady();
           return;
         }
 
@@ -443,8 +510,15 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
           return;
         }
 
-        if (attempt >= 20) {
+        // ~2s in, the primary CDN clearly isn't coming through fast enough - try the
+        // fallback mirror instead of just continuing to wait on it.
+        if (attempt === 25) {
+          window.loadFallbackKatexAssets();
+        }
+
+        if (attempt >= 60) {
           postFinalHeight();
+          markReady();
           return;
         }
 
@@ -549,11 +623,24 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
             const payload = JSON.parse(event.nativeEvent.data) as WebMessage;
             if (!fixedHeight && payload.type === "height" && Number.isFinite(payload.value) && payload.value > 0) {
               const nextHeight = Math.min(Math.max(payload.value + 4, 32), 5000);
-              // Track the reported height in both directions instead of ratcheting upward.
-              // A grow-only rule turns any repeated measurement into permanent extra blank
-              // space, and short content (like a one-line inquiry) can never recover from a
-              // transient tall reading. The 2px tolerance just absorbs sub-pixel jitter.
-              setHeight((currentHeight) => (Math.abs(nextHeight - currentHeight) > 2 ? nextHeight : currentHeight));
+              latestMeasuredHeightRef.current = nextHeight;
+              // Before the WebView reports 'ready', withhold this from visible state - see
+              // latestMeasuredHeightRef's comment. Once ready, resume applying updates live
+              // (fonts/selection can still cause legitimate post-settle resizes).
+              if (isReady) {
+                // Track the reported height in both directions instead of ratcheting upward.
+                // A grow-only rule turns any repeated measurement into permanent extra blank
+                // space, and short content (like a one-line inquiry) can never recover from a
+                // transient tall reading. The 2px tolerance just absorbs sub-pixel jitter.
+                setHeight((currentHeight) => (Math.abs(nextHeight - currentHeight) > 2 ? nextHeight : currentHeight));
+              }
+              return;
+            }
+
+            if (payload.type === "ready") {
+              setIsReady(true);
+              if (!fixedHeight) setHeight(latestMeasuredHeightRef.current);
+              onReady?.();
               return;
             }
 

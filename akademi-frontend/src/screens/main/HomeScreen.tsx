@@ -31,7 +31,8 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-
+import { BlurView } from "expo-blur";
+import { AnimatedPressable } from "../../components/ui/AnimatedPressable";
 import { Avatar } from "../../components/ui/Avatar";
 import { Badge } from "../../components/ui/Badge";
 import { Screen } from "../../components/layout/Screen";
@@ -171,8 +172,7 @@ const QuickActionTile = ({
   const Icon = action.icon;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.82}
+    <AnimatedPressable
       onPress={onPress}
       style={[styles.actionTile, isTourTarget && styles.actionTileTourTarget]}
     >
@@ -186,7 +186,7 @@ const QuickActionTile = ({
         </Text>
       </View>
       <ChevronRight size={16} color={colors.textMuted} />
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 
@@ -491,8 +491,7 @@ export const HomeScreen: React.FC = () => {
 
   const renderRecommendationCard = (item: Recommendation, index: number) => (
     <Animated.View key={item.id} entering={FadeInUp.delay(index * 80 + 240)}>
-      <TouchableOpacity
-        activeOpacity={0.86}
+      <AnimatedPressable
         style={styles.recommendationCard}
         onPress={() => openRecommendation(item)}
       >
@@ -521,7 +520,7 @@ export const HomeScreen: React.FC = () => {
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </AnimatedPressable>
     </Animated.View>
   );
 
@@ -595,9 +594,8 @@ export const HomeScreen: React.FC = () => {
               }}
             >
               {campaigns.map((campaign) => (
-                <TouchableOpacity
+                <AnimatedPressable
                   key={campaign.id}
-                  activeOpacity={0.92}
                   style={[styles.campaignCard, { width: bannerWidth }]}
                   onPress={() => navigation.navigate("TournamentDetail", { tournamentId: campaign.id })}
                 >
@@ -607,7 +605,7 @@ export const HomeScreen: React.FC = () => {
                     style={styles.campaignBackground}
                     imageStyle={styles.campaignBackgroundImage}
                   >
-                    <View style={styles.campaignOverlay} />
+                    <BlurView intensity={35} tint="dark" style={styles.campaignOverlay} />
                     <View style={styles.campaignBody}>
                       <View style={styles.campaignHeaderRow}>
                         <Badge
@@ -647,7 +645,7 @@ export const HomeScreen: React.FC = () => {
                       </View>
                     </View>
                   </ImageBackground>
-                </TouchableOpacity>
+                </AnimatedPressable>
               ))}
             </ScrollView>
 
@@ -712,9 +710,8 @@ export const HomeScreen: React.FC = () => {
                 const accent = getContinueAccent(item, index);
                 const AccentIcon = accent.icon;
                 return (
-                  <TouchableOpacity
+                  <AnimatedPressable
                     key={item.id}
-                    activeOpacity={0.86}
                     style={styles.continueRow}
                     onPress={() => openSessionFlow(item)}
                   >
@@ -738,7 +735,7 @@ export const HomeScreen: React.FC = () => {
                         {openingSessionId === item.id ? "Opening..." : getContinueActionLabel(item)}
                       </Text>
                     </TouchableOpacity>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 );
               })
             )}
@@ -764,9 +761,8 @@ export const HomeScreen: React.FC = () => {
               upcomingEvents.map((item, index) => {
                 const accent = getUpcomingAccent(index);
                 return (
-                  <TouchableOpacity
+                  <AnimatedPressable
                     key={item.id}
-                    activeOpacity={0.86}
                     style={styles.upcomingRow}
                     onPress={() => navigation.navigate("PrepPlan", { examId: item.id })}
                   >
@@ -785,7 +781,7 @@ export const HomeScreen: React.FC = () => {
                     <View style={[styles.upcomingIconWrap, { backgroundColor: `${accent}22` }]}>
                       <CalendarDays size={18} color={accent} />
                     </View>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 );
               })
             )}
@@ -804,8 +800,7 @@ export const HomeScreen: React.FC = () => {
               ))}
             </View>
           ) : recommendations.length === 0 ? (
-            <TouchableOpacity
-              activeOpacity={0.86}
+            <AnimatedPressable
               style={styles.emptyRecommendationCard}
               onPress={() => navigation.navigate("Library")}
             >
@@ -817,7 +812,7 @@ export const HomeScreen: React.FC = () => {
                 </Text>
               </View>
               <ChevronRight size={17} color={colors.textMuted} />
-            </TouchableOpacity>
+            </AnimatedPressable>
           ) : (
             recommendations.map(renderRecommendationCard)
           )}
@@ -940,7 +935,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(3,8,6,0.52)",
   },
   campaignBody: {
     flex: 1,

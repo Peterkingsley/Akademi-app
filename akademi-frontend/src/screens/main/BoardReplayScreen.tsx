@@ -26,7 +26,8 @@ const AUTO_STEP_INTERVAL_MS = 1400;
 export const BoardReplayScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { sessionId } = route.params || {};
+  const { sessionId, questionIndex } = route.params || {};
+  const hasQuestionIndex = typeof questionIndex === "number";
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,12 +57,20 @@ export const BoardReplayScreen: React.FC = () => {
 
       try {
         const messages = await sessionService.listMessages(sessionId);
-        const studentMessage = messages.find((message) => message.role === "STUDENT");
-        const firstAiWithBoard = messages.find(
+        const scopedMessages = hasQuestionIndex
+          ? messages.filter((message) => message.metadata?.questionIndex === questionIndex)
+          : messages;
+        const studentMessage = scopedMessages.find((message) => message.role === "STUDENT");
+        const firstAiWithBoard = scopedMessages.find(
           (message) => message.role === "AI" && message.metadata?.whiteboard?.payload?.steps?.length
         );
 
         if (!firstAiWithBoard?.metadata?.whiteboard?.payload) {
+          if (hasQuestionIndex) {
+            setError("No board walkthrough is available for this question.");
+            setLoading(false);
+            return;
+          }
           navigation.replace("AssignmentResult", { sessionId });
           return;
         }
@@ -83,7 +92,7 @@ export const BoardReplayScreen: React.FC = () => {
     };
 
     load();
-  }, [navigation, sessionId]);
+  }, [navigation, sessionId, questionIndex, hasQuestionIndex]);
 
   useEffect(() => {
     if (!isPlaying || loading || steps.length === 0 || currentStep >= steps.length) {

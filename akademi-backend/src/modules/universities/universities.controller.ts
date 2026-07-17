@@ -36,6 +36,28 @@ export class UniversitiesController {
     }
   }
 
+  async requestUniversity(req: Request, res: Response) {
+    try {
+      const query = typeof req.body.query === 'string' ? req.body.query.trim() : '';
+      const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : undefined;
+
+      if (!query) {
+        res.status(400).json({ message: 'Tell us the name of your school.' });
+        return;
+      }
+
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400).json({ message: 'Enter a valid email address.' });
+        return;
+      }
+
+      await universitiesService.requestUniversity(query, email);
+      res.status(201).json({ message: 'Request received.' });
+    } catch (error) {
+      res.status(500).json({ message: 'Failed to submit school request' });
+    }
+  }
+
   async getCourseSuggestions(req: Request, res: Response) {
     try {
       const { departmentId } = req.params;

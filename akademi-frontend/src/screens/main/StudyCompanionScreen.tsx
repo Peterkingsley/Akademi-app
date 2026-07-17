@@ -76,7 +76,7 @@ const statusColors = {
   NOT_STARTED: "#52525B",
   IN_PROGRESS: "#3B82F6",
   NEEDS_REVIEW: "#F59E0B",
-  MASTERED: "#304000",
+  MASTERED: "#22C55E",
 } as const;
 
 const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
@@ -117,6 +117,11 @@ const autoContinueStudyPhases = new Set<StudyCompanionPhaseName>([
   "TEACHING_PASS_1_BIG_PICTURE",
   "TEACHING_PASS_2_DETAILS",
   "TEACHING_PASS_3_CONNECTIONS",
+  // The backend marks a gap-reteach explanation autoContinue:true/nextAction:'continue_teaching'
+  // (study-companion.service.ts) the same way it does the three initial teaching passes - it
+  // was missing here, so the client silently ignored that signal and sat idle waiting for the
+  // student to type something, even though nothing was actually being asked of them yet.
+  "GAP_RETEACH",
 ]);
 
 function isAutoContinueLockedTurn(message: Message) {
@@ -150,6 +155,43 @@ function hasMeaningfulStudentTranscript(transcript: string, currentAiText = "") 
   return true;
 }
 
+// Memoized row: the word-reveal timer re-renders the screen every ~45ms, and without
+// memoization every bubble re-renders too - handing already-mounted RichMathText WebViews
+// a fresh source object each tick, which can force them to reload and blink. Message
+// objects keep referential identity unless their own displayContent changes, so memo on
+// `item` means only the actively-streaming bubble re-renders.
+const MessageRow = React.memo(
+  ({
+    item,
+    styles,
+    textColor,
+  }: {
+    item: UiMessage;
+    styles: ReturnType<typeof createStyles>;
+    textColor: string;
+  }) => {
+    const isStudent = item.role === "STUDENT";
+    const content = isStudent ? item.content : item.displayContent;
+    const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
+    return (
+      <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
+        <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
+          {isStudent ? (
+            <Text style={styles.studentText}>{content}</Text>
+          ) : content && shouldUseMathRenderer ? (
+            <RichMathText content={content} textColor={textColor} fontSize={15} lineHeight={1.55} />
+          ) : content ? (
+            <Text style={styles.aiText}>{content}</Text>
+          ) : (
+            <Text style={styles.aiFallbackText}>...</Text>
+          )}
+          {!isStudent && item.interrupted ? <Text style={styles.interruptedText}>Interrupted</Text> : null}
+        </View>
+      </View>
+    );
+  },
+);
+
 export const StudyCompanionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
@@ -173,6 +215,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
+  const [voiceUnavailable, setVoiceUnavailable] = useState<{ messageId: string; content: string } | null>(null);
   const whiteboardExperimentsEnabled =
     __DEV__ || process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
 
@@ -244,11 +287,13 @@ export const StudyCompanionScreen: React.FC = () => {
     runtimeStateRef.current = runtimeState;
   }, [runtimeState]);
 
+  // Depend on messages.length, not the array itself: the word-reveal timer mutates message
+  // objects every ~45ms, and scrolling (animated) on every tick causes visible jitter.
   useEffect(() => {
     if (messages.length > 0) {
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
     }
-  }, [messages]);
+  }, [messages.length]);
 
   useEffect(() => {
     if (!sessionId || companionState?.currentSectionIndex === undefined || companionState?.currentSectionIndex === null) {
@@ -395,8 +440,18 @@ export const StudyCompanionScreen: React.FC = () => {
 
     const fullContent = message.content || "";
     currentAiSpeechTextRef.current = fullContent;
+
+    // Math-heavy messages render through RichMathText, which is a WebView rebuilt from its
+    // content prop. Streaming displayContent word-by-word forces a full WebView reload every
+    // ~45ms - the page never finishes loading KaTeX, the bubble blinks at its reset height,
+    // and no text ever appears (while TTS keeps speaking independently). For these messages,
+    // show the full content immediately so the WebView mounts exactly once.
+    if (looksMathHeavy(fullContent)) {
+      finalizeAiMessage(message.id, fullContent);
+    }
+
     const words = fullContent.split(/\s+/).filter(Boolean);
-    if (words.length) {
+    if (words.length && !looksMathHeavy(fullContent)) {
       const durationMs = estimateSpeechDurationMs(fullContent);
       const stepMs = Math.max(45, Math.floor(durationMs / words.length));
       let visibleCount = 0;
@@ -417,10 +472,11 @@ export const StudyCompanionScreen: React.FC = () => {
     }
 
     beginAutoContinuePrefetch(message);
-    await speakAiTextStream(sessionId, fullContent);
+    const voiceResult = await speakAiTextStream(sessionId, fullContent);
     if (playbackTokenRef.current !== token) {
       return null;
     }
+    setVoiceUnavailable(voiceResult.ok ? null : { messageId: message.id, content: fullContent });
 
     cancelRevealTimer();
     finalizeAiMessage(message.id, fullContent);
@@ -433,6 +489,16 @@ export const StudyCompanionScreen: React.FC = () => {
     }
     return null;
   }, [beginAutoContinuePrefetch, cancelRevealTimer, finalizeAiMessage, resolveAutoContinueAfterSpeech, setTutorState]);
+
+  const retryVoicePlayback = useCallback(async () => {
+    if (!voiceUnavailable) return;
+    const { messageId, content } = voiceUnavailable;
+    setVoiceUnavailable(null);
+    const result = await speakAiTextStream(sessionId, content);
+    if (!result.ok) {
+      setVoiceUnavailable({ messageId, content });
+    }
+  }, [sessionId, voiceUnavailable]);
 
   const processTutorMessage = useCallback(async (message: Message) => {
     setMessages((prev) => [...prev, { ...toUiMessage(message), displayContent: "" }]);
@@ -592,6 +658,17 @@ export const StudyCompanionScreen: React.FC = () => {
 
   const phaseLabel = companionState ? phaseLabels[companionState.phase] || "Guided study" : "Guided study";
 
+  const progressLabel = (() => {
+    if (!companionState) return "";
+    const sectionOfTotal = companionState.progress.totalSections
+      ? `Section ${companionState.currentSectionIndex + 1} of ${companionState.progress.totalSections}`
+      : "";
+    const passOfTotal = companionState.passNumber
+      ? `Pass ${companionState.passNumber} of ${companionState.totalPasses}`
+      : "";
+    return [sectionOfTotal, passOfTotal].filter(Boolean).join(" · ");
+  })();
+
   const micStatusText =
     recordingStatus ||
     (runtimeState === "student_speaking"
@@ -600,27 +677,12 @@ export const StudyCompanionScreen: React.FC = () => {
         ? "Recording..."
         : "Tap mic to record");
 
-  const renderMessage = ({ item }: { item: UiMessage }) => {
-    const isStudent = item.role === "STUDENT";
-    const content = isStudent ? item.content : item.displayContent;
-    const shouldUseMathRenderer = !isStudent && looksMathHeavy(item.content || "");
-    return (
-      <View style={[styles.messageRow, isStudent ? styles.messageRowStudent : styles.messageRowAi]}>
-        <View style={[styles.messageBubble, isStudent ? styles.studentBubble : styles.aiBubble]}>
-          {isStudent ? (
-            <Text style={styles.studentText}>{content}</Text>
-          ) : content && shouldUseMathRenderer ? (
-            <RichMathText content={content} textColor={colors.textPrimary} fontSize={15} lineHeight={1.55} />
-          ) : content ? (
-            <Text style={styles.aiText}>{content}</Text>
-          ) : (
-            <Text style={styles.aiFallbackText}>...</Text>
-          )}
-          {!isStudent && item.interrupted ? <Text style={styles.interruptedText}>Interrupted</Text> : null}
-        </View>
-      </View>
-    );
-  };
+  const renderMessage = useCallback(
+    ({ item }: { item: UiMessage }) => (
+      <MessageRow item={item} styles={styles} textColor={colors.textPrimary} />
+    ),
+    [colors.textPrimary, styles],
+  );
 
   if (loading) {
     return (
@@ -663,6 +725,7 @@ export const StudyCompanionScreen: React.FC = () => {
 
         <View style={styles.statusBar}>
           <Text style={styles.statusLabel}>{phaseLabel}</Text>
+          {progressLabel ? <Text style={styles.statusValue}>{progressLabel}</Text> : null}
           <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
         </View>
 
@@ -742,6 +805,14 @@ export const StudyCompanionScreen: React.FC = () => {
             ) : null
           }
         />
+
+        {voiceUnavailable ? (
+          <View style={styles.voiceUnavailableRow}>
+            <Pressable onPress={() => void retryVoicePlayback()} style={styles.voiceUnavailableChip}>
+              <Text style={styles.voiceUnavailableText}>Voice unavailable · Tap to retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.composer}>
           <View style={styles.composerBox}>
@@ -992,6 +1063,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     whiteboardDevChipTextActive: {
       color: "#08130C",
+    },
+    voiceUnavailableRow: {
+      marginHorizontal: 18,
+      marginBottom: 10,
+      alignItems: "flex-start",
+    },
+    voiceUnavailableChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.warning,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    voiceUnavailableText: {
+      ...typography.bodySmall,
+      color: colors.warning,
+      fontSize: 11,
+      fontWeight: "700",
     },
     whiteboardPanel: {
       marginBottom: 16,

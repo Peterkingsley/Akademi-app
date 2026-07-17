@@ -244,9 +244,9 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js" onerror="window.loadFallbackKatexAssets && window.loadFallbackKatexAssets()"></script>
     <style>
       html, body {
         margin: 0;
@@ -352,13 +352,48 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         });
       }
 
+      let triedFallbackKatexCdn = false;
+
+      // The primary CDN (jsdelivr) can be slow or unreachable on a poor connection - with
+      // no fallback, renderMathInElement never becomes available and the student is left
+      // staring at raw "$f(x) = ...$" source text with no math ever rendered. This swaps
+      // in a second CDN mirror if the primary errors outright, or hasn't come through
+      // within a couple of seconds.
+      window.loadFallbackKatexAssets = function () {
+        if (triedFallbackKatexCdn) return;
+        triedFallbackKatexCdn = true;
+
+        var fallbackCss = document.createElement('link');
+        fallbackCss.rel = 'stylesheet';
+        fallbackCss.href = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.css';
+        document.head.appendChild(fallbackCss);
+
+        var fallbackJs = document.createElement('script');
+        fallbackJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.js';
+        fallbackJs.onload = function () {
+          var autoRenderJs = document.createElement('script');
+          autoRenderJs.src = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/contrib/auto-render.min.js';
+          // Event-driven backstop: render the moment the fallback is actually ready,
+          // whenever that is, instead of depending on the poll loop's ceiling below.
+          autoRenderJs.onload = function () { render(); };
+          document.head.appendChild(autoRenderJs);
+        };
+        document.head.appendChild(fallbackJs);
+      };
+
       function waitForMathRenderer(attempt) {
         if (window.renderMathInElement) {
           render();
           return;
         }
 
-        if (attempt >= 20) {
+        // ~2s in, the primary CDN clearly isn't coming through fast enough - try the
+        // fallback mirror instead of just continuing to wait on it.
+        if (attempt === 25) {
+          window.loadFallbackKatexAssets();
+        }
+
+        if (attempt >= 60) {
           render();
           return;
         }
