@@ -54,7 +54,7 @@ type DateField =
   | "checkInClosesAt"
   | "predictionClosesAt";
 
-const defaultAccent = "#304000";
+const defaultAccent = "#16A34A";
 
 export const AdminTournamentCreateScreen: React.FC = () => {
   const { colors, typography } = useTheme();

@@ -62,7 +62,7 @@ export const AdminWaitlistScreen: React.FC = () => {
   const [campaignDesign, setCampaignDesign] = useState({
     preheader: "",
     bannerImageUrl: "",
-    accentColor: "#304000",
+    accentColor: "#16A34A",
     ctaLabel: "",
     ctaUrl: "",
   });
@@ -669,7 +669,7 @@ export const AdminWaitlistScreen: React.FC = () => {
               <View style={styles.twoUp}>
                 <TextInput
                   style={[styles.input, styles.twoUpInput, { borderColor: colors.border, color: colors.textPrimary }]}
-                  placeholder="#304000"
+                  placeholder="#16A34A"
                   placeholderTextColor={colors.textMuted}
                   value={campaignDesign.accentColor}
                   onChangeText={(accentColor) => setCampaignDesign((current) => ({ ...current, accentColor }))}
