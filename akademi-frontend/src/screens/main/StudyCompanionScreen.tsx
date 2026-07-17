@@ -117,6 +117,11 @@ const autoContinueStudyPhases = new Set<StudyCompanionPhaseName>([
   "TEACHING_PASS_1_BIG_PICTURE",
   "TEACHING_PASS_2_DETAILS",
   "TEACHING_PASS_3_CONNECTIONS",
+  // The backend marks a gap-reteach explanation autoContinue:true/nextAction:'continue_teaching'
+  // (study-companion.service.ts) the same way it does the three initial teaching passes - it
+  // was missing here, so the client silently ignored that signal and sat idle waiting for the
+  // student to type something, even though nothing was actually being asked of them yet.
+  "GAP_RETEACH",
 ]);
 
 function isAutoContinueLockedTurn(message: Message) {

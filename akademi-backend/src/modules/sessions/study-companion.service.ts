@@ -1429,8 +1429,15 @@ export class StudyCompanionService {
 
       if (isInterrupt || !isAutoContinue) {
         const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', lecturerConstraintContext?.promptContext || '', relevantMaterialContext, undefined, sessionTranscriptContext);
+        // Route to wherever this reteach cycle was actually headed (mirrors the resolution at
+        // the bottom of this GAP_RETEACH block, ~line 1509) instead of always forcing
+        // TEACHBACK_1 - an interrupt here used to unconditionally reset progress to the FIRST
+        // teachback even when the student was already past it and due for TEACHBACK_2 (or
+        // MEMORY_DUMP), which both re-served already-covered content and made a real reply
+        // ("Go on", "okay") regress the session instead of advancing it.
+        const nextPhase = sectionContext.nextPromptKind === 'teachback_2' ? TEACHBACK_2 : MEMORY_DUMP;
         await persistRoadmap(state.id, roadmap, {
-          current_phase: TEACHBACK_1,
+          current_phase: nextPhase,
           pending_prompt: content,
           section_context: {} as Prisma.InputJsonValue,
         });
