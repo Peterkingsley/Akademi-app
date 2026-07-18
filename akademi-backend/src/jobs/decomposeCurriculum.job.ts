@@ -1,6 +1,7 @@
 import prisma from '../config/db';
 import { aiProvider } from '../modules/ai/ai.provider';
 import { systemQueue, JOB_NAMES } from '../config/queue';
+import { hasExistingTextbookOutline } from '../modules/textbooks/textbook-trigger';
 
 interface DecompositionNode {
   title: string;
@@ -108,14 +109,11 @@ export async function decomposeCurriculumJob(courseCode: string): Promise<void> 
     return;
   }
 
-  // Cheap re-check: two StudentCourse-creation events for the same code could both pass the
-  // trigger's own no-op check before either job actually runs.
-  const alreadyCurrent = await prisma.generatedTextbookOutline.findFirst({
-    where: { course_code: code, is_current: true },
-    select: { id: true },
-  });
-  if (alreadyCurrent) {
-    console.log(`[decompose-curriculum] course_code ${code} already has a current outline; skipping.`);
+  // Cheap re-check: two triggers for the same code (e.g. two students enrolling close together,
+  // or the backfill script running while a live enrollment already queued the same code) could
+  // both pass ensureTextbookGenerationQueued's check before either job actually runs.
+  if (await hasExistingTextbookOutline(code)) {
+    console.log(`[decompose-curriculum] course_code ${code} already has an outline; skipping.`);
     return;
   }
 
