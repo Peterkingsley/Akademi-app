@@ -35,7 +35,17 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [pickerMode, setPickerMode] = useState<PickerMode | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
   const [schoolLoading, setSchoolLoading] = useState(false);
-  const [docForm, setDocForm] = useState({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
+  const [docForm, setDocForm] = useState({
+    university: "",
+    faculty: "",
+    department: "",
+    document_ref: "",
+    version_notes: "",
+    course_code: "",
+    source_type: "" as "" | "CCMAS" | "INTERNATIONAL_REFERENCE",
+    reference_name: "",
+    level: "",
+  });
   const [selectedDocFileName, setSelectedDocFileName] = useState("");
   const [selectedDocFile, setSelectedDocFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
@@ -173,20 +183,35 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       return;
     }
 
+    const courseCode = docForm.course_code.trim();
+    const sourceType = courseCode ? (docForm.source_type || "CCMAS") : "";
+    if (courseCode && sourceType === "INTERNATIONAL_REFERENCE" && !docForm.reference_name.trim()) {
+      Alert.alert("Missing reference name", "International reference documents need a reference name (e.g. \"MIT OCW — 8.01\").");
+      return;
+    }
+
+    const payload = {
+      ...docForm,
+      course_code: courseCode || undefined,
+      source_type: sourceType || undefined,
+      reference_name: sourceType === "INTERNATIONAL_REFERENCE" ? docForm.reference_name.trim() : undefined,
+      level: courseCode && sourceType === "CCMAS" && docForm.level.trim() ? Number(docForm.level.trim()) : undefined,
+    };
+
     try {
       setSaving(true);
       if (selectedDocFile) {
         await adminService.uploadDisciplineDocumentFile({
-          ...docForm,
+          ...payload,
           version_notes: docForm.version_notes || `Uploaded from ${selectedDocFile.name}`,
         }, selectedDocFile);
       } else {
         await adminService.uploadDisciplineDocument({
-          ...docForm,
+          ...payload,
           version_notes: docForm.version_notes || "Updated department-wide discipline document.",
         });
       }
-      setDocForm({ university: "", faculty: "", department: "", document_ref: "", version_notes: "" });
+      setDocForm({ university: "", faculty: "", department: "", document_ref: "", version_notes: "", course_code: "", source_type: "", reference_name: "", level: "" });
       setSelectedDocFileName("");
       setSelectedDocFile(null);
       setSelectedDocUniversityId(null);
@@ -466,6 +491,56 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                   <PickerField label="Reference school" value={docForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("docUniversity")} />
                   <PickerField label="Faculty" value={docForm.faculty} placeholder={docForm.university ? "Pick faculty" : "Pick school first"} onPress={() => openPicker("docFaculty")} disabled={!docForm.university} />
                   <PickerField label="Department" value={docForm.department} placeholder={docForm.faculty ? "Pick department" : "Pick faculty first"} onPress={() => openPicker("docDepartment")} disabled={!docForm.faculty} />
+                  <Field
+                    label="Course code (optional — leave blank for department-wide)"
+                    value={docForm.course_code}
+                    onChangeText={(course_code: string) => setDocForm(prev => ({ ...prev, course_code: course_code.toUpperCase() }))}
+                    placeholder="e.g. PHY108"
+                  />
+                  {!!docForm.course_code.trim() && (
+                    <>
+                      <View style={styles.fieldGroup}>
+                        <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Source type</Text>
+                        <View style={styles.sourceTypeRow}>
+                          {(["CCMAS", "INTERNATIONAL_REFERENCE"] as const).map((option) => {
+                            const active = (docForm.source_type || "CCMAS") === option;
+                            return (
+                              <TouchableOpacity
+                                key={option}
+                                onPress={() => setDocForm(prev => ({ ...prev, source_type: option }))}
+                                style={[
+                                  styles.sourceTypeChip,
+                                  {
+                                    backgroundColor: active ? colors.primary : colors.surface,
+                                    borderColor: active ? colors.primary : colors.border,
+                                  },
+                                ]}
+                              >
+                                <Text style={{ color: active ? "#FFF" : colors.textPrimary, fontWeight: "700", fontSize: 12 }}>
+                                  {option === "CCMAS" ? "CCMAS" : "International Reference"}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                      {(docForm.source_type || "CCMAS") === "CCMAS" ? (
+                        <Field
+                          label="Course level"
+                          value={docForm.level}
+                          onChangeText={(level: string) => setDocForm(prev => ({ ...prev, level: level.replace(/[^0-9]/g, "") }))}
+                          placeholder="e.g. 100"
+                        />
+                      ) : (
+                        <Field
+                          label="Reference name"
+                          value={docForm.reference_name}
+                          onChangeText={(reference_name: string) => setDocForm(prev => ({ ...prev, reference_name }))}
+                          placeholder='e.g. "MIT OCW — 8.01"'
+                        />
+                      )}
+                    </>
+                  )}
                   <TouchableOpacity
                     style={[styles.uploadFileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     onPress={handlePickDocumentFile}
@@ -688,6 +763,16 @@ const styles = StyleSheet.create({
   },
   fieldGroup: {
     marginBottom: 14,
+  },
+  sourceTypeRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  sourceTypeChip: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   formInput: {
     borderRadius: 12,

@@ -9,6 +9,7 @@ import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePassword
 import { AdminRole, AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 import redisClient from '../../config/redis';
+import { triggerTextbookGenerationForCourseCodes } from '../textbooks/textbook-trigger';
 
 const resend = new Resend(config.resendApiKey);
 const googleClient = new OAuth2Client(config.googleOauthClientId);
@@ -222,6 +223,11 @@ export class AuthService {
 
       return createdUser;
     });
+
+    if (academicCourses.length > 0 && semesterStart && semesterEnd) {
+      // Fire-and-forget: must not block the registration response on textbook generation.
+      triggerTextbookGenerationForCourseCodes(academicCourses.map((course) => course.code)).catch(console.error);
+    }
 
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {

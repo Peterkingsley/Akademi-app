@@ -354,6 +354,10 @@ model Material {
   created_at              DateTime                 @default(now())
   content                 String?                  @db.Text
   reader_structure        Json?
+  // True for the single, national, system-authored textbook per course code (see
+  // GeneratedTextbookOutline). Never set by the student-upload path.
+  is_akademi_generated    Boolean                  @default(false)
+  generated_outline_id    String?                  @unique
 
   user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
   course                        Course?                      @relation(fields: [course_id], references: [id])
@@ -372,6 +376,7 @@ model Material {
   learning_intelligence_records LearningIntelligenceRecord[]
   tutor_turn_traces             TutorTurnTrace[]
   teaching_constraints          LecturerTeachingConstraint[]
+  generated_outline             GeneratedTextbookOutline?    @relation("OutlineMaterial")
 
   @@index([course_code])
   @@index([course_id])
@@ -381,6 +386,7 @@ model Material {
   @@index([course_code, level, semester])
   @@index([verification_status])
   @@index([processing_status, next_retry_at])
+  @@index([course_code, is_akademi_generated])
   @@map("materials")
 }
 
@@ -821,23 +827,23 @@ model TutorTurnTrace {
 }
 
 model Question {
-  id             String     @id @default(uuid())
-  material_id    String
-  course_code    String?
-  course_id      String?
-  university     String
-  department     String
-  level          Int
-  question_text  String
-  approach_guide String
+  id                String     @id @default(uuid())
+  material_id       String
+  course_code       String?
+  course_id         String?
+  university        String
+  department        String
+  level             Int
+  question_text     String
+  approach_guide    String
   // Stores ["A. ...", "B. ...", "C. ...", "D. ..."] (or similar). Non-null for simpler reads.
-  options        Json       @default("[]")
+  options           Json       @default("[]")
   // Stores "A", "B", "C", or "D" (or similar label). Nullable for legacy questions.
-  correct_answer String?
+  correct_answer    String?
   // Why that answer is correct. Nullable.
-  explanation    String?
-  difficulty     Difficulty
-  generated_at   DateTime   @default(now())
+  explanation       String?
+  difficulty        Difficulty
+  generated_at      DateTime   @default(now())
   // Global reader page range this question was generated from. Nullable for legacy questions
   // and questions generated from the full material (no page scope requested).
   source_page_start Int?
@@ -908,22 +914,118 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+enum DisciplineDocumentSourceType {
+  CCMAS
+  INTERNATIONAL_REFERENCE
+}
+
 model DisciplineDocument {
-  id              String   @id @default(uuid())
+  id              String                       @id @default(uuid())
   faculty         String
   department      String
   course_code     String?
+  // CCMAS (government curriculum) or a named international reference curriculum. Only
+  // CCMAS documents are ever used as the decomposition backbone for generated textbooks.
+  source_type     DisciplineDocumentSourceType @default(CCMAS)
+  // Name of the international curriculum this document represents, e.g. "MIT OCW — 8.01".
+  // Required in practice for INTERNATIONAL_REFERENCE rows, null for CCMAS.
+  reference_name  String?
+  // Course level (100/200/...), admin-specified. Only meaningful for course_code-scoped
+  // CCMAS documents — this is what a generated textbook's Material.level is sourced from,
+  // since DisciplineDocument has no other reliable way to know a course's level.
+  level           Int?
   document_ref    String
-  version         Int      @default(1)
+  version         Int                          @default(1)
   version_notes   String?
   last_updated_by String
-  updated_at      DateTime @updatedAt
-  is_active       Boolean  @default(true)
+  updated_at      DateTime                     @updatedAt
+  is_active       Boolean                      @default(true)
+
+  generated_textbook_outlines GeneratedTextbookOutline[]
 
   @@index([department])
   @@index([course_code])
   @@index([is_active])
+  @@index([course_code, source_type])
   @@map("discipline_documents")
+}
+
+enum OutlineNodeStatus {
+  PENDING
+  GENERATING
+  GENERATED
+  FAILED_QUALITY_CHECK
+  ADMIN_QUEUED
+}
+
+model GeneratedTextbookOutline {
+  id                   String   @id @default(uuid())
+  course_code          String
+  ccmas_version        Int
+  ccmas_document_id    String
+  // Denormalized pointer to the Material this outline publishes to, written in the same
+  // transaction as the Material create. Not a DB-enforced bidirectional relation — Prisma
+  // can only own the FK on one side (Material.generated_outline_id is the real relation).
+  // Invariant: always write both sides together, never independently.
+  material_id          String?  @unique
+  terminology_registry Json     @default("{}")
+  is_current           Boolean  @default(false)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  ccmas_document DisciplineDocument             @relation(fields: [ccmas_document_id], references: [id])
+  nodes          GeneratedTextbookOutlineNode[]
+  material       Material?                      @relation("OutlineMaterial", fields: [material_id], references: [id])
+
+  @@index([course_code])
+  @@index([course_code, is_current])
+  @@index([ccmas_document_id])
+  @@map("generated_textbook_outlines")
+}
+
+model GeneratedTextbookOutlineNode {
+  id                        String            @id @default(uuid())
+  outline_id                String
+  parent_id                 String?
+  order_index               Int
+  depth                     Int
+  title                     String
+  learning_outcome          String            @db.Text
+  // Internal bookkeeping only for dedup/placement during decomposition and later debugging —
+  // never exposed to students as a formal citation, per spec.
+  is_international_addition Boolean           @default(false)
+  status                    OutlineNodeStatus @default(PENDING)
+  retry_count               Int               @default(0)
+  created_at                DateTime          @default(now())
+  updated_at                DateTime          @updatedAt
+
+  outline  GeneratedTextbookOutline       @relation(fields: [outline_id], references: [id], onDelete: Cascade)
+  // Self-referencing tree. onDelete/onUpdate NoAction: Postgres/Prisma can't cascade-delete
+  // a self-referencing tree cleanly — whole-outline cleanup goes through outline_id's cascade
+  // instead, which deletes every node (parent and child) in one pass regardless of order.
+  parent   GeneratedTextbookOutlineNode?  @relation("NodeChildren", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children GeneratedTextbookOutlineNode[] @relation("NodeChildren")
+  section  GeneratedTextbookSection?
+
+  @@index([outline_id, parent_id, order_index])
+  @@index([outline_id, status])
+  @@map("generated_textbook_outline_nodes")
+}
+
+model GeneratedTextbookSection {
+  id                   String   @id @default(uuid())
+  node_id              String   @unique
+  content              String   @db.Text
+  needs_diagram        Boolean  @default(false)
+  diagram_description  String?  @db.Text
+  diagram_image_url    String?
+  quality_check_passed Boolean  @default(false)
+  quality_check_notes  String?  @db.Text
+  generated_at         DateTime @default(now())
+
+  node GeneratedTextbookOutlineNode @relation(fields: [node_id], references: [id], onDelete: Cascade)
+
+  @@map("generated_textbook_sections")
 }
 
 // Additional models required by the codebase

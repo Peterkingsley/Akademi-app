@@ -157,6 +157,14 @@ export interface UploadDisciplineDocumentRequest {
   department: string;
   document_ref: string;
   version_notes: string;
+  // Course-code-scoped CCMAS/international-reference documents feed the Akademi Generated
+  // Textbooks pipeline. Omitted (or null) keeps the existing department-wide behavior.
+  course_code?: string | null;
+  source_type?: 'CCMAS' | 'INTERNATIONAL_REFERENCE';
+  reference_name?: string | null;
+  // Only meaningful (and expected) for course_code-scoped CCMAS documents — see
+  // DisciplineDocument.level in schema.prisma for why this can't be derived elsewhere.
+  level?: number | null;
 }
 
 export interface RollbackDocumentRequest {

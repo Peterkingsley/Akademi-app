@@ -11,6 +11,8 @@ export const JOB_NAMES = {
   ASSEMBLE_CHUNKS: 'ASSEMBLE_CHUNKS',
   ACTIVATE_TOURNAMENTS: 'ACTIVATE_TOURNAMENTS',
   POST_ASSESSMENT_INTELLIGENCE: 'POST_ASSESSMENT_INTELLIGENCE',
+  DECOMPOSE_CURRICULUM: 'DECOMPOSE_CURRICULUM',
+  GENERATE_TEXTBOOK_SECTION: 'GENERATE_TEXTBOOK_SECTION',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -29,6 +31,7 @@ type JobPayload = {
   teachingDecisionSnapshot?: Record<string, unknown>;
   calculationContextSnapshot?: string;
   diagramContextSnapshot?: string;
+  nodeId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -80,6 +83,8 @@ const BACKGROUND_JOB_NAMES = new Set<JobName>([
   JOB_NAMES.INGEST_MATERIAL,
   JOB_NAMES.ASSEMBLE_CHUNKS,
   JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE,
+  JOB_NAMES.DECOMPOSE_CURRICULUM,
+  JOB_NAMES.GENERATE_TEXTBOOK_SECTION,
 ]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
@@ -140,6 +145,18 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       if (!payload.materialId) throw new Error('GENERATE_QUESTIONS requires materialId');
       const { generateQuestionsJob } = await import('../jobs/generateQuestions.job');
       await generateQuestionsJob(payload.materialId);
+      return;
+    }
+    case JOB_NAMES.DECOMPOSE_CURRICULUM: {
+      if (!payload.courseCode) throw new Error('DECOMPOSE_CURRICULUM requires courseCode');
+      const { decomposeCurriculumJob } = await import('../jobs/decomposeCurriculum.job');
+      await decomposeCurriculumJob(payload.courseCode);
+      return;
+    }
+    case JOB_NAMES.GENERATE_TEXTBOOK_SECTION: {
+      if (!payload.nodeId) throw new Error('GENERATE_TEXTBOOK_SECTION requires nodeId');
+      const { generateTextbookSectionJob } = await import('../jobs/generateTextbookSection.job');
+      await generateTextbookSectionJob(payload.nodeId);
       return;
     }
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {

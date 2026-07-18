@@ -1121,7 +1121,8 @@ export class AdminService {
       where: {
         faculty: document.faculty,
         department: document.department,
-        course_code: null
+        course_code: document.course_code,
+        source_type: document.source_type,
       },
       orderBy: { version: 'desc' }
     });
@@ -1144,21 +1145,51 @@ export class AdminService {
   }
 
   async uploadDisciplineDocument(data: UploadDisciplineDocumentRequest, adminId: string) {
+    const courseCode = data.course_code?.trim() || null;
+    const sourceType = data.source_type || 'CCMAS';
+    // The file-upload path (uploadDisciplineDocumentFile) submits via multer/multipart, where
+    // every non-file field arrives as a string — coerce defensively rather than trusting the
+    // declared type.
+    const level = data.level != null && data.level !== ('' as any) ? Number(data.level) : null;
+
+    if (sourceType === 'INTERNATIONAL_REFERENCE' && !data.reference_name?.trim()) {
+      throw new Error('reference_name is required for INTERNATIONAL_REFERENCE documents');
+    }
+
+    // Course-code-scoped CCMAS documents feed the generated-textbook decomposition job, which
+    // is keyed purely on course_code (not department) — nothing stops two admins uploading a
+    // CCMAS doc for the same course_code under two different departments. Warn, don't block:
+    // this is a real content-ops conflict the platform can't safely resolve automatically.
+    if (courseCode && sourceType === 'CCMAS') {
+      const conflicting = await prisma.disciplineDocument.findFirst({
+        where: {
+          course_code: courseCode,
+          source_type: 'CCMAS',
+          is_active: true,
+          department: { not: data.department },
+        },
+      });
+      if (conflicting) {
+        console.warn(
+          `[discipline-documents] course_code ${courseCode} already has an active CCMAS document under a different department (${conflicting.department}); uploading another under ${data.department}.`,
+        );
+      }
+    }
+
+    const scopeWhere = {
+      faculty: data.faculty,
+      department: data.department,
+      course_code: courseCode,
+      source_type: sourceType as any,
+    };
+
     const latest = await prisma.disciplineDocument.findFirst({
-      where: {
-        faculty: data.faculty,
-        department: data.department,
-        course_code: null
-      },
+      where: scopeWhere,
       orderBy: { version: 'desc' }
     });
 
     await prisma.disciplineDocument.updateMany({
-      where: {
-        faculty: data.faculty,
-        department: data.department,
-        course_code: null
-      },
+      where: scopeWhere,
       data: { is_active: false }
     });
 
@@ -1168,7 +1199,10 @@ export class AdminService {
       data: {
         faculty: data.faculty,
         department: data.department,
-        course_code: null,
+        course_code: courseCode,
+        source_type: sourceType as any,
+        reference_name: data.reference_name?.trim() || null,
+        level: Number.isFinite(level) ? level : null,
         document_ref: data.document_ref,
         version: newVersion,
         version_notes: data.version_notes,
@@ -1194,7 +1228,8 @@ export class AdminService {
       where: {
         faculty: target.faculty,
         department: target.department,
-        course_code: null,
+        course_code: target.course_code,
+        source_type: target.source_type,
         version: version
       }
     });
@@ -1205,7 +1240,8 @@ export class AdminService {
       where: {
         faculty: target.faculty,
         department: target.department,
-        course_code: null
+        course_code: target.course_code,
+        source_type: target.source_type,
       },
       data: { is_active: false }
     });

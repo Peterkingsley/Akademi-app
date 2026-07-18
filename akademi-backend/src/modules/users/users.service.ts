@@ -4,6 +4,7 @@ import { config } from '../../config/env';
 import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.types';
 import { Feature, AccessType } from '@prisma/client';
 import { resolveDepartmentId } from '../../shared/utils/department-resolver';
+import { triggerTextbookGenerationForCourseCodes } from '../textbooks/textbook-trigger';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -392,6 +393,10 @@ export class UsersService {
           },
         },
       });
+    }).then((result) => {
+      // Fire-and-forget: must not block the profile-update response on textbook generation.
+      triggerTextbookGenerationForCourseCodes(uniqueCourseInputs.map((course) => course.code)).catch(console.error);
+      return result;
     });
   }
 

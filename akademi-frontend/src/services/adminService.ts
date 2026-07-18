@@ -112,6 +112,9 @@ export interface DisciplineDocument {
   faculty: string;
   department: string;
   course_code: string | null;
+  source_type: "CCMAS" | "INTERNATIONAL_REFERENCE";
+  reference_name: string | null;
+  level: number | null;
   document_ref: string;
   version: number;
   version_notes: string | null;
@@ -517,6 +520,10 @@ export const adminService = {
     formData.append("faculty", docData.faculty);
     formData.append("department", docData.department);
     if (docData.version_notes) formData.append("version_notes", docData.version_notes);
+    if (docData.course_code) formData.append("course_code", docData.course_code);
+    if (docData.source_type) formData.append("source_type", docData.source_type);
+    if (docData.reference_name) formData.append("reference_name", docData.reference_name);
+    if (docData.level != null && docData.level !== "") formData.append("level", String(docData.level));
     formData.append("document", {
       uri: file.uri,
       name: file.name,
