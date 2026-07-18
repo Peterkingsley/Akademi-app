@@ -26,6 +26,8 @@ router.delete('/:id/teaching-constraints/:constraintId', materialsController.dis
 router.post('/upload', materialUploadRateLimiter, materialsController.upload);
 router.post('/:id/confirm', materialsController.confirm);
 router.get('/:id/download', materialsController.getDownloadUrl);
+// Optional query params: limit, and pageStart/pageEnd to scope the CBT pool to a document-global
+// reader page range (both required together, 1-indexed, inclusive).
 router.get('/:id/questions', materialsController.getQuestions);
 router.post('/:id/questions/attempts', materialsController.submitQuestionAttempts);
 router.post('/:id/report', materialsController.report);

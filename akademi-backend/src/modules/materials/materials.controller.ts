@@ -61,6 +61,8 @@ export class MaterialsController {
         req.params.id,
         req.user!.userId,
         req.query.limit ? Number(req.query.limit) : undefined,
+        req.query.pageStart != null ? Number(req.query.pageStart) : undefined,
+        req.query.pageEnd != null ? Number(req.query.pageEnd) : undefined,
       );
       res.status(200).json(questions);
     } catch (error: any) {
@@ -71,6 +73,9 @@ export class MaterialsController {
           scopeType: 'MATERIAL',
           scopeId: req.params.id,
         });
+      }
+      if (typeof error.message === 'string' && error.message.startsWith('Invalid page range')) {
+        return res.status(400).json({ message: error.message });
       }
       res.status(404).json({ message: error.message });
     }

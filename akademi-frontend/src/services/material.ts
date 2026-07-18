@@ -122,9 +122,16 @@ export const materialService = {
     return data;
   },
 
-  getMaterialQuestions: async (id: string, limit?: number) => {
+  getMaterialQuestions: async (
+    id: string,
+    limit?: number,
+    pageRange?: { pageStart: number; pageEnd: number },
+  ) => {
     const { data } = await api.get<PracticeQuestion[]>(`/materials/${id}/questions`, {
-      params: limit ? { limit } : undefined,
+      params: {
+        ...(limit ? { limit } : undefined),
+        ...(pageRange ? { pageStart: pageRange.pageStart, pageEnd: pageRange.pageEnd } : undefined),
+      },
     });
     return data;
   },

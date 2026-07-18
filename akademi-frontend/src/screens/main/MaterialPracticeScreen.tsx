@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -31,7 +32,7 @@ const DURATION_OPTIONS = [5, 10, 15, 20, 30];
 export const MaterialPracticeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { materialId, title } = route.params;
+  const { materialId, title, totalPages: totalPagesParam } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [setupLoading, setSetupLoading] = useState(false);
@@ -48,6 +49,41 @@ export const MaterialPracticeScreen: React.FC = () => {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [setupError, setSetupError] = useState("");
   const [persistingResults, setPersistingResults] = useState(false);
+  const [totalPages, setTotalPages] = useState<number | null>(totalPagesParam || null);
+  const [useCustomRange, setUseCustomRange] = useState(false);
+  const [pageFrom, setPageFrom] = useState("");
+  const [pageTo, setPageTo] = useState("");
+  const [rangeError, setRangeError] = useState("");
+
+  useEffect(() => {
+    if (totalPages != null) return;
+    let cancelled = false;
+    materialService
+      .getMaterialDetails(materialId)
+      .then((data) => {
+        if (cancelled) return;
+        const pageCount = data.diagnostics?.pageCount;
+        if (pageCount) setTotalPages(pageCount);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch material page count:", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [materialId, totalPages]);
+
+  const parsedPageFrom = Number(pageFrom);
+  const parsedPageTo = Number(pageTo);
+  const hasValidRangeInputs =
+    pageFrom.trim().length > 0 &&
+    pageTo.trim().length > 0 &&
+    Number.isInteger(parsedPageFrom) &&
+    Number.isInteger(parsedPageTo) &&
+    parsedPageFrom >= 1 &&
+    parsedPageFrom <= parsedPageTo &&
+    (!totalPages || parsedPageTo <= totalPages);
+  const canStart = !useCustomRange || hasValidRangeInputs;
 
   const checkPass = useCallback(async () => {
     try {
@@ -130,17 +166,38 @@ export const MaterialPracticeScreen: React.FC = () => {
       return;
     }
 
+    if (useCustomRange && !hasValidRangeInputs) {
+      setRangeError(
+        totalPages
+          ? `Enter a valid range between 1 and ${totalPages}.`
+          : "Enter a valid page range.",
+      );
+      return;
+    }
+
+    const pageRange = useCustomRange
+      ? { pageStart: parsedPageFrom, pageEnd: parsedPageTo }
+      : undefined;
+
     try {
       setSetupLoading(true);
-      const data = await materialService.getMaterialQuestions(materialId, questionCount);
+      setRangeError("");
+      const data = await materialService.getMaterialQuestions(materialId, questionCount, pageRange);
       setQuestions(data);
       setAnswers({});
       setCurrentIndex(0);
       setSubmitted(false);
       setRemainingSeconds(durationMinutes * 60);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load material questions:", error);
-      Alert.alert("Practice unavailable", "No CBT questions are available for this material yet.");
+      if (pageRange) {
+        setRangeError(
+          error?.response?.data?.message ||
+            `No questions available yet for pages ${pageRange.pageStart}-${pageRange.pageEnd}, try a wider range or check back shortly.`,
+        );
+      } else {
+        Alert.alert("Practice unavailable", "No CBT questions are available for this material yet.");
+      }
     } finally {
       setSetupLoading(false);
     }
@@ -351,9 +408,88 @@ export const MaterialPracticeScreen: React.FC = () => {
               </View>
             </View>
 
+            <View style={styles.optionSection}>
+              <Text style={[styles.optionLabel, typography.mono]}>MATERIAL COVERAGE</Text>
+              <View style={styles.segmentRow}>
+                <TouchableOpacity
+                  style={[styles.segmentButton, !useCustomRange && styles.segmentButtonActive]}
+                  onPress={() => {
+                    setUseCustomRange(false);
+                    setRangeError("");
+                  }}
+                >
+                  <Text
+                    style={[styles.segmentButtonText, !useCustomRange && styles.segmentButtonTextActive]}
+                  >
+                    Full material
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.segmentButton, useCustomRange && styles.segmentButtonActive]}
+                  onPress={() => {
+                    setUseCustomRange(true);
+                    setRangeError("");
+                  }}
+                >
+                  <Text
+                    style={[styles.segmentButtonText, useCustomRange && styles.segmentButtonTextActive]}
+                  >
+                    Page range
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {useCustomRange && (
+                <View style={styles.pageRangeRow}>
+                  <View style={styles.pageRangeField}>
+                    <Text style={[styles.pageRangeLabel, typography.bodySmall]}>From</Text>
+                    <TextInput
+                      style={styles.pageRangeInput}
+                      value={pageFrom}
+                      onChangeText={(value) => {
+                        setPageFrom(value.replace(/[^0-9]/g, ""));
+                        setRangeError("");
+                      }}
+                      keyboardType="number-pad"
+                      placeholder="1"
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+                  <View style={styles.pageRangeField}>
+                    <Text style={[styles.pageRangeLabel, typography.bodySmall]}>To</Text>
+                    <TextInput
+                      style={styles.pageRangeInput}
+                      value={pageTo}
+                      onChangeText={(value) => {
+                        setPageTo(value.replace(/[^0-9]/g, ""));
+                        setRangeError("");
+                      }}
+                      keyboardType="number-pad"
+                      placeholder={totalPages ? String(totalPages) : "40"}
+                      placeholderTextColor={colors.textMuted}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {useCustomRange && (
+                <Text style={[styles.pageRangeHint, typography.bodySmall]}>
+                  {totalPages
+                    ? `This material has ${totalPages} pages. Pick a range within 1-${totalPages}.`
+                    : "Enter the page range you just read."}
+                </Text>
+              )}
+
+              {!!rangeError && (
+                <Text style={[styles.pageRangeError, typography.bodySmall]}>{rangeError}</Text>
+              )}
+            </View>
+
             <Card style={styles.setupSummaryCard}>
               <Text style={[styles.setupSummaryTitle, typography.bodySmall]}>
-                This CBT will load {questionCount} questions and auto-submit after {durationMinutes} minutes.
+                {useCustomRange && hasValidRangeInputs
+                  ? `This CBT will load ${questionCount} questions from pages ${parsedPageFrom}-${parsedPageTo} and auto-submit after ${durationMinutes} minutes.`
+                  : `This CBT will load ${questionCount} questions and auto-submit after ${durationMinutes} minutes.`}
               </Text>
             </Card>
 
@@ -383,7 +519,7 @@ export const MaterialPracticeScreen: React.FC = () => {
                     : "CBT not ready yet"
               }
               onPress={startPractice}
-              disabled={setupLoading}
+              disabled={setupLoading || !canStart}
               style={styles.startButton}
             />
           </Card>
@@ -700,6 +836,32 @@ const styles = StyleSheet.create({
   },
   segmentButtonTextActive: {
     color: "#04110A",
+  },
+  pageRangeRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  pageRangeField: {
+    flex: 1,
+    gap: 6,
+  },
+  pageRangeLabel: {
+    color: colors.textMuted,
+  },
+  pageRangeInput: {
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: colors.surfaceElevated,
+    color: colors.textPrimary,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  pageRangeHint: {
+    color: colors.textMuted,
+  },
+  pageRangeError: {
+    color: colors.error,
   },
   setupSummaryCard: {
     backgroundColor: colors.surfaceElevated,

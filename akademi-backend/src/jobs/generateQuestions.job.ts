@@ -2,6 +2,7 @@ import { addQuestionsToIndex } from '../shared/search/typesense.sync';
 import prisma from '../config/db';
 import { Difficulty } from '@prisma/client';
 import { aiProvider } from '../modules/ai/ai.provider';
+import { ReaderPage } from '../modules/materials/reader-structure';
 
 type GeneratedQuestion = {
   question_text: string;
@@ -15,6 +16,8 @@ type GeneratedQuestion = {
 type GenerateQuestionOptions = {
   count?: number;
   excludeQuestionTexts?: string[];
+  pageStart?: number;
+  pageEnd?: number;
 };
 
 function parseJsonObject(text: string) {
@@ -81,6 +84,34 @@ export async function generateQuestionsJob(materialId: string, options: Generate
     throw new Error('Cannot generate questions before material content is ingested');
   }
 
+  const hasPageRange = options.pageStart != null && options.pageEnd != null;
+  let sourceContent = materialContent;
+
+  if (hasPageRange) {
+    const pageStart = options.pageStart as number;
+    const pageEnd = options.pageEnd as number;
+    const pages = Array.isArray((material.reader_structure as any)?.pages)
+      ? ((material.reader_structure as any).pages as ReaderPage[])
+      : [];
+
+    if (!pages.length) {
+      throw new Error(`No content found for pages ${pageStart}-${pageEnd}`);
+    }
+
+    const rangeContent = pages
+      .filter((page) => page.pageNumber >= pageStart && page.pageNumber <= pageEnd)
+      .map((page) => page.content)
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+
+    if (!rangeContent) {
+      throw new Error(`No content found for pages ${pageStart}-${pageEnd}`);
+    }
+
+    sourceContent = rangeContent;
+  }
+
   const requestedCount = Math.min(Math.max(options.count || 10, 5), 30);
   const existingQuestionTexts = options.excludeQuestionTexts?.filter(Boolean) || [];
   const disciplineDocument = await prisma.disciplineDocument.findFirst({
@@ -92,7 +123,7 @@ export async function generateQuestionsJob(materialId: string, options: Generate
   Material title: ${material.title}
   Course code: ${material.course_code || 'General'}
   Material content:
-  ${materialContent.slice(0, 24000)}
+  ${sourceContent.slice(0, 24000)}
 
   Context: ${JSON.stringify(disciplineDocument)}
   Generate ${requestedCount} multiple-choice questions.
@@ -141,6 +172,8 @@ export async function generateQuestionsJob(materialId: string, options: Generate
           correct_answer: q.correct_answer,
           explanation: q.explanation,
           difficulty: q.difficulty as Difficulty,
+          source_page_start: hasPageRange ? options.pageStart : null,
+          source_page_end: hasPageRange ? options.pageEnd : null,
         },
       });
 

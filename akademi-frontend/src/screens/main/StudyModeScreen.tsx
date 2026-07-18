@@ -114,6 +114,9 @@ const isLikelyHeading = (line: string) => {
 const isSoftHeading = (line: string) => SOFT_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 const isHardHeading = (line: string) => HARD_HEADING_PATTERNS.some((pattern) => pattern.test(line.trim()));
 
+const renumberPagesGlobally = (pages: ReaderPage[]): ReaderPage[] =>
+  pages.map((page, index) => ({ ...page, pageNumber: index + 1 }));
+
 const chunkSection = (sectionTitle: string, body: string, maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] => {
   const paragraphs = body
     .split(/\n\s*\n/)
@@ -201,7 +204,7 @@ const repaginateStructuredPages = (pages: ReaderPage[]): ReaderPage[] => {
 
   flushCurrent();
 
-  return mergedPages.length ? mergedPages : pages;
+  return renumberPagesGlobally(mergedPages.length ? mergedPages : pages);
 };
 
 const buildReaderPages = (rawContent: string): ReaderPage[] => {
@@ -249,10 +252,10 @@ const buildReaderPages = (rawContent: string): ReaderPage[] => {
   flushSection();
 
   if (!sections.length) {
-    return chunkSection("Reading", normalized);
+    return renumberPagesGlobally(chunkSection("Reading", normalized));
   }
 
-  return sections.flatMap((section) => chunkSection(section.title, section.body.join("\n")));
+  return renumberPagesGlobally(sections.flatMap((section) => chunkSection(section.title, section.body.join("\n"))));
 };
 
 const normalizeReaderStructure = (value: Material["reader_structure"]): ReaderStructure | null => {
@@ -1005,7 +1008,13 @@ export const StudyModeScreen: React.FC = () => {
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.fab}
-          onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
+          onPress={() =>
+            navigation.navigate("MaterialPractice", {
+              materialId: material.id,
+              title: material.title,
+              totalPages: material.diagnostics?.pageCount || readerPages.length || undefined,
+            })
+          }
         >
           <ClipboardList size={24} color="#FFFFFF" />
         </TouchableOpacity>

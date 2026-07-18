@@ -838,6 +838,10 @@ model Question {
   explanation    String?
   difficulty     Difficulty
   generated_at   DateTime   @default(now())
+  // Global reader page range this question was generated from. Nullable for legacy questions
+  // and questions generated from the full material (no page scope requested).
+  source_page_start Int?
+  source_page_end   Int?
 
   material   Material          @relation(fields: [material_id], references: [id], onDelete: Cascade)
   course     Course?           @relation(fields: [course_id], references: [id])
@@ -846,6 +850,7 @@ model Question {
 
   @@index([course_code])
   @@index([course_id])
+  @@index([material_id, source_page_start, source_page_end])
   @@index([department])
   @@index([difficulty])
   @@map("questions")
