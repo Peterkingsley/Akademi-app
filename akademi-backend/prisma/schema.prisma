@@ -920,33 +920,40 @@ enum DisciplineDocumentSourceType {
 }
 
 model DisciplineDocument {
-  id              String                       @id @default(uuid())
-  faculty         String
-  department      String
-  course_code     String?
+  id                     String                       @id @default(uuid())
+  faculty                String
+  department             String
+  course_code            String?
   // CCMAS (government curriculum) or a named international reference curriculum. Only
   // CCMAS documents are ever used as the decomposition backbone for generated textbooks.
-  source_type     DisciplineDocumentSourceType @default(CCMAS)
+  source_type            DisciplineDocumentSourceType @default(CCMAS)
   // Name of the international curriculum this document represents, e.g. "MIT OCW — 8.01".
   // Required in practice for INTERNATIONAL_REFERENCE rows, null for CCMAS.
-  reference_name  String?
+  reference_name         String?
   // Course level (100/200/...), admin-specified. Only meaningful for course_code-scoped
   // CCMAS documents — this is what a generated textbook's Material.level is sourced from,
   // since DisciplineDocument has no other reliable way to know a course's level.
-  level           Int?
-  document_ref    String
-  version         Int                          @default(1)
-  version_notes   String?
-  last_updated_by String
-  updated_at      DateTime                     @updatedAt
-  is_active       Boolean                      @default(true)
+  level                  Int?
+  document_ref           String
+  version                Int                          @default(1)
+  version_notes          String?
+  last_updated_by        String
+  updated_at             DateTime                     @updatedAt
+  is_active              Boolean                      @default(true)
+  // Set on a per-course document created by splitting a department-wide CCMAS document
+  // (admin.service.ts's previewDisciplineDocumentSplit/confirmDisciplineDocumentSplit) —
+  // traceability back to the source document it was extracted from. Null for everything else.
+  split_from_document_id String?
 
   generated_textbook_outlines GeneratedTextbookOutline[]
+  split_from                  DisciplineDocument?        @relation("DocumentSplit", fields: [split_from_document_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  split_children              DisciplineDocument[]       @relation("DocumentSplit")
 
   @@index([department])
   @@index([course_code])
   @@index([is_active])
   @@index([course_code, source_type])
+  @@index([split_from_document_id])
   @@map("discipline_documents")
 }
 

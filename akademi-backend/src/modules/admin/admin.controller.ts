@@ -411,6 +411,25 @@ export class AdminController {
     }
   }
 
+  async previewDisciplineDocumentSplit(req: Request, res: Response) {
+    try {
+      const result = await adminService.previewDisciplineDocumentSplit(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async confirmDisciplineDocumentSplit(req: Request, res: Response) {
+    try {
+      const selections = Array.isArray(req.body?.selections) ? req.body.selections : [];
+      const result = await adminService.confirmDisciplineDocumentSplit(req.params.id, selections, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
   async uploadDisciplineDocumentFile(req: Request, res: Response) {
     try {
       if (!req.file) {

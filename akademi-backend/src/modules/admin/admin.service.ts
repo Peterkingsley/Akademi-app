@@ -18,6 +18,7 @@ import { getQueueHealth } from '../../config/queue';
 import { queueMaterialIngestion } from '../materials/material-processing';
 import { getUniversityCoverageAudit } from '../universities/university-coverage';
 import { timingSafeEqual } from '../../shared/utils/secure-compare';
+import { aiProvider } from '../ai/ai.provider';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -53,6 +54,59 @@ const normalizeHexColor = (value?: string) => {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : '#16a34a';
 };
 
+// Department-wide CCMAS document splitting (previewDisciplineDocumentSplit /
+// confirmDisciplineDocumentSplit below). Deliberately NOT the JSON-response convention used
+// elsewhere in this codebase's AI calls: each course's extracted content can be several thousand
+// characters of verbatim source text, and asking a model to correctly JSON-escape that much raw
+// text (quotes, newlines, tables) is a real failure mode. A plain delimiter format sidesteps
+// escaping entirely and is trivial to parse.
+interface DisciplineDocumentSplitEntry {
+  course_code: string;
+  level: number | null;
+  content: string;
+}
+
+function parseDisciplineDocumentSplitResponse(text: string): DisciplineDocumentSplitEntry[] {
+  const blocks = new Map<string, DisciplineDocumentSplitEntry>();
+  const blockPattern = /===COURSE===([\s\S]*?)===END===/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = blockPattern.exec(text))) {
+    const block = match[1];
+    const codeMatch = block.match(/CODE:\s*(.+)/);
+    const levelMatch = block.match(/LEVEL:\s*(.*)/);
+    const contentMatch = block.match(/CONTENT_START\s*([\s\S]*?)\s*CONTENT_END/);
+
+    const courseCode = codeMatch?.[1]?.trim().toUpperCase();
+    const content = contentMatch?.[1]?.trim();
+    if (!courseCode || !content) continue;
+
+    const levelRaw = levelMatch?.[1]?.trim();
+    const level = levelRaw && /^\d+$/.test(levelRaw) ? Number(levelRaw) : null;
+
+    // The same course code can legitimately appear more than once in the raw AI output (e.g. a
+    // document mentioning a course in both a table of contents and its own section) — keep
+    // whichever extraction is longer as the more complete one, rather than erroring or blindly
+    // taking the first.
+    const existing = blocks.get(courseCode);
+    if (!existing || content.length > existing.content.length) {
+      blocks.set(courseCode, { course_code: courseCode, level, content });
+    }
+  }
+
+  return Array.from(blocks.values());
+}
+
+// Mechanical faithfulness check, not just trusting the model's "I promise this is verbatim"
+// instruction-following: normalizes whitespace on both sides and confirms the extracted content
+// is genuinely a substring of the source document. This is what actually backs the
+// already_exists/content_verified signal the admin sees before confirming a split.
+function isContentFaithfulToSource(extracted: string, source: string): boolean {
+  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+  const normalizedExtracted = normalize(extracted);
+  if (!normalizedExtracted) return false;
+  return normalize(source).includes(normalizedExtracted);
+}
 
 export class AdminService {
   private materialsService = new MaterialsService();
@@ -1414,7 +1468,8 @@ export class AdminService {
         version: newVersion,
         version_notes: data.version_notes,
         last_updated_by: adminId,
-        is_active: true
+        is_active: true,
+        split_from_document_id: data.split_from_document_id || null,
       }
     });
 
@@ -1425,6 +1480,129 @@ export class AdminService {
     }
 
     return document;
+  }
+
+  // Preview only — makes no database writes. Identifies every distinct course code covered by a
+  // department-wide CCMAS document and extracts (not summarizes) each one's own portion of the
+  // source text, so an admin can review before anything is created.
+  async previewDisciplineDocumentSplit(documentId: string) {
+    const document = await prisma.disciplineDocument.findUnique({ where: { id: documentId } });
+    if (!document) {
+      throw new Error('Document not found');
+    }
+    if (document.course_code) {
+      throw new Error('This document is already scoped to a single course code');
+    }
+    if (document.source_type !== 'CCMAS') {
+      throw new Error('Only CCMAS documents can be split into course codes');
+    }
+
+    const prompt = [
+      'You are extracting distinct course codes and their exact source text from a department-wide CCMAS curriculum document.',
+      'Do NOT summarize, rewrite, paraphrase, shorten, or clean up the text in any way — copy the exact original text word-for-word, character-for-character, for each course code\'s section. This extracted text becomes that course\'s own official curriculum reference, so it must stay completely faithful to the source.',
+      '',
+      'Identify every distinct course code mentioned in this document (e.g. PHY101, PHY102, CHM201). For each one, extract the complete portion of the source text below that belongs to that specific course code, copied verbatim.',
+      'If a course\'s level (100, 200, 300, 400, etc.) is explicitly stated, or can be reliably inferred from its code\'s own numbering convention (e.g. PHY101 implies level 100), report it. Otherwise leave LEVEL blank — do not guess.',
+      '',
+      `Faculty: ${document.faculty}`,
+      `Department: ${document.department}`,
+      '',
+      'SOURCE DOCUMENT:',
+      document.document_ref,
+      '',
+      'Respond using EXACTLY this format, one block per course code, nothing else outside these blocks:',
+      '===COURSE===',
+      'CODE: <course code>',
+      'LEVEL: <level number, or leave blank>',
+      'CONTENT_START',
+      '<the exact verbatim source text for this course, copied word-for-word>',
+      'CONTENT_END',
+      '===END===',
+    ].join('\n');
+
+    const aiOutput = await aiProvider.generateResponse(prompt, {
+      systemPrompt:
+        'You are a meticulous document-splitting assistant. You extract exact verbatim text, never summaries or paraphrases. Follow the requested output format exactly.',
+      maxTokens: 8000,
+      extendedTimeouts: true,
+    });
+
+    const entries = parseDisciplineDocumentSplitResponse(aiOutput);
+    if (entries.length === 0) {
+      throw new Error('Could not detect any course codes in this document');
+    }
+
+    const courses = [];
+    for (const entry of entries) {
+      const existing = await prisma.disciplineDocument.findFirst({
+        where: { course_code: entry.course_code, source_type: 'CCMAS', is_active: true },
+        select: { id: true, version: true },
+      });
+
+      courses.push({
+        course_code: entry.course_code,
+        level: entry.level,
+        content_preview: entry.content.slice(0, 300),
+        full_content: entry.content,
+        already_exists: Boolean(existing),
+        content_verified: isContentFaithfulToSource(entry.content, document.document_ref),
+      });
+    }
+
+    return {
+      document_id: document.id,
+      faculty: document.faculty,
+      department: document.department,
+      courses,
+    };
+  }
+
+  // Writes — creates one DisciplineDocument per included selection. Reuses
+  // uploadDisciplineDocument's own version-bump logic (find latest for the scope, deactivate it,
+  // create the new one) rather than reimplementing it, so a course code that already has an
+  // active document gets a new version instead of two competing active documents.
+  async confirmDisciplineDocumentSplit(
+    documentId: string,
+    selections: Array<{ course_code: string; level?: number | null; content: string; include: boolean }>,
+    adminId: string,
+  ) {
+    const document = await prisma.disciplineDocument.findUnique({ where: { id: documentId } });
+    if (!document) {
+      throw new Error('Document not found');
+    }
+    if (document.course_code) {
+      throw new Error('This document is already scoped to a single course code');
+    }
+    if (document.source_type !== 'CCMAS') {
+      throw new Error('Only CCMAS documents can be split into course codes');
+    }
+
+    const included = (selections || []).filter(
+      (entry) => entry?.include && entry.course_code?.trim() && entry.content?.trim(),
+    );
+    if (included.length === 0) {
+      throw new Error('Select at least one course code to create');
+    }
+
+    const created = [];
+    for (const entry of included) {
+      const result = await this.uploadDisciplineDocument(
+        {
+          faculty: document.faculty,
+          department: document.department,
+          course_code: entry.course_code.trim().toUpperCase(),
+          source_type: 'CCMAS',
+          document_ref: entry.content.trim(),
+          version_notes: `Split from department-wide document ${document.id} (v${document.version}).`,
+          level: entry.level ?? null,
+          split_from_document_id: document.id,
+        },
+        adminId,
+      );
+      created.push(result);
+    }
+
+    return { count: created.length, documents: created };
   }
 
   async rollbackDisciplineDocument(id: string, version: number, adminId: string) {

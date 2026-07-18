@@ -165,6 +165,9 @@ export interface UploadDisciplineDocumentRequest {
   // Only meaningful (and expected) for course_code-scoped CCMAS documents — see
   // DisciplineDocument.level in schema.prisma for why this can't be derived elsewhere.
   level?: number | null;
+  // Set when this document was created by confirmDisciplineDocumentSplit, pointing back at the
+  // department-wide document it was extracted from. Omitted for every other upload path.
+  split_from_document_id?: string | null;
 }
 
 export interface RollbackDocumentRequest {

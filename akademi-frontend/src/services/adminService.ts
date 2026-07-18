@@ -177,6 +177,22 @@ export interface DisciplineDocument {
   history?: DisciplineDocument[];
 }
 
+export interface DisciplineDocumentSplitCourse {
+  course_code: string;
+  level: number | null;
+  content_preview: string;
+  full_content: string;
+  already_exists: boolean;
+  content_verified: boolean;
+}
+
+export interface DisciplineDocumentSplitPreview {
+  document_id: string;
+  faculty: string;
+  department: string;
+  courses: DisciplineDocumentSplitCourse[];
+}
+
 export interface CommunityPattern {
   id: string;
   university: string;
@@ -612,6 +628,19 @@ export const adminService = {
     const { data } = await api.post("/admin/documents/upload-file", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
+    return data;
+  },
+
+  previewDisciplineDocumentSplit: async (documentId: string): Promise<DisciplineDocumentSplitPreview> => {
+    const { data } = await api.get(`/admin/documents/${documentId}/split-preview`);
+    return data;
+  },
+
+  confirmDisciplineDocumentSplit: async (
+    documentId: string,
+    selections: Array<{ course_code: string; level: number | null; content: string; include: boolean }>,
+  ) => {
+    const { data } = await api.post(`/admin/documents/${documentId}/split-confirm`, { selections });
     return data;
   },
 

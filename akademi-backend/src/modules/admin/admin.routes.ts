@@ -112,6 +112,8 @@ router.post('/documents/upload-file', authorizeRoles(AdminRole.SUPER_ADMIN, Admi
 router.get('/documents/:id', (req, res) => adminController.getDisciplineDocument(req, res));
 router.post('/documents', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadDisciplineDocument(req, res));
 router.post('/documents/:id/rollback', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.rollbackDisciplineDocument(req, res));
+router.get('/documents/:id/split-preview', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.previewDisciplineDocumentSplit(req, res));
+router.post('/documents/:id/split-confirm', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.confirmDisciplineDocumentSplit(req, res));
 router.patch('/documents/:id/deactivate', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.deactivateDisciplineDocument(req, res));
 router.get('/community-patterns', (req, res) => adminController.listCommunityPatterns(req, res));
 router.post('/community-patterns', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.uploadCommunityPattern(req, res));

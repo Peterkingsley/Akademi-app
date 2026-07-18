@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, Alert, ScrollView } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
-import { adminService, CommunityPattern, DisciplineDocument } from "../../../services/adminService";
-import { Search, Plus, ChevronRight, BookOpen, Map, Filter, Newspaper, X } from "lucide-react-native";
+import { adminService, CommunityPattern, DisciplineDocument, DisciplineDocumentSplitPreview } from "../../../services/adminService";
+import { Search, Plus, ChevronRight, BookOpen, Map, Filter, Newspaper, X, Scissors, AlertTriangle, Check } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
@@ -51,6 +51,12 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
 
   const canUpload = user?.admin_role === 'SUPER_ADMIN' || user?.admin_role === 'CONTENT_MANAGER';
+
+  const [splitDocument, setSplitDocument] = useState<DisciplineDocument | null>(null);
+  const [splitPreview, setSplitPreview] = useState<DisciplineDocumentSplitPreview | null>(null);
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitSelections, setSplitSelections] = useState<Record<string, { include: boolean; level: string }>>({});
+  const [splitConfirming, setSplitConfirming] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -139,6 +145,81 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const closeModal = () => {
     setModalType(null);
     setSaving(false);
+  };
+
+  const openSplit = async (document: DisciplineDocument) => {
+    setSplitDocument(document);
+    setSplitPreview(null);
+    setSplitSelections({});
+    setSplitLoading(true);
+    try {
+      const preview = await adminService.previewDisciplineDocumentSplit(document.id);
+      setSplitPreview(preview);
+      const initialSelections: Record<string, { include: boolean; level: string }> = {};
+      preview.courses.forEach((course) => {
+        initialSelections[course.course_code] = {
+          include: !course.already_exists,
+          level: course.level != null ? String(course.level) : "",
+        };
+      });
+      setSplitSelections(initialSelections);
+    } catch (error: any) {
+      Alert.alert("Could not preview split", error?.response?.data?.message || "Please try again.");
+      setSplitDocument(null);
+    } finally {
+      setSplitLoading(false);
+    }
+  };
+
+  const closeSplit = () => {
+    setSplitDocument(null);
+    setSplitPreview(null);
+    setSplitSelections({});
+  };
+
+  const toggleSplitInclude = (courseCode: string) => {
+    setSplitSelections((prev) => ({
+      ...prev,
+      [courseCode]: { ...prev[courseCode], include: !prev[courseCode]?.include },
+    }));
+  };
+
+  const updateSplitLevel = (courseCode: string, level: string) => {
+    setSplitSelections((prev) => ({
+      ...prev,
+      [courseCode]: { ...prev[courseCode], level: level.replace(/[^0-9]/g, "") },
+    }));
+  };
+
+  const confirmSplit = async () => {
+    if (!splitDocument || !splitPreview) return;
+
+    const selections = splitPreview.courses.map((course) => {
+      const selection = splitSelections[course.course_code];
+      return {
+        course_code: course.course_code,
+        level: selection?.level ? Number(selection.level) : null,
+        content: course.full_content,
+        include: Boolean(selection?.include),
+      };
+    });
+
+    if (!selections.some((entry) => entry.include)) {
+      Alert.alert("Nothing selected", "Check at least one course code to create.");
+      return;
+    }
+
+    try {
+      setSplitConfirming(true);
+      await adminService.confirmDisciplineDocumentSplit(splitDocument.id, selections);
+      Alert.alert("Split complete", "The selected course-code documents were created.");
+      closeSplit();
+      fetchDocuments();
+    } catch (error: any) {
+      Alert.alert("Could not complete split", error?.response?.data?.message || "Please try again.");
+    } finally {
+      setSplitConfirming(false);
+    }
   };
 
   const openPicker = (mode: PickerMode) => {
@@ -314,6 +395,14 @@ export const DisciplineDocumentsScreen: React.FC = () => {
           variant="course"
           style={{ marginRight: spacing.sm }}
         />
+        {!item.course_code && item.source_type === "CCMAS" && (
+          <TouchableOpacity
+            style={[styles.splitButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            onPress={() => openSplit(item)}
+          >
+            <Scissors size={14} color={colors.primary} />
+          </TouchableOpacity>
+        )}
         <ChevronRight size={18} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
@@ -646,6 +735,96 @@ export const DisciplineDocumentsScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!splitDocument} animationType="slide" transparent onRequestClose={closeSplit}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[typography.h3, { color: colors.textPrimary }]}>Split into course codes</Text>
+              <TouchableOpacity onPress={closeSplit}>
+                <X size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {splitLoading ? (
+              <View style={styles.splitLoadingBox}>
+                <Text style={[typography.body, { color: colors.textSecondary }]}>Detecting course codes...</Text>
+              </View>
+            ) : splitPreview ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
+                  {splitPreview.courses.length} course code{splitPreview.courses.length === 1 ? "" : "s"} detected in
+                  this {splitPreview.department} document. Review before confirming — deselect any that look wrong.
+                </Text>
+                {splitPreview.courses.map((course) => {
+                  const selection = splitSelections[course.course_code] || { include: false, level: "" };
+                  return (
+                    <View
+                      key={course.course_code}
+                      style={[
+                        styles.splitCourseCard,
+                        { backgroundColor: colors.surface, borderColor: selection.include ? colors.primary : colors.border },
+                      ]}
+                    >
+                      <View style={styles.splitCourseHeader}>
+                        <TouchableOpacity
+                          onPress={() => toggleSplitInclude(course.course_code)}
+                          style={[
+                            styles.splitCheckbox,
+                            {
+                              borderColor: selection.include ? colors.primary : colors.border,
+                              backgroundColor: selection.include ? colors.primary : "transparent",
+                            },
+                          ]}
+                        >
+                          {selection.include && <Check size={14} color="#FFF" />}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleSplitInclude(course.course_code)}>
+                          <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>
+                            {course.course_code}
+                          </Text>
+                        </TouchableOpacity>
+                        {course.already_exists && <Badge label="Already exists" variant="warning" />}
+                      </View>
+                      {!course.content_verified && (
+                        <View style={styles.splitWarningRow}>
+                          <AlertTriangle size={13} color={colors.error} />
+                          <Text style={[typography.caption, { color: colors.error, marginLeft: 6, flex: 1 }]}>
+                            Could not verify this text is a verbatim match to the source — review closely.
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 8 }]} numberOfLines={4}>
+                        {course.content_preview}...
+                      </Text>
+                      <View style={styles.splitLevelGroup}>
+                        <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Level</Text>
+                        <TextInput
+                          value={selection.level}
+                          onChangeText={(value) => updateSplitLevel(course.course_code, value)}
+                          placeholder="e.g. 100"
+                          placeholderTextColor={colors.textMuted}
+                          keyboardType="number-pad"
+                          style={[
+                            styles.splitLevelInput,
+                            { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.textPrimary },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+                <TouchableOpacity
+                  style={[styles.saveButton, { backgroundColor: colors.primary, opacity: splitConfirming ? 0.65 : 1 }]}
+                  disabled={splitConfirming}
+                  onPress={confirmSplit}
+                >
+                  <Text style={styles.saveButtonText}>{splitConfirming ? "Creating..." : "Confirm split"}</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 };
@@ -830,5 +1009,51 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 15,
     fontWeight: "800",
-  }
+  },
+  splitButton: {
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    height: 30,
+    justifyContent: "center",
+    marginRight: 10,
+    width: 30,
+  },
+  splitLoadingBox: {
+    alignItems: "center",
+    padding: 40,
+  },
+  splitCourseCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 14,
+  },
+  splitCourseHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  splitCheckbox: {
+    alignItems: "center",
+    borderRadius: 6,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: "center",
+    width: 22,
+  },
+  splitWarningRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: 8,
+  },
+  splitLevelGroup: {
+    marginTop: 10,
+  },
+  splitLevelInput: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
 });
