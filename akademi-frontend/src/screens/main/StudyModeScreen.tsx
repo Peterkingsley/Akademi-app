@@ -752,7 +752,7 @@ export const StudyModeScreen: React.FC = () => {
                 )}
               </TouchableOpacity>
             )}
-            <Badge label={material ? "Material" : "Study session"} variant="purple" />
+            <Badge label={material ? "Material" : "Study session"} variant="purple" style={{ alignSelf: 'center' }} />
           </View>
         </View>
         {material?.diagnostics?.warnings?.length ? (
