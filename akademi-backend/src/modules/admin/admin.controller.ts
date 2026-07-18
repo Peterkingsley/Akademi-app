@@ -309,6 +309,51 @@ export class AdminController {
     }
   }
 
+  async getGeneratedTextbooksOverview(req: Request, res: Response) {
+    try {
+      const result = await adminService.getGeneratedTextbooksOverview();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getGeneratedTextbookDetail(req: Request, res: Response) {
+    try {
+      const result = await adminService.getGeneratedTextbookDetail(req.params.outlineId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(404).json({ message: error.message });
+    }
+  }
+
+  async getAdminQueuedSections(req: Request, res: Response) {
+    try {
+      const result = await adminService.getAdminQueuedSections();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async updateGeneratedTextbookSection(req: Request, res: Response) {
+    try {
+      const result = await adminService.updateGeneratedTextbookSection(req.params.sectionId, req.body?.content);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  }
+
+  async takeDownGeneratedTextbook(req: Request, res: Response) {
+    try {
+      const result = await adminService.takeDownGeneratedTextbook(req.params.materialId, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async restoreMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.restoreMaterial(req.params.id, req.admin!.adminId);

@@ -12,7 +12,8 @@ import {
   ShieldAlert,
   Mail
   ,
-  Swords
+  Swords,
+  BookOpen
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -56,6 +57,13 @@ export const AdminMoreScreen: React.FC = () => {
               label="Platform Analytics"
               description="User growth, retention and feature usage"
               onPress={() => navigation.navigate("PlatformAnalytics")}
+            />
+            <MenuItem
+              icon={BookOpen}
+              label="Generated Textbooks"
+              description="Course-level generation progress, per-node status"
+              onPress={() => navigation.navigate("GeneratedTextbooks")}
+              color="#0EA5E9"
             />
             {isSuperAdmin && (
               <>

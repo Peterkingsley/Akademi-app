@@ -81,6 +81,7 @@ export type AdminStackParamList = {
   FinancialManagement: undefined;
   SystemMonitoring: undefined;
   CoverageMap: undefined;
+  GeneratedTextbooks: undefined;
 };
 
 export type MainStackParamList = {

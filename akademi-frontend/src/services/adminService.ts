@@ -22,6 +22,60 @@ export interface AdminDashboardActivity {
   recentPayments: any[];
 }
 
+export interface GeneratedTextbookOverviewItem {
+  id: string;
+  course_code: string;
+  is_current: boolean;
+  ccmas_version: number;
+  created_at: string;
+  is_published: boolean;
+  material_id: string | null;
+  total_leaf_nodes: number;
+  status_counts: Record<string, number>;
+  diagrams_needed: number;
+  diagrams_fetched: number;
+}
+
+export interface GeneratedTextbookOutlineNodeDetail {
+  id: string;
+  parent_id: string | null;
+  order_index: number;
+  depth: number;
+  title: string;
+  learning_outcome: string;
+  is_international_addition: boolean;
+  status: "PENDING" | "GENERATING" | "GENERATED" | "FAILED_QUALITY_CHECK" | "ADMIN_QUEUED";
+  retry_count: number;
+  section: {
+    needs_diagram: boolean;
+    diagram_image_url: string | null;
+    quality_check_passed: boolean;
+    quality_check_notes: string | null;
+  } | null;
+}
+
+export interface GeneratedTextbookDetail {
+  id: string;
+  course_code: string;
+  is_current: boolean;
+  ccmas_version: number;
+  material_id: string | null;
+  nodes: GeneratedTextbookOutlineNodeDetail[];
+}
+
+export interface AdminQueuedSection {
+  section_id: string;
+  node_id: string;
+  course_code: string;
+  material_id: string | null;
+  title: string;
+  learning_outcome: string;
+  content: string;
+  quality_check_notes: string | null;
+  retry_count: number;
+  diagram_image_url: string | null;
+}
+
 export interface AdminSystemHealth {
   status: 'OK' | 'DEGRADED' | 'NOT_READY';
   live: boolean;
@@ -467,6 +521,31 @@ export const adminService = {
 
   getArchivedMaterials: async () => {
     const { data } = await api.get("/admin/materials/archived");
+    return data;
+  },
+
+  getGeneratedTextbooksOverview: async (): Promise<GeneratedTextbookOverviewItem[]> => {
+    const { data } = await api.get("/admin/generated-textbooks");
+    return data;
+  },
+
+  getGeneratedTextbookDetail: async (outlineId: string): Promise<GeneratedTextbookDetail> => {
+    const { data } = await api.get(`/admin/generated-textbooks/${outlineId}`);
+    return data;
+  },
+
+  getAdminQueuedSections: async (): Promise<AdminQueuedSection[]> => {
+    const { data } = await api.get("/admin/generated-textbooks/sections/admin-queued");
+    return data;
+  },
+
+  updateGeneratedTextbookSection: async (sectionId: string, content: string) => {
+    const { data } = await api.patch(`/admin/generated-textbooks/sections/${sectionId}`, { content });
+    return data;
+  },
+
+  takeDownGeneratedTextbook: async (materialId: string) => {
+    const { data } = await api.patch(`/admin/generated-textbooks/materials/${materialId}/takedown`);
     return data;
   },
 

@@ -12,6 +12,7 @@ import { CoverageMapScreen } from "../screens/main/admin/CoverageMapScreen";
 import { PlatformAnalyticsScreen } from "../screens/main/admin/PlatformAnalyticsScreen";
 import { FinancialManagementScreen } from "../screens/main/admin/FinancialManagementScreen";
 import { SystemMonitoringScreen } from "../screens/main/admin/SystemMonitoringScreen";
+import { GeneratedTextbooksScreen } from "../screens/main/admin/GeneratedTextbooksScreen";
 import { AdminMoreScreen } from "../screens/main/admin/AdminMoreScreen";
 import { AdminTeamScreen } from "../screens/main/admin/AdminTeamScreen";
 import { AdminWaitlistScreen } from "../screens/main/admin/AdminWaitlistScreen";
@@ -40,6 +41,7 @@ const MoreStack = () => {
           </PermissionGuard>
         )}
       </Stack.Screen>
+      <Stack.Screen name="GeneratedTextbooks" component={GeneratedTextbooksScreen} />
       <Stack.Screen name="FinancialManagement">
         {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">

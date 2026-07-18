@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking, TextInput } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
-import { adminService } from "../../../services/adminService";
+import { adminService, AdminQueuedSection } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
 import { CheckCircle2, XCircle, Zap, Info, Inbox, Eye } from "lucide-react-native";
 import { Skeleton } from "../../../components/ui/Skeleton";
@@ -291,6 +291,195 @@ const ModerationQueue = ({ status }: { status: string }) => {
   );
 };
 
+const TextbookSectionsQueue = () => {
+  const { colors, typography } = useTheme();
+  const [items, setItems] = useState<AdminQueuedSection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [previewItem, setPreviewItem] = useState<AdminQueuedSection | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingContent, setEditingContent] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [takingDown, setTakingDown] = useState(false);
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async () => {
+    try {
+      setLoading(true);
+      const data = await adminService.getAdminQueuedSections();
+      setItems(data);
+    } catch (error) {
+      console.error("Failed to fetch admin-queued sections", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openPreview = (item: AdminQueuedSection) => {
+    setPreviewItem(item);
+    setEditingContent(item.content);
+    setIsEditing(false);
+    setModalVisible(true);
+  };
+
+  const closePreview = () => {
+    setModalVisible(false);
+    setPreviewItem(null);
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!previewItem || !editingContent.trim()) return;
+    try {
+      setSaving(true);
+      await adminService.updateGeneratedTextbookSection(previewItem.section_id, editingContent);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      closePreview();
+      fetchItems();
+    } catch (error) {
+      console.error("Failed to save section edit", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTakeDown = async () => {
+    if (!previewItem?.material_id) return;
+    try {
+      setTakingDown(true);
+      await adminService.takeDownGeneratedTextbook(previewItem.material_id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setConfirmVisible(false);
+      closePreview();
+      fetchItems();
+    } catch (error) {
+      console.error("Failed to take down textbook", error);
+    } finally {
+      setTakingDown(false);
+    }
+  };
+
+  if (loading) return <View style={{ padding: 16 }}>{[1, 2, 3].map(i => <Skeleton key={i} width="100%" height={100} borderRadius={12} style={{ marginBottom: 12 }} />)}</View>;
+
+  if (items.length === 0) return (
+    <View style={styles.emptyState}>
+      <Inbox size={48} color={colors.textMuted} />
+      <Text style={[typography.body, { color: colors.textSecondary, marginTop: 12 }]}>No sections need review</Text>
+    </View>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.section_id}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.itemRow, { borderBottomColor: colors.border }]}
+            onPress={() => openPreview(item)}
+          >
+            <View style={{ flex: 1, marginRight: 16 }}>
+              <Text style={[typography.body, { fontWeight: '600', color: colors.textPrimary }]} numberOfLines={1}>{item.title}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>{item.course_code}</Text>
+              {!!item.quality_check_notes && (
+                <Text style={[typography.caption, { color: colors.error, marginTop: 4 }]} numberOfLines={2}>
+                  {item.quality_check_notes}
+                </Text>
+              )}
+            </View>
+            <Eye size={18} color={colors.textPrimary} />
+          </TouchableOpacity>
+        )}
+      />
+
+      {previewItem && (
+        <Modal visible={modalVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closePreview}>
+          <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <TouchableOpacity onPress={closePreview}>
+                <Text style={[typography.body, { color: colors.primary }]}>Close</Text>
+              </TouchableOpacity>
+              <Text style={[typography.body, { fontWeight: '700', color: colors.textPrimary }]} numberOfLines={1}>
+                {previewItem.course_code}
+              </Text>
+              <View style={{ width: 50 }} />
+            </View>
+
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+              <Text style={[typography.h4, { color: colors.textPrimary }]}>{previewItem.title}</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 6 }]}>
+                Learning outcome: {previewItem.learning_outcome}
+              </Text>
+
+              {!!previewItem.quality_check_notes && (
+                <Card style={styles.reviewNotesCard}>
+                  <Text style={[typography.caption, { color: colors.error, fontWeight: '700' }]}>WHY THIS WAS FLAGGED</Text>
+                  <Text style={[typography.body, { color: colors.textSecondary, marginTop: 6 }]}>
+                    {previewItem.quality_check_notes}
+                  </Text>
+                </Card>
+              )}
+
+              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 20, marginBottom: 8 }]}>
+                CONTENT{isEditing ? " (editing)" : ""}
+              </Text>
+              {isEditing ? (
+                <TextInput
+                  value={editingContent}
+                  onChangeText={setEditingContent}
+                  multiline
+                  textAlignVertical="top"
+                  style={[styles.editInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
+                />
+              ) : (
+                <Text style={[typography.body, { color: colors.textSecondary, lineHeight: 22 }]}>
+                  {previewItem.content}
+                </Text>
+              )}
+            </ScrollView>
+
+            <View style={[styles.decisionBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+              {isEditing ? (
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: colors.primary, opacity: saving ? 0.7 : 1 }]}
+                  onPress={handleSaveEdit}
+                  disabled={saving}
+                >
+                  <Text style={{ color: "#FFF", fontWeight: '700' }}>{saving ? "Saving..." : "Save fix"}</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => setIsEditing(true)}>
+                  <Text style={{ color: "#FFF", fontWeight: '700' }}>Edit</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.actionBtn, { borderColor: colors.error, borderWidth: 1 }]}
+                onPress={() => setConfirmVisible(true)}
+              >
+                <Text style={{ color: colors.error, fontWeight: '700' }}>Take down book</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      <ConfirmDialog
+        visible={confirmVisible}
+        title="Take down book"
+        message="This takes the entire generated textbook down for all students, not just this section. Are you sure?"
+        type="danger"
+        confirmText={takingDown ? "Taking down..." : "Take down"}
+        onConfirm={handleTakeDown}
+        onCancel={() => setConfirmVisible(false)}
+      />
+    </View>
+  );
+};
+
 const ComparisonModal = ({ visible, item, onClose, onAction }: any) => {
   const { colors, typography } = useTheme();
   const hasExtractedText = Boolean(item.content && item.content.trim().length > 0);
@@ -384,6 +573,7 @@ export const ContentModerationScreen: React.FC = () => {
         <Tab.Screen name="Pending Materials" children={() => <ModerationQueue status="pending" />} />
         <Tab.Screen name="Verified Library" children={() => <ModerationQueue status="verified" />} />
         <Tab.Screen name="Reports" children={() => <ModerationQueue status="reports" />} />
+        <Tab.Screen name="Textbook Sections" children={() => <TextbookSectionsQueue />} />
       </Tab.Navigator>
     </Screen>
   );
@@ -524,6 +714,18 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: 'Inter-Bold',
     fontWeight: '700',
-  }
+  },
+  reviewNotesCard: {
+    marginTop: 16,
+    padding: 14,
+  },
+  editInput: {
+    minHeight: 280,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    lineHeight: 20,
+  },
 });
 

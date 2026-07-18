@@ -1099,6 +1099,213 @@ export class AdminService {
     };
   }
 
+  // Pillar: Akademi Generated Textbooks
+  async getGeneratedTextbooksOverview() {
+    const outlines = await prisma.generatedTextbookOutline.findMany({
+      orderBy: { created_at: 'desc' },
+      include: {
+        nodes: {
+          where: { children: { none: {} } },
+          select: {
+            status: true,
+            section: { select: { needs_diagram: true, diagram_image_url: true } },
+          },
+        },
+      },
+    });
+
+    return outlines.map((outline) => {
+      const statusCounts: Record<string, number> = {
+        PENDING: 0,
+        GENERATING: 0,
+        GENERATED: 0,
+        FAILED_QUALITY_CHECK: 0,
+        ADMIN_QUEUED: 0,
+      };
+      let diagramsNeeded = 0;
+      let diagramsFetched = 0;
+
+      for (const node of outline.nodes) {
+        statusCounts[node.status] = (statusCounts[node.status] || 0) + 1;
+        if (node.section?.needs_diagram) {
+          diagramsNeeded += 1;
+          if (node.section.diagram_image_url) diagramsFetched += 1;
+        }
+      }
+
+      return {
+        id: outline.id,
+        course_code: outline.course_code,
+        is_current: outline.is_current,
+        ccmas_version: outline.ccmas_version,
+        created_at: outline.created_at,
+        is_published: Boolean(outline.material_id),
+        material_id: outline.material_id,
+        total_leaf_nodes: outline.nodes.length,
+        status_counts: statusCounts,
+        diagrams_needed: diagramsNeeded,
+        diagrams_fetched: diagramsFetched,
+      };
+    });
+  }
+
+  async getGeneratedTextbookDetail(outlineId: string) {
+    const outline = await prisma.generatedTextbookOutline.findUnique({
+      where: { id: outlineId },
+      include: {
+        nodes: {
+          orderBy: { order_index: 'asc' },
+          select: {
+            id: true,
+            parent_id: true,
+            order_index: true,
+            depth: true,
+            title: true,
+            learning_outcome: true,
+            is_international_addition: true,
+            status: true,
+            retry_count: true,
+            section: {
+              select: {
+                needs_diagram: true,
+                diagram_image_url: true,
+                quality_check_passed: true,
+                quality_check_notes: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!outline) {
+      throw new Error('Generated textbook outline not found');
+    }
+
+    return outline;
+  }
+
+  async getAdminQueuedSections() {
+    const nodes = await prisma.generatedTextbookOutlineNode.findMany({
+      where: { status: 'ADMIN_QUEUED', section: { isNot: null } },
+      orderBy: { updated_at: 'desc' },
+      include: {
+        section: true,
+        outline: { select: { course_code: true, material_id: true } },
+      },
+    });
+
+    return nodes.map((node) => ({
+      section_id: node.section!.id,
+      node_id: node.id,
+      course_code: node.outline.course_code,
+      material_id: node.outline.material_id,
+      title: node.title,
+      learning_outcome: node.learning_outcome,
+      content: node.section!.content,
+      quality_check_notes: node.section!.quality_check_notes,
+      retry_count: node.retry_count,
+      diagram_image_url: node.section!.diagram_image_url,
+    }));
+  }
+
+  async updateGeneratedTextbookSection(sectionId: string, newContent: string) {
+    const trimmedContent = String(newContent || '').trim();
+    if (!trimmedContent) {
+      throw new Error('Section content cannot be empty');
+    }
+
+    const section = await prisma.generatedTextbookSection.findUnique({
+      where: { id: sectionId },
+      include: { node: { include: { outline: true } } },
+    });
+    if (!section) {
+      throw new Error('Section not found');
+    }
+
+    const outline = section.node.outline;
+    if (!outline.material_id) {
+      throw new Error('This section belongs to an outline that has not published a Material yet');
+    }
+
+    const material = await prisma.material.findUnique({ where: { id: outline.material_id } });
+    if (!material) {
+      throw new Error('Published Material not found for this outline');
+    }
+
+    // The section's content was already baked into Material.reader_structure.pages and the
+    // flattened Material.content string at publish time (see auditTextbookOutline.job.ts's
+    // publishGeneratedTextbook) — editing only the GeneratedTextbookSection row would leave
+    // students reading stale text, so both have to be patched in the same transaction.
+    const readerStructure = (material.reader_structure as any) || {
+      version: 2,
+      generated_at: new Date().toISOString(),
+      pages: [],
+    };
+    const pages = Array.isArray(readerStructure.pages) ? readerStructure.pages : [];
+
+    let pageFound = false;
+    const updatedPages = pages.map((page: any) => {
+      if (page?.id === section.node_id) {
+        pageFound = true;
+        return { ...page, content: trimmedContent };
+      }
+      return page;
+    });
+
+    if (!pageFound) {
+      console.warn(
+        `[admin] section ${sectionId}'s node ${section.node_id} was not found in Material ${material.id}'s reader_structure pages — reader sync may be incomplete.`,
+      );
+    }
+
+    // Re-derive the flattened content from every page (not just the edited one) using the same
+    // "title\n\ncontent" join generateTextbookSection.job.ts/auditTextbookOutline.job.ts use, so
+    // it stays byte-for-byte consistent with how publish originally built it.
+    const flattenedContent = updatedPages
+      .map((page: any) => `${page.pageTitle || page.chapterTitle || ''}\n\n${String(page.content || '').trim()}`)
+      .join('\n\n');
+
+    await prisma.$transaction([
+      prisma.generatedTextbookSection.update({
+        where: { id: sectionId },
+        data: { content: trimmedContent, quality_check_passed: true, quality_check_notes: null },
+      }),
+      prisma.generatedTextbookOutlineNode.update({
+        where: { id: section.node_id },
+        // An admin's manual fix is treated as resolved, not re-queued for another automated pass.
+        data: { status: 'GENERATED' },
+      }),
+      prisma.material.update({
+        where: { id: material.id },
+        data: {
+          reader_structure: { ...readerStructure, pages: updatedPages } as any,
+          content: flattenedContent,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  }
+
+  async takeDownGeneratedTextbook(materialId: string, adminId: string) {
+    const material = await prisma.material.findUnique({
+      where: { id: materialId },
+      select: { is_akademi_generated: true },
+    });
+    if (!material) {
+      throw new Error('Material not found');
+    }
+    if (!material.is_akademi_generated) {
+      throw new Error('This action only applies to Akademi Generated Textbooks');
+    }
+
+    // Whole-book action, not per-section — matches the earlier decision that an unresolved
+    // flagged issue leads to the document being taken down, not individual sections hidden
+    // while the rest of the book stays up. Reuses the existing material takedown path exactly.
+    return this.takedownMaterial(materialId, adminId);
+  }
+
   // Pillar 4: Discipline Documents
   async listDisciplineDocuments(filter: DisciplineDocumentListFilter) {
     const where: any = {};

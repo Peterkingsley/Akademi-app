@@ -97,6 +97,13 @@ router.patch('/materials/:id/restore', authorizeRoles(AdminRole.SUPER_ADMIN, Adm
 router.post('/materials/:id/force-verify', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.forceVerify(req, res));
 router.post('/reingest-all-materials', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.reingestAllMaterials(req, res));
 
+// Pillar: Akademi Generated Textbooks
+router.get('/generated-textbooks', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getGeneratedTextbooksOverview(req, res));
+router.get('/generated-textbooks/sections/admin-queued', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getAdminQueuedSections(req, res));
+router.patch('/generated-textbooks/sections/:sectionId', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.updateGeneratedTextbookSection(req, res));
+router.patch('/generated-textbooks/materials/:materialId/takedown', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.takeDownGeneratedTextbook(req, res));
+router.get('/generated-textbooks/:outlineId', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getGeneratedTextbookDetail(req, res));
+
 // Pillar 4: Discipline Documents
 router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));
 router.get('/documents/coverage', (req, res) => adminController.getDepartmentCoverage(req, res));
