@@ -13,6 +13,8 @@ export const JOB_NAMES = {
   POST_ASSESSMENT_INTELLIGENCE: 'POST_ASSESSMENT_INTELLIGENCE',
   DECOMPOSE_CURRICULUM: 'DECOMPOSE_CURRICULUM',
   GENERATE_TEXTBOOK_SECTION: 'GENERATE_TEXTBOOK_SECTION',
+  FETCH_TEXTBOOK_DIAGRAM: 'FETCH_TEXTBOOK_DIAGRAM',
+  AUDIT_TEXTBOOK_OUTLINE: 'AUDIT_TEXTBOOK_OUTLINE',
 } as const;
 
 type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
@@ -32,6 +34,8 @@ type JobPayload = {
   calculationContextSnapshot?: string;
   diagramContextSnapshot?: string;
   nodeId?: string;
+  sectionId?: string;
+  outlineId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -85,6 +89,8 @@ const BACKGROUND_JOB_NAMES = new Set<JobName>([
   JOB_NAMES.POST_ASSESSMENT_INTELLIGENCE,
   JOB_NAMES.DECOMPOSE_CURRICULUM,
   JOB_NAMES.GENERATE_TEXTBOOK_SECTION,
+  JOB_NAMES.FETCH_TEXTBOOK_DIAGRAM,
+  JOB_NAMES.AUDIT_TEXTBOOK_OUTLINE,
 ]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
@@ -157,6 +163,18 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       if (!payload.nodeId) throw new Error('GENERATE_TEXTBOOK_SECTION requires nodeId');
       const { generateTextbookSectionJob } = await import('../jobs/generateTextbookSection.job');
       await generateTextbookSectionJob(payload.nodeId);
+      return;
+    }
+    case JOB_NAMES.FETCH_TEXTBOOK_DIAGRAM: {
+      if (!payload.sectionId) throw new Error('FETCH_TEXTBOOK_DIAGRAM requires sectionId');
+      const { fetchTextbookDiagramJob } = await import('../jobs/fetchTextbookDiagram.job');
+      await fetchTextbookDiagramJob(payload.sectionId);
+      return;
+    }
+    case JOB_NAMES.AUDIT_TEXTBOOK_OUTLINE: {
+      if (!payload.outlineId) throw new Error('AUDIT_TEXTBOOK_OUTLINE requires outlineId');
+      const { auditTextbookOutlineJob } = await import('../jobs/auditTextbookOutline.job');
+      await auditTextbookOutlineJob(payload.outlineId);
       return;
     }
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {

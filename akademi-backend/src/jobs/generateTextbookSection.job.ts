@@ -1,12 +1,7 @@
-import { FileType, VerificationStatus } from '@prisma/client';
 import prisma from '../config/db';
 import { aiProvider } from '../modules/ai/ai.provider';
 import { buildExplainBackContract } from '../modules/ai/ai.prompts';
-import { getOrCreateSystemUser } from '../modules/textbooks/system-user';
-import { generateMaterialTeacherBrain, createFallbackTeacherBrain } from '../modules/materials/teacher-brain.service';
-import type { ReaderPage, ReaderStructure } from '../modules/materials/reader-structure';
-
-const EMBEDDING_BATCH_SIZE = Math.max(Number(process.env.MATERIAL_EMBEDDING_BATCH_SIZE || 5), 1);
+import { systemQueue, JOB_NAMES } from '../config/queue';
 
 // Same throwing-parser shape as decomposeCurriculum.job.ts — a parse failure on a section is a
 // real generation failure, not something to silently paper over with fallback prose.
@@ -30,14 +25,6 @@ function parseJsonObject(text: string) {
   }
 }
 
-function chunkText(text: string, size: number): string[] {
-  const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += size) {
-    chunks.push(text.substring(i, i + size));
-  }
-  return chunks;
-}
-
 function buildTextbookSectionPrompt(params: {
   title: string;
   learningOutcome: string;
@@ -45,6 +32,7 @@ function buildTextbookSectionPrompt(params: {
   nextTitle: string | null;
   nextLearningOutcome: string | null;
   terminologyRegistry: Record<string, string>;
+  priorFailureNotes: string | null;
 }) {
   const registryEntries = Object.entries(params.terminologyRegistry);
 
@@ -54,6 +42,9 @@ function buildTextbookSectionPrompt(params: {
     'You are writing ONE section of an Akademi Generated Textbook — a syllabus-aligned study material for a Nigerian university course. Write the section for the topic below, following the Explain-Back Contract above exactly.',
     `Topic: ${params.title}`,
     `Learning outcome: ${params.learningOutcome}`,
+    params.priorFailureNotes
+      ? `IMPORTANT — this is a REWRITE. A previous version of this section was reviewed and rejected for this specific reason: "${params.priorFailureNotes}" Your new version must directly fix that problem, not just reword the same content.`
+      : '',
     params.prevGist
       ? `Context only — the section immediately before this one ended with: "${params.prevGist}..." Do not re-explain it, just transition naturally from it.`
       : 'Context only — this is the first section of the textbook.',
@@ -77,125 +68,23 @@ function buildTextbookSectionPrompt(params: {
     '',
     'Format as JSON: { "content": string, "needs_diagram": boolean, "diagram_description": string|null, "new_terms": { "term": "short definition" } }',
     '"new_terms" should only contain terms/notation you introduced in THIS section that are not already in the registry above — omit it or leave it empty if none.',
-  ].join('\n');
-}
-
-async function maybePublishMinimalMaterial(outlineId: string) {
-  const outstandingLeaf = await prisma.generatedTextbookOutlineNode.findFirst({
-    where: { outline_id: outlineId, children: { none: {} }, status: { not: 'GENERATED' } },
-    select: { id: true },
-  });
-  if (outstandingLeaf) return;
-
-  const outline = await prisma.generatedTextbookOutline.findUnique({
-    where: { id: outlineId },
-    include: { ccmas_document: true },
-  });
-  if (!outline || outline.material_id) return;
-
-  const leafNodes = await prisma.generatedTextbookOutlineNode.findMany({
-    where: { outline_id: outlineId, children: { none: {} } },
-    orderBy: { order_index: 'asc' },
-    include: { section: true, parent: { select: { title: true } } },
-  });
-
-  const publishable = leafNodes.filter((node) => node.section?.content?.trim());
-  if (publishable.length === 0) {
-    console.error(`[textbook-section] outline ${outlineId} has no generated content to publish; skipping.`);
-    return;
-  }
-
-  const readerPages: ReaderPage[] = publishable.map((node, index) => ({
-    id: node.id,
-    chapterTitle: node.parent?.title || node.title,
-    pageTitle: node.title,
-    content: node.section!.content.trim(),
-    pageNumber: index + 1,
-    pageCountInChapter: publishable.filter((n) => (n.parent?.title || n.title) === (node.parent?.title || node.title)).length,
-    blocks: [],
-  }));
-
-  const readerStructure: ReaderStructure = {
-    version: 2,
-    generated_at: new Date().toISOString(),
-    pages: readerPages,
-  };
-
-  const flattenedContent = publishable
-    .map((node) => `${node.title}\n\n${node.section!.content.trim()}`)
-    .join('\n\n');
-
-  const systemUser = await getOrCreateSystemUser();
-  const ccmasDoc = outline.ccmas_document;
-
-  const material = await prisma.material.create({
-    data: {
-      title: `${outline.course_code} — Akademi Textbook`,
-      course_code: outline.course_code,
-      course_id: null,
-      university: 'AKADEMI_NATIONAL',
-      faculty: ccmasDoc.faculty,
-      department: ccmasDoc.department,
-      level: ccmasDoc.level ?? 0,
-      file_ref: '',
-      file_type: FileType.DOC,
-      verification_status: VerificationStatus.VERIFIED,
-      processing_status: 'EXTRACTED' as any,
-      uploaded_by: systemUser.id,
-      contributor_ids: [],
-      content: flattenedContent,
-      reader_structure: readerStructure as any,
-      is_akademi_generated: true,
-      generated_outline_id: outline.id,
-    },
-  });
-
-  await prisma.generatedTextbookOutline.update({
-    where: { id: outline.id },
-    data: { material_id: material.id, is_current: true },
-  });
-
-  const chunks = chunkText(flattenedContent, 2000);
-  for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
-    const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
-    await Promise.all(
-      batch.map(async (chunk, batchIndex) => {
-        const embedding = await aiProvider.generateEmbedding(chunk);
-        await prisma.materialEmbedding.create({
-          data: {
-            material_id: material.id,
-            chunk_index: i + batchIndex,
-            chunk_text: chunk,
-            embedding: embedding as any,
-          },
-        });
-      }),
-    );
-  }
-
-  try {
-    await generateMaterialTeacherBrain(material.id);
-  } catch (error) {
-    console.error('[textbook-section] teacher_brain_generation_failed', {
-      materialId: material.id,
-      message: error instanceof Error ? error.message : 'Unknown teacher brain error',
-    });
-    try {
-      await createFallbackTeacherBrain(material.id);
-    } catch (fallbackError) {
-      console.error('[textbook-section] teacher_brain_fallback_failed', {
-        materialId: material.id,
-        message: fallbackError instanceof Error ? fallbackError.message : 'Fallback teacher brain creation failed',
-      });
-    }
-  }
-
-  console.log(`[textbook-section] published Material ${material.id} for outline ${outline.id} (${outline.course_code}).`);
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
 }
 
 export async function generateTextbookSectionJob(nodeId: string): Promise<void> {
-  const node = await prisma.generatedTextbookOutlineNode.findUnique({ where: { id: nodeId } });
+  const node = await prisma.generatedTextbookOutlineNode.findUnique({
+    where: { id: nodeId },
+    include: { section: { select: { quality_check_passed: true, quality_check_notes: true } } },
+  });
   if (!node) throw new Error(`Outline node ${nodeId} not found`);
+
+  // If this run follows a failed quality check (auditTextbookOutlineJob sets quality_check_notes
+  // before re-enqueueing this job), feed that feedback into the rewrite so the retry actually
+  // addresses the specific problem instead of blindly rerolling.
+  const priorFailureNotes =
+    node.section && node.section.quality_check_passed === false ? node.section.quality_check_notes : null;
 
   await prisma.generatedTextbookOutlineNode.update({
     where: { id: nodeId },
@@ -224,6 +113,7 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
     nextTitle: nextSibling?.title || null,
     nextLearningOutcome: nextSibling?.learning_outcome || null,
     terminologyRegistry,
+    priorFailureNotes,
   });
 
   let parsed: any;
@@ -237,8 +127,8 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
     parsed = parseJsonObject(aiOutput);
   } catch (error) {
     // No safe synthetic fallback for a generated section. The enum has no distinct
-    // "generation failed" state, so PENDING is the least-surprising fit — Phase B's presence
-    // check picks this node back up for retry.
+    // "generation failed" state, so PENDING is the least-surprising fit — the audit job's
+    // presence handling picks this node back up.
     await prisma.generatedTextbookOutlineNode.update({ where: { id: nodeId }, data: { status: 'PENDING' } });
     throw error;
   }
@@ -256,8 +146,8 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
       ? (parsed.new_terms as Record<string, string>)
       : {};
 
-  await prisma.$transaction(async (tx) => {
-    await tx.generatedTextbookSection.upsert({
+  const section = await prisma.$transaction(async (tx) => {
+    const savedSection = await tx.generatedTextbookSection.upsert({
       where: { node_id: nodeId },
       create: { node_id: nodeId, content, needs_diagram: needsDiagram, diagram_description: diagramDescription },
       update: { content, needs_diagram: needsDiagram, diagram_description: diagramDescription },
@@ -272,7 +162,34 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
       const merged = { ...((fresh?.terminology_registry as Record<string, string>) || {}), ...newTerms };
       await tx.generatedTextbookOutline.update({ where: { id: node.outline_id }, data: { terminology_registry: merged } });
     }
+
+    return savedSection;
   });
 
-  await maybePublishMinimalMaterial(node.outline_id);
+  // Diagram sourcing is best-effort and never blocks anything — fire-and-forget.
+  if (needsDiagram) {
+    systemQueue.add(JOB_NAMES.FETCH_TEXTBOOK_DIAGRAM, { sectionId: section.id }).catch((error: unknown) => {
+      console.error('[textbook-section] failed to enqueue diagram fetch', { sectionId: section.id, error });
+    });
+  }
+
+  // Once every leaf node in this outline has reached a terminal state (GENERATED — including
+  // ones already ADMIN_QUEUED from an earlier audit round, which never come back through this
+  // job), hand off to the quality-check audit. Checking for "not GENERATED" alone would miss
+  // this: after this outline's LAST retriable node finally regenerates, any sibling already
+  // sitting in ADMIN_QUEUED would still read as "not GENERATED" and wrongly block the re-trigger
+  // forever, since ADMIN_QUEUED nodes never route back through this job to flip that check.
+  const outstandingLeaf = await prisma.generatedTextbookOutlineNode.findFirst({
+    where: {
+      outline_id: node.outline_id,
+      children: { none: {} },
+      status: { notIn: ['GENERATED', 'ADMIN_QUEUED'] },
+    },
+    select: { id: true },
+  });
+  if (!outstandingLeaf) {
+    systemQueue.add(JOB_NAMES.AUDIT_TEXTBOOK_OUTLINE, { outlineId: node.outline_id }).catch((error: unknown) => {
+      console.error('[textbook-section] failed to enqueue outline audit', { outlineId: node.outline_id, error });
+    });
+  }
 }

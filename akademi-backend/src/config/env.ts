@@ -35,6 +35,10 @@ export const config = {
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
   elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5',
   googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
+  // Google Programmable Search Engine (Custom Search JSON API), image search mode — used to
+  // source diagrams for Akademi Generated Textbooks. See .env.example for setup notes.
+  googleCseApiKey: process.env.GOOGLE_CSE_API_KEY || '',
+  googleCseId: process.env.GOOGLE_CSE_ID || '',
   googleOauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || 'dummy_client_id',
   googleOauthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
   r2AccountId: process.env.R2_ACCOUNT_ID || '',
