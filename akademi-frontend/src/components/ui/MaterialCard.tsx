@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Book,
   Bookmark,
@@ -52,19 +54,19 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
     const getIconConfig = () => {
       switch (fileType) {
         case "PDF":
-          return { icon: <FileText size={20} color="#FFFFFF" />, bg: "#EF4444" };
+          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: ["#EF4444", "#991B1B"] as const };
         case "STUDY_DOC":
-          return { icon: <FileStack size={20} color="#FFFFFF" />, bg: colors.primary };
+          return { icon: <FileStack size={20} color="#FFFFFF" />, bgColors: [colors.primary, "#166534"] as const };
         case "SYSTEM_FILE":
-          return { icon: <Grid size={20} color="#FFFFFF" />, bg: "#38BDF8" };
+          return { icon: <Grid size={20} color="#FFFFFF" />, bgColors: ["#38BDF8", "#0284C7"] as const };
         case "ETHICS":
-          return { icon: <Book size={20} color="#FFFFFF" />, bg: "#A78BFA" };
+          return { icon: <Book size={20} color="#FFFFFF" />, bgColors: ["#A78BFA", "#6D28D9"] as const };
         default:
-          return { icon: <FileText size={20} color="#FFFFFF" />, bg: colors.textMuted };
+          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: [colors.textMuted, colors.border] as const };
       }
     };
 
-    const { icon, bg } = getIconConfig();
+    const { icon, bgColors } = getIconConfig();
     const isPending = status === "PENDING";
 
     return (
@@ -74,7 +76,16 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
         activeOpacity={0.82}
         style={styles.container}
       >
-        <View style={[styles.iconContainer, { backgroundColor: bg }]}>{icon}</View>
+        <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+        
+        <LinearGradient
+          colors={bgColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconContainer}
+        >
+          {icon}
+        </LinearGradient>
 
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={2}>
@@ -138,20 +149,26 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
 const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
     marginBottom: 12,
     padding: 14,
+    overflow: "hidden",
   },
   iconContainer: {
     alignItems: "center",
-    borderRadius: 8,
-    height: 42,
+    borderRadius: 12,
+    height: 48,
     justifyContent: "center",
-    width: 42,
+    width: 48,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   content: {
     flex: 1,

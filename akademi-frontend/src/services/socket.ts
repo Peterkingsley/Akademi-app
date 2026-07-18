@@ -46,7 +46,7 @@ class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("WebSocket connection error:", error);
+      console.warn("WebSocket connection error:", error.message);
     });
 
     return this.socket;

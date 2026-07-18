@@ -51,7 +51,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5.0, user-scalable=yes" />
     <style>
       html, body {
         margin: 0;
@@ -101,12 +101,68 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       .textLayer ::selection {
         background: rgba(34, 197, 94, 0.35);
       }
+      #floating-nav {
+        position: fixed;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease-in-out, top 0.1s ease-out;
+      }
+      .nav-pill {
+        background: rgba(30, 30, 30, 0.85);
+        backdrop-filter: blur(8px);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        pointer-events: auto;
+      }
+      .nav-circle {
+        background: rgba(30, 30, 30, 0.85);
+        backdrop-filter: blur(8px);
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        pointer-events: auto;
+      }
+      .nav-arrow {
+        cursor: pointer;
+        color: white;
+        padding: 2px 10px;
+      }
+      .nav-arrow:active {
+        opacity: 0.5;
+      }
+      .nav-arrow svg {
+        width: 20px;
+        height: 20px;
+      }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   </head>
   <body>
     <div id="status">Opening PDF...</div>
     <div id="viewer"></div>
+    <div id="floating-nav">
+      <div class="nav-pill" id="page-indicator">1 / 1</div>
+      <div class="nav-circle" id="nav-dragger">
+        <div class="nav-arrow" onclick="scrollUp()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg></div>
+        <div class="nav-arrow" onclick="scrollDown()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+      </div>
+    </div>
     <script>
       const pdfjsLib = window['pdfjs-dist/build/pdf'];
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -135,6 +191,64 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         );
         const reachedEnd = scrollTop + viewportHeight >= fullHeight - 48;
         post({ type: 'endState', value: reachedEnd });
+      }
+
+      function scrollUp() {
+        showFloatingNav();
+        window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' });
+      }
+
+      function scrollDown() {
+        showFloatingNav();
+        window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+      }
+
+      let totalPages = 1;
+      let scrollTimeout;
+      let isDragging = false;
+      
+      function showFloatingNav() {
+        const nav = document.getElementById('floating-nav');
+        nav.style.opacity = '1';
+        nav.style.pointerEvents = 'auto';
+        
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(function() {
+          if (!isDragging) {
+            nav.style.opacity = '0';
+            nav.style.pointerEvents = 'none';
+          }
+        }, 2000);
+      }
+
+      function updateNavPosition() {
+        if (isDragging) return;
+        const maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
+        if (maxScroll === 0) return;
+        const percent = Math.max(0, Math.min(1, window.scrollY / maxScroll));
+        const viewportHeight = window.innerHeight;
+        const safeY = (viewportHeight * 0.15) + (percent * (viewportHeight * 0.7));
+        const nav = document.getElementById('floating-nav');
+        nav.style.top = safeY + 'px';
+      }
+
+      function updatePageIndicator() {
+        const shells = document.querySelectorAll('.page-shell');
+        let visiblePage = 1;
+        let maxVisible = 0;
+        const viewportHeight = window.innerHeight;
+        
+        for (let i = 0; i < shells.length; i++) {
+          const rect = shells[i].getBoundingClientRect();
+          const overlapTop = Math.max(0, rect.top);
+          const overlapBottom = Math.min(viewportHeight, rect.bottom);
+          const visibleHeight = Math.max(0, overlapBottom - overlapTop);
+          if (visibleHeight > maxVisible) {
+            maxVisible = visibleHeight;
+            visiblePage = i + 1;
+          }
+        }
+        document.getElementById('page-indicator').textContent = visiblePage + ' / ' + totalPages;
       }
 
       function renderTextLayer(textLayerDiv, textContent, viewport) {
@@ -181,8 +295,13 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
             const baseViewport = page.getViewport({ scale: 1 });
             const availableWidth = Math.max(window.innerWidth, 320);
             const scale = availableWidth / baseViewport.width;
+            
             const viewport = page.getViewport({ scale });
-            const dpr = Math.max(window.devicePixelRatio || 1, 1);
+            
+            // For razor sharp text on mobile, we render the canvas at a high resolution
+            // (scale * devicePixelRatio) and then shrink it with CSS.
+            const dpr = Math.max(window.devicePixelRatio || 2, 2);
+            const renderViewport = page.getViewport({ scale: scale * dpr });
 
             const shell = document.createElement('div');
             shell.className = 'page-shell';
@@ -195,8 +314,8 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
 
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
-            canvas.width = Math.floor(viewport.width * dpr);
-            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.width = Math.floor(renderViewport.width);
+            canvas.height = Math.floor(renderViewport.height);
             canvas.style.width = viewport.width + 'px';
             canvas.style.height = viewport.height + 'px';
 
@@ -214,13 +333,48 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
 
             await page.render({
               canvasContext: context,
-              viewport,
-              transform: dpr === 1 ? undefined : [dpr, 0, 0, dpr, 0, 0],
+              viewport: renderViewport,
             }).promise;
 
             const textContent = await page.getTextContent();
             renderTextLayer(textLayerDiv, textContent, viewport);
           }
+
+          totalPages = pdf.numPages;
+          updatePageIndicator();
+          updateNavPosition();
+          showFloatingNav();
+
+          const dragger = document.getElementById('nav-dragger');
+          const nav = document.getElementById('floating-nav');
+          dragger.addEventListener('touchstart', function(e) {
+            isDragging = true;
+            clearTimeout(scrollTimeout);
+            nav.style.opacity = '1';
+            nav.style.transition = 'none'; // instant move during drag
+          }, { passive: false });
+
+          dragger.addEventListener('touchmove', function(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const y = e.touches[0].clientY;
+            const viewportHeight = window.innerHeight;
+            const minY = viewportHeight * 0.15;
+            const maxY = viewportHeight * 0.85;
+            
+            let percent = (y - minY) / (maxY - minY);
+            percent = Math.max(0, Math.min(1, percent));
+            
+            const maxScroll = document.body.scrollHeight - viewportHeight;
+            window.scrollTo(0, maxScroll * percent);
+            nav.style.top = Math.max(minY, Math.min(maxY, y)) + 'px';
+          }, { passive: false });
+
+          dragger.addEventListener('touchend', function(e) {
+            isDragging = false;
+            nav.style.transition = 'opacity 0.3s ease-in-out, top 0.1s ease-out';
+            showFloatingNav();
+          });
 
           post({ type: 'ready' });
         } catch (error) {
@@ -238,6 +392,11 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       });
       window.addEventListener('scroll', function () {
         updateEndState();
+        updatePageIndicator();
+        updateNavPosition();
+        if (!isDragging) {
+          showFloatingNav();
+        }
       }, { passive: true });
       window.clearNativeSelection = function () {
         const selection = window.getSelection();

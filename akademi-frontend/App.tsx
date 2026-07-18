@@ -15,6 +15,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { clearSentryUserContext, initSentry, Sentry, setSentryRouteTag, setSentryUserContext } from "./src/lib/sentry";
 import { useAuthStore } from "./src/store/useAuthStore";
 
@@ -73,7 +74,9 @@ function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AppContent />
+          <BottomSheetModalProvider>
+            <AppContent />
+          </BottomSheetModalProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

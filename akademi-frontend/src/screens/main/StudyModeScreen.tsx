@@ -15,6 +15,7 @@ import {
 import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
 import { WebView } from "react-native-webview";
 import * as FileSystem from "expo-file-system";
+import { BlurView } from "expo-blur";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -717,41 +718,40 @@ export const StudyModeScreen: React.FC = () => {
 
   return (
     <Screen style={styles.screen} hideHeader={true}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
-          style={styles.headerBtn}
-        >
-          <X size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, typography.h3]}>
-          {material ? "Reading Material" : "Study Mode"}
-        </Text>
-        <View style={styles.headerRight}>
-          {material && (
-            <TouchableOpacity
-              onPress={handleDownload}
-              disabled={downloading || isDownloaded}
-              style={styles.headerIconBtn}
-            >
-              {downloading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : isDownloaded ? (
-                <CheckCircle2 size={20} color={colors.success} />
-              ) : (
-                <Download size={20} color={colors.textPrimary} />
-              )}
-            </TouchableOpacity>
-          )}
-          <Badge label={material ? "Material" : "Study session"} variant="purple" />
-        </View>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, (showOriginalPdf || showOriginalDoc) && styles.scrollContentPdf]}
         scrollEnabled={!(showOriginalPdf || showOriginalDoc)}
       >
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+            style={styles.headerBtn}
+          >
+            <X size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, typography.h3]}>
+            {material ? "Reading Material" : "Study Mode"}
+          </Text>
+          <View style={styles.headerRight}>
+            {material && (
+              <TouchableOpacity
+                onPress={handleDownload}
+                disabled={downloading || isDownloaded}
+                style={styles.headerIconBtn}
+              >
+                {downloading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : isDownloaded ? (
+                  <CheckCircle2 size={20} color={colors.success} />
+                ) : (
+                  <Download size={20} color={colors.textPrimary} />
+                )}
+              </TouchableOpacity>
+            )}
+            <Badge label={material ? "Material" : "Study session"} variant="purple" />
+          </View>
+        </View>
         {material?.diagnostics?.warnings?.length ? (
           <View style={styles.diagnosticBanner}>
             <Text style={[styles.diagnosticTitle, typography.bodySmall]}>
@@ -772,16 +772,18 @@ export const StudyModeScreen: React.FC = () => {
         ) : null}
 
         <View style={material ? [styles.documentSurface, (showOriginalPdf || showOriginalDoc) && styles.documentSurfacePdf] : undefined}>
-        <Card
-          noPadding={Boolean(material)}
+        <View
           style={
             material
               ? ((showOriginalPdf || showOriginalDoc)
                   ? { ...styles.documentCard, ...styles.documentCardPdf }
-                  : styles.documentCard)
-              : { ...styles.studyCard, minHeight: pageSurfaceMinHeight }
+                  : [styles.documentCard, styles.glassCard])
+              : [styles.studyCard, styles.glassCard, { minHeight: pageSurfaceMinHeight }]
           }
         >
+          {(!material || (!showOriginalPdf && !showOriginalDoc)) && (
+            <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+          )}
           {!material && (
             <View style={styles.aiHeader}>
               <Avatar size={32} name="Scholar" />
@@ -944,7 +946,7 @@ export const StudyModeScreen: React.FC = () => {
               )}
             </View>
           )}
-        </Card>
+        </View>
         </View>
 
         {!material && readerPages.length > 1 && (
@@ -989,14 +991,6 @@ export const StudyModeScreen: React.FC = () => {
 
         {((material && hasReachedMaterialEnd) || (!material && isLastPage)) && (
           <View style={[styles.bottomBar, material && styles.bottomBarDocument]}>
-            {material && (
-              <Button
-                label="Practice CBT"
-                icon={<ClipboardList size={18} color="#FFFFFF" />}
-                onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
-                style={styles.practiceBtn}
-              />
-            )}
             <Button
               label="Finish Study"
               variant="secondary"
@@ -1006,6 +1000,16 @@ export const StudyModeScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+
+      {material && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.fab}
+          onPress={() => navigation.navigate("MaterialPractice", { materialId: material.id, title: material.title })}
+        >
+          <ClipboardList size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <AskAkademiModal
         visible={isAskModalVisible}
@@ -1128,7 +1132,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: "1%",
     paddingBottom: 40,
   },
   scrollContentPdf: {
@@ -1147,16 +1151,18 @@ const styles = StyleSheet.create({
   documentSurfacePdf: {
     marginBottom: 0,
   },
+  glassCard: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
   documentCard: {
-    backgroundColor: "transparent",
-    borderRadius: 0,
+    paddingHorizontal: 4,
+    paddingTop: 20,
+    paddingBottom: 24,
     marginBottom: 0,
-    paddingHorizontal: 0,
-    paddingTop: 8,
-    paddingBottom: 12,
-    borderWidth: 0,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   documentCardPdf: {
     paddingTop: 0,
@@ -1459,10 +1465,24 @@ const styles = StyleSheet.create({
   backBtn: {
     flex: 1,
   },
-  practiceBtn: {
-    flex: 1,
-  },
   finishBtn: {
     flex: 1,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    zIndex: 10,
   },
 });

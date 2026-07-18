@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet, View } from "react-native";
 import { Search } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 
@@ -32,13 +33,15 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
           { paddingHorizontal: contentPaddingHorizontal },
         ]}
       >
-        <TouchableOpacity
-          onPress={onSearchPress}
-          style={styles.searchTab}
-          activeOpacity={0.8}
-        >
-          <Search size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+        {onSearchPress && (
+          <TouchableOpacity
+            onPress={onSearchPress}
+            style={styles.searchTab}
+            activeOpacity={0.8}
+          >
+            <Search size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
 
         {["All", ...courses].map((course) => {
           const isSelected = selectedCourse === course;
@@ -48,10 +51,19 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
               onPress={() => onSelectCourse(course)}
               style={[
                 styles.tab,
-                isSelected ? styles.selectedTab : styles.unselectedTab,
+                !isSelected && styles.unselectedTab,
+                isSelected && styles.selectedTabBase,
               ]}
               activeOpacity={0.8}
             >
+              {isSelected && (
+                <LinearGradient
+                  colors={[colors.primary, "#166534"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFillObject}
+                />
+              )}
               <Text
                 style={[
                   styles.tabText,
@@ -95,12 +107,16 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     alignItems: "center",
     minWidth: 60,
     height: 40,
+    overflow: "hidden",
   },
-  selectedTab: {
-    backgroundColor: colors.primary,
+  selectedTabBase: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   unselectedTab: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   tabText: {
     fontSize: 9.75,
