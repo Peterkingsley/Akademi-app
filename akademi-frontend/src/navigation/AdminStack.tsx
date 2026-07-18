@@ -42,6 +42,7 @@ const MoreStack = () => {
         )}
       </Stack.Screen>
       <Stack.Screen name="GeneratedTextbooks" component={GeneratedTextbooksScreen} />
+      <Stack.Screen name="DisciplineDocuments" component={DisciplineDocumentsScreen} />
       <Stack.Screen name="FinancialManagement">
         {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
