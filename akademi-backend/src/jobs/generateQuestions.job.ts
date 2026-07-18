@@ -119,7 +119,8 @@ export async function generateQuestionsJob(materialId: string, options: Generate
     orderBy: { version: 'desc' },
   });
 
-  const prompt = `Generate exam-prep multiple-choice questions from the following material based on the disciplinary context.
+  const prompt = `Generate exam-prep multiple-choice questions from the following material, for a university student. This is not JAMB/WAEC-style testing — optimize for depth and multi-concept synthesis, not speed or pattern recognition.
+
   Material title: ${material.title}
   Course code: ${material.course_code || 'General'}
   Material content:
@@ -128,13 +129,38 @@ export async function generateQuestionsJob(materialId: string, options: Generate
   Context: ${JSON.stringify(disciplineDocument)}
   Generate ${requestedCount} multiple-choice questions.
   Distribution: 20% EASY, 30% MEDIUM, 50% HARD.
-  Goal: cover the full breadth of the material and make the set academically challenging, rigorous, and exam-standard.
-  Each question must have exactly 4 concise options. The correct_answer must exactly match one option.
-  ${existingQuestionTexts.length ? `Do not repeat or closely paraphrase any of these existing questions:\n${existingQuestionTexts.slice(0, 80).map((text, index) => `${index + 1}. ${text}`).join('\n')}` : ''}
+
+  DIFFICULTY DEFINITIONS (do not self-label — construct each question to this spec):
+  - EASY: a single fact, direct recall, no scenario needed.
+  - MEDIUM: one-step application of a formula/rule to a new but simple scenario not verbatim in the material.
+  - HARD: multi-step reasoning, or synthesis across two or more concepts, requiring misconception-grade distractors (see below).
+
+  TOUGHNESS RULES:
+  - Never restate a single fact as the question. MEDIUM and HARD questions must require applying a concept to a new situation, or combining two or more facts together.
+  - Every distractor (wrong option) must represent a specific, identifiable error a real student could actually make — a common miscalculation, a confused term, the wrong formula applied, an off-by-one error. Never an option that is just randomly false with no real reasoning behind it.
+  - No "all of the above" or "none of the above" options.
+  - No grammatical mismatch between the stem and the options that tips off the answer (e.g. "an ___" only fitting one option grammatically).
+  - The correct answer must not be noticeably longer, more hedged, or more detailed than the distractors — keep all four options similar in length and specificity.
+  - Avoid absolute words like "always" or "never" as an easy tell for a wrong distractor. If used, they must appear in a correct option at least as often as in a wrong one.
+
+  SCENARIO & VALUE VARIETY:
+  - When multiple questions in this batch test the same underlying concept, vary both the numeric values/parameters AND the real-world scenario dressing each time. Never generate the same scenario setup with only the numbers swapped.
+
+  NO-REPEAT RULE:
+  - A new question must differ from every existing question on the same concept along at least one of these axes: (a) the angle or facet being tested (e.g. definition vs. application vs. contrast vs. identifying the concept within a described scenario), (b) the scenario used, or (c) the specific values used. Any single one of these three is sufficient on its own — you do not need to change all three at once.
+  ${existingQuestionTexts.length ? `- Do not repeat or closely paraphrase any of these existing questions:\n${existingQuestionTexts.slice(0, 80).map((text, index) => `${index + 1}. ${text}`).join('\n')}` : ''}
+
+  VALIDITY:
+  - Exactly one option must be unambiguously correct; the other three must be unambiguously wrong to anyone who knows the material. Avoid any "most nearly correct" or partial-credit situations.
+  - correct_answer must exactly match one of the four options, verbatim.
+  - No factual errors, outdated conventions, or contested/disputed claims presented as settled fact.
+  - Each question must have exactly 4 concise options.
+  - explanation must justify why the correct answer is right AND briefly state why each of the three distractors is wrong. If you cannot explain why a distractor is wrong, it is not a valid distractor — replace it.
+
   Format as JSON: { "questions": [{ "question_text": string, "options": string[], "correct_answer": string, "approach_guide": string, "explanation": string, "difficulty": "EASY"|"MEDIUM"|"HARD" }] }`;
 
   const aiOutput = await aiProvider.generateResponse(prompt, {
-    systemPrompt: 'You are an expert academic assistant. Return ONLY valid JSON.',
+    systemPrompt: 'You are an expert university-level exam-question writer. You construct rigorous, exam-standard multiple-choice questions with plausible, misconception-based distractors — never questions that reward recall or lucky guessing. Return ONLY valid JSON.',
     maxTokens: 2000,
   });
 
