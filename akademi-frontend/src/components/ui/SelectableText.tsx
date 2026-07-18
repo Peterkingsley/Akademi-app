@@ -327,13 +327,13 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
         margin: 0;
         padding: 0;
         background: transparent;
-        color: #FFFFFF;
+        color: #F3F4F6;
         overflow: hidden;
       }
       body {
         font-family: Inter, Arial, sans-serif;
-        font-size: 16px;
-        line-height: 1.6;
+        font-size: 18px;
+        line-height: 1.8;
         -webkit-user-select: text;
         user-select: text;
       }

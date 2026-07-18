@@ -104,6 +104,13 @@ function buildPageContent(blocks: ReaderBlock[]) {
     .trim();
 }
 
+function renumberPagesGlobally(pages: ReaderPage[]): ReaderPage[] {
+  return pages.map((page, index) => ({
+    ...page,
+    pageNumber: index + 1,
+  }));
+}
+
 function chunkBlocks(sectionTitle: string, blocks: ReaderBlock[], maxChars = BOOK_PAGE_TARGET_CHARS): ReaderPage[] {
   const pages: ReaderPage[] = [];
   let currentBlocks: ReaderBlock[] = [];
@@ -259,7 +266,7 @@ export function buildReaderStructure(rawText: string): ReaderStructure {
   return {
     version: 2,
     generated_at: new Date().toISOString(),
-    pages,
+    pages: renumberPagesGlobally(pages),
   };
 }
 
@@ -393,6 +400,6 @@ export function buildReaderStructureFromHtml(
   return {
     version: 2,
     generated_at: new Date().toISOString(),
-    pages,
+    pages: renumberPagesGlobally(pages),
   };
 }

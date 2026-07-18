@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   ActivityIndicator,
   Share,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { ArrowLeft, Share2, RefreshCw, Book, Send, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, Share2, Book, Send, Sparkles } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { Avatar } from "../../components/ui/Avatar";
 import { SelectableText } from "../../components/ui/SelectableText";
@@ -30,15 +32,21 @@ import { appendTranscript } from "../../services/voice";
 import { useAiVoicePlayback } from "../../hooks/useAiVoicePlayback";
 import { VoiceInputButton } from "../../components/ui/VoiceInputButton";
 import { AiVoiceToggleButton } from "../../components/ui/AiVoiceToggleButton";
+import { AnimatedPressable } from "../../components/ui/AnimatedPressable";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BlurView } from "expo-blur";
 
 export const AssignmentResultScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { sessionId } = route.params || {};
+  const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
   const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
   const [replyMode, setReplyMode] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,6 +56,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const [isAskModalVisible, setIsAskModalVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [spokenKey, setSpokenKey] = useState<string | null>(null);
+
   const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
   const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
     onTranscript: (transcript) => setFollowUp((prev) => appendTranscript(prev, transcript, true)),
@@ -65,7 +74,6 @@ export const AssignmentResultScreen: React.FC = () => {
 
   const cleanMarkdown = (value?: string | null) => {
     if (!value) return "";
-
     return value
       .replace(/\*\*(.*?)\*\*/g, "$1")
       .replace(/\*(.*?)\*/g, "$1")
@@ -88,17 +96,17 @@ export const AssignmentResultScreen: React.FC = () => {
         sessionService.getSession(sessionId),
         sessionService.listMessages(sessionId),
       ]);
-      const studentMsg = sessionMessages.find((m: Message) => m.role === "STUDENT");
       const firstAiMsg = sessionMessages.find((m: Message) => m.role === "AI");
       const latestAiMsg = [...sessionMessages].reverse().find((m: Message) => m.role === "AI");
 
       setMessages(sessionMessages);
       setInitialAiMessageId(firstAiMsg?.id || null);
       setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
-      if (studentMsg) setQuestion(studentMsg.content);
-      if (firstAiMsg) setAnswer(firstAiMsg.content);
       setGraphSpec(firstAiMsg?.metadata?.graph?.payload || null);
       setLoadFailed(false);
+      
+      // Auto scroll to bottom if loading new messages
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
       setLoadFailed(true);
@@ -125,8 +133,21 @@ export const AssignmentResultScreen: React.FC = () => {
     if (!content || !sessionId || sendingFollowUp) return;
 
     setSendingFollowUp(true);
+    const optimisticMsg: Message = {
+      id: Date.now().toString(),
+      session_id: sessionId,
+      user_id: "temp",
+      role: "STUDENT",
+      content,
+      created_at: new Date().toISOString()
+    };
+
     try {
       setFollowUp("");
+      // Optimistic update
+      setMessages(prev => [...prev, optimisticMsg]);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+
       await sessionService.sendMessage(sessionId, {
         content,
         reply_mode: (replyMode as any) || undefined,
@@ -142,6 +163,8 @@ export const AssignmentResultScreen: React.FC = () => {
           ? "Akademi took too long to respond. Your reply is still here, so try again in a moment."
           : "Please check your connection and try again."
       );
+      // Remove optimistic
+      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
     } finally {
       setSendingFollowUp(false);
     }
@@ -149,8 +172,10 @@ export const AssignmentResultScreen: React.FC = () => {
 
   const handleShare = async () => {
     try {
+      const q = messages.find(m => m.role === "STUDENT")?.content || "";
+      const a = messages.find(m => m.role === "AI")?.content || "";
       await Share.share({
-        message: `Akademi AI Answer:\n\nQuestion: ${question}\n\nAnswer: ${answer}`,
+        message: `Akademi AI Answer:\n\nQuestion: ${q}\n\nAnswer: ${a}`,
       });
     } catch (error) {
       console.error("Error sharing:", error);
@@ -163,11 +188,7 @@ export const AssignmentResultScreen: React.FC = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-        <AskAkademiModal
-          visible={isAskModalVisible}
-          onClose={() => setIsAskModalVisible(false)}
-          contextText={selectedText}
-        />
+        <AskAkademiModal visible={isAskModalVisible} onClose={() => setIsAskModalVisible(false)} contextText={selectedText} />
       </Screen>
     );
   }
@@ -187,169 +208,141 @@ export const AssignmentResultScreen: React.FC = () => {
   }
 
   const answerStatusLabel = modeLabels[replyMode || "DIRECT"] || "Akademi reply";
-  const threadMessages = messages.filter((message) => message.id !== initialAiMessageId).slice(1);
 
   return (
-    <Screen style={styles.screen}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, typography.h3]}>Assignment Result</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <Badge label={answerStatusLabel} variant="blue" />
-          <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
-        </View>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Card style={styles.inquiryCard}>
-          <Text style={[styles.monoLabel, typography.mono]}>YOUR INQUIRY</Text>
-          <SelectableText
-            content={question || "No question found."}
-            onAskAkademi={(text) => {
-              setSelectedText(text);
-              setIsAskModalVisible(true);
-            }}
-          />
-        </Card>
-
-        <Card style={styles.aiResponseCard}>
-          <View style={styles.aiHeader}>
-            <View style={styles.aiProfile}>
-              <Avatar size={32} name="Akademi Synthesis" />
-              <View style={styles.aiNameContainer}>
-                <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700" }]}>Akademi Synthesis</Text>
-                <Text style={[styles.aiModel, typography.caption]}>{answerStatusLabel}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.answerContainer}>
-            <SelectableText
-              content={answer || "Akademi is still preparing a reply."}
-              onAskAkademi={(text) => {
-                setSelectedText(text);
-                setIsAskModalVisible(true);
-              }}
-            />
-          </View>
-
-          {graphSpec && (
-            <View style={styles.graphContainer}>
-              <GraphRenderer spec={graphSpec} />
-            </View>
-          )}
-        </Card>
-
-        {threadMessages.length > 0 && (
-          <Card style={styles.threadCard}>
-            <Text style={[styles.monoLabel, typography.mono]}>FOLLOW-UP THREAD</Text>
-            {threadMessages.map((message) => (
-              <View
-                key={message.id}
-                style={[
-                  styles.threadRow,
-                  message.role === "STUDENT" ? styles.studentRow : styles.aiRow,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.threadBubble,
-                    message.role === "STUDENT" ? styles.studentBubble : styles.aiBubble,
-                  ]}
-                >
-                  <Text style={[styles.threadRole, typography.caption]}>
-                    {message.role === "STUDENT" ? "You" : "Akademi"}
-                  </Text>
-                  <RichMathText
-                    content={cleanMarkdown(message.content)}
-                    textColor={colors.textPrimary}
-                    fontSize={14}
-                    lineHeight={1.45}
-                  />
-                </View>
-              </View>
-            ))}
-          </Card>
-        )}
-
-        <Card style={styles.followUpCard}>
-          <Text style={[styles.followUpTitle, typography.bodySmall, { fontWeight: "700" }]}>
-            Continue this session
-          </Text>
-          <Text style={[styles.followUpHint, typography.caption]}>
-            Ask for another example, ask for a slower explanation, or answer the question Akademi asked.
-          </Text>
-          <View style={styles.followUpRow}>
-            <View style={styles.followUpInputWrap}>
-              <TextInput
-                value={followUp}
-                onChangeText={setFollowUp}
-                placeholder="Ask a follow-up..."
-                placeholderTextColor={colors.textMuted}
-                style={styles.followUpInput}
-                multiline
-              />
-              <VoiceInputButton
-                onPress={toggleRecording}
-                isRecording={isRecording}
-                isTranscribing={isTranscribing}
-                style={styles.followUpVoiceButton}
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.sendButton, (!followUp.trim() || sendingFollowUp || isTranscribing) && styles.sendButtonDisabled]}
-              onPress={handleFollowUp}
-              disabled={!followUp.trim() || sendingFollowUp || isTranscribing}
-            >
-              {sendingFollowUp ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Send size={18} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
-          </View>
-        </Card>
-
-        <TouchableOpacity
-          style={styles.studyModeBanner}
-          onPress={() => navigation.navigate("StudyMode", { sessionId })}
+    <Screen style={styles.screen} hideHeader>
+      <KeyboardAvoidingView 
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        {/* FROSTED GLASS HEADER */}
+        <BlurView 
+          intensity={80} 
+          tint={isDark ? "dark" : "light"} 
+          style={[styles.headerBlur, { paddingTop: Math.max(insets.top, 16) }]}
         >
-          <View style={styles.bannerLeft}>
-            <Book size={24} color={colors.warning} />
-            <View style={styles.bannerTextContainer}>
-              <Text style={[styles.bannerTitle, typography.bodySmall, { fontWeight: "700" }]}>
-                Want to truly understand this?
-              </Text>
-              <Text style={[styles.bannerSubtext, typography.caption]}>
-                Switch to Study Mode for a step-by-step learning walkthrough.
-              </Text>
+          <View style={styles.headerInner}>
+            <View style={styles.headerLeft}>
+              <AnimatedPressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <ArrowLeft size={24} color={colors.textPrimary} />
+              </AnimatedPressable>
+              <Text style={[styles.headerTitle, typography.h3]}>Result</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
+              <AnimatedPressable onPress={handleShare} style={styles.shareBtn}>
+                <Share2 size={20} color={colors.textSecondary} />
+              </AnimatedPressable>
             </View>
           </View>
-          <ChevronRight size={18} color={colors.primary} />
-        </TouchableOpacity>
+        </BlurView>
 
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleShare}>
-            <Share2 size={20} color={colors.textSecondary} />
-            <Text style={[styles.actionLabel, typography.caption]}>SHARE</Text>
-          </TouchableOpacity>
-          <Button
-            label="Try Another"
-            onPress={() => navigation.navigate("Solve")}
-            icon={<RefreshCw size={18} color="#FFFFFF" />}
-            style={styles.tryAnotherBtn}
-          />
-        </View>
-      </ScrollView>
-      <AskAkademiModal
-        visible={isAskModalVisible}
-        onClose={() => setIsAskModalVisible(false)}
-        contextText={selectedText}
-      />
+        {/* CHAT STREAM */}
+        <ScrollView 
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 70, paddingBottom: 100 }]}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+        >
+          {messages.map((message, index) => {
+            const isStudent = message.role === "STUDENT";
+            const isFirstAI = !isStudent && message.id === initialAiMessageId;
+
+            return (
+              <View key={message.id || index.toString()} style={[styles.messageRow, isStudent ? styles.rowStudent : styles.rowAi]}>
+                {!isStudent && (
+                  <View style={styles.avatarWrap}>
+                     <Avatar size={32} name="Akademi Synthesis" />
+                  </View>
+                )}
+                
+                <View style={[styles.bubble, isStudent ? styles.bubbleStudent : styles.bubbleAi]}>
+                  {isFirstAI && (
+                    <View style={styles.aiHeader}>
+                      <Text style={[styles.aiName, typography.bodySmall, { fontWeight: "700" }]}>Akademi</Text>
+                      <Badge label={answerStatusLabel} variant="blue" />
+                    </View>
+                  )}
+
+                  {isFirstAI ? (
+                    <SelectableText
+                      content={message.content}
+                      onAskAkademi={(text) => {
+                        setSelectedText(text);
+                        setIsAskModalVisible(true);
+                      }}
+                    />
+                  ) : (
+                    <RichMathText
+                      content={cleanMarkdown(message.content)}
+                      textColor={isStudent ? "#FFFFFF" : colors.textPrimary}
+                      fontSize={15}
+                      lineHeight={1.5}
+                    />
+                  )}
+
+                  {isFirstAI && graphSpec && (
+                    <View style={styles.graphContainer}>
+                      <GraphRenderer spec={graphSpec} />
+                    </View>
+                  )}
+                </View>
+
+                {/* SMART CHIP FOR STUDY MODE */}
+                {isFirstAI && replyMode !== "STUDY" && (
+                  <AnimatedPressable 
+                    style={styles.studyChip}
+                    onPress={() => navigation.navigate("StudyMode", { sessionId })}
+                  >
+                    <Sparkles size={14} color={colors.primary} />
+                    <Text style={[styles.studyChipText, typography.caption]}>Switch to Step-by-Step Study Mode</Text>
+                  </AnimatedPressable>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* FLOATING COMPOSER */}
+        <BlurView 
+          intensity={90} 
+          tint={isDark ? "dark" : "light"} 
+          style={[styles.composerBlur, { paddingBottom: Math.max(insets.bottom, 16) }]}
+        >
+          <View style={styles.composerInner}>
+             <TextInput
+               value={followUp}
+               onChangeText={setFollowUp}
+               placeholder={isRecording ? "Listening..." : "Ask a follow-up..."}
+               placeholderTextColor={colors.textMuted}
+               style={styles.composerInput}
+               multiline
+             />
+             <View style={styles.composerActions}>
+               <VoiceInputButton
+                 onPress={toggleRecording}
+                 isRecording={isRecording}
+                 isTranscribing={isTranscribing}
+                 style={styles.composerVoiceBtn}
+               />
+               <AnimatedPressable
+                 style={[styles.sendButton, (!followUp.trim() || sendingFollowUp || isTranscribing) && styles.sendButtonDisabled]}
+                 onPress={handleFollowUp}
+                 disabled={!followUp.trim() || sendingFollowUp || isTranscribing}
+               >
+                 {sendingFollowUp ? (
+                   <ActivityIndicator size="small" color="#FFFFFF" />
+                 ) : (
+                   <Send size={16} color="#FFFFFF" />
+                 )}
+               </AnimatedPressable>
+             </View>
+          </View>
+        </BlurView>
+
+      </KeyboardAvoidingView>
+      <AskAkademiModal visible={isAskModalVisible} onClose={() => setIsAskModalVisible(false)} contextText={selectedText} />
     </Screen>
   );
 };
@@ -359,214 +352,167 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
   },
+  keyboardView: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
   },
-  header: {
+  headerBlur: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.1)",
+  },
+  headerInner: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
   backBtn: {
     marginRight: 12,
   },
   headerTitle: {
-    color: "#FFFFFF",
+    color: colors.textPrimary,
     fontWeight: "600",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  shareBtn: {
+    padding: 4,
+  },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
   },
-  inquiryCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    backgroundColor: "transparent",
+  messageRow: {
+    width: "100%",
     marginBottom: 24,
-    paddingVertical: 12,
   },
-  monoLabel: {
-    color: colors.textMuted,
-    fontSize: 8.25,
-    marginBottom: 8,
+  rowStudent: {
+    alignItems: "flex-end",
   },
-  aiResponseCard: {
-    backgroundColor: colors.surface,
-    padding: 20,
-    marginBottom: 24,
+  rowAi: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+  },
+  avatarWrap: {
+    marginRight: 12,
+    marginTop: 4,
+  },
+  bubble: {
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    width: "88%",
+  },
+  bubbleStudent: {
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.3)",
+    borderBottomRightRadius: 6,
+  },
+  bubbleAi: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderTopLeftRadius: 6,
   },
   aiHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-  },
-  aiProfile: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  aiNameContainer: {
-    marginLeft: 12,
+    marginBottom: 12,
   },
   aiName: {
-    color: "#FFFFFF",
-  },
-  aiModel: {
-    color: colors.textMuted,
-  },
-  answerContainer: {
-    marginTop: 8,
+    color: colors.textPrimary,
   },
   graphContainer: {
     marginTop: 16,
-  },
-  threadCard: {
-    backgroundColor: colors.surface,
-    marginBottom: 24,
-    padding: 16,
-  },
-  threadRow: {
-    width: "100%",
-    marginTop: 12,
-  },
-  studentRow: {
-    alignItems: "flex-end",
-  },
-  aiRow: {
-    alignItems: "flex-start",
-  },
-  threadBubble: {
     borderRadius: 12,
-    padding: 12,
-    width: "86%",
+    overflow: "hidden",
   },
-  studentBubble: {
-    backgroundColor: "rgba(34,197,94,0.18)",
-    minWidth: "56%",
-  },
-  aiBubble: {
-    backgroundColor: colors.surfaceElevated,
-    minWidth: "62%",
-  },
-  threadRole: {
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  threadText: {
-    color: colors.textPrimary,
-    lineHeight: 20,
-  },
-  followUpCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    marginBottom: 24,
-    padding: 14,
-  },
-  followUpTitle: {
-    color: colors.textPrimary,
-  },
-  followUpHint: {
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  followUpRow: {
-    alignItems: "flex-end",
+  studyChip: {
     flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
-  },
-  followUpInputWrap: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 10,
-  },
-  followUpInput: {
-    ...typography.bodySmall,
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderRadius: 12,
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(34,197,94,0.1)",
     borderWidth: 1,
-    color: colors.textPrimary,
-    flex: 1,
-    maxHeight: 110,
-    minHeight: 48,
+    borderColor: "rgba(34,197,94,0.3)",
+    borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+    marginLeft: 44, 
+    gap: 6,
   },
-  followUpVoiceButton: {
-    marginBottom: 6,
+  studyChipText: {
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  composerBlur: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.1)",
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  composerInner: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  composerInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    flex: 1,
+    maxHeight: 120,
+    minHeight: 36,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  composerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingBottom: 2,
+  },
+  composerVoiceBtn: {
+    marginRight: 2,
   },
   sendButton: {
     alignItems: "center",
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    height: 48,
+    borderRadius: 18,
+    height: 36,
     justifyContent: "center",
-    width: 48,
+    width: 36,
   },
   sendButtonDisabled: {
-    opacity: 0.45,
-  },
-  studyModeBanner: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 32,
-  },
-  bannerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  bannerTextContainer: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  bannerTitle: {
-    color: "#FFFFFF",
-  },
-  bannerSubtext: {
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  actionBtn: {
-    alignItems: "center",
-    paddingHorizontal: 8,
-  },
-  actionLabel: {
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  tryAnotherBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
+    opacity: 0.5,
   },
   emptyTitle: {
     color: "#FFFFFF",

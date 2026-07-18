@@ -1,15 +1,20 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   Alert,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
+import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import {
   BookOpen,
   Camera,
@@ -19,6 +24,8 @@ import {
   Mic,
   X,
   Zap,
+  ArrowUp,
+  Info,
 } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
@@ -28,6 +35,7 @@ import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { useVoiceComposer } from "../../hooks/useVoiceComposer";
 import { appendTranscript } from "../../services/voice";
+import { AnimatedPressable } from "../../components/ui/AnimatedPressable";
 
 type AnswerMode = "DIRECT" | "STUDY";
 type DetectedQuestion = { index: number; text: string };
@@ -39,6 +47,7 @@ export const SolveScreen: React.FC = () => {
   const route = useRoute<any>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { photoUri } = route.params || {};
   const { user } = useAuthStore();
   const userCourses = (user as any)?.courses || [];
@@ -47,14 +56,15 @@ export const SolveScreen: React.FC = () => {
   const [question, setQuestion] = useState("");
   const [course, setCourse] = useState("Select Course");
   const [loading, setLoading] = useState(false);
-  const [isCoursePickerVisible, setIsCoursePickerVisible] = useState(false);
   const [documentLoading, setDocumentLoading] = useState(false);
   const [detectedQuestions, setDetectedQuestions] = useState<DetectedQuestion[] | null>(null);
+
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["50%", "75%"], []);
 
   const hasQuestion = question.trim().length > 0;
   const hasCourse = course !== "Select Course";
   const courseCode = hasCourse ? course : null;
-  const questionLength = question.length;
 
   const courseOptions = [
     "Select Course",
@@ -129,12 +139,8 @@ export const SolveScreen: React.FC = () => {
 
       await api.post(
         `/sessions/${session.id}/messages`,
-        {
-          content: question.trim(),
-        },
-        {
-          timeout: 90000,
-        }
+        { content: question.trim() },
+        { timeout: 90000 }
       );
 
       navigation.navigate("AIProcessing", {
@@ -155,9 +161,7 @@ export const SolveScreen: React.FC = () => {
     }
   };
 
-  const handlePhotoPress = () => {
-    navigation.navigate("Camera");
-  };
+  const handlePhotoPress = () => navigation.navigate("Camera");
 
   const handleFilePress = async () => {
     try {
@@ -203,156 +207,168 @@ export const SolveScreen: React.FC = () => {
     }
   };
 
+  const handlePresentModalPress = useCallback(() => {
+    console.log("Presenting course modal");
+    Keyboard.dismiss();
+    bottomSheetModalRef.current?.present();
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />,
+    []
+  );
+
   return (
     <Screen hideHeader style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.headerEyebrow}>Assignment Help</Text>
             <Text style={styles.headerTitle}>Solve it and learn it</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
+          <AnimatedPressable onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
             <X size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
-        <View style={styles.courseStrip}>
-          <View style={styles.courseInfo}>
-            <Text style={styles.sectionLabel}>Course context</Text>
-            <Text style={styles.courseValue}>{hasCourse ? course : "General question"}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.changeButton}
-            activeOpacity={0.84}
-            onPress={() => setIsCoursePickerVisible((visible) => !visible)}
-          >
-            <Text style={styles.changeText}>Change</Text>
-            <ChevronDown size={15} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {isCoursePickerVisible && (
-          <View style={styles.inlineCoursePicker}>
-            <View style={styles.inlineCourseGrid}>
-              {courseOptions.map((item) => {
-                const selected = item === course;
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    activeOpacity={0.82}
-                    style={[styles.inlineCourseChip, selected && styles.inlineCourseChipActive]}
-                    onPress={() => {
-                      setCourse(item);
-                      setIsCoursePickerVisible(false);
-                    }}
-                  >
-                    {selected && <Check size={13} color={colors.background} />}
-                    <Text style={[styles.inlineCourseText, selected && styles.inlineCourseTextActive]}>
-                      {item === "Select Course" ? "No course context" : item}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        <View style={styles.promptCard}>
-          <View style={styles.promptGlow} />
-          <TextInput
-            style={styles.textArea}
-            placeholder="Paste your assignment question here..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={MAX_QUESTION_LENGTH}
-            value={question}
-            onChangeText={(text) => {
-              setDetectedQuestions(null);
-              setQuestion(text);
-            }}
-            textAlignVertical="top"
-          />
-
-          <View style={styles.promptFooter}>
-            <Text style={styles.counter}>{questionLength} / {MAX_QUESTION_LENGTH}</Text>
-          </View>
-        </View>
-
-        {detectedQuestions && detectedQuestions.length > 1 && (
-          <View style={styles.multiQuestionBanner}>
-            <Text style={styles.multiQuestionText}>
-              Detected {detectedQuestions.length} separate questions. Akademi will solve them one at a time, with a Next button between each.
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handlePhotoPress}>
-            <View style={[styles.toolIconWrap, styles.greenToolIcon]}>
-              <Camera size={18} color={colors.primary} />
-            </View>
-            <Text style={styles.toolTitle}>Photo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleFilePress}>
-            <View style={[styles.toolIconWrap, styles.purpleToolIcon]}>
-              <FileText size={18} color="#8B5CF6" />
-            </View>
-            <Text style={styles.toolTitle}>{documentLoading ? "Reading..." : "PDF / File"}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.toolCard} activeOpacity={0.86} onPress={handleVoicePress}>
-            <View style={[styles.toolIconWrap, styles.blueToolIcon]}>
-              <Mic size={18} color="#6366F1" />
-            </View>
-            <Text style={styles.toolTitle}>
-              {audioLoading ? "Transcribing..." : isRecording ? "Stop" : "Voice"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.answerSection}>
-          <Text style={styles.sectionHeading}>Answer style</Text>
-          <View style={styles.segmentedControl}>
-            <TouchableOpacity
-              style={[styles.segment, answerMode === "DIRECT" && styles.segmentActive]}
-              activeOpacity={0.86}
-              onPress={() => setAnswerMode("DIRECT")}
-            >
-              <View style={styles.segmentHeader}>
-                <Zap size={18} color={answerMode === "DIRECT" ? colors.primary : "#7EA6FF"} />
-                <Text style={[styles.segmentTitle, answerMode === "DIRECT" && styles.segmentTitleActive]}>
-                  Quick Solve
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.segment, answerMode === "STUDY" && styles.segmentActive]}
-              activeOpacity={0.86}
-              onPress={() => setAnswerMode("STUDY")}
-            >
-              <View style={styles.segmentHeader}>
-                <BookOpen size={18} color={answerMode === "STUDY" ? colors.primary : "#7EA6FF"} />
-                <Text style={[styles.segmentTitle, answerMode === "STUDY" && styles.segmentTitleActive]}>
-                  Learn Step-by-Step
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={styles.bottomCtaWrap}>
-        <TouchableOpacity
-          style={[styles.solveNowButton, loading && styles.solveNowButtonDisabled]}
-          activeOpacity={0.88}
-          onPress={handleSolve}
-          disabled={loading}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.solveNowTitle}>{loading ? "Working..." : "Solve Now"}</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.pillContainer}>
+            <AnimatedPressable style={styles.pill} onPress={handlePresentModalPress}>
+              <Text style={styles.pillText} numberOfLines={1}>{hasCourse ? course : "Select Course"}</Text>
+              <ChevronDown size={14} color={colors.textSecondary} />
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              style={[styles.pill, answerMode === "STUDY" && styles.pillActive]}
+              onPress={() => setAnswerMode(answerMode === "DIRECT" ? "STUDY" : "DIRECT")}
+            >
+              {answerMode === "DIRECT" ? (
+                <Zap size={14} color={colors.textSecondary} />
+              ) : (
+                <BookOpen size={14} color={colors.primary} />
+              )}
+              <Text style={[styles.pillText, answerMode === "STUDY" && styles.pillTextActive]}>
+                {answerMode === "DIRECT" ? "Quick Solve" : "Step-by-Step"}
+              </Text>
+            </AnimatedPressable>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.omniboxContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          {detectedQuestions && detectedQuestions.length > 1 && (
+            <View style={styles.multiQuestionBanner}>
+              <Info size={14} color={colors.primary} />
+              <Text style={styles.multiQuestionText}>
+                {detectedQuestions.length} questions detected. Solved one at a time.
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.omnibox}>
+            <TextInput
+              style={styles.omniboxInput}
+              placeholder={isRecording ? "Listening..." : "Paste or type your assignment question..."}
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={MAX_QUESTION_LENGTH}
+              value={question}
+              onChangeText={(text) => {
+                setDetectedQuestions(null);
+                setQuestion(text);
+              }}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.omniboxToolbar}>
+              <View style={styles.omniboxTools}>
+                <AnimatedPressable
+                  onPress={handlePhotoPress}
+                  style={styles.toolIconWrap}
+                  disabled={documentLoading || audioLoading}
+                >
+                  <Camera size={20} color={colors.textSecondary} />
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                  onPress={handleFilePress}
+                  style={styles.toolIconWrap}
+                  disabled={documentLoading || audioLoading}
+                >
+                  {documentLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <FileText size={20} color={colors.textSecondary} />
+                  )}
+                </AnimatedPressable>
+
+                <AnimatedPressable
+                  onPress={handleVoicePress}
+                  style={[styles.toolIconWrap, isRecording && styles.toolIconRecording]}
+                  disabled={documentLoading || audioLoading}
+                >
+                  {audioLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Mic size={20} color={isRecording ? "#EF4444" : colors.textSecondary} />
+                  )}
+                </AnimatedPressable>
+              </View>
+
+              <AnimatedPressable
+                style={[styles.solveButton, (!hasQuestion || loading) && styles.solveButtonDisabled]}
+                onPress={handleSolve}
+                disabled={!hasQuestion || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.background} size="small" />
+                ) : (
+                  <ArrowUp size={20} color={colors.background} />
+                )}
+              </AnimatedPressable>
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={snapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={{ backgroundColor: colors.surface }}
+        handleIndicatorStyle={{ backgroundColor: colors.border }}
+      >
+        <View style={styles.sheetContent}>
+          <Text style={styles.sheetTitle}>Select Course Context</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
+            {courseOptions.map((item) => {
+              const selected = item === course;
+              return (
+                <AnimatedPressable
+                  key={item}
+                  style={[styles.sheetItem, selected && styles.sheetItemActive]}
+                  onPress={() => {
+                    setCourse(item);
+                    bottomSheetModalRef.current?.dismiss();
+                  }}
+                >
+                  <Text style={[styles.sheetItemText, selected && styles.sheetItemTextActive]}>
+                    {item === "Select Course" ? "No course context" : item}
+                  </Text>
+                  {selected && <Check size={18} color={colors.primary} />}
+                </AnimatedPressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </BottomSheetModal>
     </Screen>
   );
 };
@@ -363,18 +379,16 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       backgroundColor: colors.background,
       flex: 1,
     },
-    content: {
-      flexGrow: 1,
-      paddingHorizontal: 16,
-      paddingTop: 2,
-      paddingBottom: 110,
+    keyboardView: {
+      flex: 1,
     },
     header: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 10,
-      paddingTop: 2,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 10,
     },
     headerEyebrow: {
       ...typography.label,
@@ -397,249 +411,145 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       justifyContent: "center",
       width: 42,
     },
-    courseStrip: {
-      alignItems: "center",
+    scrollContent: {
+      flexGrow: 1,
+      paddingHorizontal: 16,
+      paddingBottom: 20,
+    },
+    pillContainer: {
       flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 8,
+      gap: 10,
+      marginTop: 8,
     },
-    courseInfo: {
-      flex: 1,
-      minWidth: 0,
-    },
-    sectionLabel: {
-      ...typography.label,
-      color: colors.textMuted,
-      fontSize: 11,
-      letterSpacing: 0,
-      marginBottom: 2,
-      textTransform: "none",
-    },
-    courseValue: {
-      ...typography.body,
-      color: colors.textPrimary,
-      fontSize: 14,
-    },
-    changeButton: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-    },
-    changeText: {
-      ...typography.bodySmall,
-      color: colors.primary,
-      fontSize: 11,
-      fontWeight: "700",
-    },
-    inlineCoursePicker: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 14,
-      borderWidth: 1,
-      marginBottom: 10,
-      padding: 10,
-    },
-    inlineCourseGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    inlineCourseChip: {
+    pill: {
       alignItems: "center",
       backgroundColor: colors.surfaceElevated,
       borderColor: colors.border,
-      borderRadius: 12,
-      borderWidth: 1,
-      flexDirection: "row",
-      paddingHorizontal: 11,
-      paddingVertical: 9,
-    },
-    inlineCourseChipActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    inlineCourseText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      fontSize: 11,
-      fontWeight: "700",
-    },
-    inlineCourseTextActive: {
-      color: colors.background,
-      marginLeft: 5,
-    },
-    promptCard: {
-      backgroundColor: colors.surface,
-      borderColor: "rgba(34,197,94,0.7)",
       borderRadius: 20,
       borderWidth: 1,
-      marginBottom: 12,
-      minHeight: 150,
-      overflow: "hidden",
-      paddingHorizontal: 14,
-      paddingTop: 14,
-      position: "relative",
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.18,
-      shadowRadius: 16,
-    },
-    promptGlow: {
-      backgroundColor: "rgba(34,197,94,0.16)",
-      height: 24,
-      left: 14,
-      position: "absolute",
-      top: 14,
-      width: 3,
-    },
-    textArea: {
-      ...typography.body,
-      color: colors.textPrimary,
-      flex: 1,
-      fontSize: 16,
-      lineHeight: 24,
-      minHeight: 92,
-      paddingBottom: 10,
-      paddingLeft: 12,
-      paddingRight: 0,
-      paddingTop: 0,
-    },
-    promptFooter: {
-      alignItems: "center",
       flexDirection: "row",
-      justifyContent: "flex-end",
-      paddingBottom: 8,
-      paddingTop: 0,
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      maxWidth: "50%",
     },
-    counter: {
+    pillActive: {
+      borderColor: "rgba(34,197,94,0.4)",
+      backgroundColor: "rgba(34,197,94,0.1)",
+    },
+    pillText: {
       ...typography.bodySmall,
-      color: colors.textMuted,
-      fontSize: 12,
+      color: colors.textPrimary,
+      fontSize: 13,
+    },
+    pillTextActive: {
+      color: colors.primary,
+    },
+    omniboxContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
     },
     multiQuestionBanner: {
-      backgroundColor: "rgba(34,197,94,0.1)",
-      borderColor: "rgba(34,197,94,0.4)",
-      borderRadius: 14,
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: "rgba(34,197,94,0.12)",
+      borderColor: "rgba(34,197,94,0.3)",
+      borderRadius: 16,
       borderWidth: 1,
-      marginBottom: 12,
-      padding: 12,
+      flexDirection: "row",
+      gap: 8,
+      marginBottom: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
     multiQuestionText: {
       ...typography.bodySmall,
       color: colors.textPrimary,
       fontSize: 12,
-      lineHeight: 17,
+      fontWeight: "500",
     },
-    actionRow: {
-      flexDirection: "row",
-      gap: 10,
-      marginBottom: 10,
-    },
-    toolCard: {
-      alignItems: "flex-start",
-      backgroundColor: colors.surface,
+    omnibox: {
+      backgroundColor: colors.surfaceElevated,
       borderColor: colors.border,
-      borderRadius: 16,
+      borderRadius: 24,
       borderWidth: 1,
-      flex: 1,
-      minHeight: 60,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      overflow: "hidden",
+    },
+    omniboxInput: {
+      ...typography.body,
+      color: colors.textPrimary,
+      fontSize: 16,
+      lineHeight: 24,
+      maxHeight: 140,
+      minHeight: 80,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+    },
+    omniboxToolbar: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingBottom: 10,
+      paddingHorizontal: 10,
+      paddingTop: 4,
+    },
+    omniboxTools: {
+      flexDirection: "row",
+      gap: 4,
     },
     toolIconWrap: {
       alignItems: "center",
-      borderRadius: 16,
-      height: 30,
+      borderRadius: 20,
+      height: 40,
       justifyContent: "center",
-      marginBottom: 6,
-      width: 30,
+      width: 40,
     },
-    greenToolIcon: {
-      backgroundColor: "rgba(34,197,94,0.12)",
+    toolIconRecording: {
+      backgroundColor: "rgba(239,68,68,0.1)",
     },
-    purpleToolIcon: {
-      backgroundColor: "rgba(139,92,246,0.12)",
-    },
-    blueToolIcon: {
-      backgroundColor: "rgba(99,102,241,0.12)",
-    },
-    toolTitle: {
-      ...typography.h4,
-      color: colors.textPrimary,
-      fontSize: 12,
-    },
-    answerSection: {
-      marginBottom: 10,
-    },
-    sectionHeading: {
-      ...typography.h4,
-      color: colors.textPrimary,
-      fontSize: 14,
-      marginBottom: 6,
-    },
-    segmentedControl: {
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
-      borderRadius: 14,
-      borderWidth: 1,
-      flexDirection: "row",
-      overflow: "hidden",
-      padding: 3,
-    },
-    segment: {
-      borderRadius: 11,
-      flex: 1,
-      minHeight: 40,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    segmentActive: {
-      backgroundColor: "rgba(34,197,94,0.1)",
-      borderColor: "rgba(34,197,94,0.4)",
-      borderWidth: 1,
-    },
-    segmentHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 8,
-    },
-    segmentTitle: {
-      ...typography.h4,
-      color: colors.textPrimary,
-      fontSize: 13,
-    },
-    segmentTitleActive: {
-      color: colors.primary,
-    },
-    solveNowButton: {
+    solveButton: {
       alignItems: "center",
       backgroundColor: colors.primary,
-      borderRadius: 18,
+      borderRadius: 20,
+      height: 40,
       justifyContent: "center",
-      minHeight: 56,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
+      width: 40,
     },
-    solveNowButtonDisabled: {
-      opacity: 0.65,
+    solveButtonDisabled: {
+      opacity: 0.5,
     },
-    solveNowTitle: {
-      ...typography.h2,
-      color: colors.background,
-      fontSize: 18,
+    sheetContent: {
+      flex: 1,
+      paddingHorizontal: 20,
     },
-    bottomCtaWrap: {
-      backgroundColor: colors.background,
-      borderTopColor: "rgba(255,255,255,0.06)",
-      borderTopWidth: 1,
-      bottom: 0,
-      left: 0,
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 16,
-      position: "absolute",
-      right: 0,
+    sheetTitle: {
+      ...typography.h3,
+      color: colors.textPrimary,
+      marginBottom: 16,
+      marginTop: 8,
+    },
+    sheetScroll: {
+      paddingBottom: 40,
+    },
+    sheetItem: {
+      alignItems: "center",
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: 16,
+    },
+    sheetItemActive: {
+      borderBottomColor: "rgba(34,197,94,0.3)",
+    },
+    sheetItemText: {
+      ...typography.body,
+      color: colors.textPrimary,
+      fontSize: 16,
+    },
+    sheetItemTextActive: {
+      color: colors.primary,
+      fontWeight: "600",
     },
   });

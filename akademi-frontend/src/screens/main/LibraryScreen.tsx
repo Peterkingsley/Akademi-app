@@ -50,7 +50,6 @@ export const LibraryScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["58%", "86%"], []);
@@ -59,8 +58,6 @@ export const LibraryScreen: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<DocumentPicker.DocumentPickerAsset[]>([]);
   const [courseOptions, setCourseOptions] = useState<CourseOption[]>([]);
-  const [courseInputMode, setCourseInputMode] = useState<"select" | "manual">("select");
-  const [showCourseOptions, setShowCourseOptions] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
 
   const userCourses = useMemo(() => user?.courses || [], [user?.courses]);
@@ -320,8 +317,6 @@ export const LibraryScreen: React.FC = () => {
       setUploadTitle("");
       setUploadCourseCode(defaultCourseCode);
       setSelectedFiles([]);
-      setShowCourseOptions(false);
-      setCourseInputMode("select");
       fetchMaterials();
       fetchAcademicProfile();
       const degradedNotice = successfulUploads.find(
@@ -348,44 +343,27 @@ export const LibraryScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.hero}>
-        <View style={styles.heroIcon}>
-          <BookOpen size={22} color={colors.primary} />
-        </View>
-        <View style={styles.heroCopy}>
-          <Text style={styles.title}>Library</Text>
-          <Text style={styles.subtitle}>
-            {materials.length} verified material{materials.length === 1 ? "" : "s"} for your department
-          </Text>
-        </View>
+      <View style={styles.headerTypography}>
+        <Text style={styles.title}>Library</Text>
+        <Text style={styles.subtitle}>
+          {materials.length} verified material{materials.length === 1 ? "" : "s"}
+        </Text>
       </View>
 
-      {isSearchActive && (
-        <View style={styles.searchBarContainer}>
-          <Input
-            label=""
-            placeholder="Search title or course code"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={styles.searchInput}
-          />
-          <TouchableOpacity
-            onPress={() => {
-              setIsSearchActive(false);
-              setSearchQuery("");
-            }}
-            style={styles.cancelSearch}
-          >
-            <Text style={styles.cancelSearchText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.searchBarContainer}>
+        <Input
+          label=""
+          placeholder="Search materials or course code..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.searchInput}
+        />
+      </View>
 
       <CourseFilterTabs
         courses={courses}
         selectedCourse={selectedCourse}
         onSelectCourse={setSelectedCourse}
-        onSearchPress={() => setIsSearchActive(true)}
         contentPaddingHorizontal={0}
       />
     </View>
@@ -530,102 +508,49 @@ export const LibraryScreen: React.FC = () => {
             </View>
           ) : null}
 
-          <View style={styles.modeToggleRow}>
-            <TouchableOpacity
-              style={[styles.modeToggleChip, courseInputMode === "select" && styles.modeToggleChipActive]}
-              onPress={() => setCourseInputMode("select")}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleText, courseInputMode === "select" && styles.modeToggleTextActive]}>
-                Select saved code
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeToggleChip, courseInputMode === "manual" && styles.modeToggleChipActive]}
-              onPress={() => setCourseInputMode("manual")}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleText, courseInputMode === "manual" && styles.modeToggleTextActive]}>
-                Type new code
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {courseInputMode === "select" ? (
-            <View>
-              <TouchableOpacity
-                style={styles.coursePicker}
-                onPress={() => setShowCourseOptions((current) => !current)}
-                activeOpacity={0.85}
-              >
-                <Text style={[styles.coursePickerText, !uploadCourseCode && styles.coursePickerPlaceholder]}>
-                  {uploadCourseCode || "Choose course code"}
-                </Text>
-              </TouchableOpacity>
-
-              {showCourseOptions ? (
-                <BottomSheetFlatList
-                  style={styles.courseOptionsCard}
-                  data={availableCourseOptions}
-                  keyExtractor={(course) => `${course.code}-${course.level}-${course.semester}`}
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.courseOptionsContent}
-                  nestedScrollEnabled
-                  renderItem={({ item: course }) => {
-                      const active = course.code.toUpperCase() === uploadCourseCode.trim().toUpperCase();
-                      return (
-                        <TouchableOpacity
-                          style={[styles.courseOptionRow, active && styles.courseOptionRowActive]}
-                          onPress={() => {
-                            setUploadCourseCode(course.code.toUpperCase());
-                            setShowCourseOptions(false);
-                        }}
-                        activeOpacity={0.82}
-                      >
-                        <Text style={styles.courseOptionCode}>{course.code.toUpperCase()}</Text>
-                        <Text style={styles.courseOptionMeta}>SEMESTER {course.semester}</Text>
-                        </TouchableOpacity>
-                      );
-                    }}
-                />
-              ) : null}
-            </View>
-          ) : (
+          <View style={styles.inputGroup}>
+            <Text style={styles.sheetLabel}>Course Code</Text>
             <Input
-              label="Course Code"
+              label=""
               placeholder="e.g. EEE 301"
               value={uploadCourseCode}
               onChangeText={(value) => setUploadCourseCode(value.toUpperCase())}
             />
-          )}
+            {availableCourseOptions.length > 0 && (
+              <View style={styles.quickCoursePills}>
+                {availableCourseOptions.slice(0, 4).map(course => {
+                  const isActive = course.code.toUpperCase() === uploadCourseCode.trim().toUpperCase();
+                  return (
+                    <TouchableOpacity
+                      key={course.id}
+                      style={[styles.coursePill, isActive && styles.coursePillActive]}
+                      onPress={() => setUploadCourseCode(course.code.toUpperCase())}
+                    >
+                      <Text style={[styles.coursePillText, isActive && styles.coursePillTextActive]}>
+                        {course.code.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
 
           {selectedFiles.length <= 1 ? (
-            <Input
-              label="Material Title"
-              placeholder="e.g. Week 1 Lecture Note"
-              value={uploadTitle}
-              onChangeText={setUploadTitle}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.sheetLabel}>Material Title</Text>
+              <Input
+                label=""
+                placeholder="e.g. Week 1 Lecture Note"
+                value={uploadTitle}
+                onChangeText={setUploadTitle}
+              />
+            </View>
           ) : (
             <Text style={styles.batchHelperText}>
-              Multiple files use each file name as the material title, in uppercase.
+              Multiple files use each file name as the material title.
             </Text>
           )}
-
-          <View style={styles.profileCard}>
-            <InfoRow label="University" value={user?.university || "Not set"} />
-            <InfoRow label="Faculty" value={user?.faculty || "Not set"} />
-            <InfoRow label="Department" value={user?.department || "Not set"} />
-            <InfoRow label="Level" value={user?.level ? `${user.level}L` : "Not set"} />
-            <InfoRow
-              label="Semester"
-              value={
-                selectedCourseMeta?.semester
-                  ? `Semester ${selectedCourseMeta.semester}`
-                  : "Matched after save"
-              }
-            />
-          </View>
 
           <Button
             label="Submit for review"
@@ -655,19 +580,7 @@ export const LibraryScreen: React.FC = () => {
   );
 };
 
-const InfoRow = ({ label, value }: { label: string; value: string }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
 
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
-};
 
 const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   screen: {
@@ -681,58 +594,28 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     paddingTop: 0,
     marginBottom: 2,
   },
-  hero: {
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: "rgba(34,197,94,0.24)",
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: "row",
-    marginBottom: 16,
-    padding: 16,
-  },
-  heroIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    height: 44,
-    justifyContent: "center",
-    marginRight: 12,
-    width: 44,
-  },
-  heroCopy: {
-    flex: 1,
-    minWidth: 0,
+  headerTypography: {
+    paddingHorizontal: 18,
+    marginBottom: 20,
+    marginTop: 12,
   },
   title: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 21,
+    fontSize: 28,
   },
   subtitle: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 17,
+    fontSize: 13,
     marginTop: 4,
   },
   searchBarContainer: {
-    alignItems: "center",
-    flexDirection: "row",
-    marginBottom: 10,
+    paddingHorizontal: 18,
+    marginBottom: 16,
   },
   searchInput: {
-    flex: 1,
     marginBottom: 0,
-  },
-  cancelSearch: {
-    marginLeft: 12,
-  },
-  cancelSearchText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "700",
   },
   listContent: {
     paddingBottom: 100,
@@ -888,113 +771,49 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     fontSize: 11,
     marginBottom: 6,
   },
-  modeToggleRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
+  inputGroup: {
+    marginBottom: 20,
   },
-  modeToggleChip: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderRadius: 999,
-    borderWidth: 1,
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  modeToggleChipActive: {
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderColor: "rgba(34,197,94,0.34)",
-  },
-  modeToggleText: {
+  sheetLabel: {
     ...typography.caption,
     color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "700",
-    textAlign: "center",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  modeToggleTextActive: {
-    color: colors.primary,
+  quickCoursePills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 8,
   },
-  coursePicker: {
-    backgroundColor: colors.surface,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: "center",
-    marginBottom: 12,
-    minHeight: 54,
-    paddingHorizontal: 14,
-  },
-  coursePickerText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  coursePickerPlaceholder: {
-    color: colors.textMuted,
-  },
-  courseOptionsCard: {
+  coursePill: {
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    marginBottom: 14,
-    maxHeight: 208,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  courseOptionsContent: {
-    paddingBottom: 4,
+  coursePillActive: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.34)",
   },
-  courseOptionRow: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  courseOptionRowActive: {
-    backgroundColor: "rgba(34,197,94,0.08)",
-  },
-  courseOptionCode: {
-    ...typography.body,
-    color: colors.textPrimary,
+  coursePillText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
     fontWeight: "700",
   },
-  courseOptionMeta: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 10,
-    marginTop: 4,
+  coursePillTextActive: {
+    color: colors.primary,
   },
   batchHelperText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
     marginBottom: 14,
-  },
-  profileCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 2,
-    padding: 12,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  infoLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 10,
-  },
-  infoValue: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 10,
-    fontWeight: "700",
-    marginLeft: 12,
-    textAlign: "right",
   },
   uploadButton: {
     borderRadius: 8,

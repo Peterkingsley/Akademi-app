@@ -853,7 +853,7 @@ export class MaterialsService {
     return getSignedUrl(s3Client, command, { expiresIn: 900 });
   }
 
-  async getQuestions(id: string, userId: string, limit?: number) {
+  async getQuestions(id: string, userId: string, limit?: number, pageStart?: number, pageEnd?: number) {
     const material = await prisma.material.findUnique({
       where: { id, verification_status: VerificationStatus.VERIFIED },
     });
@@ -867,7 +867,26 @@ export class MaterialsService {
       throw new Error('Material CBT Day Pass required');
     }
 
+    if ((pageStart == null) !== (pageEnd == null)) {
+      throw new Error('Invalid page range: both pageStart and pageEnd must be provided together.');
+    }
+
+    if (pageStart != null && pageEnd != null) {
+      if (!Number.isInteger(pageStart) || !Number.isInteger(pageEnd) || pageStart > pageEnd) {
+        throw new Error('Invalid page range: pageStart must be a whole number less than or equal to pageEnd.');
+      }
+
+      const totalPages = Array.isArray((material.reader_structure as any)?.pages)
+        ? ((material.reader_structure as any).pages as unknown[]).length
+        : 0;
+
+      if (pageStart < 1 || (totalPages > 0 && pageEnd > totalPages)) {
+        throw new Error(`Invalid page range: pages must fall within 1-${totalPages || pageEnd}.`);
+      }
+    }
+
     const take = Math.min(Math.max(Number(limit) || 10, 5), 50);
+    const hasPageRange = pageStart != null && pageEnd != null;
 
     const attemptedQuestionIds = await prisma.questionAttempt.findMany({
       where: {
@@ -891,6 +910,12 @@ export class MaterialsService {
           id: {
             notIn: [...attemptedSet],
           },
+          ...(hasPageRange
+            ? {
+                source_page_start: { lte: pageEnd },
+                source_page_end: { gte: pageStart },
+              }
+            : {}),
         },
         orderBy: { generated_at: 'desc' },
       });
@@ -908,6 +933,7 @@ export class MaterialsService {
         await generateQuestionsJob(id, {
           count: generationTarget,
           excludeQuestionTexts: existingQuestions.map((question) => question.question_text),
+          ...(hasPageRange ? { pageStart, pageEnd } : {}),
         });
       } catch (error) {
         console.error(`Failed to generate additional CBT questions for material ${id}:`, error);
@@ -917,7 +943,11 @@ export class MaterialsService {
     }
 
     if (availableQuestions.length === 0) {
-      throw new Error('No CBT questions are available for this material yet.');
+      throw new Error(
+        hasPageRange
+          ? `No CBT questions are available for pages ${pageStart}-${pageEnd} yet.`
+          : 'No CBT questions are available for this material yet.',
+      );
     }
 
     // Never return the answer key before the student attempts the question.
