@@ -13,7 +13,8 @@ import {
   Mail
   ,
   Swords,
-  BookOpen
+  BookOpen,
+  FileText
 } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -28,6 +29,9 @@ export const AdminMoreScreen: React.FC = () => {
   const { user } = useAuthStore();
 
   const isSuperAdmin = user?.admin_role === 'SUPER_ADMIN';
+  // Matches the backend's authorizeRoles(SUPER_ADMIN, CONTENT_MANAGER) on the discipline
+  // document upload routes (admin.routes.ts) — MODERATOR/ANALYST are not authorized there.
+  const canManageDisciplineDocuments = isSuperAdmin || user?.admin_role === 'CONTENT_MANAGER';
 
   const MenuItem = ({ icon: Icon, label, onPress, color = colors.primary, description }: any) => (
     <TouchableOpacity
@@ -65,6 +69,15 @@ export const AdminMoreScreen: React.FC = () => {
               onPress={() => navigation.navigate("GeneratedTextbooks")}
               color="#0EA5E9"
             />
+            {canManageDisciplineDocuments && (
+              <MenuItem
+                icon={FileText}
+                label="Discipline Documents"
+                description="Upload CCMAS and international reference curricula"
+                onPress={() => navigation.navigate("DisciplineDocuments")}
+                color="#22C55E"
+              />
+            )}
             {isSuperAdmin && (
               <>
                 <MenuItem
