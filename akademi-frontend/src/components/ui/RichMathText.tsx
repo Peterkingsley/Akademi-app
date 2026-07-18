@@ -8,6 +8,7 @@ interface RichMathTextProps {
   backgroundColor?: string;
   fontSize?: number;
   lineHeight?: number;
+  textAlign?: "left" | "center" | "right";
 }
 
 const escapeHtml = (value: string) =>
@@ -18,8 +19,70 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const normalizeText = (value: string) =>
-  value
+const applyHeuristicMath = (text: string) => {
+  let result = text;
+  
+  // 1. Fix Dimensional Analysis formulas (e.g. [ML5T-2] -> \[ML^{5}T^{-2}\])
+  result = result.replace(/\[([MLT0-9\-]+)\]/g, (match, inner) => {
+    if (/[MLT]/.test(inner) && /\d/.test(inner)) {
+      const fixed = inner.replace(/([MLT])(-?\d+)/g, '$1^{$2}');
+      return `\\([${fixed}]\\)`;
+    }
+    return match;
+  });
+
+  // 2. Wrap inline equations like x = at + bt^2 - ct^3
+  const mathToken = /(?:[A-Za-z0-9]*[=+\-*/^\\_{}()][A-Za-z0-9=+\-*/^\\_{}()\.]*|\b[A-Za-z]{1,2}\b|\b[0-9]+(?:\.[0-9]+)?\b)/;
+  const mathSeq = new RegExp('(?:^|\\s)(' + mathToken.source + '(?:\\s+' + mathToken.source + ')*)(?=$|\\s|[.,?!])', 'g');
+
+  result = result.replace(mathSeq, (match, p1) => {
+    let trimmed = p1.trim();
+    
+    let trailingPunct = '';
+    const endMatch = trimmed.match(/[.,?!]+$/);
+    if (endMatch) {
+      trailingPunct = endMatch[0];
+      trimmed = trimmed.substring(0, trimmed.length - trailingPunct.length);
+    }
+    
+    let leadingPunct = '';
+    const startMatch = trimmed.match(/^[.,?!]+/);
+    if (startMatch) {
+      leadingPunct = startMatch[0];
+      trimmed = trimmed.substring(leadingPunct.length);
+    }
+
+    const stopwords = ['is', 'by', 'of', 'in', 'to', 'if', 'or', 'an', 'as', 'be', 'do', 'so', 'we', 'he', 'the', 'a', 'at'];
+    let words = trimmed.split(/\s+/);
+    
+    while (words.length > 0 && stopwords.includes(words[0].toLowerCase())) {
+      leadingPunct += words[0] + ' ';
+      words.shift();
+    }
+    
+    while (words.length > 0 && stopwords.includes(words[words.length - 1].toLowerCase())) {
+      trailingPunct = ' ' + words[words.length - 1] + trailingPunct;
+      words.pop();
+    }
+    
+    trimmed = words.join(' ');
+    
+    if (!trimmed) return match;
+
+    const hasMathSignal = /[=+\-*/^\\_{}]/.test(trimmed);
+    if (!hasMathSignal) return match;
+
+    // Don't double wrap
+    if (trimmed.includes('\\(') || trimmed.includes('\\[')) return match;
+    
+    return match.replace(p1, `${leadingPunct}\\(${trimmed}\\)${trailingPunct}`);
+  });
+
+  return result;
+};
+
+const normalizeText = (value: string) => {
+  let text = value
     .replace(/\r\n/g, "\n")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.*?)\*\*/g, "$1")
@@ -29,6 +92,9 @@ const normalizeText = (value: string) =>
     // emitted with spacing between rows still arrives at the block parser as ONE table.
     .replace(/(\|)[ \t]*\n(?:[ \t]*\n)+(?=[ \t]*\|)/g, "$1\n")
     .trim();
+    
+  return applyHeuristicMath(text);
+};
 
 const isBulletLine = (line: string) => /^(?:\u2022|[-*])\s+/.test(line);
 const explicitDisplayMathPattern = /^\\\[(.*)\\\]$/s;
@@ -226,6 +292,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
   backgroundColor = "transparent",
   fontSize = 16,
   lineHeight = 1.6,
+  textAlign = "left",
 }) => {
   const [height, setHeight] = useState(64);
   const heightRef = useRef(64);
@@ -235,7 +302,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
     heightRef.current = 64;
     isHeightLockedRef.current = false;
     setHeight(64);
-  }, [content, backgroundColor, fontSize, lineHeight, textColor]);
+  }, [content, backgroundColor, fontSize, lineHeight, textColor, textAlign]);
 
   const html = useMemo(
     () => `
@@ -253,6 +320,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         padding: 0;
         background: ${backgroundColor};
         color: ${textColor};
+        text-align: ${textAlign};
         overflow: hidden;
       }
       body {
@@ -263,9 +331,13 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
       #content {
         width: 100%;
       }
+      #content > *:last-child {
+        margin-bottom: 0;
+      }
       .paragraph {
         margin: 0 0 0.6em 0;
         word-break: break-word;
+        text-align: ${textAlign};
       }
       .math-line {
         margin: 0.2em 0 0.45em 0;
@@ -305,10 +377,12 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
         color: ${textColor};
         font-size: 1em;
       }
-      .katex-display {
-        margin: 0.2em 0;
+      .katex-display,
+      .katex-display > .katex {
+        margin: 0.1em 0;
         overflow-x: auto;
         overflow-y: hidden;
+        text-align: ${textAlign} !important;
       }
     </style>
   </head>
@@ -318,11 +392,8 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
       let hasRenderedMath = false;
 
       function postFinalHeight() {
-        const nextHeight = Math.max(
-          document.body.scrollHeight,
-          document.documentElement.scrollHeight,
-          32
-        );
+        const contentEl = document.getElementById('content');
+        const nextHeight = contentEl ? contentEl.scrollHeight : 32;
         window.ReactNativeWebView.postMessage(String(nextHeight));
       }
 
@@ -408,7 +479,7 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
     </script>
   </body>
 </html>`,
-    [backgroundColor, content, fontSize, lineHeight, textColor]
+    [backgroundColor, content, fontSize, lineHeight, textColor, textAlign]
   );
 
   return (

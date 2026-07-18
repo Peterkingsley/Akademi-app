@@ -3,6 +3,7 @@ import {
   View,
   StyleSheet,
   ScrollView,
+  StyleProp,
   ViewStyle,
   KeyboardAvoidingView,
   Platform,
@@ -19,7 +20,7 @@ interface ScreenProps {
   leftAction?: React.ReactNode;
   rightAction?: React.ReactNode;
   scrollable?: boolean;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   hideHeader?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
 }

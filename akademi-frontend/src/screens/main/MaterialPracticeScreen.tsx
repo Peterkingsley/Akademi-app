@@ -9,9 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, X } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, X, Target, Timer, BookOpen } from "lucide-react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
+import { BlurView } from "expo-blur";
 import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -331,7 +332,7 @@ export const MaterialPracticeScreen: React.FC = () => {
   const showSetup = questions.length === 0 && !submitted;
 
   return (
-    <Screen style={styles.screen} hideHeader>
+    <Screen style={[styles.screen, (!showSetup && !submitted) ? styles.wwtbamScreen : undefined]} hideHeader>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
           <X size={24} color="#FFFFFF" />
@@ -356,90 +357,100 @@ export const MaterialPracticeScreen: React.FC = () => {
       </View>
 
       {showSetup ? (
-        <ScrollView contentContainerStyle={styles.setupContent}>
-          <Card style={styles.setupCard}>
-            <Text style={[styles.setupTitle, typography.h3]}>Set your CBT format</Text>
+        <ScrollView contentContainerStyle={styles.setupContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.setupHeader}>
+            <Text style={[styles.setupTitle, typography.h2]}>Configure Practice</Text>
             <Text style={[styles.setupText, typography.bodySmall]}>
-              Choose how many questions you want and how long this CBT should last before you
-              start.
+              Customize your CBT session format below.
             </Text>
+          </View>
 
-            <View style={styles.optionSection}>
+          <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+            <View style={styles.optionHeader}>
+              <Target size={16} color={colors.primary} />
               <Text style={[styles.optionLabel, typography.mono]}>QUESTION COUNT</Text>
-              <View style={styles.segmentRow}>
-                {QUESTION_COUNT_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[styles.segmentButton, questionCount === option && styles.segmentButtonActive]}
-                    onPress={() => setQuestionCount(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentButtonText,
-                        questionCount === option && styles.segmentButtonTextActive,
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
+            <View style={styles.segmentTrack}>
+              {QUESTION_COUNT_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.segmentButton, questionCount === option && styles.segmentButtonActive]}
+                  onPress={() => setQuestionCount(option)}
+                >
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      questionCount === option && styles.segmentButtonTextActive,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </BlurView>
 
-            <View style={styles.optionSection}>
+          <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+            <View style={styles.optionHeader}>
+              <Timer size={16} color={colors.primary} />
               <Text style={[styles.optionLabel, typography.mono]}>TOTAL CBT TIME</Text>
-              <View style={styles.segmentWrap}>
-                {DURATION_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[styles.segmentButton, durationMinutes === option && styles.segmentButtonActive]}
-                    onPress={() => setDurationMinutes(option)}
+            </View>
+            <View style={styles.segmentTrack}>
+              {DURATION_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[styles.segmentButton, durationMinutes === option && styles.segmentButtonActive]}
+                  onPress={() => setDurationMinutes(option)}
+                >
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      durationMinutes === option && styles.segmentButtonTextActive,
+                    ]}
                   >
-                    <Text
-                      style={[
-                        styles.segmentButtonText,
-                        durationMinutes === option && styles.segmentButtonTextActive,
-                      ]}
-                    >
-                      {option} min
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                    {option}m
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </BlurView>
+
+          <BlurView intensity={20} tint="dark" style={styles.glassCard}>
+            <View style={styles.optionHeader}>
+              <BookOpen size={16} color={colors.primary} />
+              <Text style={[styles.optionLabel, typography.mono]}>MATERIAL COVERAGE</Text>
+            </View>
+            <View style={styles.segmentTrack}>
+              <TouchableOpacity
+                style={[styles.segmentButton, !useCustomRange && styles.segmentButtonActive]}
+                onPress={() => {
+                  setUseCustomRange(false);
+                  setRangeError("");
+                }}
+              >
+                <Text
+                  style={[styles.segmentButtonText, !useCustomRange && styles.segmentButtonTextActive]}
+                >
+                  Full material
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.segmentButton, useCustomRange && styles.segmentButtonActive]}
+                onPress={() => {
+                  setUseCustomRange(true);
+                  setRangeError("");
+                }}
+              >
+                <Text
+                  style={[styles.segmentButtonText, useCustomRange && styles.segmentButtonTextActive]}
+                >
+                  Page range
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.optionSection}>
-              <Text style={[styles.optionLabel, typography.mono]}>MATERIAL COVERAGE</Text>
-              <View style={styles.segmentRow}>
-                <TouchableOpacity
-                  style={[styles.segmentButton, !useCustomRange && styles.segmentButtonActive]}
-                  onPress={() => {
-                    setUseCustomRange(false);
-                    setRangeError("");
-                  }}
-                >
-                  <Text
-                    style={[styles.segmentButtonText, !useCustomRange && styles.segmentButtonTextActive]}
-                  >
-                    Full material
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.segmentButton, useCustomRange && styles.segmentButtonActive]}
-                  onPress={() => {
-                    setUseCustomRange(true);
-                    setRangeError("");
-                  }}
-                >
-                  <Text
-                    style={[styles.segmentButtonText, useCustomRange && styles.segmentButtonTextActive]}
-                  >
-                    Page range
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {useCustomRange && (
+            {useCustomRange && (
+              <View style={styles.pageRangeContainer}>
                 <View style={styles.pageRangeRow}>
                   <View style={styles.pageRangeField}>
                     <Text style={[styles.pageRangeLabel, typography.bodySmall]}>From</Text>
@@ -470,28 +481,27 @@ export const MaterialPracticeScreen: React.FC = () => {
                     />
                   </View>
                 </View>
-              )}
-
-              {useCustomRange && (
                 <Text style={[styles.pageRangeHint, typography.bodySmall]}>
                   {totalPages
-                    ? `This material has ${totalPages} pages. Pick a range within 1-${totalPages}.`
+                    ? `Pick a range within 1-${totalPages}.`
                     : "Enter the page range you just read."}
                 </Text>
-              )}
+              </View>
+            )}
 
-              {!!rangeError && (
-                <Text style={[styles.pageRangeError, typography.bodySmall]}>{rangeError}</Text>
-              )}
-            </View>
+            {!!rangeError && (
+              <Text style={[styles.pageRangeError, typography.bodySmall]}>{rangeError}</Text>
+            )}
+          </BlurView>
 
-            <Card style={styles.setupSummaryCard}>
+          <View style={styles.setupFooter}>
+            <View style={styles.setupSummaryWrap}>
               <Text style={[styles.setupSummaryTitle, typography.bodySmall]}>
                 {useCustomRange && hasValidRangeInputs
-                  ? `This CBT will load ${questionCount} questions from pages ${parsedPageFrom}-${parsedPageTo} and auto-submit after ${durationMinutes} minutes.`
-                  : `This CBT will load ${questionCount} questions and auto-submit after ${durationMinutes} minutes.`}
+                  ? `Loading ${questionCount} questions from pages ${parsedPageFrom}-${parsedPageTo} (Auto-submits in ${durationMinutes} mins).`
+                  : `Loading ${questionCount} questions covering the entire material (Auto-submits in ${durationMinutes} mins).`}
               </Text>
-            </Card>
+            </View>
 
             {!!passStatus && (
               <Text style={[styles.setupStatus, typography.bodySmall]}>
@@ -500,14 +510,14 @@ export const MaterialPracticeScreen: React.FC = () => {
             )}
 
             {!!setupError && (
-              <Card style={styles.setupErrorCard}>
+              <View style={styles.setupErrorWrap}>
                 <Text style={[styles.setupErrorText, typography.bodySmall]}>
                   {setupError}
                 </Text>
                 <TouchableOpacity onPress={checkPass} style={styles.retryLink}>
                   <Text style={[styles.retryLinkText, typography.bodySmall]}>Retry access check</Text>
                 </TouchableOpacity>
-              </Card>
+              </View>
             )}
 
             <Button
@@ -522,7 +532,7 @@ export const MaterialPracticeScreen: React.FC = () => {
               disabled={setupLoading || !canStart}
               style={styles.startButton}
             />
-          </Card>
+          </View>
         </ScrollView>
       ) : questions.length === 0 ? (
         <View style={styles.emptyState}>
@@ -603,45 +613,44 @@ export const MaterialPracticeScreen: React.FC = () => {
                 <Text style={[styles.questionCountLabel, typography.mono]}>
                   QUESTION {currentIndex + 1} OF {questions.length}
                 </Text>
-                <Card style={styles.questionCard}>
-                  <RichMathText content={currentQuestion.question_text} />
-                </Card>
+                
+                <View style={styles.wwtbamQuestionWrap}>
+                  <View style={styles.wwtbamQuestionInner}>
+                    <RichMathText content={currentQuestion.question_text} textColor="#FFFFFF" fontSize={16} />
+                  </View>
+                </View>
 
                 <View style={styles.optionsList}>
                   {getOptions(currentQuestion).map((option, index) => {
                     const selected = answers[currentQuestion.id] === option;
                     return (
                       <TouchableOpacity
-                        key={`${currentQuestion.id}-${option}`}
-                        style={[styles.option, selected && styles.optionSelected]}
+                        key={`${currentQuestion.id}-opt-${index}`}
+                        style={[styles.wwtbamOption, selected && styles.wwtbamOptionSelected]}
                         onPress={() =>
                           setAnswers((prev) => ({ ...prev, [currentQuestion.id]: option }))
                         }
+                        activeOpacity={0.7}
                       >
-                        <View
-                          style={[
-                            styles.optionLetter,
-                            selected && styles.optionLetterSelected,
-                          ]}
-                        >
+                        <View style={styles.wwtbamOptionLetterWrap}>
                           <Text
                             style={[
-                              styles.optionLetterText,
-                              selected && styles.optionLetterTextSelected,
+                              styles.wwtbamOptionLetter,
+                              selected && styles.wwtbamOptionLetterSelected,
                             ]}
                           >
-                            {String.fromCharCode(65 + index)}
+                            {String.fromCharCode(65 + index)}:
                           </Text>
                         </View>
-                        <View style={styles.optionTextWrap}>
+                        <View style={styles.wwtbamOptionTextWrap}>
                           <RichMathText
                             content={option}
-                            textColor={selected ? "#FFFFFF" : colors.textSecondary}
-                            fontSize={14}
+                            textColor={selected ? "#000000" : "#FFFFFF"}
+                            fontSize={15}
                             lineHeight={1.4}
+                            textAlign="center"
                           />
                         </View>
-                        {selected && <Check size={18} color={colors.primary} />}
                       </TouchableOpacity>
                     );
                   })}
@@ -689,6 +698,9 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  wwtbamScreen: {
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     alignItems: "center",
@@ -788,8 +800,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  setupCard: {
-    gap: 16,
+  setupHeader: {
+    marginBottom: 24,
   },
   setupTitle: {
     color: "#FFFFFF",
@@ -797,103 +809,126 @@ const styles = StyleSheet.create({
   },
   setupText: {
     color: colors.textSecondary,
-    lineHeight: 20,
+    marginTop: 6,
   },
-  optionSection: {
-    gap: 10,
+  glassCard: {
+    backgroundColor: "rgba(30, 30, 30, 0.4)",
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: "hidden",
+    padding: 20,
+  },
+  optionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
   },
   optionLabel: {
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: 10,
+    fontWeight: "600",
   },
-  segmentRow: {
+  segmentTrack: {
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    borderRadius: 12,
     flexDirection: "row",
-    gap: 10,
-  },
-  segmentWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+    padding: 4,
   },
   segmentButton: {
-    minWidth: 66,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
     alignItems: "center",
+    borderRadius: 8,
+    flex: 1,
+    paddingVertical: 10,
   },
   segmentButtonActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   segmentButtonText: {
     ...typography.bodySmall,
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     fontWeight: "700",
   },
   segmentButtonTextActive: {
     color: "#04110A",
   },
+  pageRangeContainer: {
+    marginTop: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    borderRadius: 12,
+    padding: 16,
+  },
   pageRangeRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
   },
   pageRangeField: {
     flex: 1,
-    gap: 6,
+    gap: 8,
   },
   pageRangeLabel: {
     color: colors.textMuted,
+    fontWeight: "600",
   },
   pageRangeInput: {
-    borderColor: colors.border,
-    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderColor: "rgba(255,255,255,0.05)",
+    borderRadius: 10,
     borderWidth: 1,
-    backgroundColor: colors.surfaceElevated,
     color: colors.textPrimary,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   pageRangeHint: {
     color: colors.textMuted,
+    marginTop: 12,
+    textAlign: "center",
   },
   pageRangeError: {
     color: colors.error,
+    marginTop: 12,
+    textAlign: "center",
   },
-  setupSummaryCard: {
-    backgroundColor: colors.surfaceElevated,
+  setupFooter: {
+    marginTop: 8,
+  },
+  setupSummaryWrap: {
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 10,
   },
   setupSummaryTitle: {
     color: colors.textSecondary,
-    lineHeight: 20,
+    textAlign: "center",
   },
   setupStatus: {
     color: colors.textMuted,
     textAlign: "center",
+    marginBottom: 12,
   },
-  setupErrorCard: {
+  setupErrorWrap: {
+    alignItems: "center",
     backgroundColor: colors.error + "10",
     borderColor: colors.error + "33",
+    borderRadius: 12,
     borderWidth: 1,
-    gap: 10,
+    marginBottom: 16,
+    padding: 16,
   },
   setupErrorText: {
     color: colors.textSecondary,
-    lineHeight: 20,
+    textAlign: "center",
   },
   retryLink: {
-    alignSelf: "flex-start",
-    paddingVertical: 4,
+    marginTop: 8,
   },
   retryLinkText: {
     color: colors.primary,
     fontWeight: "700",
   },
   startButton: {
-    marginTop: 6,
+    borderRadius: 16,
+    height: 56,
   },
   progress: {
     borderRadius: 0,
@@ -905,63 +940,59 @@ const styles = StyleSheet.create({
   },
   questionCountLabel: {
     color: colors.textMuted,
-    fontSize: 9,
-    marginBottom: 12,
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: 1,
   },
-  questionCard: {
-    backgroundColor: colors.surface,
-    marginBottom: 24,
-    padding: 18,
-  },
-  questionText: {
-    color: "#FFFFFF",
-    lineHeight: 24,
-  },
-  optionsList: {
-    gap: 12,
-  },
-  option: {
-    alignItems: "center",
+  wwtbamQuestionWrap: {
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.border,
-    borderRadius: 12,
     borderWidth: 1,
-    flexDirection: "row",
-    padding: 14,
+    borderRadius: 20,
+    padding: 3,
+    marginBottom: 16,
+    elevation: 2,
   },
-  optionSelected: {
-    backgroundColor: colors.primary + "14",
-    borderColor: colors.primary,
-  },
-  optionLetter: {
-    alignItems: "center",
+  wwtbamQuestionInner: {
     backgroundColor: colors.surface,
-    borderRadius: 15,
-    height: 30,
-    justifyContent: "center",
-    marginRight: 12,
-    width: 30,
+    borderRadius: 18,
+    padding: 16,
+    alignItems: "center",
   },
-  optionLetterSelected: {
-    backgroundColor: colors.primary,
+  optionsList: {
+    gap: 10,
   },
-  optionLetterText: {
-    color: colors.textMuted,
-    fontWeight: "700",
+  wwtbamOption: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
-  optionLetterTextSelected: {
-    color: "#FFFFFF",
+  wwtbamOptionSelected: {
+    backgroundColor: colors.primary + "1A",
+    borderColor: colors.primary,
+    elevation: 2,
   },
-  optionText: {
-    color: colors.textSecondary,
+  wwtbamOptionLetterWrap: {
+    marginRight: 10,
+    marginTop: 1,
+  },
+  wwtbamOptionLetter: {
+    color: colors.primary,
+    fontWeight: "800",
+    fontSize: 16,
+  },
+  wwtbamOptionLetterSelected: {
+    color: colors.primary,
+  },
+  wwtbamOptionTextWrap: {
     flex: 1,
-  },
-  optionTextWrap: {
-    flex: 1,
-  },
-  optionTextSelected: {
-    color: "#FFFFFF",
-    fontWeight: "700",
   },
   footer: {
     alignItems: "center",

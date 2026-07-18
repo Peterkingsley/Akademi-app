@@ -10,8 +10,16 @@ import {
 import BottomSheet, { BottomSheetFlatList, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import * as DocumentPicker from "expo-document-picker";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
-import Animated, { FadeInUp, Layout } from "react-native-reanimated";
-import { AlertCircle, BookOpen, FileUp, Plus, RefreshCw, Upload } from "lucide-react-native";
+import Animated, { FadeIn, FadeInUp, Layout, ZoomIn } from "react-native-reanimated";
+import { AlertCircle, BookOpen, FileUp, Plus, RefreshCw, Upload, UploadCloud, FileText, X } from "lucide-react-native";
+
+const formatFileSize = (bytes?: number) => {
+  if (!bytes) return "Unknown size";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+};
 
 import { Button } from "../../components/ui/Button";
 import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
@@ -157,9 +165,14 @@ export const LibraryScreen: React.FC = () => {
 
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    
+    // Helper to normalize course codes (remove all spaces, uppercase)
+    const normalize = (code: string) => code.replace(/\s+/g, "").toUpperCase();
+    const normalizedSelected = normalize(selectedCourse);
+
     return materials.filter((material) => {
       const courseCode = material.course_code || "General";
-      const matchesCourse = selectedCourse === "All" || courseCode === selectedCourse;
+      const matchesCourse = selectedCourse === "All" || normalize(courseCode) === normalizedSelected;
       const matchesSearch =
         !query ||
         material.title.toLowerCase().includes(query) ||
@@ -170,8 +183,24 @@ export const LibraryScreen: React.FC = () => {
   }, [materials, searchQuery, selectedCourse]);
 
   const courses = useMemo(() => {
-    const materialCourses = materials.map((material) => material.course_code || "General");
-    return Array.from(new Set([...userCourses, ...materialCourses])).sort();
+    const normalize = (code: string) => code.replace(/\s+/g, "").toUpperCase();
+    
+    // Create a mapping from normalized code -> preferred display code (prefer userCourses)
+    const displayMap = new Map<string, string>();
+    userCourses.forEach(c => displayMap.set(normalize(c), c));
+    
+    materials.forEach((material) => {
+      const code = material.course_code;
+      if (code && code !== "General") {
+        const norm = normalize(code);
+        if (!displayMap.has(norm)) {
+          // If it's a completely new course not in user's profile, use the material's format
+          displayMap.set(norm, code);
+        }
+      }
+    });
+    
+    return Array.from(displayMap.values()).sort();
   }, [materials, userCourses]);
 
   // Exam Prep's "Study Now" navigates here with a course_code param scoped to that course.
@@ -189,29 +218,41 @@ export const LibraryScreen: React.FC = () => {
   const handleSelectFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "image/*",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ],
+        type: ["application/pdf", "image/*", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
         multiple: true,
       });
 
-      if (!result.canceled) {
-        const assets = result.assets.slice(0, 20);
-        setSelectedFiles(assets);
-        if (result.assets.length > 20) {
-          setToast({ message: "Only the first 20 files were selected.", type: "warning" });
-        }
-        if (assets.length === 1 && !uploadTitle) {
-          setUploadTitle(assets[0].name.split(".")[0].toUpperCase());
-        } else if (assets.length > 1) {
+      if (!result.canceled && result.assets.length > 0) {
+        const newFiles = [...selectedFiles];
+        result.assets.forEach(asset => {
+          if (!newFiles.some(f => f.uri === asset.uri)) {
+            newFiles.push(asset);
+          }
+        });
+        
+        setSelectedFiles(newFiles);
+
+        if (newFiles.length === 1 && !uploadTitle) {
+          setUploadTitle(newFiles[0].name.split(".")[0].toUpperCase());
+        } else if (newFiles.length > 1) {
           setUploadTitle("");
         }
       }
     } catch (err) {
-      setToast({ message: "Could not open file picker.", type: "error" });
+      console.error("File selection error:", err);
+      setToast({ message: "Could not select files", type: "error" });
+    }
+  };
+
+  const removeFile = (uriToRemove: string) => {
+    setSelectedFiles(prev => prev.filter(f => f.uri !== uriToRemove));
+    if (selectedFiles.length === 2) {
+      const remainingFile = selectedFiles.find(f => f.uri !== uriToRemove);
+      if (remainingFile && !uploadTitle) {
+        setUploadTitle(remainingFile.name.split(".")[0].toUpperCase());
+      }
+    } else if (selectedFiles.length === 1) {
+      setUploadTitle("");
     }
   };
 
@@ -490,23 +531,49 @@ export const LibraryScreen: React.FC = () => {
             </View>
           )}
 
-          <Button
-            label={selectedFiles.length > 0 ? `${selectedFiles.length} FILE${selectedFiles.length === 1 ? "" : "S"} SELECTED` : "Select files"}
-            variant="secondary"
+          <TouchableOpacity 
+            style={styles.dropzone}
+            activeOpacity={0.7}
             onPress={handleSelectFile}
-            icon={<Upload size={20} color="#FFFFFF" />}
-            style={styles.sheetButton}
-          />
+          >
+            <View style={styles.dropzoneIconContainer}>
+              <UploadCloud size={32} color={colors.primary} />
+            </View>
+            <Text style={styles.dropzoneTitle}>Tap to select files</Text>
+            <Text style={styles.dropzoneSubtitle}>PDF, DOCX, or Images</Text>
+          </TouchableOpacity>
 
-          {selectedFiles.length > 0 ? (
-            <View style={styles.selectedFilesCard}>
-              {selectedFiles.map((file) => (
-                <Text key={`${file.uri}-${file.name}`} style={styles.selectedFileName} numberOfLines={1}>
-                  {file.name.toUpperCase()}
-                </Text>
+          {selectedFiles.length > 0 && (
+            <View style={styles.selectedFilesContainer}>
+              <Text style={styles.sheetLabel}>Selected Files ({selectedFiles.length})</Text>
+              {selectedFiles.map((file, index) => (
+                <Animated.View 
+                  key={`${file.uri}-${index}`} 
+                  entering={FadeIn.delay(index * 50).duration(300)}
+                  layout={Layout.springify().damping(15)}
+                  style={styles.fileCard}
+                >
+                  <View style={styles.fileIconCircle}>
+                    <FileText size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.fileDetails}>
+                    <Text style={styles.fileName} numberOfLines={1}>
+                      {file.name}
+                    </Text>
+                    <Text style={styles.fileSize}>
+                      {formatFileSize(file.size)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.removeFileBtn} 
+                    onPress={() => removeFile(file.uri)}
+                  >
+                    <X size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </Animated.View>
               ))}
             </View>
-          ) : null}
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.sheetLabel}>Course Code</Text>
@@ -556,6 +623,7 @@ export const LibraryScreen: React.FC = () => {
             label="Submit for review"
             onPress={handleUpload}
             loading={uploading}
+            variant="primary"
             disabled={
               !uploadCourseCode ||
               selectedFiles.length === 0 ||
@@ -752,24 +820,76 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     lineHeight: 17,
     marginLeft: 8,
   },
-  sheetButton: {
-    borderRadius: 8,
-    marginBottom: 18,
+  dropzone: {
+    alignItems: "center",
+    backgroundColor: "rgba(102, 103, 171, 0.05)",
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderStyle: "dashed",
+    borderWidth: 2,
+    justifyContent: "center",
+    marginBottom: 24,
+    paddingVertical: 32,
   },
-  selectedFilesCard: {
+  dropzoneIconContainer: {
+    alignItems: "center",
+    backgroundColor: "rgba(102, 103, 171, 0.15)",
+    borderRadius: 999,
+    height: 64,
+    justifyContent: "center",
+    marginBottom: 16,
+    width: 64,
+  },
+  dropzoneTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  dropzoneSubtitle: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  selectedFilesContainer: {
+    marginBottom: 24,
+  },
+  fileCard: {
+    alignItems: "center",
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 14,
-    maxHeight: 156,
+    flexDirection: "row",
+    marginBottom: 10,
     padding: 12,
   },
-  selectedFileName: {
-    ...typography.caption,
+  fileIconCircle: {
+    alignItems: "center",
+    backgroundColor: "rgba(102, 103, 171, 0.15)",
+    borderRadius: 999,
+    height: 36,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 36,
+  },
+  fileDetails: {
+    flex: 1,
+  },
+  fileName: {
+    ...typography.body,
     color: colors.textPrimary,
-    fontSize: 11,
-    marginBottom: 6,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  fileSize: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  removeFileBtn: {
+    alignItems: "center",
+    height: 36,
+    justifyContent: "center",
+    marginLeft: 8,
+    width: 36,
   },
   inputGroup: {
     marginBottom: 20,
