@@ -19,6 +19,7 @@ import { queueMaterialIngestion } from '../materials/material-processing';
 import { getUniversityCoverageAudit } from '../universities/university-coverage';
 import { timingSafeEqual } from '../../shared/utils/secure-compare';
 import { aiProvider } from '../ai/ai.provider';
+import { isContentFaithfulToSource } from '../../shared/utils/content-similarity';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -95,17 +96,6 @@ function parseDisciplineDocumentSplitResponse(text: string): DisciplineDocumentS
   }
 
   return Array.from(blocks.values());
-}
-
-// Mechanical faithfulness check, not just trusting the model's "I promise this is verbatim"
-// instruction-following: normalizes whitespace on both sides and confirms the extracted content
-// is genuinely a substring of the source document. This is what actually backs the
-// already_exists/content_verified signal the admin sees before confirming a split.
-function isContentFaithfulToSource(extracted: string, source: string): boolean {
-  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
-  const normalizedExtracted = normalize(extracted);
-  if (!normalizedExtracted) return false;
-  return normalize(source).includes(normalizedExtracted);
 }
 
 export class AdminService {
