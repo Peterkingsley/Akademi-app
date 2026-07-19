@@ -226,7 +226,12 @@ export class AuthService {
 
     if (academicCourses.length > 0 && semesterStart && semesterEnd) {
       // Fire-and-forget: must not block the registration response on textbook generation.
-      triggerTextbookGenerationForCourseCodes(academicCourses.map((course) => course.code)).catch(console.error);
+      // department.university_id is already on hand from the lookup above (no select clause was
+      // used there, so every scalar field — including university_id — came back with it).
+      triggerTextbookGenerationForCourseCodes(
+        academicCourses.map((course) => course.code),
+        department.university_id,
+      ).catch(console.error);
     }
 
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {

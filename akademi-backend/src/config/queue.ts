@@ -36,6 +36,7 @@ type JobPayload = {
   nodeId?: string;
   sectionId?: string;
   outlineId?: string;
+  universityId?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -156,7 +157,7 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.DECOMPOSE_CURRICULUM: {
       if (!payload.courseCode) throw new Error('DECOMPOSE_CURRICULUM requires courseCode');
       const { decomposeCurriculumJob } = await import('../jobs/decomposeCurriculum.job');
-      await decomposeCurriculumJob(payload.courseCode);
+      await decomposeCurriculumJob(payload.courseCode, payload.universityId);
       return;
     }
     case JOB_NAMES.GENERATE_TEXTBOOK_SECTION: {

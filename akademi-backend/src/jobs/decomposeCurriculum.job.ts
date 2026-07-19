@@ -95,24 +95,42 @@ function buildDecompositionPrompt(
   return lines.join('\n');
 }
 
-export async function decomposeCurriculumJob(courseCode: string): Promise<void> {
+export async function decomposeCurriculumJob(courseCode: string, universityId?: string | null): Promise<void> {
   const code = courseCode.trim().toUpperCase();
   if (!code) return;
 
-  const ccmasDoc = await prisma.disciplineDocument.findFirst({
-    where: { course_code: code, source_type: 'CCMAS', is_active: true },
-    orderBy: { version: 'desc' },
-  });
+  // Two-tier lookup, identical in shape to hasExistingTextbookOutline: prefer a SCHOOL_SPECIFIC
+  // CCMAS document scoped to the requesting student's university (that school's own 30% pick) if
+  // one exists, otherwise fall back to the NATIONAL_CORE document for this course code.
+  let ccmasDoc = null;
+  if (universityId) {
+    ccmasDoc = await prisma.disciplineDocument.findFirst({
+      where: {
+        course_code: code,
+        source_type: 'CCMAS',
+        is_active: true,
+        scope_type: 'SCHOOL_SPECIFIC',
+        university_id: universityId,
+      },
+      orderBy: { version: 'desc' },
+    });
+  }
+  if (!ccmasDoc) {
+    ccmasDoc = await prisma.disciplineDocument.findFirst({
+      where: { course_code: code, source_type: 'CCMAS', is_active: true, scope_type: 'NATIONAL_CORE' },
+      orderBy: { version: 'desc' },
+    });
+  }
 
   if (!ccmasDoc) {
-    console.log(`[decompose-curriculum] no active CCMAS document for course_code ${code}; skipping.`);
+    console.log(`[decompose-curriculum] no active CCMAS document for course_code ${code}${universityId ? ` (university ${universityId})` : ''}; skipping.`);
     return;
   }
 
   // Cheap re-check: two triggers for the same code (e.g. two students enrolling close together,
   // or the backfill script running while a live enrollment already queued the same code) could
   // both pass ensureTextbookGenerationQueued's check before either job actually runs.
-  if (await hasExistingTextbookOutline(code)) {
+  if (await hasExistingTextbookOutline(code, universityId)) {
     console.log(`[decompose-curriculum] course_code ${code} already has an outline; skipping.`);
     return;
   }
@@ -151,6 +169,12 @@ export async function decomposeCurriculumJob(courseCode: string): Promise<void> 
         ccmas_document_id: ccmasDoc.id,
         terminology_registry: {},
         is_current: false,
+        // Inherit from whichever CCMAS document was actually used above — a SCHOOL_SPECIFIC
+        // source produces a SCHOOL_SPECIFIC outline scoped to that same university, so it's
+        // never accidentally served to a different school's students even if they share the
+        // exact same course code.
+        scope_type: ccmasDoc.scope_type,
+        university_id: ccmasDoc.university_id,
       },
     });
 

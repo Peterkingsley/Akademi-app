@@ -47,7 +47,7 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const [splitPreview, setSplitPreview] = useState<DisciplineDocumentSplitPreview | null>(null);
-  const [splitSelections, setSplitSelections] = useState<Record<string, { include: boolean; level: string }>>({});
+  const [splitSelections, setSplitSelections] = useState<Record<string, { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }>>({});
   const [splitConfirming, setSplitConfirming] = useState(false);
 
   useEffect(() => {
@@ -193,6 +193,8 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
       department: docForm.department,
       document_ref: docForm.document_ref,
       source_type: "CCMAS" as const,
+      // Captured now so a SCHOOL_SPECIFIC course code detected during splitting can inherit it.
+      university_id: selectedDocUniversityId,
     };
 
     try {
@@ -211,11 +213,12 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
       setPreviewLoading(true);
       const preview = await adminService.previewDisciplineDocumentSplit(document.id);
       setSplitPreview(preview);
-      const initialSelections: Record<string, { include: boolean; level: string }> = {};
+      const initialSelections: Record<string, { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }> = {};
       preview.courses.forEach((course) => {
         initialSelections[course.course_code] = {
           include: !course.already_exists,
           level: course.level != null ? String(course.level) : "",
+          scope_type: course.scope_type,
         };
       });
       setSplitSelections(initialSelections);
@@ -241,6 +244,13 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
     }));
   };
 
+  const setSplitScope = (courseCode: string, scopeType: "NATIONAL_CORE" | "SCHOOL_SPECIFIC") => {
+    setSplitSelections((prev) => ({
+      ...prev,
+      [courseCode]: { ...prev[courseCode], scope_type: scopeType },
+    }));
+  };
+
   const confirmSplit = async () => {
     if (!splitPreview) return;
 
@@ -249,6 +259,7 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
       return {
         course_code: course.course_code,
         level: selection?.level ? Number(selection.level) : null,
+        scope_type: selection?.scope_type || course.scope_type,
         content: course.full_content,
         include: Boolean(selection?.include),
       };
@@ -386,7 +397,7 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
               {splitPreview.department} document. Review before confirming — deselect any that look wrong.
             </Text>
             {splitPreview.courses.map((course) => {
-              const selection = splitSelections[course.course_code] || { include: false, level: "" };
+              const selection = splitSelections[course.course_code] || { include: false, level: "", scope_type: course.scope_type };
               return (
                 <View
                   key={course.course_code}
@@ -426,20 +437,55 @@ export const UploadCcmasDocumentScreen: React.FC = () => {
                   <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 8 }]} numberOfLines={4}>
                     {course.content_preview}...
                   </Text>
-                  <View style={styles.splitLevelGroup}>
-                    <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Level</Text>
-                    <TextInput
-                      value={selection.level}
-                      onChangeText={(value) => updateSplitLevel(course.course_code, value)}
-                      placeholder="e.g. 100"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType="number-pad"
-                      style={[
-                        styles.splitLevelInput,
-                        { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.textPrimary },
-                      ]}
-                    />
+                  <View style={styles.splitLevelScopeRow}>
+                    <View style={styles.splitLevelGroup}>
+                      <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Level</Text>
+                      <TextInput
+                        value={selection.level}
+                        onChangeText={(value) => updateSplitLevel(course.course_code, value)}
+                        placeholder="e.g. 100"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="number-pad"
+                        style={[
+                          styles.splitLevelInput,
+                          { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.textPrimary },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.splitScopeGroup}>
+                      <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Scope</Text>
+                      <View style={styles.splitScopeRow}>
+                        {(["NATIONAL_CORE", "SCHOOL_SPECIFIC"] as const).map((option) => {
+                          const active = selection.scope_type === option;
+                          return (
+                            <TouchableOpacity
+                              key={option}
+                              onPress={() => setSplitScope(course.course_code, option)}
+                              style={[
+                                styles.splitScopeChip,
+                                {
+                                  backgroundColor: active ? colors.primary : colors.surfaceElevated,
+                                  borderColor: active ? colors.primary : colors.border,
+                                },
+                              ]}
+                            >
+                              <Text style={{ color: active ? "#FFF" : colors.textPrimary, fontWeight: "700", fontSize: 11 }}>
+                                {option === "NATIONAL_CORE" ? "National" : "School-specific"}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
                   </View>
+                  {selection.scope_type === "SCHOOL_SPECIFIC" && !splitPreview.university_id && (
+                    <View style={styles.splitWarningRow}>
+                      <AlertTriangle size={13} color={colors.error} />
+                      <Text style={[typography.caption, { color: colors.error, marginLeft: 6, flex: 1 }]}>
+                        This source document has no Reference School on file — set one before confirming, or switch this back to National.
+                      </Text>
+                    </View>
+                  )}
                 </View>
               );
             })}
@@ -598,14 +644,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 8,
   },
-  splitLevelGroup: {
+  splitLevelScopeRow: {
+    flexDirection: "row",
+    gap: 12,
     marginTop: 10,
+  },
+  splitLevelGroup: {
+    width: 90,
   },
   splitLevelInput: {
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  splitScopeGroup: {
+    flex: 1,
+  },
+  splitScopeRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  splitScopeChip: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
   modalBackdrop: {
     backgroundColor: "rgba(0,0,0,0.65)",

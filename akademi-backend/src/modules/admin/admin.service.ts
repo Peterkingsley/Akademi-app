@@ -20,6 +20,7 @@ import { getUniversityCoverageAudit } from '../universities/university-coverage'
 import { timingSafeEqual } from '../../shared/utils/secure-compare';
 import { aiProvider } from '../ai/ai.provider';
 import { isContentFaithfulToSource } from '../../shared/utils/content-similarity';
+import { parseDisciplineDocumentSplitResponse } from '../../shared/utils/discipline-document-split';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -54,49 +55,6 @@ const normalizeHexColor = (value?: string) => {
   if (!raw) return '#16a34a';
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw) ? raw : '#16a34a';
 };
-
-// Department-wide CCMAS document splitting (previewDisciplineDocumentSplit /
-// confirmDisciplineDocumentSplit below). Deliberately NOT the JSON-response convention used
-// elsewhere in this codebase's AI calls: each course's extracted content can be several thousand
-// characters of verbatim source text, and asking a model to correctly JSON-escape that much raw
-// text (quotes, newlines, tables) is a real failure mode. A plain delimiter format sidesteps
-// escaping entirely and is trivial to parse.
-interface DisciplineDocumentSplitEntry {
-  course_code: string;
-  level: number | null;
-  content: string;
-}
-
-function parseDisciplineDocumentSplitResponse(text: string): DisciplineDocumentSplitEntry[] {
-  const blocks = new Map<string, DisciplineDocumentSplitEntry>();
-  const blockPattern = /===COURSE===([\s\S]*?)===END===/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = blockPattern.exec(text))) {
-    const block = match[1];
-    const codeMatch = block.match(/CODE:\s*(.+)/);
-    const levelMatch = block.match(/LEVEL:\s*(.*)/);
-    const contentMatch = block.match(/CONTENT_START\s*([\s\S]*?)\s*CONTENT_END/);
-
-    const courseCode = codeMatch?.[1]?.trim().toUpperCase();
-    const content = contentMatch?.[1]?.trim();
-    if (!courseCode || !content) continue;
-
-    const levelRaw = levelMatch?.[1]?.trim();
-    const level = levelRaw && /^\d+$/.test(levelRaw) ? Number(levelRaw) : null;
-
-    // The same course code can legitimately appear more than once in the raw AI output (e.g. a
-    // document mentioning a course in both a table of contents and its own section) — keep
-    // whichever extraction is longer as the more complete one, rather than erroring or blindly
-    // taking the first.
-    const existing = blocks.get(courseCode);
-    if (!existing || content.length > existing.content.length) {
-      blocks.set(courseCode, { course_code: courseCode, level, content });
-    }
-  }
-
-  return Array.from(blocks.values());
-}
 
 export class AdminService {
   private materialsService = new MaterialsService();
@@ -1427,11 +1385,25 @@ export class AdminService {
       }
     }
 
+    const scopeType = (data.scope_type === 'SCHOOL_SPECIFIC' ? 'SCHOOL_SPECIFIC' : 'NATIONAL_CORE') as any;
+    const universityId = data.university_id?.trim() || null;
+
+    if (scopeType === 'SCHOOL_SPECIFIC' && !universityId) {
+      throw new Error('university_id is required for SCHOOL_SPECIFIC documents');
+    }
+
+    // university_id is part of the version-bump scope (not just course_code/source_type):
+    // different schools' department-wide CCMAS PDFs are genuinely different source documents
+    // (same national 70%, different 30%), not versions of each other, so uploading one school's
+    // document must never deactivate another school's. Pre-existing rows all share
+    // university_id: null and keep competing/versioning together among themselves, unchanged.
     const scopeWhere = {
       faculty: data.faculty,
       department: data.department,
       course_code: courseCode,
       source_type: sourceType as any,
+      scope_type: scopeType,
+      university_id: universityId,
     };
 
     const latest = await prisma.disciplineDocument.findFirst({
@@ -1460,6 +1432,8 @@ export class AdminService {
         last_updated_by: adminId,
         is_active: true,
         split_from_document_id: data.split_from_document_id || null,
+        scope_type: scopeType,
+        university_id: universityId,
       }
     });
 
@@ -1494,6 +1468,8 @@ export class AdminService {
       'Identify every distinct course code mentioned in this document (e.g. PHY101, PHY102, CHM201). For each one, extract the complete portion of the source text below that belongs to that specific course code, copied verbatim.',
       'If a course\'s level (100, 200, 300, 400, etc.) is explicitly stated, or can be reliably inferred from its code\'s own numbering convention (e.g. PHY101 implies level 100), report it. Otherwise leave LEVEL blank — do not guess.',
       '',
+      'CCMAS documents typically split into two structural sections: a national core (often labeled something like "70%", "Compulsory core", or similar) that is the same regardless of which school\'s copy of the document you\'re looking at, and a school-specific portion (often labeled "30%", "Institution-specific", "Elective", or similar) representing that particular school\'s own curriculum choices. Classify EVERY course code by which of these two structural sections it appears under in THIS document — use the document\'s own section labels/headers as the signal, whatever wording it actually uses; do not assume the literal text "70%"/"30%" is always present. Report this as SCOPE: NATIONAL_CORE or SCOPE: SCHOOL_SPECIFIC. If you genuinely cannot tell from the document\'s structure, default to SCOPE: NATIONAL_CORE rather than guessing SCHOOL_SPECIFIC.',
+      '',
       `Faculty: ${document.faculty}`,
       `Department: ${document.department}`,
       '',
@@ -1504,6 +1480,7 @@ export class AdminService {
       '===COURSE===',
       'CODE: <course code>',
       'LEVEL: <level number, or leave blank>',
+      'SCOPE: <NATIONAL_CORE or SCHOOL_SPECIFIC>',
       'CONTENT_START',
       '<the exact verbatim source text for this course, copied word-for-word>',
       'CONTENT_END',
@@ -1524,14 +1501,34 @@ export class AdminService {
 
     const courses = [];
     for (const entry of entries) {
+      // Scope-aware existence check: a NATIONAL_CORE candidate only conflicts with an existing
+      // NATIONAL_CORE document for the same course code; a SCHOOL_SPECIFIC candidate only
+      // conflicts with an existing SCHOOL_SPECIFIC document for the same course code AND the
+      // same source university — a different school's 30% pick for the same course code is not
+      // "already existing", it's a genuinely different document.
       const existing = await prisma.disciplineDocument.findFirst({
-        where: { course_code: entry.course_code, source_type: 'CCMAS', is_active: true },
+        where:
+          entry.scope_type === 'SCHOOL_SPECIFIC'
+            ? {
+                course_code: entry.course_code,
+                source_type: 'CCMAS',
+                is_active: true,
+                scope_type: 'SCHOOL_SPECIFIC',
+                university_id: document.university_id,
+              }
+            : {
+                course_code: entry.course_code,
+                source_type: 'CCMAS',
+                is_active: true,
+                scope_type: 'NATIONAL_CORE',
+              },
         select: { id: true, version: true },
       });
 
       courses.push({
         course_code: entry.course_code,
         level: entry.level,
+        scope_type: entry.scope_type,
         content_preview: entry.content.slice(0, 300),
         full_content: entry.content,
         already_exists: Boolean(existing),
@@ -1543,6 +1540,7 @@ export class AdminService {
       document_id: document.id,
       faculty: document.faculty,
       department: document.department,
+      university_id: document.university_id,
       courses,
     };
   }
@@ -1553,7 +1551,13 @@ export class AdminService {
   // active document gets a new version instead of two competing active documents.
   async confirmDisciplineDocumentSplit(
     documentId: string,
-    selections: Array<{ course_code: string; level?: number | null; content: string; include: boolean }>,
+    selections: Array<{
+      course_code: string;
+      level?: number | null;
+      scope_type?: 'NATIONAL_CORE' | 'SCHOOL_SPECIFIC';
+      content: string;
+      include: boolean;
+    }>,
     adminId: string,
   ) {
     const document = await prisma.disciplineDocument.findUnique({ where: { id: documentId } });
@@ -1574,8 +1578,19 @@ export class AdminService {
       throw new Error('Select at least one course code to create');
     }
 
+    // A SCHOOL_SPECIFIC selection needs a real source university to inherit — don't silently
+    // fall back to NATIONAL_CORE (that would make a school's own 30% pick visible nationally)
+    // or silently leave university_id null (that would make it match no school's lookup at all).
+    const missingUniversity = included.some((entry) => entry.scope_type === 'SCHOOL_SPECIFIC' && !document.university_id);
+    if (missingUniversity) {
+      throw new Error(
+        'The source document has no Reference School on file, so SCHOOL_SPECIFIC entries have nowhere to inherit university_id from. Re-upload with a Reference School selected, or reclassify these entries as National.',
+      );
+    }
+
     const created = [];
     for (const entry of included) {
+      const scopeType = entry.scope_type === 'SCHOOL_SPECIFIC' ? 'SCHOOL_SPECIFIC' : 'NATIONAL_CORE';
       const result = await this.uploadDisciplineDocument(
         {
           faculty: document.faculty,
@@ -1583,6 +1598,8 @@ export class AdminService {
           course_code: entry.course_code.trim().toUpperCase(),
           source_type: 'CCMAS',
           document_ref: entry.content.trim(),
+          scope_type: scopeType,
+          university_id: scopeType === 'SCHOOL_SPECIFIC' ? document.university_id : null,
           version_notes: `Split from department-wide document ${document.id} (v${document.version}).`,
           level: entry.level ?? null,
           split_from_document_id: document.id,

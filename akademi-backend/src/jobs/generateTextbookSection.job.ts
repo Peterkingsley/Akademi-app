@@ -33,6 +33,7 @@ function buildTextbookSectionPrompt(params: {
   nextLearningOutcome: string | null;
   terminologyRegistry: Record<string, string>;
   priorFailureNotes: string | null;
+  internationalReferences: Array<{ reference_name: string | null; excerpt: string }>;
 }) {
   const registryEntries = Object.entries(params.terminologyRegistry);
 
@@ -54,6 +55,16 @@ function buildTextbookSectionPrompt(params: {
     registryEntries.length > 0
       ? `These terms/notation are already introduced elsewhere in this textbook — reuse them exactly as written, do not invent alternate names or notation for the same concept:\n${registryEntries.map(([term, def]) => `- ${term}: ${def}`).join('\n')}`
       : 'No terminology has been registered yet — if you introduce a term/notation worth reusing later, report it in new_terms.',
+    params.internationalReferences.length > 0
+      ? [
+          '',
+          'INTERNATIONAL-STANDARD DEPTH:',
+          'Write this section with the depth, rigor, and thoroughness a well-regarded international reference on this subject would have — not just the minimum the topic and learning outcome imply. The excerpt(s) below indicate what that standard concretely looks like for this discipline: use them ONLY to calibrate how deep, rigorous, and thorough your OWN original explanation should be — never as a source to copy or paraphrase from.',
+          ...params.internationalReferences.map(
+            (ref, index) => `Depth reference ${index + 1} (${ref.reference_name || 'unnamed'}): ${ref.excerpt}`,
+          ),
+        ].join('\n')
+      : '',
     '',
     '============================================================',
     'NON-NEGOTIABLE — LEGAL REQUIREMENT (DO NOT REMOVE OR SOFTEN)',
@@ -102,9 +113,29 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
 
   const outline = await prisma.generatedTextbookOutline.findUnique({
     where: { id: node.outline_id },
-    select: { terminology_registry: true },
+    select: { terminology_registry: true, ccmas_document: { select: { faculty: true, department: true } } },
   });
   const terminologyRegistry = (outline?.terminology_registry as Record<string, string>) || {};
+
+  // Same discipline-scoped INTERNATIONAL_REFERENCE lookup decomposeCurriculum.job.ts uses to pick
+  // extra outline topics — reused here so the actual prose draws on the same named standard, not
+  // just the outline shape. A short excerpt per reference is enough to calibrate depth; this runs
+  // once per leaf node (unlike decomposition's once-per-outline call), so keep it lean.
+  const internationalDocs = outline?.ccmas_document
+    ? await prisma.disciplineDocument.findMany({
+        where: {
+          faculty: outline.ccmas_document.faculty,
+          department: outline.ccmas_document.department,
+          source_type: 'INTERNATIONAL_REFERENCE',
+          is_active: true,
+        },
+        select: { reference_name: true, document_ref: true },
+      })
+    : [];
+  const internationalReferences = internationalDocs.map((doc) => ({
+    reference_name: doc.reference_name,
+    excerpt: doc.document_ref.slice(0, 1500),
+  }));
 
   const prompt = buildTextbookSectionPrompt({
     title: node.title,
@@ -114,6 +145,7 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
     nextLearningOutcome: nextSibling?.learning_outcome || null,
     terminologyRegistry,
     priorFailureNotes,
+    internationalReferences,
   });
 
   let parsed: any;

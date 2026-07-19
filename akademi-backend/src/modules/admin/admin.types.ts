@@ -168,6 +168,13 @@ export interface UploadDisciplineDocumentRequest {
   // Set when this document was created by confirmDisciplineDocumentSplit, pointing back at the
   // department-wide document it was extracted from. Omitted for every other upload path.
   split_from_document_id?: string | null;
+  // National core (~70%, default) vs. one school's own elective picks (~30%). Omitted keeps the
+  // existing NATIONAL_CORE-everywhere behavior.
+  scope_type?: 'NATIONAL_CORE' | 'SCHOOL_SPECIFIC';
+  // The "Reference School" picked during upload — captured on department-wide docs so it can be
+  // inherited by SCHOOL_SPECIFIC children at split time, and required when scope_type is
+  // SCHOOL_SPECIFIC directly.
+  university_id?: string | null;
 }
 
 export interface RollbackDocumentRequest {

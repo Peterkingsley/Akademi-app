@@ -919,6 +919,16 @@ enum DisciplineDocumentSourceType {
   INTERNATIONAL_REFERENCE
 }
 
+// A real CCMAS document splits into two structural sections: the national core (~70%, identical
+// regardless of which school's PDF you happen to have) and each school's own elective picks
+// (~30%, e.g. Ibadan's choices aren't necessarily AKSU's, even for an identically-named course
+// code). NATIONAL_CORE is the default so every existing row and every document that predates
+// this distinction keeps behaving exactly as it always has — no migration data-fix required.
+enum DocumentScopeType {
+  NATIONAL_CORE
+  SCHOOL_SPECIFIC
+}
+
 model DisciplineDocument {
   id                     String                       @id @default(uuid())
   faculty                String
@@ -944,6 +954,14 @@ model DisciplineDocument {
   // (admin.service.ts's previewDisciplineDocumentSplit/confirmDisciplineDocumentSplit) —
   // traceability back to the source document it was extracted from. Null for everything else.
   split_from_document_id String?
+  // National core vs. school-specific 30% pick. Plain string id (not a @relation to University)
+  // — matches how Material/DisciplineDocument already reference schools by value elsewhere in
+  // this schema rather than a hard FK.
+  scope_type             DocumentScopeType            @default(NATIONAL_CORE)
+  // Set on department-wide docs at upload time (which school's PDF was this) so it can be
+  // inherited by SCHOOL_SPECIFIC children at split time, and set directly on a SCHOOL_SPECIFIC
+  // per-course document itself. Null/ignored for NATIONAL_CORE.
+  university_id          String?
 
   generated_textbook_outlines GeneratedTextbookOutline[]
   split_from                  DisciplineDocument?        @relation("DocumentSplit", fields: [split_from_document_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
@@ -954,6 +972,7 @@ model DisciplineDocument {
   @@index([is_active])
   @@index([course_code, source_type])
   @@index([split_from_document_id])
+  @@index([course_code, source_type, scope_type, university_id])
   @@map("discipline_documents")
 }
 
@@ -966,7 +985,7 @@ enum OutlineNodeStatus {
 }
 
 model GeneratedTextbookOutline {
-  id                   String   @id @default(uuid())
+  id                   String            @id @default(uuid())
   course_code          String
   ccmas_version        Int
   ccmas_document_id    String
@@ -974,11 +993,15 @@ model GeneratedTextbookOutline {
   // transaction as the Material create. Not a DB-enforced bidirectional relation — Prisma
   // can only own the FK on one side (Material.generated_outline_id is the real relation).
   // Invariant: always write both sides together, never independently.
-  material_id          String?  @unique
-  terminology_registry Json     @default("{}")
-  is_current           Boolean  @default(false)
-  created_at           DateTime @default(now())
-  updated_at           DateTime @updatedAt
+  material_id          String?           @unique
+  terminology_registry Json              @default("{}")
+  is_current           Boolean           @default(false)
+  created_at           DateTime          @default(now())
+  updated_at           DateTime          @updatedAt
+  // Mirrors the source DisciplineDocument's scope_type/university_id at decomposition time — see
+  // DisciplineDocument.scope_type. NATIONAL_CORE default keeps every existing outline valid as-is.
+  scope_type           DocumentScopeType @default(NATIONAL_CORE)
+  university_id        String?
 
   ccmas_document DisciplineDocument             @relation(fields: [ccmas_document_id], references: [id])
   nodes          GeneratedTextbookOutlineNode[]
@@ -987,6 +1010,7 @@ model GeneratedTextbookOutline {
   @@index([course_code])
   @@index([course_code, is_current])
   @@index([ccmas_document_id])
+  @@index([course_code, scope_type, university_id])
   @@map("generated_textbook_outlines")
 }
 

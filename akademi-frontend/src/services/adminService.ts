@@ -174,12 +174,19 @@ export interface DisciplineDocument {
   version_notes: string | null;
   is_active: boolean;
   updated_at: string;
+  // National core (~70%, default) vs. one school's own elective picks (~30%) — see
+  // DisciplineDocument.scope_type in schema.prisma.
+  scope_type?: "NATIONAL_CORE" | "SCHOOL_SPECIFIC";
+  university_id?: string | null;
   history?: DisciplineDocument[];
 }
 
 export interface DisciplineDocumentSplitCourse {
   course_code: string;
   level: number | null;
+  // AI-detected structural classification (70%/30%, "Compulsory core"/"Institution-specific", or
+  // whatever labels the source document actually uses) — admin-editable before confirming.
+  scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC";
   content_preview: string;
   full_content: string;
   already_exists: boolean;
@@ -190,6 +197,9 @@ export interface DisciplineDocumentSplitPreview {
   document_id: string;
   faculty: string;
   department: string;
+  // The source department-wide document's Reference School — what a SCHOOL_SPECIFIC selection
+  // will inherit on confirm. Null if the source document has none on file.
+  university_id: string | null;
   courses: DisciplineDocumentSplitCourse[];
 }
 
@@ -619,6 +629,8 @@ export const adminService = {
     if (docData.source_type) formData.append("source_type", docData.source_type);
     if (docData.reference_name) formData.append("reference_name", docData.reference_name);
     if (docData.level != null && docData.level !== "") formData.append("level", String(docData.level));
+    if (docData.scope_type) formData.append("scope_type", docData.scope_type);
+    if (docData.university_id) formData.append("university_id", docData.university_id);
     formData.append("document", {
       uri: file.uri,
       name: file.name,
@@ -638,7 +650,13 @@ export const adminService = {
 
   confirmDisciplineDocumentSplit: async (
     documentId: string,
-    selections: Array<{ course_code: string; level: number | null; content: string; include: boolean }>,
+    selections: Array<{
+      course_code: string;
+      level: number | null;
+      scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC";
+      content: string;
+      include: boolean;
+    }>,
   ) => {
     const { data } = await api.post(`/admin/documents/${documentId}/split-confirm`, { selections });
     return data;

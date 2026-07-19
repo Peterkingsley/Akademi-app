@@ -321,12 +321,15 @@ export class UsersService {
       new Map(courseInputs.map((course) => [`${course.code}-${course.level}-${course.semester}`, course])).values(),
     );
 
+    let resolvedUniversityId: string | undefined;
+
     return prisma.$transaction(async (tx) => {
       const university = await tx.university.upsert({
         where: { name: universityName },
         update: {},
         create: { name: universityName, location: 'Nigeria' },
       });
+      resolvedUniversityId = university.id;
 
       const department = await tx.department.upsert({
         where: {
@@ -395,7 +398,10 @@ export class UsersService {
       });
     }).then((result) => {
       // Fire-and-forget: must not block the profile-update response on textbook generation.
-      triggerTextbookGenerationForCourseCodes(uniqueCourseInputs.map((course) => course.code)).catch(console.error);
+      triggerTextbookGenerationForCourseCodes(
+        uniqueCourseInputs.map((course) => course.code),
+        resolvedUniversityId,
+      ).catch(console.error);
       return result;
     });
   }
