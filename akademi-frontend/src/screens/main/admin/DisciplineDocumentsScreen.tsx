@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, Alert, ScrollView } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, CommunityPattern, DisciplineDocument, DisciplineDocumentSplitPreview } from "../../../services/adminService";
 import { Search, Plus, ChevronRight, BookOpen, Map, Filter, Newspaper, X, Scissors, AlertTriangle, Check } from "lucide-react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
 import { Badge } from "../../../components/ui/Badge";
@@ -62,6 +62,15 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     fetchDocuments();
     fetchUniversities();
   }, []);
+
+  // Refetch whenever this screen regains focus — e.g. returning here after uploading and
+  // splitting a CCMAS document on UploadCcmasDocumentScreen, so the new per-course documents
+  // show up without a manual pull-to-refresh.
+  useFocusEffect(
+    useCallback(() => {
+      fetchDocuments();
+    }, []),
+  );
 
   useEffect(() => {
     if (selectedDocUniversityId) {
@@ -551,6 +560,18 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         />
       )}
 
+      {canUpload && activeTab === "docs" && (
+        <TouchableOpacity
+          style={[styles.splitFab, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+          onPress={() => navigation.navigate("UploadCcmasDocument")}
+        >
+          <Scissors size={16} color={colors.primary} />
+          <Text style={[typography.caption, { color: colors.primary, fontWeight: "700", marginLeft: 6 }]}>
+            Upload CCMAS for Splitting
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {canUpload && (
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary }]}
@@ -921,6 +942,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  splitFab: {
+    position: "absolute",
+    bottom: 92,
+    right: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
   modalBackdrop: {
     backgroundColor: "rgba(0,0,0,0.65)",

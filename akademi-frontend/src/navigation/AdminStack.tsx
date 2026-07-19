@@ -7,6 +7,7 @@ import { UserManagementScreen } from "../screens/main/admin/UserManagementScreen
 import { AdminUserDetailScreen } from "../screens/main/admin/AdminUserDetailScreen";
 import { ContentModerationScreen } from "../screens/main/admin/ContentModerationScreen";
 import { DisciplineDocumentsScreen } from "../screens/main/admin/DisciplineDocumentsScreen";
+import { UploadCcmasDocumentScreen } from "../screens/main/admin/UploadCcmasDocumentScreen";
 import { DocumentDetailScreen } from "../screens/main/admin/DocumentDetailScreen";
 import { CoverageMapScreen } from "../screens/main/admin/CoverageMapScreen";
 import { PlatformAnalyticsScreen } from "../screens/main/admin/PlatformAnalyticsScreen";
@@ -43,6 +44,7 @@ const MoreStack = () => {
       </Stack.Screen>
       <Stack.Screen name="GeneratedTextbooks" component={GeneratedTextbooksScreen} />
       <Stack.Screen name="DisciplineDocuments" component={DisciplineDocumentsScreen} />
+      <Stack.Screen name="UploadCcmasDocument" component={UploadCcmasDocumentScreen} />
       <Stack.Screen name="FinancialManagement">
         {() => (
           <PermissionGuard requiredRole="SUPER_ADMIN">
@@ -121,6 +123,7 @@ const DocumentsStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="DisciplineDocuments" component={DisciplineDocumentsScreen} />
+      <Stack.Screen name="UploadCcmasDocument" component={UploadCcmasDocumentScreen} />
       <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} />
       <Stack.Screen name="CoverageMap" component={CoverageMapScreen} />
     </Stack.Navigator>

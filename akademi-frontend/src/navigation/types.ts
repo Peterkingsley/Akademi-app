@@ -75,6 +75,7 @@ export type AdminStackParamList = {
   AdminUserDetail: { userId: string };
   ContentModeration: undefined;
   DisciplineDocuments: undefined;
+  UploadCcmasDocument: undefined;
   DocumentDetail: { id: string };
   UploadDocument: undefined;
   PlatformAnalytics: undefined;
