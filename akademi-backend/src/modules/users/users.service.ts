@@ -4,7 +4,7 @@ import { config } from '../../config/env';
 import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.types';
 import { Feature, AccessType } from '@prisma/client';
 import { resolveDepartmentId } from '../../shared/utils/department-resolver';
-import { triggerTextbookGenerationForCourseCodes } from '../textbooks/textbook-trigger';
+import { triggerTextbookGenerationForCourseCodes, autoEnrollStudentInDepartmentCourses } from '../textbooks/textbook-trigger';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -301,10 +301,7 @@ export class UsersService {
       throw new Error('University, faculty, department, and level are required');
     }
 
-    if (courseInputs.length === 0) {
-      throw new Error('Add at least one course code');
-    }
-
+    // If courseInputs is empty, that's fine. We will auto-enroll based on department + level.
     for (const course of courseInputs) {
       if (![1, 2].includes(course.semester)) {
         throw new Error('Semester must be 1 or 2');
@@ -398,10 +395,22 @@ export class UsersService {
       });
     }).then((result) => {
       // Fire-and-forget: must not block the profile-update response on textbook generation.
-      triggerTextbookGenerationForCourseCodes(
-        uniqueCourseInputs.map((course) => course.code),
-        resolvedUniversityId,
+      if (uniqueCourseInputs.length > 0) {
+        triggerTextbookGenerationForCourseCodes(
+          uniqueCourseInputs.map((course) => course.code),
+          resolvedUniversityId,
+        ).catch(console.error);
+      }
+
+      // Always attempt auto-enrollment based on CCMAS documents for their level.
+      autoEnrollStudentInDepartmentCourses(
+        userId,
+        resolvedUniversityId || null,
+        faculty,
+        departmentName,
+        level
       ).catch(console.error);
+
       return result;
     });
   }

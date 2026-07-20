@@ -1,5 +1,6 @@
 import prisma from '../../config/db';
 import redisClient from '../../config/redis';
+import { autoEnrollStudentInDepartmentCourses } from '../textbooks/textbook-trigger';
 import { AdminRole, VerificationStatus, Feature, AccessType, MessageRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -1609,7 +1610,77 @@ export class AdminService {
       created.push(result);
     }
 
+    // Fire-and-forget backfill for existing students affected by these new documents
+    this.backfillAutoEnrollmentsForNewDocuments(created, document.faculty, document.department).catch((err) => {
+      console.error('[admin] failed to backfill auto-enrollments after document split', err);
+    });
+
     return { count: created.length, documents: created };
+  }
+
+  private async backfillAutoEnrollmentsForNewDocuments(
+    documents: any[],
+    faculty: string,
+    departmentName: string
+  ) {
+    const BATCH_SIZE = 8;
+    const DELAY_BETWEEN_BATCHES_MS = 5000;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    for (const doc of documents) {
+      if (doc.level === null) continue;
+
+      const userWhere: any = {
+        faculty,
+        department: departmentName,
+        level: doc.level,
+        is_deleted: false,
+      };
+
+      if (doc.scope_type === 'SCHOOL_SPECIFIC' && doc.university_id) {
+        const uni = await prisma.university.findUnique({ where: { id: doc.university_id } });
+        if (uni) {
+          userWhere.university = uni.name;
+        }
+      }
+
+      const users = await prisma.user.findMany({
+        where: userWhere,
+        select: { id: true, university: true, faculty: true, department: true, level: true },
+      });
+
+      if (users.length === 0) continue;
+
+      // Cache resolved university IDs to avoid hammering the DB
+      const universityIdCache = new Map<string, string | null>();
+
+      for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+
+        await Promise.allSettled(
+          batch.map(async (u) => {
+            let uniId = universityIdCache.get(u.university);
+            if (uniId === undefined) {
+              const uni = await prisma.university.findUnique({ where: { name: u.university } });
+              uniId = uni?.id || null;
+              universityIdCache.set(u.university, uniId);
+            }
+
+            await autoEnrollStudentInDepartmentCourses(
+              u.id,
+              uniId,
+              u.faculty,
+              u.department,
+              u.level
+            );
+          })
+        );
+
+        if (i + BATCH_SIZE < users.length) {
+          await sleep(DELAY_BETWEEN_BATCHES_MS);
+        }
+      }
+    }
   }
 
   async rollbackDisciplineDocument(id: string, version: number, adminId: string) {

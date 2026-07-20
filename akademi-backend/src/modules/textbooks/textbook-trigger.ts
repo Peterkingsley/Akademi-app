@@ -92,3 +92,113 @@ export async function triggerTextbookGenerationForCourseCodes(
     }
   }
 }
+
+// Auto-enrolls a student in every active, relevant CCMAS course code for their department/level,
+// bypassing the need for manual text entry at signup/profile-update, and triggers generation.
+// Safely skips course codes the student is already enrolled in.
+export async function autoEnrollStudentInDepartmentCourses(
+  userId: string,
+  universityId: string | null,
+  faculty: string,
+  departmentName: string,
+  level: number
+): Promise<void> {
+  // 1. Find all active course-scoped CCMAS documents for this department + level.
+  // We respect the exact same two-tier scope rules that outline generation uses:
+  // a school's own 30% specific pick is authoritative, but the 70% national core is the baseline.
+  // Note: we can just fetch all matching ones, and then resolve duplicates by course code
+  // using the two-tier priority.
+  const documents = await prisma.disciplineDocument.findMany({
+    where: {
+      faculty,
+      department: departmentName,
+      source_type: 'CCMAS',
+      is_active: true,
+      level,
+      course_code: { not: null },
+      OR: [
+        { scope_type: 'NATIONAL_CORE' },
+        { scope_type: 'SCHOOL_SPECIFIC', university_id: universityId },
+      ],
+    },
+    select: { course_code: true, scope_type: true },
+  });
+
+  if (documents.length === 0) return;
+
+  // Deduplicate: prioritize SCHOOL_SPECIFIC over NATIONAL_CORE if both exist for the same code.
+  const prioritizedCourseCodes = new Map<string, string>(); // course_code -> scope_type
+  for (const doc of documents) {
+    if (!doc.course_code) continue;
+    const code = doc.course_code.toUpperCase();
+    const existingScope = prioritizedCourseCodes.get(code);
+    if (!existingScope || doc.scope_type === 'SCHOOL_SPECIFIC') {
+      prioritizedCourseCodes.set(code, doc.scope_type);
+    }
+  }
+
+  const courseCodesToEnroll = Array.from(prioritizedCourseCodes.keys());
+
+  // 2. Identify which of these the student is NOT already enrolled in
+  const existingEnrollments = await prisma.studentCourse.findMany({
+    where: {
+      user_id: userId,
+      code: { in: courseCodesToEnroll },
+    },
+    select: { code: true, level: true, semester: true },
+  });
+
+  const existingEnrollmentKeys = new Set(
+    existingEnrollments.map((sc) => sc.code.toUpperCase())
+  );
+
+  const missingCodes = courseCodesToEnroll.filter(
+    (code) => !existingEnrollmentKeys.has(code)
+  );
+
+  if (missingCodes.length === 0) return;
+
+  // 3. Look up the department row to attach these to
+  const departmentRow = await prisma.department.findFirst({
+    where: {
+      name: departmentName,
+      faculty: faculty,
+      university: universityId ? { id: universityId } : undefined,
+    },
+    select: { id: true },
+  });
+
+  if (!departmentRow) {
+    console.warn(
+      `[auto-enroll] department row not found for ${departmentName} / ${faculty} (university: ${universityId})`
+    );
+    return;
+  }
+
+  // 4. Enroll them
+  // We use placeholder semester/dates (e.g., semester 1, current year) for auto-enrollments,
+  // since CCMAS docs don't dictate exact semester schedules globally. The student can adjust later.
+  const now = new Date();
+  const nextMonth = new Date();
+  nextMonth.setMonth(now.getMonth() + 4);
+
+  await prisma.studentCourse.createMany({
+    data: missingCodes.map((code) => ({
+      user_id: userId,
+      department_id: departmentRow.id,
+      code,
+      name: null,
+      level,
+      semester: 1, // default
+      semester_start: now,
+      semester_end: nextMonth,
+      source: 'ccmas_auto',
+    })),
+    skipDuplicates: true,
+  });
+
+  // 5. Trigger generation
+  // Uses the existing batch trigger which is fire-and-forget.
+  await triggerTextbookGenerationForCourseCodes(missingCodes, universityId);
+}
+

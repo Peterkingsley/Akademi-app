@@ -9,7 +9,7 @@ import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePassword
 import { AdminRole, AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 import redisClient from '../../config/redis';
-import { triggerTextbookGenerationForCourseCodes } from '../textbooks/textbook-trigger';
+import { triggerTextbookGenerationForCourseCodes, autoEnrollStudentInDepartmentCourses } from '../textbooks/textbook-trigger';
 
 const resend = new Resend(config.resendApiKey);
 const googleClient = new OAuth2Client(config.googleOauthClientId);
@@ -233,6 +233,17 @@ export class AuthService {
         department.university_id,
       ).catch(console.error);
     }
+
+    // Always attempt auto-enrollment based on CCMAS documents for their level.
+    // This allows school+department+level to be sufficient to trigger textbook generation
+    // without requiring manual course entry.
+    autoEnrollStudentInDepartmentCourses(
+      user.id,
+      department.university_id,
+      user.faculty,
+      user.department,
+      user.level
+    ).catch(console.error);
 
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {

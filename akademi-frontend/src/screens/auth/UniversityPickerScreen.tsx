@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 190,
   },
   universityItem: {
     flexDirection: "row",
