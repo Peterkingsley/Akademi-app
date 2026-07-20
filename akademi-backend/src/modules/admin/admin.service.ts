@@ -1190,7 +1190,7 @@ export class AdminService {
 
   async getAdminQueuedSections() {
     const nodes = await prisma.generatedTextbookOutlineNode.findMany({
-      where: { status: 'ADMIN_QUEUED', section: { isNot: null } },
+      where: { status: 'ADMIN_QUEUED' },
       orderBy: { updated_at: 'desc' },
       include: {
         section: true,
@@ -1198,7 +1198,9 @@ export class AdminService {
       },
     });
 
-    return nodes.map((node) => ({
+    return nodes
+      .filter((node) => node.section != null)
+      .map((node) => ({
       section_id: node.section!.id,
       node_id: node.id,
       course_code: node.outline.course_code,

@@ -295,6 +295,7 @@ const TextbookSectionsQueue = () => {
   const { colors, typography } = useTheme();
   const [items, setItems] = useState<AdminQueuedSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<AdminQueuedSection | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -310,10 +311,12 @@ const TextbookSectionsQueue = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await adminService.getAdminQueuedSections();
       setItems(data);
-    } catch (error) {
-      console.error("Failed to fetch admin-queued sections", error);
+    } catch (err: any) {
+      console.error("Failed to fetch admin-queued sections", err);
+      setError(err.message || "Failed to fetch queued sections");
     } finally {
       setLoading(false);
     }
@@ -364,6 +367,20 @@ const TextbookSectionsQueue = () => {
   };
 
   if (loading) return <View style={{ padding: 16 }}>{[1, 2, 3].map(i => <Skeleton key={i} width="100%" height={100} borderRadius={12} style={{ marginBottom: 12 }} />)}</View>;
+
+  if (error) return (
+    <View className="p-8 items-center justify-center">
+      <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+      <Text className="text-gray-900 font-inter-semibold text-lg mt-4 text-center">Failed to load queue</Text>
+      <Text className="text-gray-500 font-inter text-center mt-2">{error}</Text>
+      <TouchableOpacity 
+        className="mt-6 bg-red-50 px-4 py-2 rounded-lg"
+        onPress={fetchItems}
+      >
+        <Text className="text-red-600 font-inter-medium">Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (items.length === 0) return (
     <View style={styles.emptyState}>
