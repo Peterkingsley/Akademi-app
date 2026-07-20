@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Image, Modal, Linking, TextInput, Alert } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
@@ -23,6 +24,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
   const [actionType, setActionType] = useState<"approve" | "takedown" | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkApproving, setBulkApproving] = useState(false);
+  const navigation = useNavigation<any>();
   const isPendingQueue = status === "pending";
   const isSelectionMode = isPendingQueue && selectedIds.length > 0;
 
@@ -62,6 +64,11 @@ const ModerationQueue = ({ status }: { status: string }) => {
     if (!targetItem) return;
 
     if (type === "view") {
+      if (targetItem.is_akademi_generated || !targetItem.file_ref) {
+        setModalVisible(false); // Close preview modal if it's open
+        navigation.navigate("StudyMode", { materialId: targetItem.id });
+        return;
+      }
       try {
         const { url } = await adminService.getMaterialDownloadUrl(targetItem.id);
         if (url) {
@@ -69,6 +76,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
         }
       } catch (error) {
         console.error("Failed to get download URL", error);
+        Alert.alert("Preview Failed", "Could not load the material preview.");
       }
       return;
     }
