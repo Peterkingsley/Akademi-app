@@ -150,6 +150,7 @@ export const UniversityPickerScreen: React.FC = () => {
             data={filteredUniversities}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             ListHeaderComponent={
               <View style={styles.header}>
                 <Text style={styles.headline}>Which university do you attend?</Text>
