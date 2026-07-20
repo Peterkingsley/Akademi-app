@@ -19,8 +19,6 @@ const PLACEHOLDER_KEYWORDS = [
 ];
 
 const GEMINI_FALLBACK_MODELS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
   'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
 ];
@@ -277,7 +275,7 @@ export class AIProvider {
 
     if (geminiClient) {
       try {
-        const model = geminiClient.getGenerativeModel({ model: 'embedding-001' });
+        const model = geminiClient.getGenerativeModel({ model: 'gemini-embedding-001' });
         const result = await model.embedContent(text.slice(0, 8000));
         const values = result.embedding.values;
         if (values?.length) return values;
