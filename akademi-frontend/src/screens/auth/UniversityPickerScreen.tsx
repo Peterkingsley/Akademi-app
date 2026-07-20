@@ -427,6 +427,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   continueButton: {
     marginBottom: 16,
