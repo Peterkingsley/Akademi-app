@@ -76,7 +76,10 @@ export class MaterialsService {
   async listMaterials(filter: MaterialFilter) {
     return prisma.material.findMany({
       where: {
-        university: filter.university,
+        OR: [
+          { university: filter.university },
+          { university: 'AKADEMI_NATIONAL', is_akademi_generated: true },
+        ],
         faculty: filter.faculty,
         department: filter.department,
         course_code: filter.course_code,

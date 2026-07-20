@@ -115,12 +115,20 @@ async function publishGeneratedTextbook(outlineId: string) {
   const systemUser = await getOrCreateSystemUser();
   const ccmasDoc = outline.ccmas_document;
 
+  let targetUniversity = 'AKADEMI_NATIONAL';
+  if (outline.scope_type === 'SCHOOL_SPECIFIC' && outline.university_id) {
+    const uni = await prisma.university.findUnique({ where: { id: outline.university_id } });
+    if (uni) {
+      targetUniversity = uni.name.trim();
+    }
+  }
+
   const material = await prisma.material.create({
     data: {
       title: `${outline.course_code} — Akademi Textbook`,
       course_code: outline.course_code,
       course_id: null,
-      university: 'AKADEMI_NATIONAL',
+      university: targetUniversity,
       faculty: ccmasDoc.faculty,
       department: ccmasDoc.department,
       level: ccmasDoc.level ?? 0,
