@@ -341,8 +341,8 @@ export const StudyModeScreen: React.FC = () => {
     ? Math.max(280, Math.floor(windowHeight * 0.32))
     : 220;
   const pdfViewerHeight = Math.max(windowHeight * 0.74, 560);
-  const isPdfMaterial = material?.file_type === "PDF";
-  const isDocMaterial = material?.file_type === "DOC";
+  const isPdfMaterial = material?.file_type === "PDF" && !material?.is_akademi_generated;
+  const isDocMaterial = material?.file_type === "DOC" && !material?.is_akademi_generated;
   const showOriginalPdf = Boolean(material) && isPdfMaterial;
   const showOriginalDoc = Boolean(material) && isDocMaterial;
   const materialContext = material
@@ -472,7 +472,7 @@ export const StudyModeScreen: React.FC = () => {
     let cancelled = false;
 
     const loadOriginalDocument = async () => {
-      if (!material || (material.file_type !== "PDF" && material.file_type !== "DOC")) {
+      if (!material || (material.file_type !== "PDF" && material.file_type !== "DOC") || material.is_akademi_generated) {
         setPdfData(null);
         setDocumentUrl(null);
         setPdfLoadError(null);
@@ -737,7 +737,7 @@ export const StudyModeScreen: React.FC = () => {
             {material ? "Reading Material" : "Study Mode"}
           </Text>
           <View style={styles.headerRight}>
-            {material && (
+            {material && !material.is_akademi_generated && (
               <TouchableOpacity
                 onPress={handleDownload}
                 disabled={downloading || isDownloaded}

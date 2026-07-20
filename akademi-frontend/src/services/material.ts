@@ -15,6 +15,7 @@ export interface Material {
   file_type: "PDF" | "IMAGE" | "DOC";
   verification_status: "PENDING" | "VERIFIED" | "FLAGGED" | "TAKEN_DOWN";
   file_ref: string;
+  is_akademi_generated?: boolean;
   content?: string;
   reader_structure?: {
     version: number;

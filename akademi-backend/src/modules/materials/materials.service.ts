@@ -847,6 +847,10 @@ export class MaterialsService {
   async getDownloadUrl(id: string, access?: { requestingUserId?: string | null; requestingAdminRole?: AdminRole | null }) {
     const material = await this.getMaterial(id, access);
 
+    if (material.is_akademi_generated || !material.file_ref) {
+      throw new Error("This is an Akademi-generated textbook — it doesn't have a downloadable file, open it to read it instead");
+    }
+
     const command = new GetObjectCommand({
       Bucket: config.r2BucketName,
       Key: material.file_ref,
