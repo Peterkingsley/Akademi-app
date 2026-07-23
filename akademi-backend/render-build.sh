@@ -4,24 +4,13 @@ set -o errexit
 # Existing steps — unchanged from the current Build Command
 npm install
 
-# New: ensure Chrome is installed at the path Puppeteer expects at runtime,
-# and persist it inside the project directory so Render's own build cache
-# picks it up automatically on future deploys (avoids redownloading Chrome
-# — a large binary — on every single build).
-PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
-PROJECT_CACHE_DIR=/opt/render/project/src/.cache/puppeteer
-
-mkdir -p "$PUPPETEER_CACHE_DIR"
-
-if [ -d "$PROJECT_CACHE_DIR/chrome" ] && [ "$(ls -A "$PROJECT_CACHE_DIR/chrome" 2>/dev/null)" ]; then
-  echo "...Restoring Puppeteer Chrome from project cache"
-  cp -R "$PROJECT_CACHE_DIR/chrome/." "$PUPPETEER_CACHE_DIR/"
-else
-  echo "...No cached Chrome found, installing fresh"
-  npx puppeteer browsers install chrome
-  mkdir -p "$PROJECT_CACHE_DIR/chrome"
-  cp -R "$PUPPETEER_CACHE_DIR/." "$PROJECT_CACHE_DIR/chrome/"
-fi
+# Render does NOT carry anything under $HOME/.cache (/opt/render/.cache)
+# from the build environment into the running deployment — only the
+# project directory itself survives that transition. Installing Chrome
+# outside the project directory is why it kept "disappearing" at runtime
+# even after a successful build. Install it inside the project instead.
+export PUPPETEER_CACHE_DIR=/opt/render/project/src/.cache/puppeteer
+npx puppeteer browsers install chrome
 
 # Existing steps — unchanged, must still run after this
 npm run build
