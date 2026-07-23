@@ -967,6 +967,11 @@ export class AdminService {
     return this.materialsService.getDownloadUrl(id, { requestingAdminRole: role });
   }
 
+  async getGeneratedTextbookPdf(id: string) {
+    const { textbookPdfService } = await import('../materials/textbook-pdf.service');
+    return textbookPdfService.getOrGenerateTextbookPdf(id);
+  }
+
   async approveMaterial(id: string, adminId: string) {
     const material = await prisma.material.update({
       where: { id },

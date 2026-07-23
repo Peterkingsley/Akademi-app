@@ -841,6 +841,11 @@ export const adminService = {
     return data;
   },
 
+  getGeneratedTextbookPdf: async (id: string): Promise<{ url: string }> => {
+    const { data } = await api.get(`/admin/materials/${id}/textbook-pdf`);
+    return data;
+  },
+
   getSessionStatus: async () => {
     const { data } = await api.get("/admin/security/session-status");
     return data;

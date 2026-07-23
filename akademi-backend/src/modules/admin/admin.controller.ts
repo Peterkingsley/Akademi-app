@@ -263,6 +263,15 @@ export class AdminController {
     }
   }
 
+  async getGeneratedTextbookPdf(req: Request, res: Response) {
+    try {
+      const result = await adminService.getGeneratedTextbookPdf(req.params.id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async listWaitlistEntries(req: Request, res: Response) {
     try {
       const result = await adminService.listWaitlistEntries(req.query as any);

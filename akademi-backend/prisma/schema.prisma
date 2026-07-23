@@ -338,6 +338,8 @@ model Material {
   academic_year           String?
   file_ref                String
   file_type               FileType
+  pdf_file_ref            String?
+  pdf_generated_at        DateTime?
   verification_status     VerificationStatus       @default(PENDING)
   processing_status       MaterialProcessingStatus @default(UPLOADED)
   processing_attempts     Int                      @default(0)

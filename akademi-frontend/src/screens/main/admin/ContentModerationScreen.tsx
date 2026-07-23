@@ -64,12 +64,19 @@ const ModerationQueue = ({ status }: { status: string }) => {
     if (!targetItem) return;
 
     if (type === "view") {
-      if (targetItem.is_akademi_generated) {
-        setModalVisible(false); // Close preview modal if it's open
-        navigation.navigate("Main", { screen: "StudyMode", params: { materialId: targetItem.id } });
-        return;
-      }
       try {
+        if (targetItem.is_akademi_generated) {
+          setModalVisible(false); // Close preview modal if it's open
+          
+          // Generate/Fetch the PDF for the AI-generated textbook
+          const { url } = await adminService.getGeneratedTextbookPdf(targetItem.id);
+          if (url) {
+            Linking.openURL(url);
+          }
+          return;
+        }
+        
+        // Standard materials
         const { url } = await adminService.getMaterialDownloadUrl(targetItem.id);
         if (url) {
           Linking.openURL(url);
