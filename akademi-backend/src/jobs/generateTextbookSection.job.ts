@@ -1,6 +1,6 @@
 import prisma from '../config/db';
 import { aiProvider } from '../modules/ai/ai.provider';
-import { buildExplainBackContract } from '../modules/ai/ai.prompts';
+import { buildExplainBackContract, buildCalculationTeachingRules, buildSolveOperationGuidance } from '../modules/ai/ai.prompts';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 
 // Same throwing-parser shape as decomposeCurriculum.job.ts — a parse failure on a section is a
@@ -74,6 +74,16 @@ function buildTextbookSectionPrompt(params: {
     'as a guide to WHAT to cover — write the explanation completely',
     'fresh, in your own words.',
     '============================================================',
+    '',
+    'If this topic involves a calculation, formula application, or worked procedure, you MUST follow these rigor rules:',
+    buildCalculationTeachingRules('STUDY'),
+    buildSolveOperationGuidance(),
+    '',
+    'If this topic is conceptual and does NOT involve calculations, follow this rule:',
+    'Don\'t just assert an approach, framework, or definition — explain why this approach is used and, where a real alternative exists, briefly note why that alternative isn\'t used instead.',
+    '',
+    'LaTeX DELIMITERS:',
+    'Whenever you write mathematics, use proper LaTeX delimiters so the app can typeset it cleanly: inline math in \\(...\\) and standalone math in \\[...\\]. Never use markdown emphasis syntax such as *text*, **text**, or _text_ anywhere in the reply — the app renders plain text, not markdown, so those characters would show up literally to the student. Write emphasis as plain sentences instead.',
     '',
     'Also decide whether this topic needs a diagram to teach well (e.g. a process, a labeled structure, a graph). If so, write a plain-text description of exactly what image is needed — do not search for or describe an image search yourself, just describe what should be shown.',
     '',

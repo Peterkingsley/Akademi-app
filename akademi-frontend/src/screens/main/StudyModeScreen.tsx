@@ -27,6 +27,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { sessionService, Message } from "../../services/session";
 import { materialService, Material, offlineService } from "../../services/material";
 import { SelectableText } from "../../components/ui/SelectableText";
+import { RichMathText } from "../../components/ui/RichMathText";
 import { AskAkademiModal } from "../../components/ui/AskAkademiModal";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { PdfSelectableViewer } from "../../components/ui/PdfSelectableViewer";
@@ -913,11 +914,10 @@ export const StudyModeScreen: React.FC = () => {
                         ) : null}
                       </TouchableOpacity>
                     ) : (
-                      <SelectableText
+                      <RichMathText
                         key={block.id}
                         content={block.text || ""}
-                        onAskAkademi={handleAskAkademi}
-                        onHighlight={handleHighlight}
+                        textColor={colors.textPrimary}
                       />
                     )
                   )}
@@ -936,10 +936,9 @@ export const StudyModeScreen: React.FC = () => {
                   )}
                 </View>
               ) : (
-                <SelectableText
+                <RichMathText
                   content={material ? currentPage.content : displayContent}
-                  onAskAkademi={handleAskAkademi}
-                  onHighlight={handleHighlight}
+                  textColor={colors.textPrimary}
                 />
               )}
               {!material && graphSpec && (

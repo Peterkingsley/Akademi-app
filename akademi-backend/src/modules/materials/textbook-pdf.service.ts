@@ -113,6 +113,9 @@ export class TextbookPdfService {
       <html>
       <head>
         <meta charset="UTF-8">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/contrib/auto-render.min.js"></script>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
           
@@ -170,9 +173,22 @@ export class TextbookPdfService {
         <div class="cover-page">
           <div class="cover-title">${material.title}</div>
           <div class="cover-subtitle">${material.course_code || 'General Textbook'}</div>
-          <div class="cover-subtitle">${material.university}</div>
         </div>
         ${pagesHtml}
+        <script>
+          renderMathInElement(document.body, {
+            throwOnError: false,
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '\\\\[', right: '\\\\]', display: true },
+              { left: '\\\\(', right: '\\\\)', display: false },
+              { left: '$', right: '$', display: false }
+            ]
+          });
+          const marker = document.createElement('div');
+          marker.id = 'katex-rendered';
+          document.body.appendChild(marker);
+        </script>
       </body>
       </html>
     `;
@@ -185,6 +201,7 @@ export class TextbookPdfService {
     try {
       const page = await browser.newPage();
       await page.setContent(htmlTemplate, { waitUntil: 'load' });
+      await page.waitForSelector('#katex-rendered');
       
       const pdfBuffer = await page.pdf({
         format: 'A4',
