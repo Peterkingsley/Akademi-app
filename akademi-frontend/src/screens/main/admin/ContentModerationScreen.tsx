@@ -6,7 +6,7 @@ import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, AdminQueuedSection } from "../../../services/adminService";
 import { Card } from "../../../components/ui/Card";
-import { CheckCircle2, XCircle, Zap, Info, Inbox, Eye } from "lucide-react-native";
+import { CheckCircle2, XCircle, Zap, Info, Inbox, Eye, AlertCircle } from "lucide-react-native";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import * as Haptics from "expo-haptics";
@@ -384,15 +384,15 @@ const TextbookSectionsQueue = () => {
   if (loading) return <View style={{ padding: 16 }}>{[1, 2, 3].map(i => <Skeleton key={i} width="100%" height={100} borderRadius={12} style={{ marginBottom: 12 }} />)}</View>;
 
   if (error) return (
-    <View className="p-8 items-center justify-center">
-      <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-      <Text className="text-gray-900 font-inter-semibold text-lg mt-4 text-center">Failed to load queue</Text>
-      <Text className="text-gray-500 font-inter text-center mt-2">{error}</Text>
+    <View style={{ padding: 32, alignItems: 'center', justifyContent: 'center' }}>
+      <AlertCircle size={48} color={colors.error} />
+      <Text style={[typography.body, { color: colors.textPrimary, fontWeight: '600', marginTop: 16, textAlign: 'center' }]}>Failed to load queue</Text>
+      <Text style={[typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 8 }]}>{error}</Text>
       <TouchableOpacity 
-        className="mt-6 bg-red-50 px-4 py-2 rounded-lg"
+        style={{ marginTop: 24, backgroundColor: 'rgba(239, 68, 68, 0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
         onPress={fetchItems}
       >
-        <Text className="text-red-600 font-inter-medium">Try Again</Text>
+        <Text style={[typography.body, { color: colors.error, fontWeight: '500' }]}>Try Again</Text>
       </TouchableOpacity>
     </View>
   );
