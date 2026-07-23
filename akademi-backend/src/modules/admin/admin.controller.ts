@@ -363,6 +363,16 @@ export class AdminController {
     }
   }
 
+  async regenerateTextbook(req: Request, res: Response) {
+    try {
+      const result = await adminService.regenerateTextbook(req.params.outlineId, req.admin!.adminId);
+      res.json(result);
+    } catch (error: any) {
+      const status = error.message === 'Outline not found' ? 404 : 500;
+      res.status(status).json({ message: error.message });
+    }
+  }
+
   async restoreMaterial(req: Request, res: Response) {
     try {
       const result = await adminService.restoreMaterial(req.params.id, req.admin!.adminId);

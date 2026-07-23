@@ -1316,6 +1316,24 @@ export class AdminService {
     return this.takedownMaterial(materialId, adminId);
   }
 
+  async regenerateTextbook(outlineId: string, adminId: string) {
+    const outline = await prisma.generatedTextbookOutline.findUnique({
+      where: { id: outlineId },
+      select: { course_code: true, university_id: true },
+    });
+    
+    if (!outline) {
+      throw new Error('Outline not found');
+    }
+
+    // Bypasses the existence check to force a new generation.
+    // Use textbook-trigger's forced regenerator.
+    const { forceRegenerateTextbookOutline } = await import('../textbooks/textbook-trigger');
+    await forceRegenerateTextbookOutline(outline.course_code, outline.university_id);
+
+    return { success: true, message: 'Regeneration queued successfully.' };
+  }
+
   // Pillar 4: Discipline Documents
   async listDisciplineDocuments(filter: DisciplineDocumentListFilter) {
     const where: any = {};

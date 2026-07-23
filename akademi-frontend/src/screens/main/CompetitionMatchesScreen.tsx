@@ -8,19 +8,21 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { ChevronRight, Globe, Layers, ListChecks, Lock, Plus, Swords, Users } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
 import { competitionService, CompetitionRoom } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useTheme } from "../../theme/ThemeContext";
 
 type MatchTab = "created" | "joined" | "public";
 
 export const CompetitionMatchesScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { user } = useAuthStore();
+  const { colors } = useTheme();
+
   const [myRooms, setMyRooms] = useState<CompetitionRoom[]>([]);
   const [publicRooms, setPublicRooms] = useState<CompetitionRoom[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +74,7 @@ export const CompetitionMatchesScreen: React.FC = () => {
         : publicRooms;
 
   return (
-    <Screen title="My Matches" scrollable>
+    <Screen style={[styles.screen, { backgroundColor: colors.background }]} title="My Matches" scrollable>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -84,79 +86,135 @@ export const CompetitionMatchesScreen: React.FC = () => {
         }
       >
         <View style={styles.intro}>
-          <Text style={styles.introTitle}>Your live room history</Text>
-          <Text style={styles.introText}>
-            Switch between rooms you hosted, rooms you joined, and public rooms waiting for
-            players.
+          <Text style={[styles.introTitle, { color: colors.textPrimary }]}>Live Room History</Text>
+          <Text style={[styles.introText, { color: colors.textSecondary }]}>
+            Manage rooms you host, view friend invitations, or jump into active public matches.
           </Text>
         </View>
 
         {loadNotice ? (
-          <Card style={styles.noticeCard}>
-            <Text style={styles.noticeTitle}>Match list unavailable</Text>
-            <Text style={styles.noticeText}>{loadNotice}</Text>
+          <Card style={[styles.noticeCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+            <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Match List Notice</Text>
+            <Text style={[styles.noticeText, { color: colors.textSecondary }]}>{loadNotice}</Text>
           </Card>
         ) : null}
 
-        <View style={styles.tabRow}>
+        {/* Tab Row */}
+        <View style={[styles.tabRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {[
-            { key: "created", label: "Created" },
-            { key: "joined", label: "Joined" },
-            { key: "public", label: "Public" },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabButton, activeTab === tab.key && styles.activeTabButton]}
-              onPress={() => setActiveTab(tab.key as MatchTab)}
-            >
-              <Text style={[styles.tabLabel, activeTab === tab.key && styles.activeTabLabel]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+            { key: "created", label: "Created", count: createdRooms.length },
+            { key: "joined", label: "Joined", count: joinedRooms.length },
+            { key: "public", label: "Public", count: publicRooms.length },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                activeOpacity={0.8}
+                style={[
+                  styles.tabButton,
+                  isActive && { backgroundColor: colors.primary },
+                ]}
+                onPress={() => setActiveTab(tab.key as MatchTab)}
+              >
+                <Text style={[styles.tabLabel, { color: isActive ? "#04110A" : colors.textSecondary }]}>
+                  {tab.label}
+                </Text>
+                <View style={[styles.countBadge, { backgroundColor: isActive ? "rgba(4, 17, 10, 0.2)" : colors.surfaceElevated }]}>
+                  <Text style={[styles.countBadgeText, { color: isActive ? "#04110A" : colors.textMuted }]}>
+                    {tab.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
+        {/* Visible Rooms List */}
         {visibleRooms.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>
+          <Card style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Swords size={32} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
               {activeTab === "created"
-                ? "No created matches yet"
+                ? "No Created Matches Yet"
                 : activeTab === "joined"
-                  ? "No joined matches yet"
-                  : "No public rooms yet"}
+                  ? "No Joined Matches Yet"
+                  : "No Public Rooms Available"}
             </Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               {activeTab === "created"
-                ? "Once you host a live room, it will appear here."
+                ? "When you host a live 1v1 match or speed battle, it will appear here."
                 : activeTab === "joined"
-                  ? "Rooms you joined from friends or campaigns will appear here."
-                  : "When public rooms open up, you will see them here first."}
+                  ? "Rooms you joined from friends or campaign codes will appear here."
+                  : "When public battle rooms open up, they will appear here first."}
             </Text>
+
+            {activeTab === "created" ? (
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[styles.createButton, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate("CreateCompetition")}
+              >
+                <Plus size={16} color="#04110A" />
+                <Text style={styles.createButtonText}>Create Match Now</Text>
+              </TouchableOpacity>
+            ) : null}
           </Card>
         ) : (
           visibleRooms.map((room) => (
             <Card
               key={room.id}
-              style={styles.roomCard}
+              style={[styles.roomCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => navigation.navigate("CompetitionLobby", { roomId: room.id })}
             >
               <View style={styles.roomTop}>
-                <Text style={styles.roomTitle}>{room.title}</Text>
-                <Text style={styles.roomCode}>{room.code}</Text>
+                <View style={styles.titleWrap}>
+                  <Text style={[styles.roomTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {room.title}
+                  </Text>
+                  <View style={[styles.codeBadge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                    <Text style={[styles.codeText, { color: colors.primary }]}>{room.code}</Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
               </View>
-              <Text style={styles.roomMeta}>
-                {(room.format === "SHARED_COURSE"
-                  ? room.shared_course_code || "Shared course"
-                  : "Dual course") +
-                  ` • ${room.participants.length}/${room.max_participants} players`}
-              </Text>
-              <Text style={styles.roomStatus}>
-                {activeTab === "created"
-                  ? "Hosted by you"
-                  : activeTab === "joined"
-                    ? `Host: ${room.host.name}`
-                    : room.status}
-              </Text>
+
+              <View style={styles.roomMetaRow}>
+                <View style={styles.metaChip}>
+                  <Layers size={12} color={colors.primary} />
+                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                    {room.shared_course_code || "Dual Course"}
+                  </Text>
+                </View>
+
+                <View style={styles.metaChip}>
+                  <Users size={12} color={colors.textMuted} />
+                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                    {room.participants.length}/{room.max_participants} players
+                  </Text>
+                </View>
+
+                <View style={styles.metaChip}>
+                  {room.visibility === "PUBLIC" ? (
+                    <Globe size={12} color={colors.primary} />
+                  ) : (
+                    <Lock size={12} color={colors.textMuted} />
+                  )}
+                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                    {room.visibility}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.roomFooter}>
+                <Text style={[styles.roomStatus, { color: room.status === "LIVE" ? colors.primary : colors.textMuted }]}>
+                  {activeTab === "created"
+                    ? "Hosted by you"
+                    : activeTab === "joined"
+                      ? `Host: ${room.host.name}`
+                      : `Status: ${room.status}`}
+                </Text>
+              </View>
             </Card>
           ))
         )}
@@ -166,98 +224,153 @@ export const CompetitionMatchesScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
-    padding: 20,
-    gap: 16,
+    padding: 18,
+    gap: 14,
+    paddingBottom: 36,
   },
   intro: {
-    gap: 6,
+    gap: 4,
   },
   introTitle: {
-    ...typography.h4,
-    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   introText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 19,
   },
   noticeCard: {
-    gap: 8,
+    gap: 6,
+    borderWidth: 1,
+    padding: 14,
+    borderRadius: 14,
   },
   noticeTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: "700",
   },
   noticeText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 13,
   },
   tabRow: {
     flexDirection: "row",
-    gap: 10,
+    padding: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 6,
   },
   tabButton: {
     flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceElevated,
-    paddingVertical: 12,
+    flexDirection: "row",
     alignItems: "center",
-  },
-  activeTabButton: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 10,
+    paddingVertical: 10,
   },
   tabLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: "700",
   },
-  activeTabLabel: {
-    color: "#04110A",
+  countBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  countBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
   },
   emptyCard: {
-    gap: 8,
+    alignItems: "center",
+    padding: 24,
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   emptyTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
   },
   emptyText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 19,
+  },
+  createButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  createButtonText: {
+    color: "#04110A",
+    fontWeight: "800",
+    fontSize: 13,
   },
   roomCard: {
-    gap: 8,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
   },
   roomTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+  },
+  titleWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   roomTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-    flex: 1,
+    fontSize: 15,
+    fontWeight: "800",
+    flexShrink: 1,
   },
-  roomCode: {
-    ...typography.caption,
-    color: colors.primary,
+  codeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  roomMeta: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  codeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  roomMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  metaChipText: {
+    fontSize: 12,
+  },
+  roomFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 2,
   },
   roomStatus: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

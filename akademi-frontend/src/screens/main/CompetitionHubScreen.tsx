@@ -10,14 +10,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CalendarDays, ChevronRight, ListChecks, Plus, Trophy, UserPlus } from "lucide-react-native";
+import {
+  CalendarDays,
+  ChevronRight,
+  Flame,
+  ListChecks,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Swords,
+  Trophy,
+  UserPlus,
+  Zap,
+} from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
 import { competitionService, Tournament } from "../../services/competition";
 import { socketService } from "../../services/socket";
+import { useTheme } from "../../theme/ThemeContext";
 
 const formatEventDate = (value: string) =>
   new Date(value).toLocaleString([], {
@@ -51,25 +62,27 @@ const getTournamentJoinState = (tournament: Tournament) => {
     : null;
 
   if (tournament.joined) {
-    return { canJoin: false, label: "Open event" };
+    return { canJoin: false, label: "Open Event", status: "JOINED" };
   }
 
   if (registrationCloses && registrationCloses < now) {
-    return { canJoin: false, label: "Registration closed" };
+    return { canJoin: false, label: "Registration Closed", status: "CLOSED" };
   }
 
   if (lateJoinCutoff && lateJoinCutoff < now) {
-    return { canJoin: false, label: "Join window closed" };
+    return { canJoin: false, label: "Join Window Closed", status: "CLOSED" };
   }
 
   return {
     canJoin: true,
-    label: tournament.campaign_cta_label || "Register",
+    label: tournament.campaign_cta_label || "Register Now",
+    status: "OPEN",
   };
 };
 
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors, typography, isDark } = useTheme();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -156,7 +169,7 @@ export const CompetitionHubScreen: React.FC = () => {
   const featuredJoinState = featuredTournament ? getTournamentJoinState(featuredTournament) : null;
 
   return (
-    <Screen style={styles.screen}>
+    <Screen style={[styles.screen, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -167,11 +180,23 @@ export const CompetitionHubScreen: React.FC = () => {
           />
         }
       >
+        {/* Header Section */}
         <View style={styles.header}>
-          <Text style={styles.title}>Compete Live</Text>
-          <Text style={styles.subtitle}>
-            Join live campaigns first, then open your own rooms, code invites, and rankings when
-            you need them.
+          <View style={styles.headerTop}>
+            <View style={[styles.badgePill, { backgroundColor: "rgba(34, 197, 94, 0.12)", borderColor: colors.primary }]}>
+              <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.badgeText, { color: colors.primary }]}>
+                {liveCampaignCount} Live Arena{liveCampaignCount === 1 ? "" : "s"}
+              </Text>
+            </View>
+            <View style={[styles.badgePill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+              <Swords size={12} color={colors.textSecondary} />
+              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>Speed Battles</Text>
+            </View>
+          </View>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Compete Live</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Join official university campaigns, launch 1v1 speed battles, or climb the academic leaderboards.
           </Text>
         </View>
 
@@ -182,124 +207,170 @@ export const CompetitionHubScreen: React.FC = () => {
         ) : (
           <>
             {loadNotice ? (
-              <Card style={styles.noticeCard}>
-                <Text style={styles.noticeTitle}>Competition update pending</Text>
-                <Text style={styles.noticeText}>{loadNotice}</Text>
+              <Card style={[styles.noticeCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Notice</Text>
+                <Text style={[styles.noticeText, { color: colors.textSecondary }]}>{loadNotice}</Text>
               </Card>
             ) : null}
 
+            {/* Main Action Grid */}
+            <View style={styles.actionGrid}>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[styles.actionCardPrimary, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate("CreateCompetition")}
+              >
+                <View style={styles.actionCardIconWrapPrimary}>
+                  <Plus size={22} color="#04110A" />
+                </View>
+                <View style={styles.actionCardBody}>
+                  <Text style={styles.actionCardTitlePrimary}>New Match</Text>
+                  <Text style={styles.actionCardSubPrimary}>Create private room or duel code</Text>
+                </View>
+                <Zap size={18} color="#04110A" opacity={0.7} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[
+                  styles.actionCardSecondary,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+                onPress={() => navigation.navigate("CompetitionJoinCode")}
+              >
+                <View style={[styles.actionCardIconWrapSecondary, { backgroundColor: colors.surfaceElevated }]}>
+                  <UserPlus size={20} color={colors.primary} />
+                </View>
+                <View style={styles.actionCardBody}>
+                  <Text style={[styles.actionCardTitleSecondary, { color: colors.textPrimary }]}>Join Code</Text>
+                  <Text style={[styles.actionCardSubSecondary, { color: colors.textSecondary }]}>Enter match code</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Utilities Row */}
+            <View style={styles.utilityGrid}>
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[styles.utilityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => navigation.navigate("CompetitionMatches")}
+              >
+                <View style={[styles.utilityIcon, { backgroundColor: "rgba(34, 197, 94, 0.1)" }]}>
+                  <ListChecks size={18} color={colors.primary} />
+                </View>
+                <View style={styles.utilityTextWrap}>
+                  <Text style={[styles.utilityTitle, { color: colors.textPrimary }]}>My Matches</Text>
+                  <Text style={[styles.utilitySub, { color: colors.textSecondary }]}>History & active rooms</Text>
+                </View>
+                <ChevronRight size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={[styles.utilityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => navigation.navigate("CompetitionLeaderboard")}
+              >
+                <View style={[styles.utilityIcon, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
+                  <Trophy size={18} color="#F59E0B" />
+                </View>
+                <View style={styles.utilityTextWrap}>
+                  <Text style={[styles.utilityTitle, { color: colors.textPrimary }]}>Leaderboard</Text>
+                  <Text style={[styles.utilitySub, { color: colors.textSecondary }]}>Global rankings & wins</Text>
+                </View>
+                <ChevronRight size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Section Title */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Live Campaigns</Text>
-              <Text style={styles.sectionHint}>
-                {liveCampaignCount} active or scheduled event
-                {liveCampaignCount === 1 ? "" : "s"}
+              <View style={styles.sectionTitleRow}>
+                <Flame size={18} color={colors.primary} />
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Featured Campaigns</Text>
+              </View>
+              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                {liveCampaignCount} active event{liveCampaignCount === 1 ? "" : "s"}
               </Text>
             </View>
 
-            <View style={styles.actionGrid}>
-              <TouchableOpacity
-                style={styles.primaryActionButton}
-                onPress={() => navigation.navigate("CreateCompetition")}
-              >
-                <Plus size={18} color="#04110A" />
-                <Text style={styles.primaryActionButtonText}>New Match</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryActionButton}
-                onPress={() => navigation.navigate("CompetitionJoinCode")}
-              >
-                <UserPlus size={18} color={colors.primary} />
-                <Text style={styles.secondaryActionButtonText}>Join with code</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.utilityRow}>
-              <Card
-                style={styles.utilityCard}
-                onPress={() => navigation.navigate("CompetitionMatches")}
-              >
-                <View style={styles.utilityIconWrap}>
-                  <ListChecks size={18} color={colors.primary} />
-                </View>
-                <View style={styles.utilityContent}>
-                  <Text style={styles.utilityTitle}>My matches</Text>
-                  <Text style={styles.utilityText}>
-                    Open your created rooms, joined rooms, and public room list on a separate page.
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={colors.textMuted} />
-              </Card>
-
-              <Card
-                style={styles.utilityCard}
-                onPress={() => navigation.navigate("CompetitionLeaderboard")}
-              >
-                <View style={styles.utilityIconWrap}>
-                  <Trophy size={18} color={colors.primary} />
-                </View>
-                <View style={styles.utilityContent}>
-                  <Text style={styles.utilityTitle}>Leaderboard</Text>
-                  <Text style={styles.utilityText}>
-                    Check your match totals, win rate, and overall ranking without crowding this
-                    campaign page.
-                  </Text>
-                </View>
-                <ChevronRight size={18} color={colors.textMuted} />
-              </Card>
-            </View>
-
+            {/* Featured Hero Campaign Card */}
             {featuredTournament ? (
               <TouchableOpacity
-                activeOpacity={0.9}
+                activeOpacity={0.92}
                 onPress={() =>
                   navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })
                 }
               >
-                <Card style={styles.heroCampaignCard}>
+                <Card style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                   {featuredTournament.campaign_banner_url ? (
-                    <Image
-                      source={{ uri: featuredTournament.campaign_banner_url }}
-                      style={styles.heroBanner}
-                      resizeMode="cover"
-                    />
+                    <View style={styles.heroBannerWrap}>
+                      <Image
+                        source={{ uri: featuredTournament.campaign_banner_url }}
+                        style={styles.heroBanner}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.heroBannerOverlay} />
+                      <View style={styles.heroFloatingTag}>
+                        <Sparkles size={12} color="#04110A" />
+                        <Text style={styles.heroFloatingTagText}>
+                          {featuredTournament.campaign_preheader || "FEATURED CHALLENGE"}
+                        </Text>
+                      </View>
+                    </View>
                   ) : (
-                    <View style={styles.heroFallbackBanner}>
-                      <Text style={styles.heroFallbackText}>
-                        {featuredTournament.campaign_preheader || "Featured challenge"}
-                      </Text>
+                    <View style={[styles.heroFallbackBanner, { backgroundColor: colors.surfaceElevated }]}>
+                      <View style={styles.heroFloatingTag}>
+                        <Sparkles size={12} color="#04110A" />
+                        <Text style={styles.heroFloatingTagText}>
+                          {featuredTournament.campaign_preheader || "FEATURED CHALLENGE"}
+                        </Text>
+                      </View>
                     </View>
                   )}
+
                   <View style={styles.heroBody}>
-                    <Text style={styles.heroEyebrow}>
-                      {featuredTournament.campaign_preheader ||
-                        campaignAudienceLabel(featuredTournament)}
+                    <Text style={[styles.heroAudience, { color: colors.primary }]}>
+                      {campaignAudienceLabel(featuredTournament)}
                     </Text>
-                    <Text style={styles.heroTitle}>{featuredTournament.title}</Text>
-                    <Text style={styles.heroDescription} numberOfLines={3}>
+                    <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
+                      {featuredTournament.title}
+                    </Text>
+                    <Text style={[styles.heroDescription, { color: colors.textSecondary }]} numberOfLines={2}>
                       {featuredTournament.description ||
                         "Join this live Akademi challenge and compete in real time."}
                     </Text>
 
-                    <View style={styles.heroMetaWrap}>
-                      <View style={styles.heroMetaRow}>
-                        <CalendarDays size={14} color={colors.textMuted} />
-                        <Text style={styles.heroMetaText}>
+                    <View style={styles.heroMetaRow}>
+                      <View style={styles.heroMetaItem}>
+                        <CalendarDays size={13} color={colors.textMuted} />
+                        <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
                           {formatEventDate(featuredTournament.scheduled_at)}
                         </Text>
                       </View>
-                      <Text style={styles.heroMetaText}>
-                        {featuredTournament.shared_course_code || "Multi-course event"}
-                      </Text>
-                      {featuredTournament.prize_summary ? (
-                        <Text style={styles.heroPrize}>{featuredTournament.prize_summary}</Text>
+                      {featuredTournament.shared_course_code ? (
+                        <View style={[styles.courseTag, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                          <Text style={[styles.courseTagText, { color: colors.primary }]}>
+                            {featuredTournament.shared_course_code}
+                          </Text>
+                        </View>
                       ) : null}
                     </View>
 
+                    {featuredTournament.prize_summary ? (
+                      <View style={[styles.prizeCard, { backgroundColor: "rgba(245, 158, 11, 0.1)", borderColor: "rgba(245, 158, 11, 0.3)" }]}>
+                        <Trophy size={14} color="#F59E0B" />
+                        <Text style={styles.prizeText} numberOfLines={1}>
+                          {featuredTournament.prize_summary}
+                        </Text>
+                      </View>
+                    ) : null}
+
                     <View style={styles.heroActions}>
                       <TouchableOpacity
+                        activeOpacity={0.85}
                         style={[
                           styles.heroPrimaryButton,
+                          { backgroundColor: colors.primary },
                           !featuredJoinState?.canJoin && styles.heroSecondaryButton,
                         ]}
                         onPress={() =>
@@ -313,42 +384,45 @@ export const CompetitionHubScreen: React.FC = () => {
                         <Text
                           style={[
                             styles.heroPrimaryButtonText,
-                            !featuredJoinState?.canJoin && styles.heroSecondaryButtonText,
+                            !featuredJoinState?.canJoin && { color: colors.textPrimary },
                           ]}
                         >
                           {featuredJoinState?.label || "Register"}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={styles.heroGhostButton}
+                        activeOpacity={0.85}
+                        style={[styles.heroGhostButton, { borderColor: colors.border }]}
                         onPress={() =>
                           navigation.navigate("TournamentDetail", {
                             tournamentId: featuredTournament.id,
                           })
                         }
                       >
-                        <Text style={styles.heroGhostButtonText}>See details</Text>
+                        <Text style={[styles.heroGhostButtonText, { color: colors.textPrimary }]}>See Arena</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 </Card>
               </TouchableOpacity>
             ) : (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyTitle}>No live campaigns yet</Text>
-                <Text style={styles.emptyText}>
-                  Published university, faculty, department, and national challenges will show
-                  here first.
+              <Card style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <ShieldCheck size={32} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Live Campaigns Yet</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Published university, faculty, department, and national challenges will show here. You can launch your own match above anytime!
                 </Text>
               </Card>
             )}
 
+            {/* Remaining Tournaments List */}
             {remainingTournaments.length > 0 ? (
               <View style={styles.tournamentList}>
+                <Text style={[styles.subSectionTitle, { color: colors.textSecondary }]}>Upcoming Events</Text>
                 {remainingTournaments.map((tournament) => (
                   <Card
                     key={tournament.id}
-                    style={styles.campaignListCard}
+                    style={[styles.campaignItemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                     onPress={() =>
                       navigation.navigate("TournamentDetail", { tournamentId: tournament.id })
                     }
@@ -360,17 +434,23 @@ export const CompetitionHubScreen: React.FC = () => {
                         resizeMode="cover"
                       />
                     ) : (
-                      <View style={styles.campaignThumbFallback} />
+                      <View style={[styles.campaignThumbFallback, { backgroundColor: colors.surfaceElevated }]}>
+                        <Swords size={20} color={colors.primary} />
+                      </View>
                     )}
-                    <View style={styles.campaignListBody}>
-                      <View style={styles.campaignListTop}>
-                        <Text style={styles.campaignListTitle} numberOfLines={2}>
+                    <View style={styles.campaignItemBody}>
+                      <View style={styles.campaignItemTop}>
+                        <Text style={[styles.campaignItemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                           {tournament.title}
                         </Text>
-                        <Text style={styles.campaignStatus}>{tournament.status}</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: "rgba(34, 197, 94, 0.12)" }]}>
+                          <Text style={[styles.statusBadgeText, { color: colors.primary }]}>{tournament.status}</Text>
+                        </View>
                       </View>
-                      <Text style={styles.campaignListMeta}>{`${tournament.shared_course_code || "Multi-course"} - ${formatEventDate(tournament.scheduled_at)}`}</Text>
-                      <Text style={styles.campaignListAudience} numberOfLines={1}>
+                      <Text style={[styles.campaignItemMeta, { color: colors.textSecondary }]}>
+                        {`${tournament.shared_course_code || "Multi-course"} • ${formatEventDate(tournament.scheduled_at)}`}
+                      </Text>
+                      <Text style={[styles.campaignItemAudience, { color: colors.textMuted }]} numberOfLines={1}>
                         {campaignAudienceLabel(tournament)}
                       </Text>
                     </View>
@@ -388,283 +468,381 @@ export const CompetitionHubScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
-    paddingBottom: 32,
+    padding: 18,
+    paddingBottom: 36,
     gap: 16,
   },
   header: {
+    gap: 6,
+    marginBottom: 4,
+  },
+  headerTop: {
+    flexDirection: "row",
     gap: 8,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  badgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "700",
   },
   title: {
-    ...typography.h2,
-    color: colors.textPrimary,
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
   center: {
-    paddingTop: 80,
+    paddingTop: 60,
     alignItems: "center",
   },
   noticeCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
+    gap: 6,
     borderWidth: 1,
-    gap: 8,
+    padding: 14,
+    borderRadius: 14,
   },
   noticeTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: "700",
   },
   noticeText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  sectionHeader: {
-    gap: 4,
-  },
-  sectionTitle: {
-    ...typography.h4,
-    color: colors.textPrimary,
-  },
-  sectionHint: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
   },
   actionGrid: {
     flexDirection: "row",
     gap: 12,
   },
-  primaryActionButton: {
+  actionCardPrimary: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 15,
+    padding: 14,
+    borderRadius: 16,
+    gap: 10,
   },
-  primaryActionButtonText: {
-    ...typography.bodySmall,
+  actionCardIconWrapPrimary: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionCardBody: {
+    flex: 1,
+    gap: 2,
+  },
+  actionCardTitlePrimary: {
+    fontSize: 15,
+    fontWeight: "800",
     color: "#04110A",
-    fontWeight: "700",
   },
-  secondaryActionButton: {
+  actionCardSubPrimary: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#04110A",
+    opacity: 0.8,
+  },
+  actionCardSecondary: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.surfaceElevated,
+    padding: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 15,
+    gap: 10,
   },
-  secondaryActionButtonText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: "700",
+  actionCardIconWrapSecondary: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  utilityRow: {
-    gap: 12,
+  actionCardTitleSecondary: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  actionCardSubSecondary: {
+    fontSize: 11,
+  },
+  utilityGrid: {
+    flexDirection: "row",
+    gap: 10,
   },
   utilityCard: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
   },
-  utilityIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
+  utilityIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  utilityContent: {
+  utilityTextWrap: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   utilityTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+    fontSize: 13,
     fontWeight: "700",
   },
-  utilityText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+  utilitySub: {
+    fontSize: 11,
   },
-  heroCampaignCard: {
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  sectionHint: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  heroCard: {
     overflow: "hidden",
     padding: 0,
-    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  heroBannerWrap: {
+    position: "relative",
+    width: "100%",
+    height: 160,
   },
   heroBanner: {
     width: "100%",
-    height: 180,
-    backgroundColor: colors.surfaceElevated,
+    height: "100%",
+  },
+  heroBannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
   },
   heroFallbackBanner: {
-    height: 140,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: "center",
+    height: 110,
+    paddingHorizontal: 16,
     justifyContent: "center",
-    paddingHorizontal: 20,
   },
-  heroFallbackText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: "700",
-    textTransform: "uppercase",
+  heroFloatingTag: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#22C55E",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  heroFloatingTagText: {
+    color: "#04110A",
+    fontSize: 10,
+    fontWeight: "800",
     letterSpacing: 0.5,
   },
   heroBody: {
-    padding: 18,
+    padding: 16,
     gap: 10,
   },
-  heroEyebrow: {
-    ...typography.caption,
-    color: colors.primary,
+  heroAudience: {
+    fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   heroTitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 24,
   },
   heroDescription: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 21,
-  },
-  heroMetaWrap: {
-    gap: 6,
+    fontSize: 13,
+    lineHeight: 19,
   },
   heroMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  heroMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   heroMetaText: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 12,
   },
-  heroPrize: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
+  courseTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  courseTagText: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  prizeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  prizeText: {
+    color: "#F59E0B",
+    fontSize: 12,
     fontWeight: "700",
+    flex: 1,
   },
   heroActions: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 6,
+    marginTop: 4,
   },
   heroPrimaryButton: {
     flex: 1,
-    backgroundColor: colors.primary,
-    paddingVertical: 13,
+    paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
   },
   heroPrimaryButtonText: {
-    ...typography.bodySmall,
     color: "#04110A",
-    fontWeight: "700",
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  heroSecondaryButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#3F3F46",
   },
   heroGhostButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   heroGhostButtonText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
     fontWeight: "700",
+    fontSize: 13,
   },
-  heroSecondaryButton: {
-    backgroundColor: colors.surfaceElevated,
+  emptyCard: {
+    alignItems: "center",
+    padding: 24,
+    gap: 10,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.border,
   },
-  heroSecondaryButtonText: {
-    color: colors.textPrimary,
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  emptyText: {
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 19,
+  },
+  subSectionTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 8,
+    marginBottom: 4,
   },
   tournamentList: {
-    gap: 12,
+    gap: 10,
   },
-  campaignListCard: {
+  campaignItemCard: {
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   campaignThumb: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
   },
   campaignThumbFallback: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  campaignListBody: {
+  campaignItemBody: {
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
-  campaignListTop: {
+  campaignItemTop: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
-  },
-  campaignListTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-    flex: 1,
-  },
-  campaignStatus: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  campaignListMeta: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  campaignListAudience: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  emptyCard: {
     gap: 8,
   },
-  emptyTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
+  campaignItemTitle: {
+    fontSize: 14,
     fontWeight: "700",
+    flex: 1,
   },
-  emptyText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  campaignItemMeta: {
+    fontSize: 12,
+  },
+  campaignItemAudience: {
+    fontSize: 11,
   },
 });
-

@@ -1,15 +1,17 @@
 import React, { useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Clock, Globe, HelpCircle, Layers, Lock, Sparkles, Swords, Zap } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
 import { competitionService, CompetitionFormat, CompetitionVisibility } from "../../services/competition";
+import { useTheme } from "../../theme/ThemeContext";
 
 export const CreateCompetitionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { colors } = useTheme();
+
   const [title, setTitle] = useState("");
   const [courseCode, setCourseCode] = useState("");
   const [format, setFormat] = useState<CompetitionFormat>("SHARED_COURSE");
@@ -22,7 +24,7 @@ export const CreateCompetitionScreen: React.FC = () => {
     try {
       setCreating(true);
       const room = await competitionService.createRoom({
-        title: title.trim() || "Live Competition",
+        title: title.trim() || "Speed Battle",
         format,
         visibility,
         shared_course_code: format === "SHARED_COURSE" ? courseCode.trim().toUpperCase() : undefined,
@@ -38,91 +40,183 @@ export const CreateCompetitionScreen: React.FC = () => {
     }
   };
 
-  return (
-    <Screen scrollable style={styles.screen}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Create Live Match</Text>
-        <Text style={styles.subtitle}>
-          Start with friend battles first. Shared-course mode is the fairest launch format.
-        </Text>
+  const questionPresets = ["5", "10", "15", "20"];
+  const timerPresets = ["15", "20", "30", "45"];
 
-        <Card style={styles.formCard}>
+  return (
+    <Screen scrollable style={[styles.screen, { backgroundColor: colors.background }]} title="Create Match">
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={[styles.iconWrap, { backgroundColor: "rgba(34, 197, 94, 0.15)" }]}>
+            <Swords size={24} color={colors.primary} />
+          </View>
+          <View style={styles.headerText}>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Create Live Match</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Launch a live academic speed duel with your classmates or open a room to all.
+            </Text>
+          </View>
+        </View>
+
+        <Card style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Input
-            label="Match title"
-            placeholder="EEE 301 speed battle"
+            label="Match Title"
+            placeholder="e.g. EEE 301 Speed Battle"
             value={title}
             onChangeText={setTitle}
           />
+
           <Input
-            label={format === "SHARED_COURSE" ? "Shared course code" : "Your course code"}
-            placeholder="GST 101"
+            label={format === "SHARED_COURSE" ? "Shared Course Code *" : "Your Course Code *"}
+            placeholder="e.g. GST 101"
             value={courseCode}
             onChangeText={setCourseCode}
             autoCapitalize="characters"
           />
-          <View style={styles.inlineRow}>
-            <View style={styles.inlineField}>
-              <Input
-                label="Questions"
-                placeholder="10"
-                value={questionCount}
-                onChangeText={setQuestionCount}
-                keyboardType="number-pad"
-              />
+
+          {/* Presets for Questions */}
+          <View style={styles.section}>
+            <View style={styles.sectionLabelRow}>
+              <HelpCircle size={14} color={colors.primary} />
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Question Count</Text>
             </View>
-            <View style={styles.inlineField}>
-              <Input
-                label="Seconds per question"
-                placeholder="20"
-                value={questionTimerSec}
-                onChangeText={setQuestionTimerSec}
-                keyboardType="number-pad"
-              />
+            <View style={styles.presetRow}>
+              {questionPresets.map((preset) => {
+                const isActive = questionCount === preset;
+                return (
+                  <TouchableOpacity
+                    key={preset}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.presetChip,
+                      { backgroundColor: isActive ? colors.primary : colors.surfaceElevated, borderColor: isActive ? colors.primary : colors.border },
+                    ]}
+                    onPress={() => setQuestionCount(preset)}
+                  >
+                    <Text style={[styles.presetText, { color: isActive ? "#04110A" : colors.textPrimary }]}>
+                      {preset} Qs
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
+          {/* Presets for Timer */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Format</Text>
+            <View style={styles.sectionLabelRow}>
+              <Clock size={14} color={colors.primary} />
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Timer per Question</Text>
+            </View>
+            <View style={styles.presetRow}>
+              {timerPresets.map((preset) => {
+                const isActive = questionTimerSec === preset;
+                return (
+                  <TouchableOpacity
+                    key={preset}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.presetChip,
+                      { backgroundColor: isActive ? colors.primary : colors.surfaceElevated, borderColor: isActive ? colors.primary : colors.border },
+                    ]}
+                    onPress={() => setQuestionTimerSec(preset)}
+                  >
+                    <Text style={[styles.presetText, { color: isActive ? "#04110A" : colors.textPrimary }]}>
+                      {preset}s
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Format Picker */}
+          <View style={styles.section}>
+            <View style={styles.sectionLabelRow}>
+              <Layers size={14} color={colors.primary} />
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Match Format</Text>
+            </View>
             <View style={styles.segmentRow}>
               {[
-                { label: "Shared", value: "SHARED_COURSE" },
-                { label: "Dual", value: "DUAL_COURSE" },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.value}
-                  style={[styles.segmentButton, format === item.value && styles.segmentButtonActive]}
-                  onPress={() => setFormat(item.value as CompetitionFormat)}
-                >
-                  <Text style={[styles.segmentText, format === item.value && styles.segmentTextActive]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                { label: "Shared Course", sub: "Same questions for both", value: "SHARED_COURSE" },
+                { label: "Dual Course", sub: "Host & Opponent course mix", value: "DUAL_COURSE" },
+              ].map((item) => {
+                const isActive = format === item.value;
+                return (
+                  <TouchableOpacity
+                    key={item.value}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.segmentCard,
+                      { backgroundColor: isActive ? "rgba(34, 197, 94, 0.12)" : colors.surfaceElevated, borderColor: isActive ? colors.primary : colors.border },
+                    ]}
+                    onPress={() => setFormat(item.value as CompetitionFormat)}
+                  >
+                    <Text style={[styles.segmentTitle, { color: isActive ? colors.primary : colors.textPrimary }]}>
+                      {item.label}
+                    </Text>
+                    <Text style={[styles.segmentSub, { color: colors.textMuted }]}>{item.sub}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
+          {/* Visibility Picker */}
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Visibility</Text>
+            <View style={styles.sectionLabelRow}>
+              <Globe size={14} color={colors.primary} />
+              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>Visibility</Text>
+            </View>
             <View style={styles.segmentRow}>
               {[
-                { label: "Private", value: "PRIVATE" },
-                { label: "Public", value: "PUBLIC" },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.value}
-                  style={[styles.segmentButton, visibility === item.value && styles.segmentButtonActive]}
-                  onPress={() => setVisibility(item.value as CompetitionVisibility)}
-                >
-                  <Text style={[styles.segmentText, visibility === item.value && styles.segmentTextActive]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                { label: "Private", icon: Lock, sub: "Code invite only", value: "PRIVATE" },
+                { label: "Public", icon: Globe, sub: "Open in public matches", value: "PUBLIC" },
+              ].map((item) => {
+                const isActive = visibility === item.value;
+                const IconComponent = item.icon;
+                return (
+                  <TouchableOpacity
+                    key={item.value}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.segmentCardRow,
+                      { backgroundColor: isActive ? "rgba(34, 197, 94, 0.12)" : colors.surfaceElevated, borderColor: isActive ? colors.primary : colors.border },
+                    ]}
+                    onPress={() => setVisibility(item.value as CompetitionVisibility)}
+                  >
+                    <IconComponent size={16} color={isActive ? colors.primary : colors.textSecondary} />
+                    <View style={styles.segmentTextWrap}>
+                      <Text style={[styles.segmentTitle, { color: isActive ? colors.primary : colors.textPrimary }]}>
+                        {item.label}
+                      </Text>
+                      <Text style={[styles.segmentSub, { color: colors.textMuted }]}>{item.sub}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
-          <TouchableOpacity style={styles.createButton} onPress={createRoom} disabled={creating || !courseCode.trim()}>
-            <Text style={styles.createButtonText}>{creating ? "Creating..." : "Create match"}</Text>
+          {/* Submit Button */}
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={[
+              styles.createButton,
+              { backgroundColor: !courseCode.trim() ? colors.surfaceElevated : colors.primary },
+            ]}
+            onPress={createRoom}
+            disabled={creating || !courseCode.trim()}
+          >
+            <Zap size={18} color={!courseCode.trim() ? colors.textMuted : "#04110A"} />
+            <Text
+              style={[
+                styles.createButtonText,
+                { color: !courseCode.trim() ? colors.textMuted : "#04110A" },
+              ]}
+            >
+              {creating ? "Launching Room..." : "Create Match Arena"}
+            </Text>
           </TouchableOpacity>
         </Card>
       </View>
@@ -133,73 +227,113 @@ export const CreateCompetitionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   container: {
-    padding: 20,
+    padding: 18,
     gap: 16,
+    paddingBottom: 36,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerText: {
+    flex: 1,
+    gap: 2,
   },
   title: {
-    ...typography.h2,
-    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
   },
   subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 18,
   },
   formCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
     gap: 16,
   },
-  inlineRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  inlineField: {
-    flex: 1,
-  },
   section: {
-    gap: 10,
+    gap: 8,
+  },
+  sectionLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   sectionLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  presetRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  presetChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetText: {
+    fontSize: 12,
+    fontWeight: "800",
   },
   segmentRow: {
     flexDirection: "row",
     gap: 10,
   },
-  segmentButton: {
+  segmentCard: {
     flex: 1,
-    paddingVertical: 12,
+    padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    gap: 2,
+  },
+  segmentCardRow: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 10,
   },
-  segmentButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  segmentTextWrap: {
+    flex: 1,
+    gap: 2,
   },
-  segmentText: {
-    ...typography.bodySmall,
-    color: colors.textPrimary,
-    fontWeight: "600",
+  segmentTitle: {
+    fontSize: 13,
+    fontWeight: "800",
   },
-  segmentTextActive: {
-    color: "#04110A",
+  segmentSub: {
+    fontSize: 11,
   },
   createButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     marginTop: 8,
-    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 14,
-    alignItems: "center",
   },
   createButtonText: {
-    ...typography.body,
-    color: "#04110A",
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

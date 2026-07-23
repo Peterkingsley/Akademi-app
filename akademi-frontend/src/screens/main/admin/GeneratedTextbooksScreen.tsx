@@ -10,7 +10,10 @@ import {
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { BookOpen, X } from "lucide-react-native";
+import { Button } from "../../../components/ui/Button";
+import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import Toast from "react-native-toast-message";
+import { BookOpen, X, RefreshCw } from "lucide-react-native";
 
 const STATUS_COLORS: Record<string, string> = {
   GENERATED: "#22C55E",
@@ -45,6 +48,8 @@ export const GeneratedTextbooksScreen: React.FC = () => {
   const [selectedOutlineId, setSelectedOutlineId] = useState<string | null>(null);
   const [detail, setDetail] = useState<GeneratedTextbookDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     fetchOverview();
@@ -79,6 +84,30 @@ export const GeneratedTextbooksScreen: React.FC = () => {
   const closeDetail = () => {
     setSelectedOutlineId(null);
     setDetail(null);
+  };
+
+  const handleRegenerateTextbook = async () => {
+    if (!selectedOutlineId) return;
+    setRegenerating(true);
+    try {
+      await adminService.regenerateGeneratedTextbook(selectedOutlineId);
+      Toast.show({
+        type: "success",
+        text1: "Regeneration Queued",
+        text2: "The textbook outline has been queued for a full regeneration.",
+      });
+      setShowRegenerateConfirm(false);
+      closeDetail();
+      fetchOverview();
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Regeneration Failed",
+        text2: error.response?.data?.message || error.message,
+      });
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   return (
@@ -138,7 +167,13 @@ export const GeneratedTextbooksScreen: React.FC = () => {
             <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>
               {detail?.course_code || "Outline detail"}
             </Text>
-            <View style={{ width: 22 }} />
+            {detail ? (
+              <TouchableOpacity onPress={() => setShowRegenerateConfirm(true)} style={{ padding: 4 }}>
+                <RefreshCw size={20} color={colors.primary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 22 }} />
+            )}
           </View>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
             {detailLoading ? (
@@ -186,6 +221,16 @@ export const GeneratedTextbooksScreen: React.FC = () => {
           </ScrollView>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={showRegenerateConfirm}
+        title="Force Regenerate Textbook"
+        message="Are you sure you want to regenerate this textbook? This will bypass all checks and immediately queue a new generation run, which incurs AI costs. Older versions will remain live for students until the new one finishes building."
+        confirmLabel={regenerating ? "Queuing..." : "Regenerate"}
+        confirmColor={colors.error}
+        onConfirm={handleRegenerateTextbook}
+        onCancel={() => setShowRegenerateConfirm(false)}
+      />
     </Screen>
   );
 };

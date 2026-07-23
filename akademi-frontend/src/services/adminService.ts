@@ -575,6 +575,11 @@ export const adminService = {
     return data;
   },
 
+  regenerateGeneratedTextbook: async (outlineId: string) => {
+    const { data } = await api.post(`/admin/generated-textbooks/${outlineId}/regenerate`);
+    return data;
+  },
+
   approveMaterial: async (id: string) => {
     const { data } = await api.patch(`/admin/materials/${id}/approve`);
     return data;

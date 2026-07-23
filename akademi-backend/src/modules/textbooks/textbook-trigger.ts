@@ -68,6 +68,23 @@ export async function ensureTextbookGenerationQueued(
   return 'queued';
 }
 
+// Bypasses the hasExistingTextbookOutline check to manually force a regeneration of an
+// already-published or previously-failed outline.
+export async function forceRegenerateTextbookOutline(
+  courseCode: string,
+  universityId?: string | null,
+): Promise<EnsureTextbookGenerationResult> {
+  const code = courseCode.trim().toUpperCase();
+
+  systemQueue
+    .add(JOB_NAMES.DECOMPOSE_CURRICULUM, { courseCode: code, universityId: universityId || undefined })
+    .catch((error: unknown) => {
+      console.error('[textbooks] failed to force-enqueue curriculum decomposition', { code, universityId, error });
+    });
+
+  return 'queued';
+}
+
 // Fire-and-forget by design — callers must not await this in a way that blocks a student-facing
 // response (registration/login/profile-update). universityId is the requesting student's own
 // school — passed once for the whole batch since a StudentCourse-creation event always belongs

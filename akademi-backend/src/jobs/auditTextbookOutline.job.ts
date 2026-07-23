@@ -145,6 +145,15 @@ async function publishGeneratedTextbook(outlineId: string) {
     },
   });
 
+  await prisma.generatedTextbookOutline.updateMany({
+    where: {
+      course_code: outline.course_code,
+      university_id: outline.university_id,
+      id: { not: outline.id },
+    },
+    data: { is_current: false },
+  });
+
   await prisma.generatedTextbookOutline.update({
     where: { id: outline.id },
     data: { material_id: material.id, is_current: true },

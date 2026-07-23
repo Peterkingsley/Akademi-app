@@ -104,6 +104,7 @@ router.get('/generated-textbooks/sections/admin-queued', authorizeRoles(AdminRol
 router.patch('/generated-textbooks/sections/:sectionId', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.updateGeneratedTextbookSection(req, res));
 router.patch('/generated-textbooks/materials/:materialId/takedown', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.takeDownGeneratedTextbook(req, res));
 router.get('/generated-textbooks/:outlineId', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER, AdminRole.MODERATOR), (req, res) => adminController.getGeneratedTextbookDetail(req, res));
+router.post('/generated-textbooks/:outlineId/regenerate', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.regenerateTextbook(req, res));
 
 // Pillar 4: Discipline Documents
 router.get('/documents', (req, res) => adminController.listDisciplineDocuments(req, res));

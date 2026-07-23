@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
-import { TouchableOpacity, View, StyleSheet, ViewStyle } from "react-native";
+import { TouchableOpacity, View, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from "react-native-reanimated";
 import { useTheme } from "../../theme/ThemeContext";
 import { usePressBounce } from "../../hooks/usePressBounce";
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   elevated?: boolean;
   onPress?: () => void;
   bordered?: boolean;
