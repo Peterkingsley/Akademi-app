@@ -66,7 +66,7 @@ const ModerationQueue = ({ status }: { status: string }) => {
     if (type === "view") {
       if (targetItem.is_akademi_generated || !targetItem.file_ref) {
         setModalVisible(false); // Close preview modal if it's open
-        navigation.navigate("StudyMode", { materialId: targetItem.id });
+        navigation.navigate("Main", { screen: "StudyMode", params: { materialId: targetItem.id } });
         return;
       }
       try {
