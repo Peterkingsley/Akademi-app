@@ -37,9 +37,9 @@ export function startCapacitySweeper() {
           // 3. Failed during diagram fetch, quality check, or embedding
           await prisma.generatedTextbookOutlineNode.update({ where: { id: node.id }, data: { status: 'GENERATED' } });
           
-          if (node.section.needs_diagram && !node.section.diagram_image_url) {
-            systemQueue.add(JOB_NAMES.FETCH_TEXTBOOK_DIAGRAM, { sectionId: node.section.id }).catch((error: unknown) => {
-              console.error('[capacity-sweeper] failed to re-enqueue diagram fetch', { sectionId: node.section.id, error });
+          if (node.section!.needs_diagram && !node.section!.diagram_image_url) {
+            systemQueue.add(JOB_NAMES.FETCH_TEXTBOOK_DIAGRAM, { sectionId: node.section!.id }).catch((error: unknown) => {
+              console.error('[capacity-sweeper] failed to re-enqueue diagram fetch', { sectionId: node.section!.id, error });
             });
           }
 
