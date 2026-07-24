@@ -15,3 +15,6 @@ npx puppeteer browsers install chrome
 # Existing steps — unchanged, must still run after this
 npm run build
 npx prisma migrate deploy
+
+# Fix: Reset ADMIN_QUEUED nodes stuck due to capacity exhaustion
+npx tsx src/scripts/reset-admin-queued-nodes.ts

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, Modal, ScrollView } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, Modal, ScrollView, Alert } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import {
@@ -10,9 +10,7 @@ import {
 import { Card } from "../../../components/ui/Card";
 import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { Button } from "../../../components/ui/Button";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
-import Toast from "react-native-toast-message";
 import { BookOpen, X, RefreshCw } from "lucide-react-native";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -91,20 +89,12 @@ export const GeneratedTextbooksScreen: React.FC = () => {
     setRegenerating(true);
     try {
       await adminService.regenerateGeneratedTextbook(selectedOutlineId);
-      Toast.show({
-        type: "success",
-        text1: "Regeneration Queued",
-        text2: "The textbook outline has been queued for a full regeneration.",
-      });
+      Alert.alert("Regeneration Queued", "The textbook outline has been queued for a full regeneration.");
       setShowRegenerateConfirm(false);
       closeDetail();
       fetchOverview();
     } catch (error: any) {
-      Toast.show({
-        type: "error",
-        text1: "Regeneration Failed",
-        text2: error.response?.data?.message || error.message,
-      });
+      Alert.alert("Regeneration Failed", error.response?.data?.message || error.message);
     } finally {
       setRegenerating(false);
     }
@@ -226,8 +216,8 @@ export const GeneratedTextbooksScreen: React.FC = () => {
         visible={showRegenerateConfirm}
         title="Force Regenerate Textbook"
         message="Are you sure you want to regenerate this textbook? This will bypass all checks and immediately queue a new generation run, which incurs AI costs. Older versions will remain live for students until the new one finishes building."
-        confirmLabel={regenerating ? "Queuing..." : "Regenerate"}
-        confirmColor={colors.error}
+        confirmText={regenerating ? "Queuing..." : "Regenerate"}
+        type="danger"
         onConfirm={handleRegenerateTextbook}
         onCancel={() => setShowRegenerateConfirm(false)}
       />

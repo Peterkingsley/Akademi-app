@@ -26,6 +26,7 @@ import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
 import { recoverPendingMaterials, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
 import { getSystemHealthSnapshot } from './shared/system/system-health';
+import { startCapacitySweeper } from './jobs/capacitySweeper.job';
 import { getRuntimeState, markShuttingDown, markStartupComplete } from './shared/system/runtime-state';
 
 initSentry();
@@ -135,6 +136,7 @@ const startServer = async () => {
       // await typesenseService.initCollections();
       initWebSocket(server);
       startMaterialRetryScheduler();
+      startCapacitySweeper();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
@@ -150,6 +152,7 @@ const startServer = async () => {
       console.log('Jobs Processor mode active');
       startCompetitionScheduler();
       startMaterialRetryScheduler();
+      startCapacitySweeper();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
@@ -161,6 +164,7 @@ const startServer = async () => {
       initWebSocket(server);
       startCompetitionScheduler();
       startMaterialRetryScheduler();
+      startCapacitySweeper();
       server.listen(config.port, () => {
         markStartupComplete();
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);

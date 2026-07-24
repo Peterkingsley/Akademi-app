@@ -119,6 +119,15 @@ function hashTextEmbedding(text: string, dimensions = 256) {
   return normalizeVector(vector);
 }
 
+export class TransientCapacityError extends Error {
+  transient: boolean;
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransientCapacityError';
+    this.transient = true;
+  }
+}
+
 export class AIProvider {
   private gemini: GoogleGenerativeAI | null = null;
   private lastGeminiKey: string | null = null;
@@ -145,6 +154,7 @@ export class AIProvider {
     const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
 
     let geminiError: string | null = null;
+    let lastErrorWasTransient = false;
 
     const geminiClient = this.getGemini();
     if (geminiClient) {
@@ -210,8 +220,10 @@ export class AIProvider {
           geminiError = errorMessage;
           console.error(`Gemini API error on ${geminiModelName}:`, error);
           if (!(error instanceof ProviderTimeoutError) && !isRetryableGeminiError(errorMessage)) {
+            lastErrorWasTransient = false;
             break;
           }
+          lastErrorWasTransient = true;
           await sleep(350);
         }
       }
@@ -220,6 +232,9 @@ export class AIProvider {
     }
 
     console.error('AI provider failed', { geminiError });
+    if (lastErrorWasTransient) {
+      throw new TransientCapacityError(`AI is temporarily out of capacity: ${geminiError}`);
+    }
     throw new Error('AI is temporarily busy. Please try again in a moment.');
   }
 
@@ -279,7 +294,11 @@ export class AIProvider {
         const result = await model.embedContent(text.slice(0, 8000));
         const values = result.embedding.values;
         if (values?.length) return values;
-      } catch (error) {
+      } catch (error: any) {
+        const errorMessage = error?.message || '';
+        if (isRetryableGeminiError(errorMessage)) {
+          throw new TransientCapacityError(`AI is temporarily out of capacity: ${errorMessage}`);
+        }
         console.error('Gemini embedding failed, using deterministic fallback:', error);
       }
     }

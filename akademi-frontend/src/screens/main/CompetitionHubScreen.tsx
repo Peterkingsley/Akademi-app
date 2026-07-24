@@ -11,11 +11,15 @@ import {
   View,
 } from "react-native";
 import {
+  Bell,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   Flame,
   ListChecks,
+  MoreVertical,
   Plus,
+  Radio,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -23,6 +27,7 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -38,6 +43,35 @@ const formatEventDate = (value: string) =>
     hour: "numeric",
     minute: "2-digit",
   });
+
+const formatCalendarDate = (value: string) => {
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "Upcoming";
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  const tomorrow = new Date();
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = date.toDateString() === tomorrow.toDateString();
+
+  const timeStr = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  if (isToday) return `Today at ${timeStr}`;
+  if (isTomorrow) return `Tomorrow at ${timeStr}`;
+
+  const diffDays = (date.getTime() - now.getTime()) / (1000 * 3600 * 24);
+  if (diffDays > 0 && diffDays < 7) {
+    const dayName = date.toLocaleDateString([], { weekday: "long" });
+    return `${dayName} at ${timeStr}`;
+  }
+
+  return date.toLocaleString([], {
+    day: "2-digit",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
 
 const campaignAudienceLabel = (tournament: Tournament) => {
   if (tournament.audience_scope === "UNIVERSITY") {
@@ -80,9 +114,17 @@ const getTournamentJoinState = (tournament: Tournament) => {
   };
 };
 
+// Preset Akademi Brand Emerald Green Gradients
+const GRADIENT_PALETTES: Array<readonly [string, string, ...string[]]> = [
+  ["#15803D", "#22C55E"],
+  ["#059669", "#10B981"],
+  ["#16A34A", "#047857"],
+  ["#047857", "#22C55E"],
+];
+
 export const CompetitionHubScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { colors, typography, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -138,8 +180,24 @@ export const CompetitionHubScreen: React.FC = () => {
     };
   }, []);
 
-  const featuredTournament = tournaments[0] || null;
-  const remainingTournaments = tournaments.slice(1);
+  const liveTournaments = useMemo(
+    () => tournaments.filter((t) => t.status === "LIVE" || t.status === "PUBLISHED" || t.status === "COMPLETED"),
+    [tournaments],
+  );
+
+  // Strictly upcoming future events (not past / not completed)
+  const upcomingTournaments = useMemo(
+    () =>
+      tournaments.filter(
+        (t) =>
+          t.status !== "LIVE" &&
+          t.status !== "COMPLETED" &&
+          new Date(t.scheduled_at).getTime() > Date.now(),
+      ),
+    [tournaments],
+  );
+
+  const liveCampaignCount = liveTournaments.filter((t) => t.status === "LIVE").length;
 
   const joinTournament = async (tournamentId: string) => {
     try {
@@ -158,15 +216,6 @@ export const CompetitionHubScreen: React.FC = () => {
       Alert.alert("Unable to join event", message);
     }
   };
-
-  const liveCampaignCount = useMemo(
-    () =>
-      tournaments.filter(
-        (tournament) => tournament.status === "LIVE" || tournament.status === "PUBLISHED",
-      ).length,
-    [tournaments],
-  );
-  const featuredJoinState = featuredTournament ? getTournamentJoinState(featuredTournament) : null;
 
   return (
     <Screen style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -213,251 +262,222 @@ export const CompetitionHubScreen: React.FC = () => {
               </Card>
             ) : null}
 
-            {/* Main Action Grid */}
-            <View style={styles.actionGrid}>
+            {/* 4-Button Compact Horizontal Toolbar */}
+            <View style={styles.compactToolbar}>
               <TouchableOpacity
-                activeOpacity={0.88}
-                style={[styles.actionCardPrimary, { backgroundColor: colors.primary }]}
+                activeOpacity={0.85}
+                style={[styles.compactBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
                 onPress={() => navigation.navigate("CreateCompetition")}
               >
-                <View style={styles.actionCardIconWrapPrimary}>
-                  <Plus size={22} color="#04110A" />
+                <View style={[styles.compactIconWrap, { backgroundColor: "rgba(4, 17, 10, 0.15)" }]}>
+                  <Plus size={18} color="#04110A" />
                 </View>
-                <View style={styles.actionCardBody}>
-                  <Text style={styles.actionCardTitlePrimary}>New Match</Text>
-                  <Text style={styles.actionCardSubPrimary}>Create private room or duel code</Text>
-                </View>
-                <Zap size={18} color="#04110A" opacity={0.7} />
+                <Text style={[styles.compactBtnText, { color: "#04110A" }]} numberOfLines={1} adjustsFontSizeToFit>
+                  New Match
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.88}
-                style={[
-                  styles.actionCardSecondary,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                ]}
+                activeOpacity={0.85}
+                style={[styles.compactBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => navigation.navigate("CompetitionJoinCode")}
               >
-                <View style={[styles.actionCardIconWrapSecondary, { backgroundColor: colors.surfaceElevated }]}>
-                  <UserPlus size={20} color={colors.primary} />
+                <View style={[styles.compactIconWrap, { backgroundColor: colors.surfaceElevated }]}>
+                  <UserPlus size={18} color={colors.primary} />
                 </View>
-                <View style={styles.actionCardBody}>
-                  <Text style={[styles.actionCardTitleSecondary, { color: colors.textPrimary }]}>Join Code</Text>
-                  <Text style={[styles.actionCardSubSecondary, { color: colors.textSecondary }]}>Enter match code</Text>
-                </View>
-                <ChevronRight size={18} color={colors.textMuted} />
+                <Text style={[styles.compactBtnText, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                  Join Code
+                </Text>
               </TouchableOpacity>
-            </View>
 
-            {/* Quick Utilities Row */}
-            <View style={styles.utilityGrid}>
               <TouchableOpacity
-                activeOpacity={0.88}
-                style={[styles.utilityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                activeOpacity={0.85}
+                style={[styles.compactBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => navigation.navigate("CompetitionMatches")}
               >
-                <View style={[styles.utilityIcon, { backgroundColor: "rgba(34, 197, 94, 0.1)" }]}>
+                <View style={[styles.compactIconWrap, { backgroundColor: colors.surfaceElevated }]}>
                   <ListChecks size={18} color={colors.primary} />
                 </View>
-                <View style={styles.utilityTextWrap}>
-                  <Text style={[styles.utilityTitle, { color: colors.textPrimary }]}>My Matches</Text>
-                  <Text style={[styles.utilitySub, { color: colors.textSecondary }]}>History & active rooms</Text>
-                </View>
-                <ChevronRight size={16} color={colors.textMuted} />
+                <Text style={[styles.compactBtnText, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                  My Matches
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.88}
-                style={[styles.utilityCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                activeOpacity={0.85}
+                style={[styles.compactBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => navigation.navigate("CompetitionLeaderboard")}
               >
-                <View style={[styles.utilityIcon, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
+                <View style={[styles.compactIconWrap, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
                   <Trophy size={18} color="#F59E0B" />
                 </View>
-                <View style={styles.utilityTextWrap}>
-                  <Text style={[styles.utilityTitle, { color: colors.textPrimary }]}>Leaderboard</Text>
-                  <Text style={[styles.utilitySub, { color: colors.textSecondary }]}>Global rankings & wins</Text>
-                </View>
-                <ChevronRight size={16} color={colors.textMuted} />
+                <Text style={[styles.compactBtnText, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                  Leaderboard
+                </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Section Title */}
+            {/* Happening Now Section (X Spaces Live Cards) */}
             <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Flame size={18} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Featured Campaigns</Text>
+              <View style={styles.sectionTitleWrap}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Happening Now</Text>
+                <Text style={[styles.sectionSub, { color: colors.textSecondary }]}>Spaces going on right now</Text>
               </View>
-              <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
-                {liveCampaignCount} active event{liveCampaignCount === 1 ? "" : "s"}
-              </Text>
             </View>
 
-            {/* Featured Hero Campaign Card */}
-            {featuredTournament ? (
-              <TouchableOpacity
-                activeOpacity={0.92}
-                onPress={() =>
-                  navigation.navigate("TournamentDetail", { tournamentId: featuredTournament.id })
-                }
-              >
-                <Card style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  {featuredTournament.campaign_banner_url ? (
-                    <View style={styles.heroBannerWrap}>
-                      <Image
-                        source={{ uri: featuredTournament.campaign_banner_url }}
-                        style={styles.heroBanner}
-                        resizeMode="cover"
-                      />
-                      <View style={styles.heroBannerOverlay} />
-                      <View style={styles.heroFloatingTag}>
-                        <Sparkles size={12} color="#04110A" />
-                        <Text style={styles.heroFloatingTagText}>
-                          {featuredTournament.campaign_preheader || "FEATURED CHALLENGE"}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={[styles.heroFallbackBanner, { backgroundColor: colors.surfaceElevated }]}>
-                      <View style={styles.heroFloatingTag}>
-                        <Sparkles size={12} color="#04110A" />
-                        <Text style={styles.heroFloatingTagText}>
-                          {featuredTournament.campaign_preheader || "FEATURED CHALLENGE"}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+            {liveTournaments.length > 0 ? (
+              <View style={styles.liveCardsList}>
+                {liveTournaments.map((tournament, index) => {
+                  const isOngoingLive = tournament.status === "LIVE";
+                  const gradientColors = GRADIENT_PALETTES[index % GRADIENT_PALETTES.length];
+                  return (
+                    <TouchableOpacity
+                      key={tournament.id}
+                      activeOpacity={0.92}
+                      onPress={() =>
+                        navigation.navigate("TournamentDetail", { tournamentId: tournament.id })
+                      }
+                    >
+                      <LinearGradient
+                        colors={gradientColors}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.spacesCard}
+                      >
+                        {/* Top Bar: LIVE / ENDED Tag */}
+                        <View style={styles.spacesTopRow}>
+                          <View style={[styles.spacesLivePill, !isOngoingLive && styles.spacesEndedPill]}>
+                            {isOngoingLive ? (
+                              <Text style={styles.spacesLiveText}>• LIVE</Text>
+                            ) : (
+                              <Text style={styles.spacesLiveText}>ENDED</Text>
+                            )}
+                          </View>
+                        </View>
 
-                  <View style={styles.heroBody}>
-                    <Text style={[styles.heroAudience, { color: colors.primary }]}>
-                      {campaignAudienceLabel(featuredTournament)}
-                    </Text>
-                    <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-                      {featuredTournament.title}
-                    </Text>
-                    <Text style={[styles.heroDescription, { color: colors.textSecondary }]} numberOfLines={2}>
-                      {featuredTournament.description ||
-                        "Join this live Akademi challenge and compete in real time."}
-                    </Text>
-
-                    <View style={styles.heroMetaRow}>
-                      <View style={styles.heroMetaItem}>
-                        <CalendarDays size={13} color={colors.textMuted} />
-                        <Text style={[styles.heroMetaText, { color: colors.textSecondary }]}>
-                          {formatEventDate(featuredTournament.scheduled_at)}
+                        {/* Title */}
+                        <Text style={styles.spacesTitle} numberOfLines={2}>
+                          {tournament.title}
                         </Text>
-                      </View>
-                      {featuredTournament.shared_course_code ? (
-                        <View style={[styles.courseTag, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                          <Text style={[styles.courseTagText, { color: colors.primary }]}>
-                            {featuredTournament.shared_course_code}
+
+                        {/* Avatars & Listener/Joined Count */}
+                        <View style={styles.spacesAudienceRow}>
+                          <View style={styles.avatarStack}>
+                            <View style={[styles.avatarBubble, { backgroundColor: "#34D399" }]}>
+                              <Text style={styles.avatarText}>A</Text>
+                            </View>
+                            <View style={[styles.avatarBubble, styles.avatarOverlap1, { backgroundColor: "#059669" }]}>
+                              <Text style={styles.avatarText}>K</Text>
+                            </View>
+                            <View style={[styles.avatarBubble, styles.avatarOverlap2, { backgroundColor: "#10B981" }]}>
+                              <Text style={styles.avatarText}>D</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.spacesListeningText}>
+                            {isOngoingLive
+                              ? `${tournament.entry_count ?? 0} listening`
+                              : `${tournament.entry_count ?? 0} joined`}
                           </Text>
                         </View>
-                      ) : null}
-                    </View>
 
-                    {featuredTournament.prize_summary ? (
-                      <View style={[styles.prizeCard, { backgroundColor: "rgba(245, 158, 11, 0.1)", borderColor: "rgba(245, 158, 11, 0.3)" }]}>
-                        <Trophy size={14} color="#F59E0B" />
-                        <Text style={styles.prizeText} numberOfLines={1}>
-                          {featuredTournament.prize_summary}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    <View style={styles.heroActions}>
-                      <TouchableOpacity
-                        activeOpacity={0.85}
-                        style={[
-                          styles.heroPrimaryButton,
-                          { backgroundColor: colors.primary },
-                          !featuredJoinState?.canJoin && styles.heroSecondaryButton,
-                        ]}
-                        onPress={() =>
-                          featuredTournament.joined || !featuredJoinState?.canJoin
-                            ? navigation.navigate("TournamentDetail", {
-                                tournamentId: featuredTournament.id,
-                              })
-                            : joinTournament(featuredTournament.id)
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.heroPrimaryButtonText,
-                            !featuredJoinState?.canJoin && { color: colors.textPrimary },
-                          ]}
-                        >
-                          {featuredJoinState?.label || "Register"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.85}
-                        style={[styles.heroGhostButton, { borderColor: colors.border }]}
-                        onPress={() =>
-                          navigation.navigate("TournamentDetail", {
-                            tournamentId: featuredTournament.id,
-                          })
-                        }
-                      >
-                        <Text style={[styles.heroGhostButtonText, { color: colors.textPrimary }]}>See Arena</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </Card>
-              </TouchableOpacity>
+                        {/* Host Row */}
+                        <View style={styles.spacesHostRow}>
+                          <View style={styles.hostAvatar}>
+                            <Text style={styles.hostAvatarText}>
+                              {(tournament.shared_course_code || "A")[0].toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text style={styles.hostName} numberOfLines={1}>
+                            {tournament.shared_course_code || "Akademi Host"}
+                          </Text>
+                          <View style={styles.hostPill}>
+                            <Text style={styles.hostPillText}>Host</Text>
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             ) : (
-              <Card style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <ShieldCheck size={32} color={colors.textMuted} />
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Live Campaigns Yet</Text>
+              <Card style={[styles.emptySpacesCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Radio size={28} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Live Spaces Right Now</Text>
                 <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Published university, faculty, department, and national challenges will show here. You can launch your own match above anytime!
+                  When live competitive spaces start on campus, they will appear here first!
                 </Text>
               </Card>
             )}
 
-            {/* Remaining Tournaments List */}
-            {remainingTournaments.length > 0 ? (
-              <View style={styles.tournamentList}>
-                <Text style={[styles.subSectionTitle, { color: colors.textSecondary }]}>Upcoming Events</Text>
-                {remainingTournaments.map((tournament) => (
-                  <Card
+            {/* Get these in your calendar Section (Strictly Upcoming Events Only) */}
+            <View style={[styles.sectionHeader, { marginTop: 14 }]}>
+              <View style={styles.sectionTitleWrap}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Get these in your calendar</Text>
+                <Text style={[styles.sectionSub, { color: colors.textSecondary }]}>
+                  People you follow will be tuning in
+                </Text>
+              </View>
+            </View>
+
+            {upcomingTournaments.length > 0 ? (
+              <View style={styles.calendarList}>
+                {upcomingTournaments.map((tournament) => (
+                  <TouchableOpacity
                     key={tournament.id}
-                    style={[styles.campaignItemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    activeOpacity={0.88}
+                    style={styles.calendarItem}
                     onPress={() =>
                       navigation.navigate("TournamentDetail", { tournamentId: tournament.id })
                     }
                   >
+                    {/* Squircle Thumbnail / Icon */}
                     {tournament.campaign_banner_url ? (
                       <Image
                         source={{ uri: tournament.campaign_banner_url }}
-                        style={styles.campaignThumb}
+                        style={styles.squircleThumb}
                         resizeMode="cover"
                       />
                     ) : (
-                      <View style={[styles.campaignThumbFallback, { backgroundColor: colors.surfaceElevated }]}>
-                        <Swords size={20} color={colors.primary} />
-                      </View>
+                      <LinearGradient
+                        colors={["#059669", "#22C55E"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.squircleThumbFallback}
+                      >
+                        <Swords size={22} color="#FFFFFF" />
+                      </LinearGradient>
                     )}
-                    <View style={styles.campaignItemBody}>
-                      <View style={styles.campaignItemTop}>
-                        <Text style={[styles.campaignItemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                          {tournament.title}
-                        </Text>
-                        <View style={[styles.statusBadge, { backgroundColor: "rgba(34, 197, 94, 0.12)" }]}>
-                          <Text style={[styles.statusBadgeText, { color: colors.primary }]}>{tournament.status}</Text>
-                        </View>
-                      </View>
-                      <Text style={[styles.campaignItemMeta, { color: colors.textSecondary }]}>
-                        {`${tournament.shared_course_code || "Multi-course"} • ${formatEventDate(tournament.scheduled_at)}`}
+
+                    {/* Body Content */}
+                    <View style={styles.calendarItemBody}>
+                      <Text style={[styles.calendarHost, { color: colors.textMuted }]} numberOfLines={1}>
+                        {tournament.shared_course_code || "Akademi Host"}
                       </Text>
-                      <Text style={[styles.campaignItemAudience, { color: colors.textMuted }]} numberOfLines={1}>
-                        {campaignAudienceLabel(tournament)}
+
+                      <Text style={[styles.calendarTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                        {tournament.title}
+                      </Text>
+
+                      <Text style={[styles.calendarDate, { color: colors.primary }]}>
+                        {formatCalendarDate(tournament.scheduled_at)}
+                      </Text>
+
+                      <Text style={[styles.calendarGoing, { color: colors.textSecondary }]}>
+                        {`${tournament.entry_count ?? 0} going`}
                       </Text>
                     </View>
-                  </Card>
+                  </TouchableOpacity>
                 ))}
               </View>
-            ) : null}
+            ) : (
+              <Card style={[styles.emptySpacesCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <CalendarDays size={28} color={colors.textMuted} />
+                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Upcoming Events</Text>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  Scheduled campus competitions will show here in your calendar!
+                </Text>
+              </Card>
+            )}
           </>
         )}
       </ScrollView>
@@ -529,250 +549,161 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  actionGrid: {
+  compactToolbar: {
     flexDirection: "row",
-    gap: 12,
+    gap: 6,
+    marginVertical: 4,
   },
-  actionCardPrimary: {
+  compactBtn: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 16,
-    gap: 10,
-  },
-  actionCardIconWrapPrimary: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  actionCardBody: {
-    flex: 1,
-    gap: 2,
-  },
-  actionCardTitlePrimary: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#04110A",
-  },
-  actionCardSubPrimary: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#04110A",
-    opacity: 0.8,
-  },
-  actionCardSecondary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 10,
-  },
-  actionCardIconWrapSecondary: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionCardTitleSecondary: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  actionCardSubSecondary: {
-    fontSize: 11,
-  },
-  utilityGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  utilityCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 10,
+    gap: 6,
   },
-  utilityIcon: {
+  compactIconWrap: {
     width: 34,
     height: 34,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  utilityTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  utilityTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  utilitySub: {
-    fontSize: 11,
+  compactBtnText: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    textAlign: "center",
   },
   sectionHeader: {
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  sectionTitleWrap: {
+    gap: 2,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  sectionSub: {
+    fontSize: 13,
+  },
+  liveCardsList: {
+    gap: 14,
+  },
+  spacesCard: {
+    borderRadius: 22,
+    padding: 18,
+    gap: 12,
+  },
+  spacesTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 6,
   },
-  sectionTitleRow: {
+  spacesLivePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  spacesEndedPill: {
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  spacesLiveText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  spacesMoreBtn: {
+    padding: 2,
+  },
+  spacesTitle: {
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "800",
+    lineHeight: 25,
+  },
+  spacesAudienceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  avatarStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarBubble: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#15803D",
+  },
+  avatarOverlap1: {
+    marginLeft: -8,
+  },
+  avatarOverlap2: {
+    marginLeft: -8,
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  spacesListeningText: {
+    color: "rgba(255, 255, 255, 0.95)",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  spacesHostRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 4,
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  sectionHint: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  heroCard: {
-    overflow: "hidden",
-    padding: 0,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  heroBannerWrap: {
-    position: "relative",
-    width: "100%",
-    height: 160,
-  },
-  heroBanner: {
-    width: "100%",
-    height: "100%",
-  },
-  heroBannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-  },
-  heroFallbackBanner: {
-    height: 110,
-    paddingHorizontal: 16,
+  hostAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    alignItems: "center",
     justifyContent: "center",
   },
-  heroFloatingTag: {
-    position: "absolute",
-    top: 14,
-    left: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#22C55E",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  heroFloatingTagText: {
-    color: "#04110A",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  heroBody: {
-    padding: 16,
-    gap: 10,
-  },
-  heroAudience: {
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  heroTitle: {
-    fontSize: 19,
-    fontWeight: "800",
-    lineHeight: 24,
-  },
-  heroDescription: {
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  heroMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  },
-  heroMetaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  heroMetaText: {
-    fontSize: 12,
-  },
-  courseTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  courseTagText: {
+  hostAvatarText: {
+    color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "800",
   },
-  prizeCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  prizeText: {
-    color: "#F59E0B",
-    fontSize: 12,
+  hostName: {
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "700",
-    flex: 1,
+    flexShrink: 1,
   },
-  heroActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
+  hostPill: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  heroPrimaryButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  heroPrimaryButtonText: {
-    color: "#04110A",
+  hostPillText: {
+    color: "#FFFFFF",
+    fontSize: 10,
     fontWeight: "800",
-    fontSize: 13,
   },
-  heroSecondaryButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#3F3F46",
-  },
-  heroGhostButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+  emptySpacesCard: {
     alignItems: "center",
-    justifyContent: "center",
-  },
-  heroGhostButtonText: {
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  emptyCard: {
-    alignItems: "center",
-    padding: 24,
+    padding: 28,
     gap: 10,
     borderRadius: 18,
     borderWidth: 1,
@@ -786,63 +717,55 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 19,
   },
-  subSectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 8,
-    marginBottom: 4,
+  calendarList: {
+    gap: 16,
+    marginTop: 6,
   },
-  tournamentList: {
-    gap: 10,
-  },
-  campaignItemCard: {
+  calendarItem: {
     flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 14,
+    alignItems: "flex-start",
   },
-  campaignThumb: {
+  squircleThumb: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: 20,
   },
-  campaignThumbFallback: {
+  squircleThumbFallback: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  campaignItemBody: {
+  calendarItemBody: {
     flex: 1,
     gap: 4,
   },
-  campaignItemTop: {
+  calendarItemTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  calendarHost: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  calendarItemIcons: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
   },
-  campaignItemTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  statusBadgeText: {
-    fontSize: 10,
+  calendarTitle: {
+    fontSize: 16,
     fontWeight: "800",
+    lineHeight: 21,
   },
-  campaignItemMeta: {
+  calendarDate: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  calendarGoing: {
     fontSize: 12,
-  },
-  campaignItemAudience: {
-    fontSize: 11,
+    fontWeight: "600",
   },
 });

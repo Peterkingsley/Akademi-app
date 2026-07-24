@@ -345,9 +345,6 @@ export const MockExamScreen: React.FC = () => {
       {!errorMessage && (
       <View style={styles.footer}>
          <View style={styles.aiInsightContainer}>
-           <TouchableOpacity style={styles.insightPlus}>
-             <Plus size={16} color="white" />
-           </TouchableOpacity>
            <Text style={[styles.insightText, typography.mono]}>
              {aiInsight}
            </Text>
@@ -359,14 +356,11 @@ export const MockExamScreen: React.FC = () => {
              onPress={handlePrevious}
              disabled={currentIndex === 0}
            >
-             <ChevronLeft size={20} color={colors.textPrimary} />
-             <Text style={[styles.navBtnText, typography.body]}>Previous</Text>
+             <Text style={[styles.navBtnText, typography.body]}>← Previous</Text>
            </TouchableOpacity>
 
            <Button
-             label={currentIndex === (exam?.questions.length || 0) - 1 ? "Submit Exam" : "Next Question"}
-             icon={<ChevronRight size={18} color="white" />}
-
+             label={currentIndex === (exam?.questions.length || 0) - 1 ? "Submit Exam →" : "Next Question →"}
              onPress={handleNext}
              loading={submitting}
              style={styles.nextBtn}

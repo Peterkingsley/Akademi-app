@@ -61,10 +61,15 @@ export const ExamPrepScreen: React.FC = () => {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <ChevronLeft size={24} color={colors.textPrimary} />
+        <ChevronLeft size={22} color={colors.textPrimary} />
       </TouchableOpacity>
-      <Text style={[styles.headerTitle, typography.h3]}>Exam Prep</Text>
-      <View style={styles.backBtn} />
+      <Text style={[styles.headerTitle, typography.h3]}>Exam Prep Hub</Text>
+      <TouchableOpacity
+        style={styles.addExamHeaderBtn}
+        onPress={() => navigation.navigate("AddExam")}
+      >
+        <Text style={styles.addExamHeaderBtnText}>+ Add Course</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -75,9 +80,8 @@ export const ExamPrepScreen: React.FC = () => {
     return (
       <View style={styles.urgentBanner}>
         <View style={styles.urgentContent}>
-          <Flame size={20} color={colors.warning} style={styles.urgentIcon} />
           <Text style={[styles.urgentText, typography.bodySmall]}>
-            {urgentCourse.course_code} {urgentCourse.assessment_label || "Exam"} in {urgentCourse.days_left} days!
+            ⚡ UPCOMING {urgentCourse.assessment_label || "EXAM"}: {urgentCourse.course_code} in {urgentCourse.days_left} {urgentCourse.days_left === 1 ? "day" : "days"}!
           </Text>
         </View>
       </View>
@@ -115,7 +119,7 @@ export const ExamPrepScreen: React.FC = () => {
               </Text>
               <Text style={[styles.examDate, typography.caption]}>
                 {hasExamDate
-                  ? `${(course.assessment_label || "Exam").toUpperCase()} ON ${new Date(course.exam_date as string).toLocaleDateString()}`
+                  ? `${(course.assessment_label || "Exam").toUpperCase()} • ${new Date(course.exam_date as string).toLocaleDateString()}`
                   : "NO EXAM DATE SET"}
               </Text>
             </View>
@@ -135,7 +139,7 @@ export const ExamPrepScreen: React.FC = () => {
           <View style={styles.progressSection}>
             <View style={styles.progressLabels}>
               <Text style={[styles.progressLabel, typography.caption]}>
-                Mastery Level
+                Mastery Progress
               </Text>
               <Text style={[styles.progressValue, typography.bodySmall]}>
                 {course.mastery_level}%
@@ -147,20 +151,20 @@ export const ExamPrepScreen: React.FC = () => {
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={[styles.statValue, typography.body]}>
-                {course.readiness_grade}
+                Grade {course.readiness_grade}
               </Text>
-              <Text style={[styles.statLabel, typography.caption]}>GRADE</Text>
+              <Text style={[styles.statLabel, typography.caption]}>ESTIMATED READINESS</Text>
             </View>
           </View>
 
           <View style={styles.actionRow}>
             <Button
-              label="Study Now"
+              label="Study Course →"
               style={styles.actionBtn}
               onPress={() => goToLibrary(course.course_code)}
             />
             <Button
-              label="Mock Exam"
+              label="Take Mock Exam →"
               variant="outline"
               style={styles.actionBtn}
               disabled={!mockActive}
@@ -170,7 +174,7 @@ export const ExamPrepScreen: React.FC = () => {
           </View>
           {!mockActive && (
             <Text style={[styles.lockText, typography.caption]}>
-              *Reach 60% Mastery to unlock Mock Exam
+              • Reach 60% Mastery to unlock Mock Exam
             </Text>
           )}
         </Card>
@@ -248,6 +252,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  addExamHeaderBtn: {
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  addExamHeaderBtnText: {
+    color: colors.primary,
+    fontSize: 12,
     fontWeight: "700",
   },
   scrollContent: {

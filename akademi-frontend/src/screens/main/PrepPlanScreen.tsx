@@ -202,12 +202,9 @@ export const PrepPlanScreen: React.FC = () => {
               onPress={() => mockExamId && navigation.navigate("MockExamResults", { examId, mockExamId })}
             >
               <View style={styles.historyMeta}>
-                <View style={styles.historyIcon}>
-                  <RotateCcw size={16} color={colors.primary} />
-                </View>
                 <View style={styles.historyText}>
                   <Text style={[styles.historyAttemptTitle, typography.bodySmall]} numberOfLines={1}>
-                    {attempt.title || "Completed mock exam"}
+                    {attempt.title || "Completed Mock Exam"}
                   </Text>
                   <Text style={[styles.historyDate, typography.caption]}>
                     {completedAt ? new Date(completedAt).toLocaleDateString() : "Completed"} • {questionCount} questions
@@ -230,7 +227,7 @@ export const PrepPlanScreen: React.FC = () => {
         onBack={() => navigation.goBack()}
         rightAction={
           <TouchableOpacity onPress={() => navigation.navigate("AddExam", { courseCode: plan?.course_code })}>
-            <Settings size={24} color={colors.textSecondary} />
+            <Settings size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         }
       />
@@ -259,7 +256,6 @@ export const PrepPlanScreen: React.FC = () => {
       {plan && (
         <View style={styles.stickyFooter}>
           <View style={styles.aiSuggestion}>
-             <Sparkles size={16} color={colors.primary} style={styles.sparkleIcon} />
              <Text style={[styles.suggestionText, typography.mono]}>{aiSuggestion}</Text>
           </View>
 
@@ -271,8 +267,7 @@ export const PrepPlanScreen: React.FC = () => {
               </Text>
             </View>
             <Button
-              label={`Take Mock ${plan.assessment_label || "Exam"}`}
-              icon={<TrendingUp size={18} color="white" />}
+              label={`Take Mock ${plan.assessment_label || "Exam"} →`}
               onPress={startMockExam}
               disabled={plan.progress < 60}
               style={StyleSheet.flatten([styles.mockBtn, plan.progress < 60 ? styles.disabledBtn : undefined])}

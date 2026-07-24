@@ -52,24 +52,24 @@ type UiMessage = Message & { displayContent: string; interrupted?: boolean };
 type StudyCompanionPhaseName = StudyCompanionState["phase"];
 
 const phaseLabels: Record<string, string> = {
-  MATERIAL_SELECTION_REQUIRED: "Choose material",
-  MATERIAL_SELECTED: "Material selected",
-  ROADMAP_GENERATED: "Roadmap ready",
-  TEACHING_PASS_1_BIG_PICTURE: "Teaching Pass 1",
-  TEACHING_PASS_2_DETAILS: "Teaching Pass 2",
-  TEACHING_PASS_3_CONNECTIONS: "Teaching Pass 3",
-  TEACHBACK_1_REQUESTED: "Teach-Back 1",
-  TEACHBACK_1_EVALUATION: "Reviewing Teach-Back 1",
-  GAP_RETEACH: "Gap reteach",
-  TEACHBACK_2_REQUESTED: "Teach-Back 2",
-  TEACHBACK_2_EVALUATION: "Reviewing Teach-Back 2",
-  MEMORY_DUMP_REQUESTED: "Memory dump",
-  MEMORY_DUMP_EVALUATION: "Scoring memory dump",
-  MASTERY_PASSED: "Mastery passed",
-  MASTERY_FAILED: "Needs review",
-  SECTION_COMPLETED: "Section complete",
-  NEXT_SECTION_READY: "Next section ready",
-  SESSION_COMPLETED: "Session complete",
+  MATERIAL_SELECTION_REQUIRED: "Choose Material",
+  MATERIAL_SELECTED: "Material Ready",
+  ROADMAP_GENERATED: "Syllabus Roadmap Ready",
+  TEACHING_PASS_1_BIG_PICTURE: "Step 1: Core Concept",
+  TEACHING_PASS_2_DETAILS: "Step 2: Deep Breakdown",
+  TEACHING_PASS_3_CONNECTIONS: "Step 3: Real-World Context",
+  TEACHBACK_1_REQUESTED: "Teach-Back Check 🎯",
+  TEACHBACK_1_EVALUATION: "Evaluating Your Answer...",
+  GAP_RETEACH: "Targeted Reteach 💡",
+  TEACHBACK_2_REQUESTED: "Final Teach-Back Check 🎯",
+  TEACHBACK_2_EVALUATION: "Scoring Answer...",
+  MEMORY_DUMP_REQUESTED: "Active Recall Challenge 🧠",
+  MEMORY_DUMP_EVALUATION: "Scoring Recall...",
+  MASTERY_PASSED: "Mastery Achieved 🎉",
+  MASTERY_FAILED: "Needs Review 📚",
+  SECTION_COMPLETED: "Section Complete ✨",
+  NEXT_SECTION_READY: "Next Topic Ready →",
+  SESSION_COMPLETED: "Session Completed 🏆",
 };
 
 const statusColors = {
@@ -211,13 +211,12 @@ export const StudyCompanionScreen: React.FC = () => {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [startModalVisible, setStartModalVisible] = useState(false);
-  const [roadmapVisible, setRoadmapVisible] = useState(false);
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
   const [voiceUnavailable, setVoiceUnavailable] = useState<{ messageId: string; content: string } | null>(null);
   const whiteboardExperimentsEnabled =
-    __DEV__ || process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
+    process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
 
   const listRef = useRef<FlatList<UiMessage>>(null);
   const runtimeStateRef = useRef<TutorRuntimeState>("idle");
@@ -712,9 +711,6 @@ export const StudyCompanionScreen: React.FC = () => {
               {sessionCourseCode || sessionTitle}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setRoadmapVisible(true)} style={styles.iconButton} activeOpacity={0.85}>
-            <RouteIcon size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
         </View>
 
         {error ? (
@@ -851,77 +847,77 @@ export const StudyCompanionScreen: React.FC = () => {
           </View>
         </View>
 
-        <Modal transparent visible={startModalVisible} animationType="slide" statusBarTranslucent>
+        <Modal transparent visible={startModalVisible} animationType="fade" statusBarTranslucent>
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
-              <Text style={styles.modalTitle}>Start AI Tutor</Text>
-              <Text style={styles.modalText}>
-                Choose how you want Akademi to begin this study session.
-              </Text>
-              <View style={styles.startOptions}>
-                <Button title="Start from beginning" onPress={() => handleStart("beginning")} style={styles.startButton} />
-                <Button title="Continue where I stopped" onPress={() => handleStart("continue")} variant="secondary" style={styles.startButton} />
-                <Button title="Show roadmap first" onPress={() => handleStart("roadmap")} variant="outline" style={styles.startButton} />
+              <View style={styles.modalHeaderRow}>
+                <View style={styles.modalHeaderTitleWrap}>
+                  <Text style={styles.modalTitle}>Start AI Tutor</Text>
+                  <Text style={styles.modalText}>
+                    Choose how you want Akademi to begin this study session.
+                  </Text>
+                </View>
               </View>
+
+              {/* Interactive Option Cards */}
+              <View style={styles.startOptions}>
+                {/* Option 1: Start from Beginning */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  style={styles.optionCardPrimary}
+                  onPress={() => handleStart("beginning")}
+                >
+                  <View style={styles.optionCardHeader}>
+                    <Text style={styles.optionTitlePrimary}>Start from beginning</Text>
+                    <View style={styles.optionBadgePrimary}>
+                      <Text style={styles.optionBadgeTextPrimary}>RECOMMENDED</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.optionSubPrimary}>
+                    Begin from section 1 with full Socratic breakdown
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Option 2: Continue Progress */}
+                <TouchableOpacity
+                  activeOpacity={0.88}
+                  style={styles.optionCardSecondary}
+                  onPress={() => handleStart("continue")}
+                >
+                  <Text style={styles.optionTitleSecondary}>Continue where I stopped</Text>
+                  <Text style={styles.optionSubSecondary}>
+                    Pick up right from your last active section
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Specific Section Input */}
               <View style={styles.specificSectionBox}>
-                <Text style={styles.specificLabel}>Start from a specific section</Text>
-                <TextInput
-                  value={specificSection}
-                  onChangeText={setSpecificSection}
-                  placeholder="Type section title"
-                  placeholderTextColor={colors.textMuted}
-                  style={styles.specificInput}
-                />
-                <Button
-                  title="Start this section"
-                  onPress={() => handleStart("specific", specificSection.trim())}
-                  disabled={!specificSection.trim()}
-                  variant="ghost"
-                  style={styles.specificButton}
-                />
+                <Text style={styles.specificLabel}>Or Jump to a Specific Section</Text>
+                <View style={styles.specificInputRow}>
+                  <TextInput
+                    value={specificSection}
+                    onChangeText={setSpecificSection}
+                    placeholder="Type section title..."
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.specificInput}
+                  />
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={[
+                      styles.specificGoBtn,
+                      !specificSection.trim() && styles.specificGoBtnDisabled,
+                    ]}
+                    onPress={() => handleStart("specific", specificSection.trim())}
+                    disabled={!specificSection.trim()}
+                  >
+                    <Text style={styles.specificGoText}>Start →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
         </Modal>
-
-        {roadmapVisible ? (
-          <BottomSheet index={0} snapPoints={["60%", "88%"]} onClose={() => setRoadmapVisible(false)}>
-            <View style={styles.roadmapSheet}>
-              <Text style={styles.roadmapTitle}>Study roadmap</Text>
-              <Text style={styles.roadmapSubtitle}>
-                Follow section progress and jump back in with context.
-              </Text>
-              {(companionState?.roadmap || []).map((section, index) => (
-                <View key={section.key} style={styles.roadmapItem}>
-                  <View style={styles.roadmapItemHeader}>
-                    <Text style={styles.roadmapItemTitle}>
-                      {index + 1}. {section.title}
-                    </Text>
-                    <View style={[styles.roadmapBadge, { backgroundColor: statusColors[section.status] }]}>
-                      <Text style={styles.roadmapBadgeText}>{roadmapBadgeText[section.status]}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.roadmapMeta}>
-                    Pages {section.pageStart} - {section.pageEnd}
-                  </Text>
-                  <Text style={styles.roadmapPreview} numberOfLines={2}>
-                    {section.content}
-                  </Text>
-                  <Button
-                    title="Start here"
-                    variant="ghost"
-                    onPress={() => {
-                      setRoadmapVisible(false);
-                      setStartModalVisible(true);
-                      setSpecificSection(section.title);
-                    }}
-                    style={styles.jumpButton}
-                  />
-                </View>
-              ))}
-            </View>
-          </BottomSheet>
-        ) : null}
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -1277,40 +1273,97 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.68)",
+      backgroundColor: "rgba(0,0,0,0.75)",
       alignItems: "center",
       justifyContent: "flex-end",
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingBottom: 24,
       zIndex: 999,
     },
     modalCard: {
       width: "100%",
-      maxWidth: 420,
-      backgroundColor: colors.surface,
-      borderColor: colors.border,
+      maxWidth: 440,
+      backgroundColor: "#0E1711",
+      borderColor: "rgba(34, 197, 94, 0.3)",
       borderWidth: 1,
-      borderRadius: 8,
-      padding: 18,
+      borderRadius: 16,
+      padding: 20,
     },
-    modalTitle: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      fontSize: 20,
-      marginBottom: 8,
-    },
-    modalText: {
-      ...typography.body,
-      color: colors.textSecondary,
-      fontSize: 13,
-      lineHeight: 20,
+    modalHeaderRow: {
+      flexDirection: "row",
       marginBottom: 16,
     },
-    startOptions: {
-      gap: 10,
+    modalHeaderTitleWrap: {
+      flex: 1,
     },
-    startButton: {
-      height: 52,
+    modalTitle: {
+      ...typography.h2,
+      color: colors.textPrimary,
+      fontSize: 22,
+      marginBottom: 4,
+    },
+    modalText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+    },
+    startOptions: {
+      gap: 12,
+    },
+    optionCardPrimary: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      padding: 16,
+    },
+    optionCardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 4,
+    },
+    optionTitlePrimary: {
+      ...typography.h4,
+      color: "#04110A",
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    optionBadgePrimary: {
+      backgroundColor: "#04110A",
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    optionBadgeTextPrimary: {
+      color: colors.primary,
+      fontSize: 9,
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    },
+    optionSubPrimary: {
+      ...typography.bodySmall,
+      color: "rgba(4, 17, 10, 0.8)",
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    optionCardSecondary: {
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 14,
+    },
+    optionTitleSecondary: {
+      ...typography.h4,
+      color: colors.textPrimary,
+      fontSize: 14,
+      marginBottom: 3,
+    },
+    optionSubSecondary: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
     },
     specificSectionBox: {
       marginTop: 16,
@@ -1319,29 +1372,46 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       borderTopColor: colors.border,
     },
     specificLabel: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
+      ...typography.label,
+      color: colors.textMuted,
       fontSize: 11,
       marginBottom: 10,
       textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    specificInputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
     },
     specificInput: {
       ...typography.body,
+      flex: 1,
       color: colors.textPrimary,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
+      borderRadius: 10,
       backgroundColor: colors.surfaceElevated,
       paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 14,
+      paddingVertical: 11,
+      fontSize: 13,
     },
-    specificButton: {
-      marginTop: 10,
-      alignSelf: "flex-start",
-      width: "auto",
-      paddingHorizontal: 0,
-      height: 34,
+    specificGoBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    specificGoBtnDisabled: {
+      opacity: 0.4,
+    },
+    specificGoText: {
+      ...typography.h4,
+      color: "#04110A",
+      fontSize: 13,
+      fontWeight: "800",
     },
     roadmapSheet: {
       paddingHorizontal: 18,

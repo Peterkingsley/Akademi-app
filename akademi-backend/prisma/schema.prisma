@@ -984,6 +984,7 @@ enum OutlineNodeStatus {
   GENERATED
   FAILED_QUALITY_CHECK
   ADMIN_QUEUED
+  AWAITING_CAPACITY
 }
 
 model GeneratedTextbookOutline {

@@ -1,5 +1,5 @@
 import prisma from '../config/db';
-import { aiProvider } from '../modules/ai/ai.provider';
+import { aiProvider, TransientCapacityError } from '../modules/ai/ai.provider';
 import { searchImages, ImageCandidate } from '../shared/search/google-image-search.client';
 
 // Same throwing-parser shape used across the textbook pipeline.
@@ -105,6 +105,10 @@ export async function fetchTextbookDiagramJob(sectionId: string): Promise<void> 
         candidates,
       );
     } catch (error) {
+      if (error instanceof TransientCapacityError) {
+        await prisma.generatedTextbookOutlineNode.update({ where: { id: section.node_id }, data: { status: 'AWAITING_CAPACITY' } });
+        return;
+      }
       console.error('[fetch-textbook-diagram] candidate evaluation failed', { sectionId, error });
       return;
     }

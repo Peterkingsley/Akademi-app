@@ -8,7 +8,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ChevronRight, Globe, Layers, ListChecks, Lock, Plus, Swords, Users } from "lucide-react-native";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Globe,
+  Layers,
+  ListChecks,
+  Lock,
+  Plus,
+  Radio,
+  Swords,
+  Users,
+  Zap,
+} from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -85,21 +98,34 @@ export const CompetitionMatchesScreen: React.FC = () => {
           />
         }
       >
-        <View style={styles.intro}>
-          <Text style={[styles.introTitle, { color: colors.textPrimary }]}>Live Room History</Text>
-          <Text style={[styles.introText, { color: colors.textSecondary }]}>
-            Manage rooms you host, view friend invitations, or jump into active public matches.
-          </Text>
+        {/* Header Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroHeader}>
+            <View
+              style={[
+                styles.heroIconWrap,
+                { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: "rgba(34, 197, 94, 0.3)" },
+              ]}
+            >
+              <ListChecks size={24} color={colors.primary} />
+            </View>
+            <View style={styles.heroTextWrap}>
+              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Live Room History</Text>
+              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+                Manage your hosted arenas, friend invitations, or jump into active public rooms.
+              </Text>
+            </View>
+          </View>
         </View>
 
         {loadNotice ? (
           <Card style={[styles.noticeCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-            <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Match List Notice</Text>
+            <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Notice</Text>
             <Text style={[styles.noticeText, { color: colors.textSecondary }]}>{loadNotice}</Text>
           </Card>
         ) : null}
 
-        {/* Tab Row */}
+        {/* Segmented Tab Row */}
         <View style={[styles.tabRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {[
             { key: "created", label: "Created", count: createdRooms.length },
@@ -120,7 +146,12 @@ export const CompetitionMatchesScreen: React.FC = () => {
                 <Text style={[styles.tabLabel, { color: isActive ? "#04110A" : colors.textSecondary }]}>
                   {tab.label}
                 </Text>
-                <View style={[styles.countBadge, { backgroundColor: isActive ? "rgba(4, 17, 10, 0.2)" : colors.surfaceElevated }]}>
+                <View
+                  style={[
+                    styles.countBadge,
+                    { backgroundColor: isActive ? "rgba(4, 17, 10, 0.2)" : colors.surfaceElevated },
+                  ]}
+                >
                   <Text style={[styles.countBadgeText, { color: isActive ? "#04110A" : colors.textMuted }]}>
                     {tab.count}
                   </Text>
@@ -130,7 +161,7 @@ export const CompetitionMatchesScreen: React.FC = () => {
           })}
         </View>
 
-        {/* Visible Rooms List */}
+        {/* Rooms List */}
         {visibleRooms.length === 0 ? (
           <Card style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Swords size={32} color={colors.textMuted} />
@@ -161,62 +192,87 @@ export const CompetitionMatchesScreen: React.FC = () => {
             ) : null}
           </Card>
         ) : (
-          visibleRooms.map((room) => (
-            <Card
-              key={room.id}
-              style={[styles.roomCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => navigation.navigate("CompetitionLobby", { roomId: room.id })}
-            >
-              <View style={styles.roomTop}>
-                <View style={styles.titleWrap}>
-                  <Text style={[styles.roomTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {room.title}
-                  </Text>
-                  <View style={[styles.codeBadge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                    <Text style={[styles.codeText, { color: colors.primary }]}>{room.code}</Text>
+          visibleRooms.map((room) => {
+            const isLive = room.status === "LIVE";
+            const isFinished = room.status === "FINISHED";
+
+            return (
+              <TouchableOpacity
+                key={room.id}
+                activeOpacity={0.92}
+                onPress={() => navigation.navigate("CompetitionLobby", { roomId: room.id })}
+              >
+                <Card style={[styles.roomCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  {/* Top Bar: Title, Room Code, Status Tag */}
+                  <View style={styles.roomHeaderRow}>
+                    <View style={styles.titleWrap}>
+                      <Text style={[styles.roomTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {room.title}
+                      </Text>
+                      <View style={[styles.codeBadge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                        <Text style={[styles.codeText, { color: colors.primary }]}>{room.code}</Text>
+                      </View>
+                    </View>
+
+                    {/* Status Pill Tag */}
+                    <View
+                      style={[
+                        styles.statusPill,
+                        isLive
+                          ? { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: colors.primary }
+                          : isFinished
+                            ? { backgroundColor: colors.surfaceElevated, borderColor: colors.border }
+                            : { backgroundColor: "rgba(245, 158, 11, 0.15)", borderColor: "#F59E0B" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          { color: isLive ? colors.primary : isFinished ? colors.textMuted : "#F59E0B" },
+                        ]}
+                      >
+                        {isLive ? "• LIVE" : isFinished ? "FINISHED" : "WAITING"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <ChevronRight size={18} color={colors.textMuted} />
-              </View>
 
-              <View style={styles.roomMetaRow}>
-                <View style={styles.metaChip}>
-                  <Layers size={12} color={colors.primary} />
-                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
-                    {room.shared_course_code || "Dual Course"}
-                  </Text>
-                </View>
+                  {/* Room Metadata Chips */}
+                  <View style={styles.roomMetaRow}>
+                    <View style={[styles.metaChip, { backgroundColor: colors.surfaceElevated }]}>
+                      <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                        {room.shared_course_code || "Dual Course"}
+                      </Text>
+                    </View>
 
-                <View style={styles.metaChip}>
-                  <Users size={12} color={colors.textMuted} />
-                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
-                    {room.participants.length}/{room.max_participants} players
-                  </Text>
-                </View>
+                    <View style={[styles.metaChip, { backgroundColor: colors.surfaceElevated }]}>
+                      <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                        {`${room.participants.length}/${room.max_participants} players`}
+                      </Text>
+                    </View>
 
-                <View style={styles.metaChip}>
-                  {room.visibility === "PUBLIC" ? (
-                    <Globe size={12} color={colors.primary} />
-                  ) : (
-                    <Lock size={12} color={colors.textMuted} />
-                  )}
-                  <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
-                    {room.visibility}
-                  </Text>
-                </View>
-              </View>
+                    <View style={[styles.metaChip, { backgroundColor: colors.surfaceElevated }]}>
+                      <Text style={[styles.metaChipText, { color: colors.textSecondary }]}>
+                        {room.visibility}
+                      </Text>
+                    </View>
+                  </View>
 
-              <View style={styles.roomFooter}>
-                <Text style={[styles.roomStatus, { color: room.status === "LIVE" ? colors.primary : colors.textMuted }]}>
-                  {activeTab === "created"
-                    ? "Hosted by you"
-                    : activeTab === "joined"
-                      ? `Host: ${room.host.name}`
-                      : `Status: ${room.status}`}
-                </Text>
-              </View>
-            </Card>
-          ))
+                  {/* Room Footer CTA */}
+                  <View style={styles.roomFooter}>
+                    <Text style={[styles.roomHostText, { color: colors.textMuted }]}>
+                      {activeTab === "created"
+                        ? "Hosted by you"
+                        : `Host: ${room.host.name}`}
+                    </Text>
+
+                    <Text style={[styles.enterCtaText, { color: colors.primary }]}>
+                      {isLive ? "Enter Arena →" : "View Lobby →"}
+                    </Text>
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </Screen>
@@ -232,17 +288,36 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 36,
   },
-  intro: {
-    gap: 4,
+  heroSection: {
+    gap: 6,
+    marginTop: 4,
+    marginBottom: 2,
   },
-  introTitle: {
+  heroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  heroIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  heroTitle: {
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.5,
   },
-  introText: {
+  heroSubtitle: {
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
   },
   noticeCard: {
     gap: 6,
@@ -288,9 +363,9 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: "center",
-    padding: 24,
+    padding: 26,
     gap: 10,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
   },
   emptyTitle: {
@@ -317,12 +392,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   roomCard: {
-    padding: 14,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    gap: 10,
+    gap: 12,
   },
-  roomTop: {
+  roomHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -331,10 +406,10 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   roomTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     flexShrink: 1,
   },
@@ -349,28 +424,57 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.5,
   },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
   roomMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     flexWrap: "wrap",
   },
   metaChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   metaChipText: {
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "600",
   },
   roomFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 2,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
-  roomStatus: {
-    fontSize: 11,
-    fontWeight: "700",
+  roomHostText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  enterCtaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  enterCtaText: {
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

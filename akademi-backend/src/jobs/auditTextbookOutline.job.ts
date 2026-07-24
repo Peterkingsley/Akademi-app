@@ -1,6 +1,6 @@
 import { FileType, VerificationStatus } from '@prisma/client';
 import prisma from '../config/db';
-import { aiProvider } from '../modules/ai/ai.provider';
+import { aiProvider, TransientCapacityError } from '../modules/ai/ai.provider';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 import { getOrCreateSystemUser } from '../modules/textbooks/system-user';
 import { generateMaterialTeacherBrain, createFallbackTeacherBrain } from '../modules/materials/teacher-brain.service';
@@ -161,21 +161,28 @@ async function publishGeneratedTextbook(outlineId: string) {
 
   const chunks = chunkText(flattenedContent, 2000);
   for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
-    const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
-    await Promise.all(
-      batch.map(async (chunk, batchIndex) => {
-        const embedding = await aiProvider.generateEmbedding(chunk);
-        await prisma.materialEmbedding.create({
-          data: {
-            material_id: material.id,
-            chunk_index: i + batchIndex,
-            chunk_text: chunk,
-            embedding: embedding as any,
-          },
-        });
-      }),
-    );
-  }
+      const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (chunk, batchIndex) => {
+          try {
+            const embedding = await aiProvider.generateEmbedding(chunk);
+            await prisma.materialEmbedding.create({
+              data: {
+                material_id: material.id,
+                chunk_index: i + batchIndex,
+                chunk_text: chunk,
+                embedding: embedding as any,
+              },
+            });
+          } catch (error) {
+            if (error instanceof TransientCapacityError) {
+              await prisma.generatedTextbookOutlineNode.update({ where: { id: publishable[0].id }, data: { status: 'AWAITING_CAPACITY' } });
+            }
+            throw error;
+          }
+        }),
+      );
+    }
 
   try {
     await generateMaterialTeacherBrain(material.id);
@@ -223,6 +230,11 @@ export async function auditTextbookOutlineJob(outlineId: string): Promise<void> 
     try {
       verdict = await assessSectionQuality(node, node.section.content);
     } catch (error) {
+      if (error instanceof TransientCapacityError) {
+        await prisma.generatedTextbookOutlineNode.update({ where: { id: node.id }, data: { status: 'AWAITING_CAPACITY' } });
+        anyRegenerationTriggered = true;
+        continue;
+      }
       console.error('[audit-textbook-outline] quality assessment failed', { nodeId: node.id, error });
       anyRegenerationTriggered = (await handleFailedCheck(node, 'The automated quality check itself failed to run — retrying generation.')) || anyRegenerationTriggered;
       continue;

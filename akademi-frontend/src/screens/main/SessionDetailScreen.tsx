@@ -128,7 +128,7 @@ export const SessionDetailScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
           <ChevronLeft size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Session Details</Text>
+        <Text style={styles.headerTitle}>AI Session Details</Text>
         <TouchableOpacity style={styles.iconButton}>
           <Share2 size={20} color={colors.textPrimary} />
         </TouchableOpacity>
@@ -137,11 +137,11 @@ export const SessionDetailScreen: React.FC = () => {
       {loading ? (
         <View style={styles.stateContainer}>
           <ActivityIndicator color={colors.primary} />
-          <Text style={styles.stateText}>Loading session...</Text>
+          <Text style={styles.stateText}>Loading session details...</Text>
         </View>
       ) : error ? (
         <View style={styles.stateContainer}>
-          <Text style={styles.errorTitle}>Session unavailable</Text>
+          <Text style={styles.errorTitle}>Session Unavailable</Text>
           <Text style={styles.stateText}>{error}</Text>
           <TouchableOpacity onPress={fetchSession} style={styles.retryButton}>
             <RefreshCw size={16} color={colors.background} />
@@ -173,31 +173,45 @@ export const SessionDetailScreen: React.FC = () => {
               <Text style={styles.sectionTitle}>Course</Text>
               <View style={styles.courseRow}>
                 <BookOpen size={20} color={colors.primary} />
-                <Text style={styles.courseCode}>{session.course_code || "No course set"}</Text>
+                <Text style={styles.courseCode}>{session.course_code || "General"}</Text>
               </View>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Message count</Text>
+              <Text style={styles.sectionTitle}>Interaction Summary</Text>
               <View style={styles.messageStats}>
                 <View style={styles.statPill}>
                   <MessageCircle size={14} color={colors.primary} />
-                  <Text style={styles.statText}>{pluralize(studentMessages, "student message")}</Text>
+                  <Text style={styles.statText}>{pluralize(studentMessages, "student response")}</Text>
                 </View>
                 <View style={styles.statPill}>
                   <MessageCircle size={14} color={colors.primary} />
-                  <Text style={styles.statText}>{pluralize(aiMessages, "Akademi reply", "Akademi replies")}</Text>
+                  <Text style={styles.statText}>{pluralize(aiMessages, "AI Tutor response", "AI Tutor responses")}</Text>
                 </View>
               </View>
             </View>
           </View>
 
           <View style={styles.insightCard}>
-            <Text style={styles.insightTitle}>Latest activity</Text>
+            <Text style={styles.insightTitle}>Latest Activity</Text>
             <Text style={styles.insightBody}>
-              {latestActivity || "No messages have been saved for this session yet."}
+              {latestActivity || "No messages have been recorded for this session yet."}
             </Text>
           </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            style={styles.reopenButton}
+            onPress={() =>
+              navigation.navigate("StudyCompanion", {
+                sessionId: session.id,
+                materialTitle: title,
+                courseCode: session.course_code || "General",
+              })
+            }
+          >
+            <Text style={styles.reopenButtonText}>Resume AI Socratic Session →</Text>
+          </TouchableOpacity>
         </ScrollView>
       ) : null}
     </Screen>
@@ -235,7 +249,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     padding: 18,
   },
@@ -315,9 +329,9 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   insightCard: {
-    backgroundColor: "#101412",
-    borderColor: "#1D3528",
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    borderRadius: 12,
     borderWidth: 1,
     marginTop: 16,
     padding: 16,
@@ -333,6 +347,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 21,
+  },
+  reopenButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    justifyContent: "center",
+    marginTop: 20,
+    paddingVertical: 14,
+  },
+  reopenButtonText: {
+    ...typography.h4,
+    color: "#04110A",
+    fontWeight: "800",
   },
   stateContainer: {
     alignItems: "center",

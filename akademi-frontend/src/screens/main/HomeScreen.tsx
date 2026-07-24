@@ -32,6 +32,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { AnimatedPressable } from "../../components/ui/AnimatedPressable";
 import { Avatar } from "../../components/ui/Avatar";
 import { Badge } from "../../components/ui/Badge";
@@ -593,60 +594,55 @@ export const HomeScreen: React.FC = () => {
                 setActiveCampaignIndex(nextIndex);
               }}
             >
-              {campaigns.map((campaign) => (
-                <AnimatedPressable
-                  key={campaign.id}
-                  style={[styles.campaignCard, { width: bannerWidth }]}
-                  onPress={() => navigation.navigate("TournamentDetail", { tournamentId: campaign.id })}
-                >
-                  <ImageBackground
-                    source={campaign.campaign_banner_url ? { uri: campaign.campaign_banner_url } : undefined}
-                    resizeMode="cover"
-                    style={styles.campaignBackground}
-                    imageStyle={styles.campaignBackgroundImage}
+              {campaigns.map((campaign, index) => {
+                const isLive = campaign.status === "LIVE";
+                return (
+                  <AnimatedPressable
+                    key={campaign.id}
+                    style={[styles.campaignCard, { width: bannerWidth }]}
+                    onPress={() => navigation.navigate("TournamentDetail", { tournamentId: campaign.id })}
                   >
-                    <BlurView intensity={35} tint="dark" style={styles.campaignOverlay} />
-                    <View style={styles.campaignBody}>
-                      <View style={styles.campaignHeaderRow}>
-                        <Badge
-                          label={campaign.campaign_preheader || "Live campaign"}
-                          variant={campaign.status === "LIVE" ? "warning" : "success"}
-                        />
-                        <Text style={styles.campaignAudience}>{getAudienceLabel(campaign)}</Text>
-                      </View>
-
-                      <View style={styles.campaignCopy}>
-                        <Text style={styles.campaignTitle} numberOfLines={2}>
-                          {campaign.title}
-                        </Text>
-                        <Text style={styles.campaignSubtitle} numberOfLines={2}>
-                          {campaign.description || campaign.prize_summary || "Join the live challenge and compete with other students."}
-                        </Text>
-                      </View>
-
-                      <View style={styles.campaignMetaRow}>
-                        <View style={styles.campaignMetaItem}>
-                          <CalendarDays size={14} color="#D4D4D8" />
-                          <Text style={styles.campaignMetaText}>{formatCampaignTime(campaign.scheduled_at)}</Text>
+                    <LinearGradient
+                      colors={isLive ? (["#15803D", "#22C55E"] as const) : (["#059669", "#10B981"] as const)}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.campaignBackground}
+                    >
+                      <View style={styles.campaignBody}>
+                        <View style={styles.campaignHeaderRow}>
+                          <View style={[styles.statusPill, isLive ? styles.statusPillLive : styles.statusPillScheduled]}>
+                            <Text style={styles.statusPillText}>{isLive ? "• LIVE" : "UPCOMING"}</Text>
+                          </View>
+                          <Text style={styles.campaignAudience}>{getAudienceLabel(campaign)}</Text>
                         </View>
-                        <View style={styles.campaignMetaItem}>
-                          <Swords size={14} color="#D4D4D8" />
-                          <Text style={styles.campaignMetaText}>{campaign.entry_count} joined</Text>
-                        </View>
-                      </View>
 
-                      <View style={styles.campaignCtaWrap}>
-                        <View style={styles.campaignCta}>
-                          <Text style={styles.campaignCtaText}>
-                            {campaign.campaign_cta_label || "Open event"}
+                        <View style={styles.campaignCopy}>
+                          <Text style={styles.campaignTitle} numberOfLines={2}>
+                            {campaign.title}
                           </Text>
-                          <ChevronRight size={16} color="#FFFFFF" />
+                          <Text style={styles.campaignSubtitle} numberOfLines={1}>
+                            {campaign.description || campaign.prize_summary || "Join the live challenge and compete with other students."}
+                          </Text>
+                        </View>
+
+                        <View style={styles.campaignMetaRow}>
+                          <Text style={styles.campaignMetaText}>
+                            {`${formatCampaignTime(campaign.scheduled_at)} • ${campaign.entry_count ?? 0} ${isLive ? "listening" : "joined"}`}
+                          </Text>
+                        </View>
+
+                        <View style={styles.campaignCtaWrap}>
+                          <View style={styles.campaignCta}>
+                            <Text style={styles.campaignCtaText}>
+                              {isLive ? "Enter Arena →" : "View Arena →"}
+                            </Text>
+                          </View>
                         </View>
                       </View>
-                    </View>
-                  </ImageBackground>
-                </AnimatedPressable>
-              ))}
+                    </LinearGradient>
+                  </AnimatedPressable>
+                );
+              })}
             </ScrollView>
 
             {campaigns.length > 1 && (
@@ -942,16 +938,31 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     padding: 14,
   },
   campaignHeaderRow: {
-    alignItems: "flex-start",
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  statusPillLive: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+  },
+  statusPillScheduled: {
+    backgroundColor: "rgba(0, 0, 0, 0.25)",
+  },
+  statusPillText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
   campaignAudience: {
     ...typography.caption,
-    color: "#D4D4D8",
+    color: "rgba(255, 255, 255, 0.9)",
     fontSize: 11,
-    marginLeft: 12,
-    marginTop: 4,
     textAlign: "right",
   },
   campaignCopy: {

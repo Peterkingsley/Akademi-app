@@ -111,33 +111,47 @@ export const AITutorScreen: React.FC = () => {
   return (
     <Screen hideHeader style={styles.screen}>
       <View style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.8}>
-            <ArrowLeft size={22} color={colors.textPrimary} />
+            <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={styles.title}>AI Tutor</Text>
-            <Text style={styles.subtitle}>Choose a library material to start guided study</Text>
+            <Text style={styles.title}>AI Socratic Tutor</Text>
+            <Text style={styles.subtitle}>Select a course material for guided 1-on-1 mastery</Text>
           </View>
         </View>
 
+        {/* Hero Card */}
         <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <Sparkles size={22} color={colors.primary} />
+          <View style={styles.heroHeaderRow}>
+            <Text style={styles.heroTitle}>Socratic Study Room</Text>
+            <View style={styles.heroBadge}>
+              <Text style={styles.heroBadgeText}>LIVE TUTOR</Text>
+            </View>
           </View>
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroTitle}>Study with Akademi</Text>
-            <Text style={styles.heroText}>
-              Select any verified material below. Akademi will guide you section by section and track mastery as you go.
-            </Text>
+          <Text style={styles.heroText}>
+            Akademi breaks down your syllabus section-by-section using voice, step-by-step reasoning, and real-time teach-back checks.
+          </Text>
+          <View style={styles.heroPillRow}>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Socratic Method</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Voice & Text</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Mastery Score</Text>
+            </View>
           </View>
         </View>
 
+        {/* Search Bar */}
         {isSearchActive ? (
           <View style={styles.searchBarContainer}>
             <Input
               label=""
-              placeholder="Search title or course code"
+              placeholder="Search course code or topic title..."
               value={searchQuery}
               onChangeText={setSearchQuery}
               style={styles.searchInput}
@@ -154,6 +168,7 @@ export const AITutorScreen: React.FC = () => {
           </View>
         ) : null}
 
+        {/* Course Filters */}
         <CourseFilterTabs
           courses={courses}
           selectedCourse={selectedCourse}
@@ -162,6 +177,7 @@ export const AITutorScreen: React.FC = () => {
           contentPaddingHorizontal={0}
         />
 
+        {/* Content List */}
         {loading ? (
           <View style={styles.skeletonContent}>
             {[1, 2, 3, 4].map((item) => (
@@ -200,27 +216,24 @@ export const AITutorScreen: React.FC = () => {
                   onPress={() => openCompanion(item)}
                 />
                 {startingMaterialId === item.id ? (
-                  <Text style={styles.startingText}>Opening AI Tutor...</Text>
+                  <Text style={styles.startingText}>Initializing AI Socratic Tutor...</Text>
                 ) : null}
               </Animated.View>
             )}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <View style={styles.emptyIcon}>
-                  <BookOpen size={28} color={colors.primary} />
-                </View>
                 <Text style={styles.emptyTitle}>
                   {error
-                    ? "AI Tutor unavailable"
+                    ? "AI Tutor Unavailable"
                     : searchQuery || selectedCourse !== "All"
-                      ? "No matching materials"
-                      : "No verified materials yet"}
+                      ? "No matching materials found"
+                      : "No verified materials in library yet"}
                 </Text>
                 <Text style={styles.emptyText}>
                   {error ||
                     (searchQuery || selectedCourse !== "All"
-                      ? "Try another search or course filter."
-                      : "Once materials are available in your library, you can start the AI Tutor from here.")}
+                      ? "Try searching for a different course code or keyword."
+                      : "Verified library materials will appear here so you can start a guided 1-on-1 AI Tutor session.")}
                 </Text>
               </View>
             }
@@ -274,37 +287,58 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       lineHeight: 18,
     },
     hero: {
-      flexDirection: "row",
-      alignItems: "flex-start",
       backgroundColor: colors.surface,
-      borderColor: "rgba(34,197,94,0.24)",
+      borderColor: "rgba(34, 197, 94, 0.3)",
       borderWidth: 1,
-      borderRadius: 8,
+      borderRadius: 12,
       padding: 16,
       marginBottom: 16,
     },
-    heroIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 8,
+    heroHeaderRow: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "rgba(34,197,94,0.12)",
-      marginRight: 12,
-    },
-    heroCopy: {
-      flex: 1,
-      minWidth: 0,
+      justifyContent: "space-between",
+      marginBottom: 8,
     },
     heroTitle: {
-      ...typography.h4,
+      ...typography.h3,
       color: colors.textPrimary,
-      marginBottom: 6,
+      fontSize: 16,
+    },
+    heroBadge: {
+      backgroundColor: "rgba(34, 197, 94, 0.15)",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    heroBadgeText: {
+      color: colors.primary,
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 0.5,
     },
     heroText: {
       ...typography.bodySmall,
       color: colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: 19,
+      marginBottom: 12,
+    },
+    heroPillRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    heroPill: {
+      backgroundColor: colors.surfaceElevated,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    heroPillText: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontWeight: "600",
     },
     searchBarContainer: {
       alignItems: "center",

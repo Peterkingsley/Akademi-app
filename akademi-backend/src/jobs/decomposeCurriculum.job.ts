@@ -1,5 +1,5 @@
 import prisma from '../config/db';
-import { aiProvider } from '../modules/ai/ai.provider';
+import { aiProvider, TransientCapacityError } from '../modules/ai/ai.provider';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 import { hasExistingTextbookOutline } from '../modules/textbooks/textbook-trigger';
 
@@ -146,12 +146,46 @@ export async function decomposeCurriculumJob(courseCode: string, universityId?: 
 
   const prompt = buildDecompositionPrompt(ccmasDoc, internationalDocs);
 
-  const aiOutput = await aiProvider.generateResponse(prompt, {
-    systemPrompt:
-      'You are a curriculum design expert building a textbook outline for a Nigerian university course. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 6000,
-    extendedTimeouts: true,
-  });
+  let aiOutput: string;
+  try {
+    aiOutput = await aiProvider.generateResponse(prompt, {
+      systemPrompt:
+        'You are a curriculum design expert building a textbook outline for a Nigerian university course. Return ONLY valid JSON, no prose outside the JSON object.',
+      maxTokens: 6000,
+      extendedTimeouts: true,
+    });
+  } catch (error) {
+    if (error instanceof TransientCapacityError) {
+      await prisma.$transaction(async (tx) => {
+        const outline = await tx.generatedTextbookOutline.create({
+          data: {
+            course_code: code,
+            ccmas_version: ccmasDoc!.version,
+            ccmas_document_id: ccmasDoc!.id,
+            terminology_registry: {},
+            is_current: false,
+            scope_type: ccmasDoc!.scope_type,
+            university_id: ccmasDoc!.university_id,
+          },
+        });
+        await tx.generatedTextbookOutlineNode.create({
+          data: {
+            outline_id: outline.id,
+            parent_id: null,
+            order_index: 0,
+            depth: 0,
+            title: 'Curriculum Decomposition Pending',
+            learning_outcome: 'Awaiting AI capacity to decompose the curriculum into a structured outline.',
+            is_international_addition: false,
+            status: 'AWAITING_CAPACITY',
+          },
+        });
+      });
+      console.warn(`[decompose-curriculum] Transient capacity error for ${code}. Parked in AWAITING_CAPACITY.`);
+      return;
+    }
+    throw error;
+  }
 
   const parsed = parseJsonObject(aiOutput);
   const rawNodes = Array.isArray(parsed?.nodes) ? parsed.nodes : [];

@@ -1,5 +1,5 @@
 import prisma from '../config/db';
-import { aiProvider } from '../modules/ai/ai.provider';
+import { aiProvider, TransientCapacityError } from '../modules/ai/ai.provider';
 import { buildExplainBackContract, buildCalculationTeachingRules, buildSolveOperationGuidance } from '../modules/ai/ai.prompts';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 
@@ -168,6 +168,10 @@ export async function generateTextbookSectionJob(nodeId: string): Promise<void> 
     });
     parsed = parseJsonObject(aiOutput);
   } catch (error) {
+    if (error instanceof TransientCapacityError) {
+      await prisma.generatedTextbookOutlineNode.update({ where: { id: nodeId }, data: { status: 'AWAITING_CAPACITY' } });
+      return;
+    }
     // No safe synthetic fallback for a generated section. The enum has no distinct
     // "generation failed" state, so PENDING is the least-surprising fit — the audit job's
     // presence handling picks this node back up.

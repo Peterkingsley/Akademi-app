@@ -17,7 +17,7 @@ import { appendTranscript } from "../../services/voice";
 import { VoiceInputButton } from "./VoiceInputButton";
 
 interface InputProps {
-  label: string;
+  label?: string;
   placeholder: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -29,6 +29,7 @@ interface InputProps {
   style?: ViewStyle;
   labelStyle?: TextStyle;
   enableVoiceInput?: boolean;
+  maxLength?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -44,6 +45,7 @@ export const Input: React.FC<InputProps> = ({
   style,
   labelStyle,
   enableVoiceInput,
+  maxLength,
 }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -84,6 +86,7 @@ export const Input: React.FC<InputProps> = ({
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
         />
         {voiceEnabled && (
           <VoiceInputButton
