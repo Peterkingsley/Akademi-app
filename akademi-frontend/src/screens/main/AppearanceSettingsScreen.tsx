@@ -9,6 +9,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { CheckCircle2, Monitor, Moon, Smartphone, Sun } from "lucide-react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../components/layout/Screen";
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
@@ -64,20 +65,25 @@ export const AppearanceSettingsScreen: React.FC = () => {
       style={{ backgroundColor: colors.background }}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={[styles.hero, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={[styles.heroIcon, { backgroundColor: isDark ? "rgba(34,197,94,0.12)" : "#DCFCE7" }]}>
-            {isDark ? <Moon size={28} color={colors.primary} /> : <Sun size={28} color={colors.primary} />}
+        <LinearGradient
+          colors={isDark ? (["#0B1E12", "#04110A"] as const) : (["#DCFCE7", "#F0FDF4"] as const)}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, { borderColor: isDark ? "rgba(34,197,94,0.25)" : "#BBF7D0" }]}
+        >
+          <View style={[styles.heroIcon, { backgroundColor: isDark ? "rgba(34,197,94,0.15)" : "#FFFFFF" }]}>
+            {isDark ? <Moon size={26} color={colors.primary} /> : <Sun size={26} color={colors.primary} />}
           </View>
           <View style={styles.heroCopy}>
-            <Text style={[styles.heroKicker, { color: colors.primary }]}>Display</Text>
+            <Text style={[styles.heroKicker, { color: colors.primary }]}>DISPLAY PREFERENCE</Text>
             <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-              {isDark ? "Dark mode is active" : "Light mode is active"}
+              {isDark ? "Dark Mode Active" : "Light Mode Active"}
             </Text>
             <Text style={[styles.heroText, { color: colors.textSecondary }]}>
               Choose the look that feels easiest to study with on this device.
             </Text>
           </View>
-        </View>
+        </LinearGradient>
 
         {saved && (
           <View style={[styles.savedRow, { backgroundColor: isDark ? "rgba(34,197,94,0.1)" : "#DCFCE7" }]}>

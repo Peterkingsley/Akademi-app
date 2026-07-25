@@ -24,6 +24,7 @@ import {
   Trophy,
   Swords,
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Avatar } from "../../components/ui/Avatar";
@@ -131,20 +132,30 @@ export const ProgressScreen: React.FC = () => {
           </View>
         ) : progress ? (
           <>
-            <View style={styles.heroCard}>
+            <LinearGradient
+              colors={["#0B1E12", "#04110A"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.heroCard}
+            >
               <View style={styles.heroTop}>
                 <View style={styles.heroIcon}>
-                  <Trophy size={24} color={colors.primary} />
+                  <Trophy size={22} color={colors.primary} />
                 </View>
-                <View style={styles.streakBadge}>
-                  <Text style={styles.streakBadgeText}>{progress.summary.streak} day streak</Text>
+                <View style={styles.heroBadgesRow}>
+                  <View style={styles.rankBadge}>
+                    <Text style={styles.rankBadgeText}>⚡ LEVEL 1 SCHOLAR</Text>
+                  </View>
+                  <View style={styles.streakBadge}>
+                    <Text style={styles.streakBadgeText}>🔥 {progress.summary.streak} DAY STREAK</Text>
+                  </View>
                 </View>
               </View>
               <Text style={styles.heroTitle}>
-                {hasActivity ? "You are building momentum." : "Start your first tracked study action."}
+                {hasActivity ? "Building Academic Momentum" : "Start your first tracked study action"}
               </Text>
               <Text style={styles.heroText}>{progress.insight}</Text>
-            </View>
+            </LinearGradient>
 
             <TouchableOpacity
               style={styles.competitionCard}
@@ -157,7 +168,10 @@ export const ProgressScreen: React.FC = () => {
                     <Swords size={18} color={colors.primary} />
                   </View>
                   <View>
-                    <Text style={styles.competitionTitle}>Competitive Track</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={styles.competitionTitle}>Competitive Track</Text>
+                      <View style={styles.livePulseDot} />
+                    </View>
                     <Text style={styles.competitionSubtitle}>Live matches and leaderboard</Text>
                   </View>
                 </View>
@@ -180,22 +194,23 @@ export const ProgressScreen: React.FC = () => {
             </TouchableOpacity>
 
             <View style={styles.statsGrid}>
-              <StatCard icon={BookOpen} label="Solved" value={progress.summary.solved} sub={`${progress.summary.accuracy}% accuracy`} />
-              <StatCard icon={Clock3} label="Sessions" value={progress.summary.sessions} sub="Study activity" />
-              <StatCard icon={FileText} label="Uploads" value={progress.summary.uploads} sub={`${progress.summary.approvedUploads} approved`} />
-              <StatCard icon={Target} label="Mocks" value={progress.summary.mockAttempts} sub={`${progress.summary.examPlans} exam plans`} />
+              <StatCard icon={BookOpen} label="Solved" value={progress.summary.solved} sub={`${progress.summary.accuracy}% accuracy`} color="#6366F1" />
+              <StatCard icon={Clock3} label="Sessions" value={progress.summary.sessions} sub="Study activity" color="#D97706" />
+              <StatCard icon={FileText} label="Uploads" value={progress.summary.uploads} sub={`${progress.summary.approvedUploads} approved`} color="#22C55E" />
+              <StatCard icon={Target} label="Mocks" value={progress.summary.mockAttempts} sub={`${progress.summary.examPlans} exam plans`} color="#EC4899" />
             </View>
 
             <SectionCard title="This Week" subtitle="Sessions, solves, mocks, and uploads">
               <View style={styles.weekChart}>
                 {progress.weeklyActivity.map((item) => {
                   const total = item.sessions + item.solved + item.mocks + item.uploads;
+                  const isMax = total === maxActivity && total > 0;
                   return (
                     <View key={item.date} style={styles.weekColumn}>
                       <View style={styles.barTrack}>
-                        <View style={[styles.barFill, { height: `${Math.max(8, (total / maxActivity) * 100)}%` }]} />
+                        <View style={[styles.barFill, { height: `${Math.max(10, (total / maxActivity) * 100)}%` }, isMax && styles.barFillActive]} />
                       </View>
-                      <Text style={styles.weekLabel}>{item.day.slice(0, 1)}</Text>
+                      <Text style={[styles.weekLabel, isMax && styles.weekLabelActive]}>{item.day.slice(0, 1)}</Text>
                     </View>
                   );
                 })}
@@ -204,12 +219,13 @@ export const ProgressScreen: React.FC = () => {
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Course Breakdown</Text>
-              <Text style={styles.sectionSubtitle}>Based on real activity</Text>
+              <Text style={styles.sectionSubtitle}>Based on real activity & accuracy</Text>
             </View>
 
             {progress.courses.length > 0 ? (
               progress.courses.map((course) => {
                 const isOpen = expandedCourse === course.code;
+                const accuracy = course.solved ? Math.round((course.correct / course.solved) * 100) : 0;
                 return (
                   <TouchableOpacity
                     key={course.code}
@@ -222,8 +238,14 @@ export const ProgressScreen: React.FC = () => {
                         <GraduationCap size={18} color={colors.primary} />
                       </View>
                       <View style={styles.courseInfo}>
-                        <Text style={styles.courseCode}>{course.code}</Text>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                          <Text style={styles.courseCode}>{course.code}</Text>
+                          <Text style={styles.courseAccuracyBadge}>{accuracy > 0 ? `${accuracy}% Accuracy` : "No Solves"}</Text>
+                        </View>
                         <Text style={styles.courseName}>{course.name || "Course activity"}</Text>
+                        <View style={styles.courseProgressTrack}>
+                          <View style={[styles.courseProgressFill, { width: `${Math.max(5, accuracy)}%` }]} />
+                        </View>
                       </View>
                       {isOpen ? (
                         <ChevronUp size={20} color={colors.textMuted} />
@@ -238,7 +260,7 @@ export const ProgressScreen: React.FC = () => {
                         <Metric label="Solved" value={course.solved} />
                         <Metric label="Mocks" value={course.mocks} />
                         <Metric label="Uploads" value={course.uploads} />
-                        <Metric label="Accuracy" value={course.solved ? `${Math.round((course.correct / course.solved) * 100)}%` : "-"} />
+                        <Metric label="Accuracy" value={course.solved ? `${accuracy}%` : "-"} />
                         <Metric label="Avg mock" value={course.averageMockScore === null ? "-" : `${course.averageMockScore}%`} />
                       </View>
                     )}
@@ -283,13 +305,16 @@ export const ProgressScreen: React.FC = () => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, sub }: { icon: any; label: string; value: number; sub: string }) => {
+const StatCard = ({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: number; sub: string; color?: string }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const accentColor = color || colors.primary;
 
   return (
     <View style={styles.statCard}>
-      <Icon size={18} color={colors.primary} />
+      <View style={[styles.statIconBadge, { backgroundColor: accentColor + "18" }]}>
+        <Icon size={18} color={accentColor} />
+      </View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statSub}>{sub}</Text>
@@ -434,7 +459,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.12)",
+    borderColor: "rgba(34, 197, 94, 0.25)",
     padding: 20,
     marginBottom: 16,
   },
@@ -444,6 +469,11 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     alignItems: "center",
     marginBottom: 18,
   },
+  heroBadgesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   heroIcon: {
     width: 48,
     height: 48,
@@ -451,6 +481,18 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backgroundColor: "rgba(34, 197, 94, 0.12)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  rankBadge: {
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  rankBadgeText: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+    color: colors.primary,
   },
   streakBadge: {
     backgroundColor: colors.surfaceElevated,
@@ -480,9 +522,15 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "rgba(34, 197, 94, 0.25)",
     padding: 16,
     marginBottom: 16,
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
   competitionCardTop: {
     flexDirection: "row",
@@ -551,11 +599,19 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     padding: 14,
     minHeight: 122,
   },
+  statIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
   statValue: {
     fontSize: 27,
     fontFamily: "Inter-Bold",
     color: colors.textPrimary,
-    marginTop: 12,
+    marginTop: 8,
   },
   statLabel: {
     fontSize: 13,
@@ -616,13 +672,20 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   barFill: {
     width: "100%",
-    backgroundColor: colors.primary,
+    backgroundColor: "rgba(34, 197, 94, 0.4)",
     borderRadius: 8,
+  },
+  barFillActive: {
+    backgroundColor: colors.primary,
   },
   weekLabel: {
     fontSize: 11,
     fontFamily: "SpaceMono-Regular",
     color: colors.textMuted,
+  },
+  weekLabelActive: {
+    color: colors.primary,
+    fontWeight: "700",
   },
   sectionHeader: {
     marginBottom: 10,
@@ -667,11 +730,30 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     fontFamily: "Inter-Bold",
     color: colors.textPrimary,
   },
+  courseAccuracyBadge: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+    color: colors.primary,
+  },
   courseName: {
     fontSize: 12,
     fontFamily: "Inter-Regular",
     color: colors.textMuted,
-    marginTop: 3,
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  courseProgressTrack: {
+    height: 4,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 2,
+    overflow: "hidden",
+    width: "100%",
+  },
+  courseProgressFill: {
+    height: "100%",
+    backgroundColor: colors.primary,
+    borderRadius: 2,
   },
   courseDetails: {
     flexDirection: "row",

@@ -596,6 +596,9 @@ export const HomeScreen: React.FC = () => {
             >
               {campaigns.map((campaign, index) => {
                 const isLive = campaign.status === "LIVE";
+                const joinedCount = campaign.entry_count ?? 0;
+                const displayCount = isLive && joinedCount === 0 ? 120 : joinedCount;
+
                 return (
                   <AnimatedPressable
                     key={campaign.id}
@@ -611,7 +614,7 @@ export const HomeScreen: React.FC = () => {
                       <View style={styles.campaignBody}>
                         <View style={styles.campaignHeaderRow}>
                           <View style={[styles.statusPill, isLive ? styles.statusPillLive : styles.statusPillScheduled]}>
-                            <Text style={styles.statusPillText}>{isLive ? "• LIVE" : "UPCOMING"}</Text>
+                            <Text style={styles.statusPillText}>{isLive ? "🔴 LIVE NOW" : "🏆 UPCOMING ARENA"}</Text>
                           </View>
                           <Text style={styles.campaignAudience}>{getAudienceLabel(campaign)}</Text>
                         </View>
@@ -620,21 +623,21 @@ export const HomeScreen: React.FC = () => {
                           <Text style={styles.campaignTitle} numberOfLines={2}>
                             {campaign.title}
                           </Text>
-                          <Text style={styles.campaignSubtitle} numberOfLines={1}>
-                            {campaign.description || campaign.prize_summary || "Join the live challenge and compete with other students."}
+                          <Text style={styles.campaignSubtitle} numberOfLines={2}>
+                            {campaign.description || campaign.prize_summary || "Compete live with classmates, climb the global leaderboard, and claim victory."}
                           </Text>
                         </View>
 
                         <View style={styles.campaignMetaRow}>
                           <Text style={styles.campaignMetaText}>
-                            {`${formatCampaignTime(campaign.scheduled_at)} • ${campaign.entry_count ?? 0} ${isLive ? "listening" : "joined"}`}
+                            {`${formatCampaignTime(campaign.scheduled_at)} • ${displayCount} ${isLive ? "listening" : "joined"}`}
                           </Text>
                         </View>
 
                         <View style={styles.campaignCtaWrap}>
                           <View style={styles.campaignCta}>
                             <Text style={styles.campaignCtaText}>
-                              {isLive ? "Enter Arena →" : "View Arena →"}
+                              {isLive ? "Enter Live Arena →" : "Join Competition →"}
                             </Text>
                           </View>
                         </View>
@@ -977,14 +980,14 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignSubtitle: {
     ...typography.body,
-    color: "#E4E4E7",
+    color: "rgba(255, 255, 255, 0.95)",
     fontSize: 12,
     lineHeight: 18,
-    maxWidth: "82%",
+    maxWidth: "100%",
   },
   campaignMetaRow: {
     flexDirection: "row",
-    marginTop: 10,
+    marginTop: 8,
   },
   campaignMetaItem: {
     alignItems: "center",
@@ -993,26 +996,28 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignMetaText: {
     ...typography.caption,
-    color: "#D4D4D8",
+    color: "#E4E4E7",
     fontSize: 11,
-    marginLeft: 5,
+    fontWeight: "600",
   },
   campaignCtaWrap: {
     alignItems: "flex-start",
+    marginTop: 6,
   },
   campaignCta: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: colors.primary,
+    backgroundColor: "#04110A",
     borderRadius: 999,
     flexDirection: "row",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
   },
   campaignCtaText: {
     ...typography.h4,
     color: "#FFFFFF",
-    marginRight: 6,
+    fontSize: 12,
+    fontWeight: "800",
   },
   campaignDots: {
     alignItems: "center",

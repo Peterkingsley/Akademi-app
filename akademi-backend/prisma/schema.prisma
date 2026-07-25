@@ -1017,6 +1017,18 @@ model GeneratedTextbookOutline {
   @@map("generated_textbook_outlines")
 }
 
+model TextbookGenerationQueueEntry {
+  id            String    @id @default(uuid())
+  course_code   String
+  university_id String?
+  status        String    @default("QUEUED") // QUEUED | ACTIVE | DONE
+  requested_at  DateTime  @default(now())
+  started_at    DateTime?
+
+  @@index([status, requested_at])
+  @@map("textbook_generation_queue_entries")
+}
+
 model GeneratedTextbookOutlineNode {
   id                        String            @id @default(uuid())
   outline_id                String

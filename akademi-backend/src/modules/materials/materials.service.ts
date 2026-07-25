@@ -74,14 +74,32 @@ export class MaterialsService {
   }
 
   async listMaterials(filter: MaterialFilter) {
+    // A course code confirmed NATIONAL_CORE via the CCMAS split is genuinely the same
+    // course everywhere it's offered — so student uploads for it pool across every
+    // school and department, not just the requester's own. SCHOOL_SPECIFIC codes, and
+    // any code that hasn't been CCMAS-classified yet, keep the original school-scoped
+    // behavior (unclassified defaults to scoped, never pooled — the safe direction).
+    const scope = filter.course_code
+      ? await prisma.disciplineDocument.findFirst({
+          where: { course_code: filter.course_code, is_active: true },
+          orderBy: { version: 'desc' },
+          select: { scope_type: true },
+        })
+      : null;
+    const isPooled = scope?.scope_type === 'NATIONAL_CORE';
+
     return prisma.material.findMany({
       where: {
         OR: [
-          { university: filter.university },
+          isPooled ? {} : { university: filter.university },
           { university: 'AKADEMI_NATIONAL', is_akademi_generated: true },
         ],
-        faculty: filter.faculty,
-        department: filter.department,
+        // Faculty/department also relax when pooled — a course like GST 111 is taken
+        // by 60-70 different departments, so keeping these as exact matches would
+        // silently defeat the pooling (a Physics student would never see a Law
+        // student's upload even though both are the same national course).
+        faculty: isPooled ? undefined : filter.faculty,
+        department: isPooled ? undefined : filter.department,
         course_code: filter.course_code,
         level: filter.level ? Number(filter.level) : undefined,
         semester: filter.semester ? Number(filter.semester) : undefined,

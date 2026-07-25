@@ -14,6 +14,7 @@ import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Avatar } from "../../components/ui/Avatar";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ChevronRight,
   GraduationCap,
@@ -33,6 +34,7 @@ import {
   Sparkles,
   BarChart2,
   ShieldCheck,
+  Camera,
 } from "lucide-react-native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
@@ -172,55 +174,61 @@ export const ProfileScreen: React.FC = () => {
         }
       >
         {/* Profile Hero */}
-        <View style={styles.heroSection}>
-          <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8}>
+        <LinearGradient
+          colors={["#0B1E12", "#04110A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroSection}
+        >
+          <TouchableOpacity onPress={handlePickImage} activeOpacity={0.85} style={styles.avatarWrapper}>
             <Avatar
               name={profile?.name || "User"}
               uri={avatarUrl}
-              size={72}
+              size={76}
               style={styles.avatar}
             />
+            <View style={styles.cameraBadge}>
+              <Camera size={12} color="#FFFFFF" />
+            </View>
           </TouchableOpacity>
-          <Text style={styles.studentName}>{profile?.name}</Text>
-          <Text style={styles.academicDetails}>{academicLabel}</Text>
 
-          <View style={styles.freePill}>
-            <Sparkles size={13} color={colors.primary} style={styles.pillIcon} />
-            <Text style={styles.freePillText}>{planName}</Text>
-          </View>
+          <Text style={styles.studentName}>{profile?.name}</Text>
+          <Text style={styles.academicDetails}>{academicLabel || "Set up your academic profile"}</Text>
+
+          <TouchableOpacity
+            style={styles.freePill}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Subscription")}
+          >
+            <Sparkles size={12} color={colors.primary} style={styles.pillIcon} />
+            <Text style={styles.freePillText}>{planName} • Upgrade →</Text>
+          </TouchableOpacity>
 
           <View style={styles.heroButtons}>
             <TouchableOpacity
               style={styles.heroButton}
               onPress={() => navigation.navigate("Sessions", { screen: "SessionsMain" })}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
-              <Clock size={16} color={colors.primary} />
-              <Text style={styles.heroButtonText}>Sessions</Text>
+              <Clock size={15} color={colors.primary} />
+              <Text style={styles.heroButtonText}>Study Sessions</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.heroButton}
               onPress={() => navigation.navigate("Sessions", { screen: "Progress" })}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
-              <BarChart2 size={16} color={colors.primary} />
-              <Text style={styles.heroButtonText}>Progress</Text>
+              <BarChart2 size={15} color={colors.primary} />
+              <Text style={styles.heroButtonText}>My Progress</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Stats Row */}
         {error && (
           <TouchableOpacity style={styles.errorBanner} onPress={onRefresh} activeOpacity={0.8}>
             <Text style={styles.errorBannerText}>{error} Tap to retry.</Text>
           </TouchableOpacity>
         )}
-
-        <View style={styles.statsRow}>
-          <StatTile value={progress?.summary.solved || 0} label="SOLVED" />
-          <StatTile value={progress?.summary.sessions || 0} label="SESSIONS" />
-          <StatTile value={progress?.summary.uploads || 0} label="UPLOADS" />
-        </View>
 
         {/* Menu Sections */}
         {user?.admin_role && (
@@ -481,22 +489,39 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     paddingBottom: 100,
   },
   heroSection: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 18,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    padding: 20,
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  avatarWrapper: {
+    position: "relative",
+    marginBottom: 12,
   },
   avatar: {
-    marginBottom: 13,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderColor: colors.primary,
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#04110A",
   },
   studentName: {
     ...typography.h2,
     color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: "800",
     marginBottom: 4,
   },
   academicDetails: {
@@ -504,25 +529,27 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 17,
-    maxWidth: "86%",
+    maxWidth: "90%",
     textAlign: "center",
-    marginBottom: 13,
+    marginBottom: 14,
   },
   pillIcon: {
     marginRight: 6,
   },
   freePill: {
     alignItems: "center",
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    borderColor: "rgba(34, 197, 94, 0.3)",
+    borderWidth: 1,
     flexDirection: "row",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 24,
   },
   freePillText: {
-    color: colors.textSecondary,
-    fontSize: 9.75,
-    fontWeight: "600",
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "700",
   },
   statsRow: {
     flexDirection: "row",

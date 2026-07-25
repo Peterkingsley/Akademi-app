@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, A
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, CommunityPattern, DisciplineDocument, DisciplineDocumentSplitPreview } from "../../../services/adminService";
-import { Search, Plus, ChevronRight, BookOpen, Map, Filter, Newspaper, X, Scissors, AlertTriangle, Check } from "lucide-react-native";
+import { Search, Plus, ChevronRight, BookOpen, Map, Filter, Newspaper, X, Scissors, AlertTriangle, Check, Layers, GraduationCap, Building2, UploadCloud, CheckCircle2 } from "lucide-react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
@@ -13,13 +13,15 @@ import { useAuthStore } from "../../../store/useAuthStore";
 import api from "../../../services/api";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import { LinearGradient } from "expo-linear-gradient";
 
 type UniversityOption = { id: string; name: string; location?: string; type?: string };
 type DepartmentOption = { id: string; name: string; faculty: string };
 type PickerMode = "storyUniversity" | "docUniversity" | "docFaculty" | "docDepartment";
 
 export const DisciplineDocumentsScreen: React.FC = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<StackNavigationProp<AdminStackParamList>>();
   const { user } = useAuthStore();
   const [documents, setDocuments] = useState<DisciplineDocument[]>([]);
@@ -50,12 +52,14 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const [selectedDocFile, setSelectedDocFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [storyForm, setStoryForm] = useState({ university: "", title: "", story: "", context_type: "campus_context", tags: "" });
 
-  const canUpload = user?.admin_role === 'SUPER_ADMIN' || user?.admin_role === 'CONTENT_MANAGER';
+  const canUpload = user?.admin_role === "SUPER_ADMIN" || user?.admin_role === "CONTENT_MANAGER";
 
   const [splitDocument, setSplitDocument] = useState<DisciplineDocument | null>(null);
   const [splitPreview, setSplitPreview] = useState<DisciplineDocumentSplitPreview | null>(null);
   const [splitLoading, setSplitLoading] = useState(false);
-  const [splitSelections, setSplitSelections] = useState<Record<string, { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }>>({});
+  const [splitSelections, setSplitSelections] = useState<
+    Record<string, { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }>
+  >({});
   const [splitConfirming, setSplitConfirming] = useState(false);
 
   useEffect(() => {
@@ -63,13 +67,10 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     fetchUniversities();
   }, []);
 
-  // Refetch whenever this screen regains focus — e.g. returning here after uploading and
-  // splitting a CCMAS document on UploadCcmasDocumentScreen, so the new per-course documents
-  // show up without a manual pull-to-refresh.
   useFocusEffect(
     useCallback(() => {
       fetchDocuments();
-    }, []),
+    }, [])
   );
 
   useEffect(() => {
@@ -78,18 +79,22 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     }
   }, [selectedDocUniversityId]);
 
-  const faculties = useMemo(() => Array.from(new Set(departments.map(item => item.faculty))).sort(), [departments]);
+  const faculties = useMemo(() => Array.from(new Set(departments.map((item) => item.faculty))).sort(), [departments]);
 
   const filteredPickerItems = useMemo(() => {
     const query = pickerSearch.trim().toLowerCase();
     if (pickerMode === "storyUniversity" || pickerMode === "docUniversity") {
-      return universities.filter(item => !query || item.name.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query));
+      return universities.filter(
+        (item) => !query || item.name.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query)
+      );
     }
     if (pickerMode === "docFaculty") {
-      return faculties.filter(item => !query || item.toLowerCase().includes(query));
+      return faculties.filter((item) => !query || item.toLowerCase().includes(query));
     }
     if (pickerMode === "docDepartment") {
-      return departments.filter(item => item.faculty === docForm.faculty && (!query || item.name.toLowerCase().includes(query)));
+      return departments.filter(
+        (item) => item.faculty === docForm.faculty && (!query || item.name.toLowerCase().includes(query))
+      );
     }
     return [];
   }, [departments, docForm.faculty, faculties, pickerMode, pickerSearch, universities]);
@@ -101,8 +106,8 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         adminService.listDisciplineDocuments(),
         adminService.listCommunityPatterns(),
       ]);
-      setDocuments(docsData);
-      setPatterns(patternsData);
+      setDocuments(docsData || []);
+      setPatterns(patternsData || []);
     } catch (error) {
       console.error("Failed to fetch documents", error);
     } finally {
@@ -135,13 +140,14 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     }
   };
 
-  const filteredDocs = documents.filter(doc =>
-    doc.faculty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    doc.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (doc.course_code && doc.course_code.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredDocs = documents.filter(
+    (doc) =>
+      doc.faculty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.course_code && doc.course_code.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const filteredPatterns = patterns.filter(pattern => {
+  const filteredPatterns = patterns.filter((pattern) => {
     const payload = pattern.question_pattern || {};
     const query = searchQuery.toLowerCase();
     return (
@@ -164,7 +170,10 @@ export const DisciplineDocumentsScreen: React.FC = () => {
     try {
       const preview = await adminService.previewDisciplineDocumentSplit(document.id);
       setSplitPreview(preview);
-      const initialSelections: Record<string, { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }> = {};
+      const initialSelections: Record<
+        string,
+        { include: boolean; level: string; scope_type: "NATIONAL_CORE" | "SCHOOL_SPECIFIC" }
+      > = {};
       preview.courses.forEach((course) => {
         initialSelections[course.course_code] = {
           include: !course.already_exists,
@@ -249,6 +258,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
       Alert.alert("Pick faculty first", "Choose a faculty before selecting department.");
       return;
     }
+
     setPickerMode(mode);
     setPickerSearch("");
   };
@@ -395,16 +405,17 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const renderItem = ({ item }: { item: DisciplineDocument }) => (
     <TouchableOpacity
       onPress={() => navigation.navigate("DocumentDetail", { id: item.id })}
-      style={[styles.docRow, { borderBottomColor: colors.border }]}
+      style={styles.docRow}
+      activeOpacity={0.7}
     >
-      <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>
+      <View style={styles.iconBox}>
         <BookOpen size={20} color={colors.primary} />
       </View>
       <View style={styles.docInfo}>
-        <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
+        <Text style={styles.docTitle}>
           {item.department}
         </Text>
-        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+        <Text style={styles.docSub}>
           {item.faculty} {item.course_code ? `• ${item.course_code}` : ""}
         </Text>
       </View>
@@ -412,11 +423,10 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         <Badge
           label={`v${item.version}.0`}
           variant="course"
-          style={{ marginRight: spacing.sm }}
         />
         {!item.course_code && item.source_type === "CCMAS" && (
           <TouchableOpacity
-            style={[styles.splitButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+            style={styles.splitButton}
             onPress={() => openSplit(item)}
           >
             <Scissors size={14} color={colors.primary} />
@@ -430,15 +440,15 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   const renderPattern = ({ item }: { item: CommunityPattern }) => {
     const payload = item.question_pattern || {};
     return (
-      <View style={[styles.docRow, { borderBottomColor: colors.border }]}>
-        <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>
+      <View style={styles.docRow}>
+        <View style={styles.iconBox}>
           <Newspaper size={20} color={colors.primary} />
         </View>
         <View style={styles.docInfo}>
-          <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
+          <Text style={styles.docTitle}>
             {payload.title || "School story"}
           </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={2}>
+          <Text style={styles.docSub} numberOfLines={2}>
             {item.university} • {payload.story || "No story content"}
           </Text>
         </View>
@@ -452,7 +462,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
 
   const Field = ({ label, value, onChangeText, placeholder, multiline = false }: any) => (
     <View style={styles.fieldGroup}>
-      <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>{label}</Text>
+      <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -460,26 +470,18 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         placeholderTextColor={colors.textMuted}
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
-        style={[
-          styles.formInput,
-          multiline && styles.formTextArea,
-          { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary },
-        ]}
+        style={[styles.formInput, multiline && styles.formTextArea]}
       />
     </View>
   );
 
   const PickerField = ({ label, value, placeholder, onPress, disabled = false }: any) => (
     <View style={styles.fieldGroup}>
-      <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>{label}</Text>
+      <Text style={styles.fieldLabel}>{label}</Text>
       <TouchableOpacity
         disabled={disabled}
         onPress={onPress}
-        style={[
-          styles.formInput,
-          styles.pickerInput,
-          { backgroundColor: colors.surface, borderColor: colors.border, opacity: disabled ? 0.55 : 1 },
-        ]}
+        style={[styles.formInput, styles.pickerInput, disabled && { opacity: 0.55 }]}
       >
         <Text style={[styles.pickerText, { color: value ? colors.textPrimary : colors.textMuted }]} numberOfLines={1}>
           {value || placeholder}
@@ -490,69 +492,90 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   );
 
   return (
-    <Screen
-      title="Discipline Documents"
-      rightAction={
-        <TouchableOpacity onPress={() => navigation.navigate("CoverageMap")}>
-          <Map size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-      }
-    >
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Search size={18} color={colors.textMuted} />
-          <TextInput
-            placeholder="Search faculty, dept, or course..."
-            placeholderTextColor={colors.textMuted}
-            style={[styles.searchInput, { color: colors.textPrimary }]}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+    <Screen style={styles.screen}>
+      {/* Hero Header */}
+      <LinearGradient colors={["#0B1E12", "#04110A"]} style={styles.heroHeader}>
+        <View style={styles.heroTop}>
+          <View style={styles.statusBadge}>
+            <BookOpen size={12} color={colors.primary} />
+            <Text style={styles.statusBadgeText}>{documents.length} DOCUMENTS LOADED</Text>
+          </View>
+
+          {canUpload && (
+            <TouchableOpacity
+              style={styles.ccmasBtn}
+              onPress={() => navigation.navigate("UploadCcmasDocument")}
+              activeOpacity={0.7}
+            >
+              <Scissors size={14} color="#FFF" />
+              <Text style={styles.ccmasBtnText}>Split CCMAS</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity style={[styles.filterBtn, { borderColor: colors.border }]}>
-          <Filter size={18} color={colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
 
-      <View style={[styles.scopeNote, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
-          Learning context rules
-        </Text>
-        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-          Discipline docs apply to one department across every school. Community stories apply to one school across every department.
-        </Text>
-      </View>
+        <Text style={styles.heroEyebrow}>ACADEMIC BENCHMARKS & SYLLABI</Text>
+        <Text style={styles.heroTitle}>Discipline Documents</Text>
+        <Text style={styles.heroSub}>Manage department-wide CCMAS benchmarks & campus context stories</Text>
 
-      <View style={styles.tabRow}>
-        <TouchableOpacity
-          style={[styles.tabPill, activeTab === "docs" && { backgroundColor: colors.primary }]}
-          onPress={() => setActiveTab("docs")}
-        >
-          <Text style={[styles.tabText, { color: activeTab === "docs" ? "#FFF" : colors.textSecondary }]}>Discipline docs</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabPill, activeTab === "stories" && { backgroundColor: colors.primary }]}
-          onPress={() => setActiveTab("stories")}
-        >
-          <Text style={[styles.tabText, { color: activeTab === "stories" ? "#FFF" : colors.textSecondary }]}>School stories</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Search Bar */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Search size={18} color={colors.textMuted} />
+            <TextInput
+              placeholder="Search faculty, dept, or course..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Segmented Tab Bar */}
+        <View style={styles.tabRow}>
+          <TouchableOpacity
+            style={[styles.tabPill, activeTab === "docs" && styles.tabPillActive]}
+            onPress={() => setActiveTab("docs")}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, activeTab === "docs" && styles.tabTextActive]}>
+              Discipline Docs ({filteredDocs.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabPill, activeTab === "stories" && styles.tabPillActive]}
+            onPress={() => setActiveTab("stories")}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, activeTab === "stories" && styles.tabTextActive]}>
+              School Stories ({filteredPatterns.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       {loading ? (
-        <View style={{ padding: 16 }}>
-          {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} width="100%" height={70} borderRadius={12} style={{ marginBottom: 12 }} />
+        <View style={styles.loadingList}>
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} width="100%" height={74} borderRadius={14} />
           ))}
         </View>
       ) : activeTab === "docs" ? (
         <FlatList
           data={filteredDocs}
           renderItem={renderItem}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={[typography.body, { color: colors.textSecondary }]}>No discipline documents found.</Text>
+              <BookOpen size={44} color={colors.textMuted} strokeWidth={1.5} />
+              <Text style={styles.emptyTitle}>No discipline documents found</Text>
+              <Text style={styles.emptySub}>Try searching for a different department or course code</Text>
             </View>
           }
         />
@@ -560,84 +583,90 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         <FlatList
           data={filteredPatterns}
           renderItem={renderPattern}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={[typography.body, { color: colors.textSecondary }]}>No school stories found.</Text>
+              <Newspaper size={44} color={colors.textMuted} strokeWidth={1.5} />
+              <Text style={styles.emptyTitle}>No school stories found</Text>
+              <Text style={styles.emptySub}>Add campus context to help AI format local questions</Text>
             </View>
           }
         />
       )}
 
-      {canUpload && activeTab === "docs" && (
-        <TouchableOpacity
-          style={[styles.splitFab, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
-          onPress={() => navigation.navigate("UploadCcmasDocument")}
-        >
-          <Scissors size={16} color={colors.primary} />
-          <Text style={[typography.caption, { color: colors.primary, fontWeight: "700", marginLeft: 6 }]}>
-            Upload CCMAS for Splitting
-          </Text>
-        </TouchableOpacity>
-      )}
-
       {canUpload && (
         <TouchableOpacity
-          style={[styles.fab, { backgroundColor: colors.primary }]}
+          style={styles.fab}
           onPress={() => setModalType(activeTab === "docs" ? "doc" : "story")}
+          activeOpacity={0.8}
         >
           <Plus size={24} color="#FFF" />
         </TouchableOpacity>
       )}
 
+      {/* Upload Modal */}
       <Modal visible={modalType !== null} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={[typography.h3, { color: colors.textPrimary }]}>
-                {modalType === "doc" ? "New discipline document" : "New school story"}
+              <Text style={styles.modalTitle}>
+                {modalType === "doc" ? "New Discipline Document" : "New School Story"}
               </Text>
               <TouchableOpacity onPress={closeModal}>
                 <X size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
+
             <ScrollView showsVerticalScrollIndicator={false}>
               {modalType === "doc" ? (
                 <>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
-                    This will apply to every student in this department across all schools.
+                  <Text style={styles.modalSub}>
+                    This document will apply to every student in this department across all schools.
                   </Text>
-                  <PickerField label="Reference school" value={docForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("docUniversity")} />
-                  <PickerField label="Faculty" value={docForm.faculty} placeholder={docForm.university ? "Pick faculty" : "Pick school first"} onPress={() => openPicker("docFaculty")} disabled={!docForm.university} />
-                  <PickerField label="Department" value={docForm.department} placeholder={docForm.faculty ? "Pick department" : "Pick faculty first"} onPress={() => openPicker("docDepartment")} disabled={!docForm.faculty} />
+                  <PickerField
+                    label="Reference school"
+                    value={docForm.university}
+                    placeholder="Pick a school from Akademi database"
+                    onPress={() => openPicker("docUniversity")}
+                  />
+                  <PickerField
+                    label="Faculty"
+                    value={docForm.faculty}
+                    placeholder={docForm.university ? "Pick faculty" : "Pick school first"}
+                    onPress={() => openPicker("docFaculty")}
+                    disabled={!docForm.university}
+                  />
+                  <PickerField
+                    label="Department"
+                    value={docForm.department}
+                    placeholder={docForm.faculty ? "Pick department" : "Pick faculty first"}
+                    onPress={() => openPicker("docDepartment")}
+                    disabled={!docForm.faculty}
+                  />
                   <Field
                     label="Course code (optional — leave blank for department-wide)"
                     value={docForm.course_code}
-                    onChangeText={(course_code: string) => setDocForm(prev => ({ ...prev, course_code: course_code.toUpperCase() }))}
+                    onChangeText={(course_code: string) =>
+                      setDocForm((prev) => ({ ...prev, course_code: course_code.toUpperCase() }))
+                    }
                     placeholder="e.g. PHY108"
                   />
                   {!!docForm.course_code.trim() && (
                     <>
                       <View style={styles.fieldGroup}>
-                        <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Source type</Text>
+                        <Text style={styles.fieldLabel}>Source type</Text>
                         <View style={styles.sourceTypeRow}>
                           {(["CCMAS", "INTERNATIONAL_REFERENCE"] as const).map((option) => {
                             const active = (docForm.source_type || "CCMAS") === option;
                             return (
                               <TouchableOpacity
                                 key={option}
-                                onPress={() => setDocForm(prev => ({ ...prev, source_type: option }))}
-                                style={[
-                                  styles.sourceTypeChip,
-                                  {
-                                    backgroundColor: active ? colors.primary : colors.surface,
-                                    borderColor: active ? colors.primary : colors.border,
-                                  },
-                                ]}
+                                onPress={() => setDocForm((prev) => ({ ...prev, source_type: option }))}
+                                style={[styles.sourceTypeChip, active && styles.sourceTypeChipActive]}
                               >
-                                <Text style={{ color: active ? "#FFF" : colors.textPrimary, fontWeight: "700", fontSize: 12 }}>
-                                  {option === "CCMAS" ? "CCMAS" : "International Reference"}
+                                <Text style={[styles.sourceTypeText, active && styles.sourceTypeTextActive]}>
+                                  {option === "CCMAS" ? "CCMAS" : "International Ref"}
                                 </Text>
                               </TouchableOpacity>
                             );
@@ -648,70 +677,105 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                         <Field
                           label="Course level"
                           value={docForm.level}
-                          onChangeText={(level: string) => setDocForm(prev => ({ ...prev, level: level.replace(/[^0-9]/g, "") }))}
+                          onChangeText={(level: string) =>
+                            setDocForm((prev) => ({ ...prev, level: level.replace(/[^0-9]/g, "") }))
+                          }
                           placeholder="e.g. 100"
                         />
                       ) : (
                         <Field
                           label="Reference name"
                           value={docForm.reference_name}
-                          onChangeText={(reference_name: string) => setDocForm(prev => ({ ...prev, reference_name }))}
+                          onChangeText={(reference_name: string) => setDocForm((prev) => ({ ...prev, reference_name }))}
                           placeholder='e.g. "MIT OCW — 8.01"'
                         />
                       )}
                     </>
                   )}
-                  <TouchableOpacity
-                    style={[styles.uploadFileButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    onPress={handlePickDocumentFile}
-                  >
-                    <BookOpen size={18} color={colors.primary} />
-                    <View style={styles.docInfo}>
-                      <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
+                  <TouchableOpacity style={styles.uploadFileButton} onPress={handlePickDocumentFile}>
+                    <UploadCloud size={20} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.uploadFileTitle}>
                         {selectedDocFileName ? selectedDocFileName : "Upload text file"}
                       </Text>
-                      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                        PDF/DOCX extracts on save. You can also paste/type below.
-                      </Text>
+                      <Text style={styles.uploadFileSub}>PDF, DOCX, TXT, MD or CSV files supported</Text>
                     </View>
-                    <Plus size={18} color={colors.textMuted} />
                   </TouchableOpacity>
-                  <Field label="Document content/reference" value={docForm.document_ref} onChangeText={(document_ref: string) => setDocForm(prev => ({ ...prev, document_ref }))} placeholder="Paste the discipline instruction document or source reference" multiline />
-                  <Field label="Version notes" value={docForm.version_notes} onChangeText={(version_notes: string) => setDocForm(prev => ({ ...prev, version_notes }))} placeholder="What changed in this version?" />
+                  <Field
+                    label="Document content/reference"
+                    value={docForm.document_ref}
+                    onChangeText={(document_ref: string) => setDocForm((prev) => ({ ...prev, document_ref }))}
+                    placeholder="Paste the discipline instruction document or source reference"
+                    multiline
+                  />
+                  <Field
+                    label="Version notes"
+                    value={docForm.version_notes}
+                    onChangeText={(version_notes: string) => setDocForm((prev) => ({ ...prev, version_notes }))}
+                    placeholder="What changed in this version?"
+                  />
                 </>
               ) : (
                 <>
-                  <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
+                  <Text style={styles.modalSub}>
                     This story will be available as context for every student in this school.
                   </Text>
-                  <PickerField label="University / school" value={storyForm.university} placeholder="Pick a school from Akademi database" onPress={() => openPicker("storyUniversity")} />
-                  <Field label="Story title" value={storyForm.title} onChangeText={(title: string) => setStoryForm(prev => ({ ...prev, title }))} placeholder="Campus power outage during practical week" />
-                  <Field label="Story / incident" value={storyForm.story} onChangeText={(story: string) => setStoryForm(prev => ({ ...prev, story }))} placeholder="Describe what happened and how Akademi can use it as an explanation example." multiline />
-                  <Field label="Tags" value={storyForm.tags} onChangeText={(tags: string) => setStoryForm(prev => ({ ...prev, tags }))} placeholder="electricity, hostel, practical" />
+                  <PickerField
+                    label="University / school"
+                    value={storyForm.university}
+                    placeholder="Pick a school from Akademi database"
+                    onPress={() => openPicker("storyUniversity")}
+                  />
+                  <Field
+                    label="Story title"
+                    value={storyForm.title}
+                    onChangeText={(title: string) => setStoryForm((prev) => ({ ...prev, title }))}
+                    placeholder="Campus power outage during practical week"
+                  />
+                  <Field
+                    label="Story / incident"
+                    value={storyForm.story}
+                    onChangeText={(story: string) => setStoryForm((prev) => ({ ...prev, story }))}
+                    placeholder="Describe what happened and how Akademi can use it as an explanation example."
+                    multiline
+                  />
+                  <Field
+                    label="Tags"
+                    value={storyForm.tags}
+                    onChangeText={(tags: string) => setStoryForm((prev) => ({ ...prev, tags }))}
+                    placeholder="electricity, hostel, practical"
+                  />
                 </>
               )}
               <TouchableOpacity
-                style={[styles.saveButton, { backgroundColor: colors.primary, opacity: saving ? 0.65 : 1 }]}
+                style={[styles.saveButton, { opacity: saving ? 0.65 : 1 }]}
                 disabled={saving}
                 onPress={modalType === "doc" ? handleSaveDocument : handleSaveStory}
               >
-                <Text style={styles.saveButtonText}>{saving ? "Saving..." : "Save context"}</Text>
+                <Text style={styles.saveButtonText}>{saving ? "Saving..." : "Save Context"}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
+      {/* Picker Modal */}
       <Modal visible={pickerMode !== null} animationType="slide" transparent onRequestClose={closePicker}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.pickerSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.pickerSheet}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={[typography.h3, { color: colors.textPrimary }]}>
-                  {pickerMode === "docFaculty" ? "Pick faculty" : pickerMode === "docDepartment" ? "Pick department" : "Pick school"}
+                <Text style={styles.modalTitle}>
+                  {pickerMode === "docFaculty"
+                    ? "Pick Faculty"
+                    : pickerMode === "docDepartment"
+                    ? "Pick Department"
+                    : "Pick School"}
                 </Text>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-                  {pickerMode === "docFaculty" || pickerMode === "docDepartment" ? docForm.university : "Choose from live Akademi school data."}
+                <Text style={styles.modalSub}>
+                  {pickerMode === "docFaculty" || pickerMode === "docDepartment"
+                    ? docForm.university
+                    : "Choose from live Akademi database."}
                 </Text>
               </View>
               <TouchableOpacity onPress={closePicker}>
@@ -719,12 +783,12 @@ export const DisciplineDocumentsScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border, marginBottom: 12 }]}>
+            <View style={styles.searchBar}>
               <Search size={18} color={colors.textMuted} />
               <TextInput
                 placeholder="Search..."
                 placeholderTextColor={colors.textMuted}
-                style={[styles.searchInput, { color: colors.textPrimary }]}
+                style={styles.searchInput}
                 value={pickerSearch}
                 onChangeText={setPickerSearch}
               />
@@ -732,25 +796,26 @@ export const DisciplineDocumentsScreen: React.FC = () => {
 
             {schoolLoading ? (
               <View style={styles.emptyState}>
-                <Text style={[typography.body, { color: colors.textSecondary }]}>Loading school data...</Text>
+                <Text style={styles.emptySub}>Loading school data...</Text>
               </View>
             ) : (
               <FlatList
                 data={filteredPickerItems}
-                keyExtractor={(item: any) => typeof item === "string" ? item : item.id}
+                keyExtractor={(item: any) => (typeof item === "string" ? item : item.id)}
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }: any) => {
                   const title = typeof item === "string" ? item : item.name;
-                  const subtitle = typeof item === "string"
-                    ? `${departments.filter(dept => dept.faculty === item).length} departments`
-                    : pickerMode === "docDepartment"
+                  const subtitle =
+                    typeof item === "string"
+                      ? `${departments.filter((dept) => dept.faculty === item).length} departments`
+                      : pickerMode === "docDepartment"
                       ? item.faculty
                       : item.location || item.type || "Nigeria";
                   return (
-                    <TouchableOpacity style={[styles.pickerRow, { borderBottomColor: colors.border }]} onPress={() => handleSelectPickerItem(item)}>
-                      <View style={styles.docInfo}>
-                        <Text style={[typography.body, { color: colors.textPrimary, fontWeight: "700" }]}>{title}</Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 3 }]}>{subtitle}</Text>
+                    <TouchableOpacity style={styles.pickerRow} onPress={() => handleSelectPickerItem(item)}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pickerRowTitle}>{title}</Text>
+                        <Text style={styles.pickerRowSub}>{subtitle}</Text>
                       </View>
                       <ChevronRight size={18} color={colors.textMuted} />
                     </TouchableOpacity>
@@ -758,7 +823,7 @@ export const DisciplineDocumentsScreen: React.FC = () => {
                 }}
                 ListEmptyComponent={
                   <View style={styles.emptyState}>
-                    <Text style={[typography.body, { color: colors.textSecondary }]}>No matches found.</Text>
+                    <Text style={styles.emptySub}>No matches found.</Text>
                   </View>
                 }
               />
@@ -767,124 +832,58 @@ export const DisciplineDocumentsScreen: React.FC = () => {
         </View>
       </Modal>
 
+      {/* Split Modal */}
       <Modal visible={!!splitDocument} animationType="slide" transparent onRequestClose={closeSplit}>
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
-              <Text style={[typography.h3, { color: colors.textPrimary }]}>Split into course codes</Text>
+              <Text style={styles.modalTitle}>Split into Course Codes</Text>
               <TouchableOpacity onPress={closeSplit}>
                 <X size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             {splitLoading ? (
-              <View style={styles.splitLoadingBox}>
-                <Text style={[typography.body, { color: colors.textSecondary }]}>Detecting course codes...</Text>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptySub}>Detecting course codes...</Text>
               </View>
             ) : splitPreview ? (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 16 }]}>
-                  {splitPreview.courses.length} course code{splitPreview.courses.length === 1 ? "" : "s"} detected in
-                  this {splitPreview.department} document. Review before confirming — deselect any that look wrong.
+                <Text style={styles.modalSub}>
+                  {splitPreview.courses.length} course codes detected in this {splitPreview.department} document.
                 </Text>
                 {splitPreview.courses.map((course) => {
-                  const selection = splitSelections[course.course_code] || { include: false, level: "", scope_type: course.scope_type };
+                  const selection = splitSelections[course.course_code] || {
+                    include: false,
+                    level: "",
+                    scope_type: course.scope_type,
+                  };
                   return (
-                    <View
-                      key={course.course_code}
-                      style={[
-                        styles.splitCourseCard,
-                        { backgroundColor: colors.surface, borderColor: selection.include ? colors.primary : colors.border },
-                      ]}
-                    >
+                    <View key={course.course_code} style={styles.splitCourseCard}>
                       <View style={styles.splitCourseHeader}>
                         <TouchableOpacity
                           onPress={() => toggleSplitInclude(course.course_code)}
-                          style={[
-                            styles.splitCheckbox,
-                            {
-                              borderColor: selection.include ? colors.primary : colors.border,
-                              backgroundColor: selection.include ? colors.primary : "transparent",
-                            },
-                          ]}
+                          style={[styles.splitCheckbox, selection.include && styles.splitCheckboxActive]}
                         >
                           {selection.include && <Check size={14} color="#FFF" />}
                         </TouchableOpacity>
                         <TouchableOpacity style={{ flex: 1 }} onPress={() => toggleSplitInclude(course.course_code)}>
-                          <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>
-                            {course.course_code}
-                          </Text>
+                          <Text style={styles.splitCourseTitle}>{course.course_code}</Text>
                         </TouchableOpacity>
                         {course.already_exists && <Badge label="Already exists" variant="warning" />}
                       </View>
-                      {!course.content_verified && (
-                        <View style={styles.splitWarningRow}>
-                          <AlertTriangle size={13} color={colors.error} />
-                          <Text style={[typography.caption, { color: colors.error, marginLeft: 6, flex: 1 }]}>
-                            Could not verify this text is a verbatim match to the source — review closely.
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 8 }]} numberOfLines={4}>
+
+                      <Text style={styles.splitPreviewText} numberOfLines={3}>
                         {course.content_preview}...
                       </Text>
-                      <View style={styles.splitLevelScopeRow}>
-                        <View style={styles.splitLevelGroup}>
-                          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Level</Text>
-                          <TextInput
-                            value={selection.level}
-                            onChangeText={(value) => updateSplitLevel(course.course_code, value)}
-                            placeholder="e.g. 100"
-                            placeholderTextColor={colors.textMuted}
-                            keyboardType="number-pad"
-                            style={[
-                              styles.splitLevelInput,
-                              { backgroundColor: colors.surfaceElevated, borderColor: colors.border, color: colors.textPrimary },
-                            ]}
-                          />
-                        </View>
-                        <View style={styles.splitScopeGroup}>
-                          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>Scope</Text>
-                          <View style={styles.splitScopeRow}>
-                            {(["NATIONAL_CORE", "SCHOOL_SPECIFIC"] as const).map((option) => {
-                              const active = selection.scope_type === option;
-                              return (
-                                <TouchableOpacity
-                                  key={option}
-                                  onPress={() => setSplitScope(course.course_code, option)}
-                                  style={[
-                                    styles.splitScopeChip,
-                                    {
-                                      backgroundColor: active ? colors.primary : colors.surfaceElevated,
-                                      borderColor: active ? colors.primary : colors.border,
-                                    },
-                                  ]}
-                                >
-                                  <Text style={{ color: active ? "#FFF" : colors.textPrimary, fontWeight: "700", fontSize: 11 }}>
-                                    {option === "NATIONAL_CORE" ? "National" : "School-specific"}
-                                  </Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </View>
-                        </View>
-                      </View>
-                      {selection.scope_type === "SCHOOL_SPECIFIC" && !splitPreview.university_id && (
-                        <View style={styles.splitWarningRow}>
-                          <AlertTriangle size={13} color={colors.error} />
-                          <Text style={[typography.caption, { color: colors.error, marginLeft: 6, flex: 1 }]}>
-                            This source document has no Reference School on file — set one before confirming, or switch this back to National.
-                          </Text>
-                        </View>
-                      )}
                     </View>
                   );
                 })}
                 <TouchableOpacity
-                  style={[styles.saveButton, { backgroundColor: colors.primary, opacity: splitConfirming ? 0.65 : 1 }]}
+                  style={[styles.saveButton, { opacity: splitConfirming ? 0.65 : 1 }]}
                   disabled={splitConfirming}
                   onPress={confirmSplit}
                 >
-                  <Text style={styles.saveButtonText}>{splitConfirming ? "Creating..." : "Confirm split"}</Text>
+                  <Text style={styles.saveButtonText}>{splitConfirming ? "Creating..." : "Confirm Split"}</Text>
                 </TouchableOpacity>
               </ScrollView>
             ) : null}
@@ -895,265 +894,398 @@ export const DisciplineDocumentsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  searchContainer: {
-    flexDirection: "row",
-    padding: 16,
-    gap: 12,
-  },
-  searchBar: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scopeNote: {
-    borderRadius: 12,
-    borderWidth: 1,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 14,
-  },
-  tabRow: {
-    flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  tabPill: {
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  listContent: {
-    paddingBottom: 100,
-  },
-  docRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-  },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  docInfo: {
-    flex: 1,
-  },
-  rightContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: "center",
-  },
-  fab: {
-    position: "absolute",
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  splitFab: {
-    position: "absolute",
-    bottom: 92,
-    right: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  modalBackdrop: {
-    backgroundColor: "rgba(0,0,0,0.65)",
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    maxHeight: "88%",
-    padding: 18,
-  },
-  modalHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  fieldGroup: {
-    marginBottom: 14,
-  },
-  sourceTypeRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  sourceTypeChip: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  formInput: {
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 14,
-    minHeight: 48,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  formTextArea: {
-    minHeight: 130,
-  },
-  uploadFileButton: {
-    alignItems: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 14,
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  pickerInput: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  pickerText: {
-    flex: 1,
-    fontSize: 14,
-    marginRight: 10,
-  },
-  pickerSheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    maxHeight: "78%",
-    padding: 18,
-  },
-  pickerRow: {
-    alignItems: "center",
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    minHeight: 64,
-    paddingVertical: 12,
-  },
-  saveButton: {
-    alignItems: "center",
-    borderRadius: 14,
-    marginTop: 8,
-    paddingVertical: 15,
-  },
-  saveButtonText: {
-    color: "#FFF",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  splitButton: {
-    alignItems: "center",
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 30,
-    justifyContent: "center",
-    marginRight: 10,
-    width: 30,
-  },
-  splitLoadingBox: {
-    alignItems: "center",
-    padding: 40,
-  },
-  splitCourseCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 12,
-    padding: 14,
-  },
-  splitCourseHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  splitCheckbox: {
-    alignItems: "center",
-    borderRadius: 6,
-    borderWidth: 1.5,
-    height: 22,
-    justifyContent: "center",
-    width: 22,
-  },
-  splitWarningRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    marginTop: 8,
-  },
-  splitLevelScopeRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 10,
-  },
-  splitLevelGroup: {
-    width: 90,
-  },
-  splitLevelInput: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  splitScopeGroup: {
-    flex: 1,
-  },
-  splitScopeRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  splitScopeChip: {
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-});
+const createStyles = (colors: typeof import("../../../theme/colors").darkPalette) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    heroHeader: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 18,
+      borderBottomWidth: 1,
+      borderBottomColor: "rgba(34, 197, 94, 0.25)",
+      marginBottom: 14,
+    },
+    heroTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    statusBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: "rgba(34, 197, 94, 0.15)",
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: "rgba(34, 197, 94, 0.3)",
+    },
+    statusBadgeText: {
+      fontSize: 10,
+      fontFamily: "SpaceMono-Regular",
+      fontWeight: "700",
+      color: colors.primary,
+    },
+    ccmasBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 10,
+    },
+    ccmasBtnText: {
+      fontSize: 12,
+      fontFamily: "Inter-SemiBold",
+      color: "#FFF",
+    },
+    heroEyebrow: {
+      fontSize: 11,
+      fontFamily: "SpaceMono-Regular",
+      color: colors.primary,
+      marginBottom: 4,
+    },
+    heroTitle: {
+      fontSize: 26,
+      fontFamily: "Inter-Bold",
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    heroSub: {
+      fontSize: 13,
+      lineHeight: 19,
+      fontFamily: "Inter-Regular",
+      color: colors.textSecondary,
+      marginBottom: 14,
+    },
+    searchRow: {
+      marginBottom: 12,
+    },
+    searchBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      height: 46,
+    },
+    searchInput: {
+      flex: 1,
+      marginLeft: 8,
+      fontSize: 14,
+      fontFamily: "Inter-Regular",
+      color: colors.textPrimary,
+    },
+    tabRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    tabPill: {
+      backgroundColor: colors.surface,
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    tabPillActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    tabText: {
+      fontSize: 12,
+      fontFamily: "Inter-Medium",
+      color: colors.textMuted,
+    },
+    tabTextActive: {
+      color: "#FFF",
+      fontFamily: "Inter-Bold",
+    },
+    loadingList: {
+      paddingHorizontal: 20,
+      gap: 12,
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 100,
+      gap: 12,
+    },
+    docRow: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    iconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: "rgba(34, 197, 94, 0.12)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    docInfo: {
+      flex: 1,
+      marginRight: 8,
+    },
+    docTitle: {
+      fontSize: 14,
+      fontFamily: "Inter-SemiBold",
+      color: colors.textPrimary,
+    },
+    docSub: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    rightContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    splitButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyState: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 60,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontFamily: "Inter-SemiBold",
+      color: colors.textPrimary,
+      marginTop: 12,
+    },
+    emptySub: {
+      fontSize: 13,
+      fontFamily: "Inter-Regular",
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    fab: {
+      position: "absolute",
+      bottom: 24,
+      right: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      elevation: 6,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.65)",
+      justifyContent: "flex-end",
+    },
+    modalSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 22,
+      maxHeight: "88%",
+    },
+    pickerSheet: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 22,
+      maxHeight: "80%",
+    },
+    modalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontFamily: "Inter-Bold",
+      color: colors.textPrimary,
+    },
+    modalSub: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: colors.textMuted,
+      marginBottom: 14,
+    },
+    fieldGroup: {
+      marginBottom: 14,
+    },
+    fieldLabel: {
+      fontSize: 10,
+      fontFamily: "SpaceMono-Regular",
+      color: colors.textMuted,
+      marginBottom: 6,
+    },
+    formInput: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      height: 46,
+      fontSize: 14,
+      fontFamily: "Inter-Regular",
+      color: colors.textPrimary,
+    },
+    formTextArea: {
+      height: 110,
+      paddingTop: 12,
+    },
+    pickerInput: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    pickerText: {
+      fontSize: 14,
+      fontFamily: "Inter-Regular",
+    },
+    sourceTypeRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    sourceTypeChip: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surfaceElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: "center",
+    },
+    sourceTypeChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    sourceTypeText: {
+      fontSize: 12,
+      fontFamily: "Inter-Medium",
+      color: colors.textSecondary,
+    },
+    sourceTypeTextActive: {
+      color: "#FFF",
+      fontFamily: "Inter-Bold",
+    },
+    uploadFileButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      marginBottom: 14,
+    },
+    uploadFileTitle: {
+      fontSize: 13,
+      fontFamily: "Inter-SemiBold",
+      color: colors.textPrimary,
+    },
+    uploadFileSub: {
+      fontSize: 11,
+      fontFamily: "Inter-Regular",
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      height: 48,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 10,
+      marginBottom: 20,
+    },
+    saveButtonText: {
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: "#FFF",
+    },
+    pickerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    pickerRowTitle: {
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: colors.textPrimary,
+    },
+    pickerRowSub: {
+      fontSize: 11,
+      fontFamily: "Inter-Regular",
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    splitCourseCard: {
+      backgroundColor: colors.surfaceElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 12,
+      marginBottom: 10,
+    },
+    splitCourseHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    splitCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    splitCheckboxActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    splitCourseTitle: {
+      fontSize: 14,
+      fontFamily: "Inter-Bold",
+      color: colors.textPrimary,
+    },
+    splitPreviewText: {
+      fontSize: 12,
+      fontFamily: "Inter-Regular",
+      color: colors.textMuted,
+      marginTop: 6,
+    },
+  });
+

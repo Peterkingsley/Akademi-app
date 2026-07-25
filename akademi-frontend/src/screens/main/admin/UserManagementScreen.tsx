@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Modal, Linking } from "react-native";
+import React, { useEffect, useState, useMemo } from "react";
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Modal, Linking, ScrollView } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService } from "../../../services/adminService";
 import { Badge } from "../../../components/ui/Badge";
-import { Card } from "../../../components/ui/Card";
-import { Search, Filter, Phone, Mail, Settings, X, CheckCircle2, UserX } from "lucide-react-native";
+import { Search, Filter, Phone, Mail, Settings, X, CheckCircle2, UserX, Shield, Sparkles, ChevronRight, UserCheck, GraduationCap, Building2, Calendar, Send, RefreshCw, Users } from "lucide-react-native";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { Toast } from "../../../components/ui/Toast";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
@@ -13,10 +12,14 @@ import * as Haptics from "expo-haptics";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
+import { Avatar } from "../../../components/ui/Avatar";
+import { LinearGradient } from "expo-linear-gradient";
 
 export const UserManagementScreen: React.FC = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<StackNavigationProp<AdminStackParamList>>();
+
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -28,7 +31,7 @@ export const UserManagementScreen: React.FC = () => {
   const [campaignDesign, setCampaignDesign] = useState({
     preheader: "",
     bannerImageUrl: "",
-    accentColor: "#16A34A",
+    accentColor: "#22C55E",
     ctaLabel: "",
     ctaUrl: "",
   });
@@ -52,7 +55,7 @@ export const UserManagementScreen: React.FC = () => {
     try {
       setLoading(true);
       const data = await adminService.listUsers({
-        search,
+        search: search || undefined,
         limit: 50,
         plan: selectedPlan !== "all" ? selectedPlan : undefined,
         status: selectedStatus !== "all" ? selectedStatus : undefined,
@@ -64,7 +67,7 @@ export const UserManagementScreen: React.FC = () => {
     } catch (error) {
       console.error("Failed to fetch users", error);
     } finally {
-      setTimeout(() => setLoading(false), 500);
+      setLoading(false);
     }
   };
 
@@ -85,12 +88,14 @@ export const UserManagementScreen: React.FC = () => {
     }
     try {
       setEmailLoading(true);
-      const data = await adminService.sendUserEmailCampaign(currentFilters({
-        subject: emailForm.subject,
-        message: emailForm.message,
-        design: campaignDesign,
-        previewOnly: true,
-      }));
+      const data = await adminService.sendUserEmailCampaign(
+        currentFilters({
+          subject: emailForm.subject,
+          message: emailForm.message,
+          design: campaignDesign,
+          previewOnly: true,
+        })
+      );
       setRecipientPreview(data);
       setToast({ message: `${data.recipientCount || 0} recipients match this campaign`, type: "success" });
     } catch (error: any) {
@@ -107,11 +112,13 @@ export const UserManagementScreen: React.FC = () => {
     }
     try {
       setEmailLoading(true);
-      const data = await adminService.sendUserEmailCampaign(currentFilters({
-        subject: emailForm.subject,
-        message: emailForm.message,
-        design: campaignDesign,
-      }));
+      const data = await adminService.sendUserEmailCampaign(
+        currentFilters({
+          subject: emailForm.subject,
+          message: emailForm.message,
+          design: campaignDesign,
+        })
+      );
       setEmailVisible(false);
       setRecipientPreview(null);
       setEmailForm({ subject: "", message: "" });
@@ -125,19 +132,19 @@ export const UserManagementScreen: React.FC = () => {
 
   const handleAction = (action: string, user: any) => {
     switch (action) {
-      case 'call':
+      case "call":
         if (user.phone) Linking.openURL(`tel:${user.phone}`);
         else setToast({ message: "No phone number available", type: "error" });
         break;
-      case 'email':
+      case "email":
         Linking.openURL(`mailto:${user.email}`);
         break;
-      case 'ban':
+      case "ban":
         setSelectedUser(user);
         setConfirmVisible(true);
         break;
-      case 'manage':
-        setToast({ message: `Managing ${user.name}...`, type: "success" });
+      case "manage":
+        navigation.navigate("AdminUserDetail", { userId: user.id });
         break;
     }
   };
@@ -153,27 +160,37 @@ export const UserManagementScreen: React.FC = () => {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({
         message: `User ${selectedUser.name} has been ${selectedUser.is_banned ? "unbanned" : "banned"}.`,
-        type: "success"
+        type: "success",
       });
       setConfirmVisible(false);
       setSelectedUser(null);
       fetchUsers();
     } catch (error) {
       console.error("Ban failed", error);
-      setToast({ message: "Failed to ban user", type: "error" });
+      setToast({ message: "Failed to update ban status", type: "error" });
     }
   };
 
+  const hasActiveFilters = selectedPlan !== "all" || selectedStatus !== "all" || joinedWithinDays !== "all" || featureUsed !== "all" || courseCodeFilter.trim() !== "";
+
   const UserCard = ({ user }: { user: any }) => (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.88}
+      style={styles.userCard}
       onPress={() => navigation.navigate("AdminUserDetail", { userId: user.id })}
     >
-    <Card style={StyleSheet.flatten([styles.userCard, { borderColor: colors.border }])}>
       <View style={styles.cardHeader}>
+        <Avatar name={user.name} size={42} />
         <View style={styles.nameSection}>
-          <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>{user.name}</Text>
-          <Text style={[typography.caption, { color: colors.textSecondary }]}>{user.email}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+            {user.plan && user.plan !== "free" && (
+              <View style={styles.planBadge}>
+                <Text style={styles.planBadgeText}>{user.plan.toUpperCase()}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.userEmail} numberOfLines={1}>{user.email}</Text>
         </View>
         <Badge
           label={user.is_banned ? "Banned" : user.is_verified ? "Active" : "Pending"}
@@ -182,111 +199,174 @@ export const UserManagementScreen: React.FC = () => {
       </View>
 
       <View style={styles.cardBody}>
-        <View style={styles.metaRow}>
+        <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>UNIVERSITY</Text>
-            <Text style={[typography.bodySmall, { color: colors.textPrimary }]} numberOfLines={1}>{user.university || "N/A"}</Text>
+            <View style={styles.metaLabelRow}>
+              <Building2 size={12} color={colors.textMuted} />
+              <Text style={styles.metaLabel}>UNIVERSITY</Text>
+            </View>
+            <Text style={styles.metaValue} numberOfLines={1}>{user.university || "N/A"}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>DEPARTMENT</Text>
-            <Text style={[typography.bodySmall, { color: colors.textPrimary }]} numberOfLines={1}>{user.department || "N/A"}</Text>
+            <View style={styles.metaLabelRow}>
+              <GraduationCap size={12} color={colors.textMuted} />
+              <Text style={styles.metaLabel}>DEPARTMENT</Text>
+            </View>
+            <Text style={styles.metaValue} numberOfLines={1}>{user.department || "N/A"}</Text>
           </View>
         </View>
-        <View style={[styles.metaRow, { marginTop: 12 }]}>
+
+        <View style={[styles.metaGrid, { marginTop: 10 }]}>
           <View style={styles.metaItem}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>LEVEL</Text>
-            <Text style={[typography.bodySmall, { color: colors.textPrimary }]}>{user.level || "N/A"}</Text>
+            <View style={styles.metaLabelRow}>
+              <Shield size={12} color={colors.textMuted} />
+              <Text style={styles.metaLabel}>LEVEL</Text>
+            </View>
+            <Text style={styles.metaValue}>{user.level ? `${user.level} L` : "N/A"}</Text>
           </View>
           <View style={styles.metaItem}>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>JOINED</Text>
-            <Text style={[typography.bodySmall, { color: colors.textPrimary }]}>
+            <View style={styles.metaLabelRow}>
+              <Calendar size={12} color={colors.textMuted} />
+              <Text style={styles.metaLabel}>JOINED</Text>
+            </View>
+            <Text style={styles.metaValue}>
               {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
             </Text>
           </View>
         </View>
       </View>
 
-      <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('call', user)}>
-          <Phone size={18} color={colors.primary} />
+      <View style={styles.cardFooter}>
+        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction("call", user)} activeOpacity={0.7}>
+          <Phone size={16} color={colors.primary} />
+          <Text style={styles.footerActionText}>Call</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('email', user)}>
-          <Mail size={18} color={colors.primary} />
+        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction("email", user)} activeOpacity={0.7}>
+          <Mail size={16} color={colors.primary} />
+          <Text style={styles.footerActionText}>Email</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('ban', user)}>
-          <UserX size={18} color={user.is_banned ? colors.primary : colors.error} />
+        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction("ban", user)} activeOpacity={0.7}>
+          <UserX size={16} color={user.is_banned ? colors.primary : colors.error} />
+          <Text style={[styles.footerActionText, { color: user.is_banned ? colors.primary : colors.error }]}>
+            {user.is_banned ? "Unban" : "Ban"}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction('manage', user)}>
-          <Settings size={18} color={colors.textSecondary} />
+        <TouchableOpacity style={styles.footerAction} onPress={() => handleAction("manage", user)} activeOpacity={0.7}>
+          <Settings size={16} color={colors.textSecondary} />
+          <Text style={[styles.footerActionText, { color: colors.textSecondary }]}>Detail</Text>
         </TouchableOpacity>
       </View>
-    </Card>
     </TouchableOpacity>
   );
 
   const UserSkeleton = () => (
-    <Card style={StyleSheet.flatten([styles.userCard, { borderColor: colors.border }])}>
+    <View style={styles.userCard}>
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        <Skeleton width={42} height={42} borderRadius={21} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
           <Skeleton width="60%" height={16} />
           <Skeleton width="40%" height={12} style={{ marginTop: 6 }} />
         </View>
         <Skeleton width={60} height={24} borderRadius={12} />
       </View>
-      <View style={styles.cardBody}>
-        <View style={styles.metaRow}>
-          <View style={{ flex: 1 }}><Skeleton width="40%" height={10} /><Skeleton width="80%" height={14} style={{ marginTop: 6 }}/></View>
-          <View style={{ flex: 1 }}><Skeleton width="40%" height={10} /><Skeleton width="80%" height={14} style={{ marginTop: 6 }}/></View>
+      <View style={{ marginTop: 14 }}>
+        <View style={styles.metaGrid}>
+          <Skeleton width="45%" height={28} borderRadius={8} />
+          <Skeleton width="45%" height={28} borderRadius={8} />
         </View>
       </View>
-      <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-        <Skeleton width={18} height={18} />
-        <Skeleton width={18} height={18} />
-        <Skeleton width={18} height={18} />
-        <Skeleton width={18} height={18} />
-      </View>
-    </Card>
+    </View>
   );
 
   return (
-    <Screen title="User Management">
-      <View style={styles.topActions}>
-        <TouchableOpacity
-          style={[styles.emailCampaignButton, { backgroundColor: colors.primary }]}
-          onPress={() => {
-            setRecipientPreview(null);
-            setEmailVisible(true);
-          }}
-        >
-          <Mail size={18} color="#FFF" />
-          <Text style={[typography.bodySmall, { color: "#FFF", fontWeight: "700" }]}>Email users</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.header}>
-        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Search size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.input, { color: colors.textPrimary }]}
-            placeholder="Search name or email..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <X size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
+    <Screen style={styles.screen}>
+      {/* Hero Header */}
+      <LinearGradient colors={["#0B1E12", "#04110A"]} style={styles.heroHeader}>
+        <View style={styles.heroTop}>
+          <View style={styles.statusBadge}>
+            <Users size={12} color={colors.primary} />
+            <Text style={styles.statusBadgeText}>{users.length} USERS LOADED</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.emailBtn}
+            onPress={() => {
+              setRecipientPreview(null);
+              setEmailVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
+            <Mail size={15} color="#FFF" />
+            <Text style={styles.emailBtnText}>Campaign</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={[styles.filterButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => setFilterVisible(true)}
-        >
-          <Filter size={18} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
 
+        <Text style={styles.heroEyebrow}>STUDENT & FACULTY DIRECTORY</Text>
+        <Text style={styles.heroTitle}>User Management</Text>
+        <Text style={styles.heroSub}>Inspect profiles, manage permissions, ban users & broadcast emails</Text>
+
+        {/* Search & Filter Bar */}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Search size={18} color={colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search name, email, university..."
+              placeholderTextColor={colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch("")}>
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+            onPress={() => setFilterVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Filter size={18} color={hasActiveFilters ? "#FFF" : colors.primary} />
+            {hasActiveFilters && <View style={styles.activeDot} />}
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Filter Chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+          {[
+            { label: "All Plans", key: "plan", value: "all" },
+            { label: "Pro Users", key: "plan", value: "pro" },
+            { label: "Active", key: "status", value: "active" },
+            { label: "Banned", key: "status", value: "banned" },
+            { label: "Joined 7d", key: "joined", value: "7" },
+          ].map((chip, idx) => {
+            const isActive =
+              (chip.key === "plan" && selectedPlan === chip.value) ||
+              (chip.key === "status" && selectedStatus === chip.value) ||
+              (chip.key === "joined" && joinedWithinDays === chip.value);
+
+            return (
+              <TouchableOpacity
+                key={idx}
+                style={[styles.quickChip, isActive && styles.quickChipActive]}
+                onPress={() => {
+                  if (chip.key === "plan") setSelectedPlan(chip.value);
+                  if (chip.key === "status") setSelectedStatus(chip.value);
+                  if (chip.key === "joined") setJoinedWithinDays(chip.value);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.quickChipText, isActive && styles.quickChipTextActive]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </LinearGradient>
+
+      {/* User List */}
       {loading && users.length === 0 ? (
         <FlatList
           data={[1, 2, 3, 4]}
@@ -302,278 +382,147 @@ export const UserManagementScreen: React.FC = () => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Search size={48} color={colors.textMuted} strokeWidth={1} />
-              <Text style={[typography.body, { color: colors.textSecondary, marginTop: 16 }]}>No users match your criteria</Text>
+              <Search size={44} color={colors.textMuted} strokeWidth={1.5} />
+              <Text style={styles.emptyTitle}>No users found</Text>
+              <Text style={styles.emptySub}>Try clearing search terms or adjusting active filters</Text>
             </View>
           }
         />
       )}
 
-      <Modal
-        visible={filterVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFilterVisible(false)}
-      >
+      {/* Filter Modal */}
+      <Modal visible={filterVisible} transparent animationType="slide" onRequestClose={() => setFilterVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[typography.h4, { color: colors.textPrimary }]}>Filters</Text>
+              <Text style={styles.modalTitle}>Filter Users</Text>
               <TouchableOpacity onPress={() => setFilterVisible(false)}>
-                <X size={24} color={colors.textPrimary} />
+                <X size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.filterSection}>
-              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>PLAN TYPE</Text>
-              <View style={styles.chipContainer}>
-                {['all', 'free', 'pro', 'premium'].map((plan) => (
-                  <TouchableOpacity
-                    key={plan}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.border },
-                      selectedPlan === plan && { backgroundColor: colors.primary, borderColor: colors.primary }
-                    ]}
-                    onPress={() => setSelectedPlan(plan)}
-                  >
-                    <Text style={[
-                      typography.caption,
-                      { color: colors.textPrimary, textTransform: 'capitalize' },
-                      selectedPlan === plan && { color: '#FFF', fontWeight: 'bold' }
-                    ]}>{plan}</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>PLAN TYPE</Text>
+                <View style={styles.chipGrid}>
+                  {["all", "free", "pro", "premium"].map((plan) => (
+                    <TouchableOpacity
+                      key={plan}
+                      style={[styles.modalChip, selectedPlan === plan && styles.modalChipActive]}
+                      onPress={() => setSelectedPlan(plan)}
+                    >
+                      <Text style={[styles.modalChipText, selectedPlan === plan && styles.modalChipTextActive]}>
+                        {plan.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>JOINED TIME</Text>
+                <View style={styles.chipGrid}>
+                  {[
+                    { label: "Anytime", value: "all" },
+                    { label: "Today", value: "1" },
+                    { label: "7 Days", value: "7" },
+                    { label: "30 Days", value: "30" },
+                  ].map((item) => (
+                    <TouchableOpacity
+                      key={item.value}
+                      style={[styles.modalChip, joinedWithinDays === item.value && styles.modalChipActive]}
+                      onPress={() => setJoinedWithinDays(item.value)}
+                    >
+                      <Text style={[styles.modalChipText, joinedWithinDays === item.value && styles.modalChipTextActive]}>
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>ACCOUNT STATUS</Text>
+                {["all", "active", "unverified", "banned"].map((status) => (
+                  <TouchableOpacity key={status} style={styles.radioRow} onPress={() => setSelectedStatus(status)}>
+                    <Text style={styles.radioText}>{status.toUpperCase()}</Text>
+                    <View style={[styles.radio, selectedStatus === status && styles.radioActive]}>
+                      {selectedStatus === status && <CheckCircle2 size={12} color="#FFF" />}
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
 
-            <View style={styles.filterSection}>
-              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>SIGNED UP</Text>
-              <View style={styles.chipContainer}>
-                {[
-                  { label: "Anytime", value: "all" },
-                  { label: "Today", value: "1" },
-                  { label: "7 days", value: "7" },
-                  { label: "30 days", value: "30" },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.value}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.border },
-                      joinedWithinDays === item.value && { backgroundColor: colors.primary, borderColor: colors.primary }
-                    ]}
-                    onPress={() => setJoinedWithinDays(item.value)}
-                  >
-                    <Text style={[
-                      typography.caption,
-                      { color: colors.textPrimary },
-                      joinedWithinDays === item.value && { color: '#FFF', fontWeight: 'bold' }
-                    ]}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>FEATURE USED</Text>
-              <View style={styles.chipContainer}>
-                {[
-                  { label: "Any", value: "all" },
-                  { label: "Assignment", value: "assignment" },
-                  { label: "Study", value: "study" },
-                  { label: "Exam Prep", value: "exam_prep" },
-                  { label: "Uploads", value: "uploads" },
-                  { label: "CBT", value: "cbt" },
-                ].map((item) => (
-                  <TouchableOpacity
-                    key={item.value}
-                    style={[
-                      styles.chip,
-                      { borderColor: colors.border },
-                      featureUsed === item.value && { backgroundColor: colors.primary, borderColor: colors.primary }
-                    ]}
-                    onPress={() => setFeatureUsed(item.value)}
-                  >
-                    <Text style={[
-                      typography.caption,
-                      { color: colors.textPrimary },
-                      featureUsed === item.value && { color: '#FFF', fontWeight: 'bold' }
-                    ]}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>COURSE CODE</Text>
-              <TextInput
-                style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="e.g. EEE 301"
-                placeholderTextColor={colors.textMuted}
-                value={courseCodeFilter}
-                onChangeText={setCourseCodeFilter}
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View style={styles.filterSection}>
-              <Text style={[typography.label, { color: colors.textMuted, marginBottom: 12 }]}>ACCOUNT STATUS</Text>
-              {['all', 'active', 'unverified', 'banned'].map((status) => (
-                <TouchableOpacity
-                  key={status}
-                  style={styles.radioRow}
-                  onPress={() => setSelectedStatus(status)}
-                >
-                  <Text style={[typography.body, { color: colors.textPrimary, textTransform: 'capitalize' }]}>{status}</Text>
-                  <View style={[
-                    styles.radio,
-                    { borderColor: colors.border },
-                    selectedStatus === status && { borderColor: colors.primary, backgroundColor: colors.primary }
-                  ]}>
-                    {selectedStatus === status && <CheckCircle2 size={12} color="#FFF" />}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TouchableOpacity
-              style={[styles.applyButton, { backgroundColor: colors.primary }]}
-              onPress={() => setFilterVisible(false)}
-            >
-              <Text style={[typography.body, { color: '#FFF', fontWeight: 'bold' }]}>Apply Filters</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterVisible(false)}>
+                <Text style={styles.applyBtnText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
-      <Modal
-        visible={emailVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setEmailVisible(false)}
-      >
+      {/* Email Campaign Modal */}
+      <Modal visible={emailVisible} transparent animationType="slide" onRequestClose={() => setEmailVisible(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={[typography.h4, { color: colors.textPrimary }]}>Email users</Text>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>Uses the current search and filters.</Text>
+                <Text style={styles.modalTitle}>Broadcast Email</Text>
+                <Text style={styles.modalSub}>Uses current search and active filters</Text>
               </View>
               <TouchableOpacity onPress={() => setEmailVisible(false)}>
-                <X size={24} color={colors.textPrimary} />
+                <X size={22} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8 }]}>SUBJECT</Text>
-            <TextInput
-              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
-              placeholder="What should students see first?"
-              placeholderTextColor={colors.textMuted}
-              value={emailForm.subject}
-              onChangeText={(subject) => {
-                setRecipientPreview(null);
-                setEmailForm((current) => ({ ...current, subject }));
-              }}
-            />
-
-            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8, marginTop: 16 }]}>MESSAGE</Text>
-            <TextInput
-              style={[styles.modalInput, styles.messageInput, { color: colors.textPrimary, borderColor: colors.border }]}
-              placeholder="Write the email body..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              textAlignVertical="top"
-              value={emailForm.message}
-              onChangeText={(message) => {
-                setRecipientPreview(null);
-                setEmailForm((current) => ({ ...current, message }));
-              }}
-            />
-
-            <Text style={[typography.label, { color: colors.textMuted, marginBottom: 8, marginTop: 16 }]}>CAMPAIGN DESIGN</Text>
-            <TextInput
-              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border }]}
-              placeholder="Preheader text"
-              placeholderTextColor={colors.textMuted}
-              value={campaignDesign.preheader}
-              onChangeText={(preheader) => {
-                setRecipientPreview(null);
-                setCampaignDesign((current) => ({ ...current, preheader }));
-              }}
-            />
-            <TextInput
-              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border, marginTop: 10 }]}
-              placeholder="Banner image URL"
-              placeholderTextColor={colors.textMuted}
-              value={campaignDesign.bannerImageUrl}
-              onChangeText={(bannerImageUrl) => {
-                setRecipientPreview(null);
-                setCampaignDesign((current) => ({ ...current, bannerImageUrl }));
-              }}
-            />
-            <View style={styles.designRow}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.inputLabel}>SUBJECT LINE</Text>
               <TextInput
-                style={[styles.modalInput, styles.designInput, { color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="#16A34A"
+                style={styles.modalInput}
+                placeholder="What should students see first?"
                 placeholderTextColor={colors.textMuted}
-                value={campaignDesign.accentColor}
-                onChangeText={(accentColor) => {
+                value={emailForm.subject}
+                onChangeText={(subject) => {
                   setRecipientPreview(null);
-                  setCampaignDesign((current) => ({ ...current, accentColor }));
+                  setEmailForm((current) => ({ ...current, subject }));
                 }}
               />
+
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>MESSAGE BODY</Text>
               <TextInput
-                style={[styles.modalInput, styles.designInput, { color: colors.textPrimary, borderColor: colors.border }]}
-                placeholder="CTA label"
+                style={[styles.modalInput, styles.textArea]}
+                placeholder="Write the email content..."
                 placeholderTextColor={colors.textMuted}
-                value={campaignDesign.ctaLabel}
-                onChangeText={(ctaLabel) => {
+                multiline
+                textAlignVertical="top"
+                value={emailForm.message}
+                onChangeText={(message) => {
                   setRecipientPreview(null);
-                  setCampaignDesign((current) => ({ ...current, ctaLabel }));
+                  setEmailForm((current) => ({ ...current, message }));
                 }}
               />
-            </View>
-            <TextInput
-              style={[styles.modalInput, { color: colors.textPrimary, borderColor: colors.border, marginTop: 10 }]}
-              placeholder="CTA URL"
-              placeholderTextColor={colors.textMuted}
-              value={campaignDesign.ctaUrl}
-              onChangeText={(ctaUrl) => {
-                setRecipientPreview(null);
-                setCampaignDesign((current) => ({ ...current, ctaUrl }));
-              }}
-            />
 
-            <View style={[styles.previewBox, { borderColor: colors.border }]}>
-              <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>
-                {recipientPreview ? `${recipientPreview.recipientCount} matching recipients` : "Preview recipients before sending"}
-              </Text>
-              {!!recipientPreview?.sampleRecipients?.length && (
-                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 6 }]} numberOfLines={2}>
-                  {recipientPreview.sampleRecipients.map((user: any) => user.email).join(", ")}
+              <View style={styles.previewCard}>
+                <Text style={styles.previewTitle}>
+                  {recipientPreview ? `${recipientPreview.recipientCount} Recipients Selected` : "Preview Recipients"}
                 </Text>
-              )}
-            </View>
+                {!!recipientPreview?.sampleRecipients?.length && (
+                  <Text style={styles.previewSub} numberOfLines={2}>
+                    {recipientPreview.sampleRecipients.map((u: any) => u.email).join(", ")}
+                  </Text>
+                )}
+              </View>
 
-            <View style={styles.emailActions}>
-              <TouchableOpacity
-                style={[styles.secondaryButton, { borderColor: colors.border }]}
-                onPress={previewEmailRecipients}
-                disabled={emailLoading}
-              >
-                <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>Preview</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryButton, { backgroundColor: colors.primary, opacity: emailLoading ? 0.65 : 1 }]}
-                onPress={sendEmailCampaign}
-                disabled={emailLoading}
-              >
-                <Text style={[typography.bodySmall, { color: "#FFF", fontWeight: "700" }]}>
-                  {emailLoading ? "Working..." : "Send now"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.emailActions}>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={previewEmailRecipients} disabled={emailLoading}>
+                  <Text style={styles.secondaryBtnText}>Preview</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.primaryBtn} onPress={sendEmailCampaign} disabled={emailLoading}>
+                  <Send size={16} color="#FFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.primaryBtnText}>{emailLoading ? "Sending..." : "Send Campaign"}</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -584,7 +533,7 @@ export const UserManagementScreen: React.FC = () => {
         message={
           selectedUser?.is_banned
             ? `Allow ${selectedUser?.name} to access Akademi again?`
-            : `Are you sure you want to ban ${selectedUser?.name}? This will revoke their access immediately.`
+            : `Are you sure you want to ban ${selectedUser?.name}? Access will be revoked immediately.`
         }
         type={selectedUser?.is_banned ? "info" : "danger"}
         confirmText={selectedUser?.is_banned ? "Unban User" : "Ban User"}
@@ -592,202 +541,444 @@ export const UserManagementScreen: React.FC = () => {
         onCancel={() => setConfirmVisible(false)}
       />
 
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onHide={() => setToast(null)}
-        />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onHide={() => setToast(null)} />}
     </Screen>
   );
 };
 
-const styles = StyleSheet.create({
-  header: {
+const createStyles = (colors: typeof import("../../../theme/colors").darkPalette) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  heroHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(34, 197, 94, 0.25)",
+    marginBottom: 16,
+  },
+  heroTop: {
     flexDirection: "row",
-    padding: 16,
-    gap: 12,
-  },
-  topActions: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-  },
-  emailCampaignButton: {
+    justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: 12,
+    marginBottom: 14,
+  },
+  statusBadge: {
     flexDirection: "row",
-    gap: 8,
-    height: 46,
-    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  emailBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  emailBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: "#FFF",
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  heroSub: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: "Inter-Regular",
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  searchRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    height: 48,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    height: 46,
   },
-  input: {
+  searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-  },
-  modalInput: {
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 14,
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  messageInput: {
-    minHeight: 130,
-    paddingTop: 14,
+    fontFamily: "Inter-Regular",
+    color: colors.textPrimary,
   },
   filterButton: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: 12,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    justifyContent: "center",
+    borderColor: colors.border,
     alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  activeDot: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFF",
+  },
+  chipsScroll: {
+    gap: 8,
+    paddingRight: 10,
+  },
+  quickChip: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickChipActive: {
+    backgroundColor: "rgba(34, 197, 94, 0.18)",
+    borderColor: colors.primary,
+  },
+  quickChipText: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+  },
+  quickChipTextActive: {
+    color: colors.primary,
+    fontFamily: "Inter-SemiBold",
   },
   listContent: {
-    padding: 16,
-    paddingTop: 0,
-    paddingBottom: 32,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    gap: 14,
   },
   userCard: {
-    padding: 16,
-    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
     borderWidth: 1,
-    elevation: 0,
-    shadowOpacity: 0,
+    borderColor: colors.border,
+    padding: 16,
   },
   cardHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14,
   },
   nameSection: {
     flex: 1,
-    marginRight: 12,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  userName: {
+    fontSize: 15,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  planBadge: {
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  planBadgeText: {
+    fontSize: 9,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  userEmail: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 2,
   },
   cardBody: {
-    marginBottom: 16,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
-  metaRow: {
+  metaGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   metaItem: {
     flex: 1,
   },
+  metaLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 2,
+  },
+  metaLabel: {
+    fontSize: 9,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.textMuted,
+  },
+  metaValue: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingTop: 12,
     borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 10,
   },
   footerAction: {
-    flex: 1,
-    height: 44, // Accessibility
-    justifyContent: "center",
+    flexDirection: "row",
     alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  footerActionText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: colors.primary,
   },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 64,
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+    marginTop: 12,
+  },
+  emptySub: {
+    fontSize: 13,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   modalContent: {
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
+    padding: 22,
+    maxHeight: "85%",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  modalSub: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 2,
   },
   filterSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  chipContainer: {
+  filterLabel: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.textMuted,
+    marginBottom: 10,
+  },
+  chipGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
-  chip: {
-    paddingHorizontal: 16,
+  modalChip: {
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  modalChipText: {
+    fontSize: 12,
+    fontFamily: "Inter-Medium",
+    color: colors.textSecondary,
+  },
+  modalChipTextActive: {
+    color: "#FFF",
+    fontFamily: "Inter-Bold",
   },
   radioRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  radioText: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
   },
   radio: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 1,
-    justifyContent: "center",
+    borderColor: colors.border,
     alignItems: "center",
-  },
-  applyButton: {
-    height: 52,
-    borderRadius: 16,
     justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
   },
-  previewBox: {
+  radioActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  applyBtn: {
+    backgroundColor: colors.primary,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  applyBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter-Bold",
+    color: "#FFF",
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.textMuted,
+    marginBottom: 6,
+  },
+  modalInput: {
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 12,
     borderWidth: 1,
-    marginTop: 16,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    height: 46,
+    fontSize: 14,
+    fontFamily: "Inter-Regular",
+    color: colors.textPrimary,
+  },
+  textArea: {
+    height: 110,
+    paddingTop: 12,
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 12,
+    marginTop: 14,
+  },
+  previewTitle: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
+  previewSub: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 4,
   },
   emailActions: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 18,
-  },
-  designRow: {
-    flexDirection: "row",
     gap: 10,
-    marginTop: 10,
+    marginTop: 18,
+    marginBottom: 20,
   },
-  designInput: {
+  secondaryBtn: {
     flex: 1,
-  },
-  secondaryButton: {
-    alignItems: "center",
+    height: 48,
     borderRadius: 14,
     borderWidth: 1,
-    flex: 1,
-    height: 50,
+    borderColor: colors.border,
+    alignItems: "center",
     justifyContent: "center",
   },
-  primaryButton: {
-    alignItems: "center",
+  secondaryBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
+  primaryBtn: {
+    flex: 1.5,
+    height: 48,
     borderRadius: 14,
-    flex: 1,
-    height: 50,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
-  }
+  },
+  primaryBtnText: {
+    fontSize: 13,
+    fontFamily: "Inter-Bold",
+    color: "#FFF",
+  },
 });
+
 

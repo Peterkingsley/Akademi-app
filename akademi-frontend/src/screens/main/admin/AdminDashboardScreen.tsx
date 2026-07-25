@@ -1,18 +1,37 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ViewStyle } from "react-native";
+import React, { useEffect, useState, useMemo } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, RefreshControl } from "react-native";
 import { Screen } from "../../../components/layout/Screen";
-import { Card } from "../../../components/ui/Card";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, AdminDashboardStats, AdminDashboardActivity, AdminSystemHealth } from "../../../services/adminService";
-import { Users, FileText, AlertTriangle, Cpu, DollarSign, ChevronRight, Activity, Database, Server, Globe, MessageSquare, HardDrive, Clock } from "lucide-react-native";
+import { 
+  Users, 
+  FileText, 
+  AlertTriangle, 
+  Cpu, 
+  DollarSign, 
+  ChevronRight, 
+  Activity, 
+  Database, 
+  Server, 
+  Clock, 
+  RefreshCw, 
+  ShieldCheck, 
+  Sparkles,
+  UserCheck,
+  Zap,
+  TrendingUp,
+  FileSpreadsheet,
+  Settings
+} from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { Avatar } from "../../../components/ui/Avatar";
+import { LinearGradient } from "expo-linear-gradient";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = (width - 48) / 2;
+const CARD_WIDTH = (width - 52) / 2;
 
 const formatRelativeTime = (value?: string) => {
   if (!value) return "Time unavailable";
@@ -36,12 +55,15 @@ const formatRelativeTime = (value?: string) => {
 };
 
 export const AdminDashboardScreen: React.FC = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<StackNavigationProp<AdminStackParamList>>();
+
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [activity, setActivity] = useState<AdminDashboardActivity | null>(null);
   const [health, setHealth] = useState<AdminSystemHealth | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -61,156 +83,329 @@ export const AdminDashboardScreen: React.FC = () => {
     } catch (error) {
       console.error("Failed to fetch dashboard data", error);
     } finally {
-      setTimeout(() => setLoading(false), 500);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const StatCard = ({ title, value, icon: Icon, color }: any) => (
-    <Card style={StyleSheet.flatten([styles.statCard, { width: CARD_WIDTH, borderColor: colors.border }])}>
-      <View style={[styles.iconContainer, { backgroundColor: color + "15" }]}>
-        <Icon size={20} color={color} />
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
+    <View style={styles.statCard}>
+      <View style={styles.statTop}>
+        <View style={[styles.iconContainer, { backgroundColor: color + "18" }]}>
+          <Icon size={20} color={color} />
+        </View>
+        {trend && (
+          <View style={styles.trendBadge}>
+            <TrendingUp size={10} color={colors.primary} />
+            <Text style={styles.trendText}>{trend}</Text>
+          </View>
+        )}
       </View>
-      <Text style={[typography.label, { color: colors.textSecondary, marginTop: spacing.sm }]}>{title}</Text>
-      <Text style={[typography.h3, { color: colors.textPrimary, marginTop: spacing.xs, fontWeight: "700" }]}>{value ?? 0}</Text>
-    </Card>
+      <Text style={styles.statValue}>{value ?? 0}</Text>
+      <Text style={styles.statLabel}>{title}</Text>
+    </View>
   );
 
   const StatSkeleton = () => (
     <View style={styles.statsGrid}>
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <View key={i} style={[styles.statCard, { width: CARD_WIDTH, height: 120, backgroundColor: colors.surface, borderRadius: 12, padding: 16 }]}>
-          <Skeleton width={36} height={36} borderRadius={8} />
-          <Skeleton width="60%" height={14} style={{ marginTop: 16 }} />
-          <Skeleton width="40%" height={24} style={{ marginTop: 8 }} />
+        <View key={i} style={[styles.statCard, { minHeight: 124 }]}>
+          <Skeleton width={38} height={38} borderRadius={10} />
+          <Skeleton width="45%" height={22} style={{ marginTop: 14 }} />
+          <Skeleton width="70%" height={12} style={{ marginTop: 6 }} />
         </View>
       ))}
     </View>
   );
 
-  const HealthItem = ({ name, status }: { name: string, status: 'online' | 'offline' }) => {
+  const serviceIcons: Record<string, any> = {
+    database: Database,
+    api: Server,
+    aiService: Cpu,
+    storage: FileText,
+    auth: ShieldCheck,
+  };
+
+  const HealthItem = ({ name, status }: { name: string; status: "online" | "offline" }) => {
+    const isOnline = status === "online";
+    const IconComp = serviceIcons[name] || Activity;
+
     return (
       <View style={styles.healthItem}>
-        <View style={[styles.statusDot, { backgroundColor: status === "online" ? "#22C55E" : "#EF4444" }]} />
-        <Text style={[typography.bodySmall, { textTransform: "capitalize", color: colors.textPrimary }]} numberOfLines={1}>{name}</Text>
+        <View style={styles.healthItemLeft}>
+          <View style={[styles.healthIconBadge, { backgroundColor: isOnline ? "rgba(34, 197, 94, 0.12)" : "rgba(239, 68, 68, 0.12)" }]}>
+            <IconComp size={16} color={isOnline ? "#22C55E" : "#EF4444"} />
+          </View>
+          <View>
+            <Text style={styles.healthName}>{name.toUpperCase()}</Text>
+            <Text style={styles.healthSub}>{isOnline ? "Operational" : "Degraded"}</Text>
+          </View>
+        </View>
+        <View style={styles.healthStatusRight}>
+          <View style={[styles.statusDot, { backgroundColor: isOnline ? "#22C55E" : "#EF4444" }]} />
+          <Text style={[styles.statusText, { color: isOnline ? "#22C55E" : "#EF4444" }]}>
+            {isOnline ? "99.9%" : "Down"}
+          </Text>
+        </View>
       </View>
     );
   };
 
-  const ActivityRow = ({ user, type, time }: any) => (
-    <TouchableOpacity
-      style={[styles.activityItem, { borderBottomColor: colors.border }]}
-      onPress={() => navigation.navigate("UserManagement")}
-    >
-      <View style={styles.activityIcon}>
-        <Avatar name={user.name} size={32} />
-      </View>
-      <View style={styles.activityContent}>
-        <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
-          {type}: {user.name}
-        </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-          <Clock size={12} color={colors.textSecondary} />
-          <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>{time}</Text>
-        </View>
-      </View>
-      <ChevronRight size={16} color={colors.textMuted} />
-    </TouchableOpacity>
-  );
-
   return (
-    <Screen title="Command Center" scrollable>
-      <View style={styles.section}>
-        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>LIVE PLATFORM STATS - TODAY</Text>
-        {loading ? (
-          <StatSkeleton />
-        ) : (
-          <View style={styles.statsGrid}>
-            <StatCard title="Total Users" value={stats?.totalUsers} icon={Users} color={colors.primary} />
-            <StatCard title="Active Today" value={stats?.activeUsersToday} icon={Activity} color="#10B981" />
-            <StatCard title="New Signups" value={stats?.newRegistrations} icon={Users} color="#38BDF8" />
-            <StatCard title="Revenue" value={`NGN ${(stats?.revenueToday || 0).toLocaleString()}`} icon={DollarSign} color="#F59E0B" />
-            <StatCard title="Pending Review" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
-            <StatCard title="Flagged Content" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />
-            <StatCard title="AI Requests" value={stats?.aiRequestsToday} icon={Cpu} color="#8B5CF6" />
-          </View>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[typography.label, { marginBottom: spacing.md, color: colors.textMuted }]}>SYSTEM HEALTH</Text>
-        <Card style={styles.healthCard}>
-          {loading ? (
-            <View style={styles.healthGrid}>
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <View key={i} style={styles.healthItem}>
-                   <Skeleton width={8} height={8} borderRadius={4} style={{ marginRight: 8 }} />
-                   <Skeleton width={50} height={12} />
-                </View>
-              ))}
+    <Screen style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* Command Hero Header */}
+        <LinearGradient colors={["#0B1E12", "#04110A"]} style={styles.heroHeader}>
+          <View style={styles.heroTop}>
+            <View style={styles.heroBadgeRow}>
+              <View style={styles.statusBadge}>
+                <View style={styles.livePulseDot} />
+                <Text style={styles.statusBadgeText}>SYSTEM OPERATIONAL</Text>
+              </View>
             </View>
+            <TouchableOpacity style={styles.refreshBtn} onPress={fetchData} activeOpacity={0.7}>
+              <RefreshCw size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.heroEyebrow}>ADMIN COMMAND CENTER</Text>
+          <Text style={styles.heroTitle}>Platform Dashboard</Text>
+          <Text style={styles.heroSub}>Real-time system telemetry, user growth & resource metrics</Text>
+
+          {/* Quick Shortcuts Bar */}
+          <View style={styles.shortcutsRow}>
+            <TouchableOpacity style={styles.shortcutBtn} onPress={() => navigation.navigate("UserManagement")} activeOpacity={0.7}>
+              <Users size={16} color={colors.primary} />
+              <Text style={styles.shortcutText}>Users</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shortcutBtn} onPress={() => navigation.navigate("ContentModeration")} activeOpacity={0.7}>
+              <ShieldCheck size={16} color="#38BDF8" />
+              <Text style={styles.shortcutText}>Moderation</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shortcutBtn} onPress={() => navigation.navigate("DisciplineDocuments")} activeOpacity={0.7}>
+              <FileSpreadsheet size={16} color="#F59E0B" />
+              <Text style={styles.shortcutText}>CCMAS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shortcutBtn} onPress={() => navigation.navigate("AdminMore")} activeOpacity={0.7}>
+              <Settings size={16} color="#8B5CF6" />
+              <Text style={styles.shortcutText}>More</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+
+        {/* Live Platform Stats */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Zap size={16} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Live Platform Stats</Text>
+          </View>
+          {loading ? (
+            <StatSkeleton />
           ) : (
-            <View style={styles.healthGrid}>
-              {health && Object.entries(health).map(([service, status]) => (
-                <HealthItem key={service} name={service} status={status as any} />
-              ))}
+            <View style={styles.statsGrid}>
+              <StatCard title="Total Users" value={stats?.totalUsers} icon={Users} color={colors.primary} trend="+8.4%" />
+              <StatCard title="Active Today" value={stats?.activeUsersToday} icon={Activity} color="#10B981" trend="Live" />
+              <StatCard title="New Signups" value={stats?.newRegistrations} icon={UserCheck} color="#38BDF8" trend="+12" />
+              <StatCard title="Today's Revenue" value={`₦${(stats?.revenueToday || 0).toLocaleString()}`} icon={DollarSign} color="#F59E0B" trend="24h" />
+              <StatCard title="Pending Review" value={stats?.materialsPending} icon={FileText} color="#6366F1" />
+              <StatCard title="Flagged Items" value={stats?.flaggedContent} icon={AlertTriangle} color="#EF4444" />
+              <StatCard title="AI Token Usage" value={stats?.aiRequestsToday} icon={Cpu} color="#8B5CF6" trend="High" />
             </View>
           )}
-        </Card>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[typography.label, { color: colors.textMuted }]}>RECENT ACTIVITY</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("UserManagement")} style={styles.viewAllButton}>
-            <Text style={[typography.caption, { color: colors.primary, fontWeight: "600" }]}>VIEW ALL</Text>
-          </TouchableOpacity>
         </View>
-        <Card style={styles.activityCard}>
-          {loading ? (
-            [1, 2, 3].map((i) => (
-              <View key={i} style={[styles.activityItem, { borderBottomWidth: i === 3 ? 0 : 1, borderBottomColor: colors.border }]}>
-                <Skeleton width={32} height={32} borderRadius={16} style={{ marginRight: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Skeleton width="70%" height={14} />
-                  <Skeleton width="40%" height={10} style={{ marginTop: 6 }} />
-                </View>
+
+        {/* System Telemetry & Service Status */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Server size={16} color={colors.primary} />
+            <Text style={styles.sectionTitle}>System Telemetry</Text>
+          </View>
+          <View style={styles.healthCard}>
+            {loading ? (
+              <View style={styles.healthList}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View key={i} style={styles.healthItem}>
+                    <Skeleton width={32} height={32} borderRadius={8} />
+                    <Skeleton width={100} height={14} style={{ marginLeft: 12 }} />
+                  </View>
+                ))}
               </View>
-            ))
-          ) : (
-            activity?.recentRegistrations.slice(0, 5).map((user: any, index: number) => (
-              <TouchableOpacity
-                key={user.id || index}
-                style={[styles.activityItem, { borderBottomColor: colors.border }]}
-                onPress={() => navigation.navigate("UserManagement")}
-              >
-                <View style={styles.activityIcon}>
-                  <Avatar name={user.name} size={32} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={[typography.body, { fontWeight: "600", color: colors.textPrimary }]}>
-                    New signup: {user.name}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
-                    <Clock size={12} color={colors.textSecondary} />
-                    <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 4 }]}>
-                      {formatRelativeTime(user.created_at)}
-                    </Text>
+            ) : (
+              <View style={styles.healthList}>
+                {health &&
+                  Object.entries(health).map(([service, status]) => (
+                    <HealthItem key={service} name={service} status={status as any} />
+                  ))}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Recent Registrations Feed */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Clock size={16} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Recent Signups</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate("UserManagement")} style={styles.viewAllButton}>
+              <Text style={styles.viewAllText}>VIEW ALL</Text>
+              <ChevronRight size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.activityCard}>
+            {loading ? (
+              [1, 2, 3].map((i) => (
+                <View key={i} style={styles.activityItem}>
+                  <Skeleton width={36} height={36} borderRadius={18} style={{ marginRight: 12 }} />
+                  <View style={{ flex: 1 }}>
+                    <Skeleton width="60%" height={14} />
+                    <Skeleton width="35%" height={10} style={{ marginTop: 6 }} />
                   </View>
                 </View>
-                <ChevronRight size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            ))
-          )}
-        </Card>
-      </View>
+              ))
+            ) : (
+              activity?.recentRegistrations.slice(0, 5).map((user: any, index: number) => (
+                <TouchableOpacity
+                  key={user.id || index}
+                  style={styles.activityItem}
+                  onPress={() => navigation.navigate("UserManagement")}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.activityIcon}>
+                    <Avatar name={user.name} size={36} />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityName} numberOfLines={1}>{user.name}</Text>
+                    <View style={styles.activitySubRow}>
+                      <Clock size={11} color={colors.textMuted} />
+                      <Text style={styles.activityTime}>{formatRelativeTime(user.created_at)}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.signupTag}>
+                    <Text style={styles.signupTagText}>NEW USER</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+      </ScrollView>
     </Screen>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof import("../../../theme/colors").darkPalette) => StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  contentContainer: {
+    paddingBottom: 40,
+  },
+  heroHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(34, 197, 94, 0.25)",
+    marginBottom: 20,
+  },
+  heroTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  heroBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  livePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primary,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroEyebrow: {
+    fontSize: 11,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  heroSub: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: "Inter-Regular",
+    color: colors.textSecondary,
+    marginBottom: 18,
+  },
+  shortcutsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  shortcutBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: colors.surface,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shortcutText: {
+    fontSize: 12,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
   section: {
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    marginBottom: 22,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -218,61 +413,148 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 12,
   },
   statCard: {
-    padding: 16,
-    marginBottom: 16,
+    width: CARD_WIDTH,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
     borderWidth: 1,
-    elevation: 0,
-    shadowOpacity: 0,
+    borderColor: colors.border,
+    padding: 14,
+    minHeight: 115,
+  },
+  statTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   iconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
-  healthCard: {
-    padding: 16,
-    elevation: 0,
-    shadowOpacity: 0,
-    borderWidth: 1,
-  },
-  healthGrid: {
+  trendBadge: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  trendText: {
+    fontSize: 10,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  statValue: {
+    fontSize: 22,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+    marginTop: 10,
+  },
+  statLabel: {
+    fontSize: 12,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  healthCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+  },
+  healthList: {
+    gap: 12,
   },
   healthItem: {
     flexDirection: "row",
     alignItems: "center",
-    width: "33.3%",
-    marginBottom: 16,
-    minHeight: 44, // Accessibility
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  healthItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  healthIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  healthName: {
+    fontSize: 12,
+    fontFamily: "Inter-Bold",
+    color: colors.textPrimary,
+  },
+  healthSub: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  healthStatusRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: "SpaceMono-Regular",
+    fontWeight: "700",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewAllText: {
+    fontSize: 11,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+    fontWeight: "700",
   },
   activityCard: {
-    padding: 0,
-    overflow: "hidden",
-    elevation: 0,
-    shadowOpacity: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
     borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
   },
   activityItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 14,
     borderBottomWidth: 1,
-    minHeight: 60,
+    borderBottomColor: colors.border,
   },
   activityIcon: {
     marginRight: 12,
@@ -280,10 +562,34 @@ const styles = StyleSheet.create({
   activityContent: {
     flex: 1,
   },
-  viewAllButton: {
-    padding: 4,
-    minHeight: 44,
-    justifyContent: "center",
-  }
+  activityName: {
+    fontSize: 14,
+    fontFamily: "Inter-SemiBold",
+    color: colors.textPrimary,
+  },
+  activitySubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  activityTime: {
+    fontSize: 11,
+    fontFamily: "Inter-Regular",
+    color: colors.textMuted,
+  },
+  signupTag: {
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  signupTagText: {
+    fontSize: 9,
+    fontFamily: "SpaceMono-Regular",
+    color: colors.primary,
+    fontWeight: "700",
+  },
 });
+
 

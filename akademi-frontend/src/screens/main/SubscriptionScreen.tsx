@@ -77,10 +77,10 @@ export const SubscriptionScreen: React.FC = () => {
   };
 
   const features = [
-    { icon: <InfinityIcon size={20} color="#FFFFFF" />, text: "Unlimited assignment solving" },
-    { icon: <Book size={20} color="#FFFFFF" />, text: "Full Study Mode with practice questions" },
-    { icon: <Download size={20} color="#FFFFFF" />, text: "Offline access to all materials" },
-    { icon: <Target size={20} color="#FFFFFF" />, text: "Full Exam Prep & unlimited mock exams" },
+    { icon: <InfinityIcon size={18} color={colors.primary} />, text: "Unlimited AI Socratic tutor & assignment solving" },
+    { icon: <Book size={18} color={colors.primary} />, text: "Full Study Mode with practice questions & formulas" },
+    { icon: <Download size={18} color={colors.primary} />, text: "Offline downloads for all course materials" },
+    { icon: <Target size={18} color={colors.primary} />, text: "Complete Exam Prep hub & unlimited CBT mock exams" },
   ];
 
   const displayPrice = billingCycle === "yearly" ? "NGN 18,000" : "NGN 2,500";
@@ -91,25 +91,27 @@ export const SubscriptionScreen: React.FC = () => {
     <View style={styles.container}>
       <SafeArea style={{ flex: 1 }}>
         <LinearGradient
-          colors={["#1E1B4B", "#4338CA"]}
+          colors={["#0B1E12", "#04110A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <TouchableOpacity
             style={styles.closeButton}
             onPress={() => navigation.goBack()}
           >
-            <X size={24} color={colors.textSecondary} />
+            <X size={22} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <View style={styles.headerContent}>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>Akademi Pro +</Text>
-              <Sparkles size={24} color="#FFFFFF" />
+              <Text style={styles.title}>Akademi Pro</Text>
+              <Sparkles size={22} color={colors.primary} />
             </View>
             <Text style={styles.subtitle}>
               {isFreeBetaActive
-                ? "Free beta is active. All MVP study tools are unlocked."
-                : "Unlock the full potential of your academic journey."}
+                ? "Free beta is active. All MVP study tools are unlocked for you."
+                : "Unlock the ultimate AI study companion for top grades."}
             </Text>
           </View>
         </LinearGradient>
@@ -207,11 +209,13 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 24,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    marginTop: 20,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginTop: 10,
   },
   closeButton: {
     alignSelf: "flex-end",
@@ -219,29 +223,32 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: 4,
+    marginBottom: 16,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   title: {
     ...typography.h2,
     color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "800",
     marginRight: 8,
   },
   subtitle: {
     fontSize: 12,
-    color: "#C7D2FE",
+    color: "#D4D4D8",
     textAlign: "center",
+    lineHeight: 18,
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
+    padding: 20,
     paddingBottom: 40,
   },
   featuresList: {
@@ -250,25 +257,29 @@ const styles = StyleSheet.create({
   featureRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 18,
   },
   featureIconCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
+    borderColor: "rgba(34, 197, 94, 0.3)",
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
   featureText: {
-    fontSize: 11.25,
+    fontSize: 12,
     color: colors.textPrimary,
+    fontWeight: "600",
+    flex: 1,
   },
   betaBanner: {
-    backgroundColor: colors.primary + "18",
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
     borderWidth: 1,
-    borderColor: colors.primary + "55",
+    borderColor: "rgba(34, 197, 94, 0.3)",
     borderRadius: 12,
     padding: 14,
     marginBottom: 24,
@@ -276,95 +287,100 @@ const styles = StyleSheet.create({
   betaLabel: {
     ...typography.mono,
     color: colors.primary,
-    fontSize: 8,
-    marginBottom: 6,
+    fontSize: 9,
+    fontWeight: "800",
+    marginBottom: 4,
   },
   betaText: {
     color: colors.textSecondary,
-    fontSize: 10.5,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 17,
   },
   toggleContainer: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   toggleBackground: {
     flexDirection: "row",
     backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderWidth: 1,
     borderRadius: 24,
     padding: 4,
     width: "100%",
   },
   toggleOption: {
     flex: 1,
-    height: 40,
+    height: 42,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
   },
   toggleActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.primary,
   },
   toggleText: {
-    fontSize: 10.5,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.textSecondary,
   },
   toggleTextActive: {
-    color: "#000000",
+    color: "#FFFFFF",
   },
   yearlyOptionRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   saveBadge: {
-    backgroundColor: "#F59E0B",
-    paddingHorizontal: 6,
+    backgroundColor: "#04110A",
+    borderColor: "rgba(34, 197, 94, 0.4)",
+    borderWidth: 1,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     marginLeft: 6,
   },
   saveBadgeText: {
-    fontSize: 7.5,
-    fontWeight: "700",
-    color: "#000000",
+    fontSize: 8,
+    fontWeight: "800",
+    color: colors.primary,
   },
   priceContainer: {
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 28,
   },
   priceText: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: "800",
-    color: "#FFFFFF",
+    color: colors.textPrimary,
   },
   pricePeriod: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: "400",
     color: colors.textSecondary,
   },
   savingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 6,
   },
   originalPrice: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textMuted,
     textDecorationLine: "line-through",
     marginRight: 8,
   },
   savingsText: {
     fontSize: 12,
-    fontWeight: "600",
-    color: colors.success,
+    fontWeight: "700",
+    color: colors.primary,
   },
   upgradeButton: {
     marginBottom: 20,
   },
   trustText: {
-    fontSize: 9,
-    color: colors.textSecondary,
+    fontSize: 10,
+    color: colors.textMuted,
     textAlign: "center",
     marginBottom: 16,
   },
@@ -372,7 +388,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   restoreText: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: colors.textSecondary,
     textDecorationLine: "underline",
   },

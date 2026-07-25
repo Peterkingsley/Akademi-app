@@ -59,11 +59,24 @@ export async function ensureTextbookGenerationQueued(
 
   if (await hasExistingTextbookOutline(code, universityId)) return 'skipped';
 
-  systemQueue
-    .add(JOB_NAMES.DECOMPOSE_CURRICULUM, { courseCode: code, universityId: universityId || undefined })
-    .catch((error: unknown) => {
-      console.error('[textbooks] failed to enqueue curriculum decomposition', { code, universityId, error });
+  // Check if it's already in the queue
+  const existingQueueEntry = await prisma.textbookGenerationQueueEntry.findFirst({
+    where: {
+      course_code: code,
+      university_id: universityId || null,
+      status: { in: ['QUEUED', 'ACTIVE'] },
+    },
+  });
+
+  if (!existingQueueEntry) {
+    await prisma.textbookGenerationQueueEntry.create({
+      data: {
+        course_code: code,
+        university_id: universityId || null,
+        status: 'QUEUED',
+      },
     });
+  }
 
   return 'queued';
 }
@@ -76,11 +89,24 @@ export async function forceRegenerateTextbookOutline(
 ): Promise<EnsureTextbookGenerationResult> {
   const code = courseCode.trim().toUpperCase();
 
-  systemQueue
-    .add(JOB_NAMES.DECOMPOSE_CURRICULUM, { courseCode: code, universityId: universityId || undefined })
-    .catch((error: unknown) => {
-      console.error('[textbooks] failed to force-enqueue curriculum decomposition', { code, universityId, error });
+  // Check if it's already in the queue
+  const existingQueueEntry = await prisma.textbookGenerationQueueEntry.findFirst({
+    where: {
+      course_code: code,
+      university_id: universityId || null,
+      status: { in: ['QUEUED', 'ACTIVE'] },
+    },
+  });
+
+  if (!existingQueueEntry) {
+    await prisma.textbookGenerationQueueEntry.create({
+      data: {
+        course_code: code,
+        university_id: universityId || null,
+        status: 'QUEUED',
+      },
     });
+  }
 
   return 'queued';
 }

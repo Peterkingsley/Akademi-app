@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { AlertCircle, CalendarDays, CheckCircle2, ChevronRight, CloudUpload, Clock, FileText, RefreshCw } from "lucide-react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { AlertCircle, CalendarDays, CheckCircle2, ChevronRight, CloudUpload, Clock, FileText, RefreshCw, Search } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
@@ -35,6 +36,7 @@ export const MyUploadsScreen: React.FC = () => {
   const [uploads, setUploads] = useState<Material[]>([]);
   const [academicProfile, setAcademicProfile] = useState<AcademicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchUploads = async () => {
     try {
@@ -65,9 +67,19 @@ export const MyUploadsScreen: React.FC = () => {
     return map;
   }, [academicProfile]);
 
+  const filteredUploads = useMemo(() => {
+    if (!searchQuery.trim()) return uploads;
+    const q = searchQuery.trim().toLowerCase();
+    return uploads.filter(
+      (u) =>
+        u.title.toLowerCase().includes(q) ||
+        (u.course_code && u.course_code.toLowerCase().includes(q)),
+    );
+  }, [uploads, searchQuery]);
+
   const groupedUploads = useMemo(() => {
     const groups = new Map<string, UploadGroup>();
-    for (const upload of uploads) {
+    for (const upload of filteredUploads) {
       const course = upload.course_code ? courseLookup.get(upload.course_code.toUpperCase()) : undefined;
       const title = getUploadSemesterLabel(upload, course);
       const subtitle = course
@@ -78,12 +90,12 @@ export const MyUploadsScreen: React.FC = () => {
       groups.set(title, group);
     }
     return Array.from(groups.values());
-  }, [uploads, courseLookup, academicProfile]);
+  }, [filteredUploads, courseLookup, academicProfile]);
 
   const getStatusConfig = (status: Material["verification_status"]) => {
     switch (status) {
       case "VERIFIED":
-        return { label: "Public", helper: "Approved and visible to other students", backgroundColor: "rgba(34, 197, 94, 0.1)", color: colors.primary, icon: CheckCircle2 };
+        return { label: "Public", helper: "Approved & visible to all students", backgroundColor: "rgba(34, 197, 94, 0.1)", color: colors.primary, icon: CheckCircle2 };
       case "FLAGGED":
         return { label: "Needs review", helper: "Admin review found an issue", backgroundColor: "rgba(239, 68, 68, 0.1)", color: colors.error, icon: AlertCircle };
       case "TAKEN_DOWN":
@@ -101,7 +113,7 @@ export const MyUploadsScreen: React.FC = () => {
     return (
       <TouchableOpacity key={item.id} style={styles.uploadItem} activeOpacity={0.75} onPress={() => navigation.navigate("StudyMode", { materialId: item.id })}>
         <View style={styles.fileIcon}>
-          <FileText size={19} color={colors.primary} />
+          <FileText size={18} color={colors.primary} />
         </View>
         <View style={styles.uploadInfo}>
           <Text style={styles.fileName} numberOfLines={1}>{item.title.toUpperCase()}</Text>
@@ -133,6 +145,30 @@ export const MyUploadsScreen: React.FC = () => {
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchUploads(); }} tintColor={colors.primary} />}
         >
+          <LinearGradient
+            colors={["#0B1E12", "#04110A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.summaryCard}
+          >
+            <View style={styles.summaryIcon}>
+              <CloudUpload size={22} color={colors.primary} />
+            </View>
+            <Text style={styles.summaryTitle}>{uploads.length} Uploaded {uploads.length === 1 ? "File" : "Files"}</Text>
+            <Text style={styles.summarySubtitle}>Materials organized by course code, level & semester</Text>
+          </LinearGradient>
+
+          <View style={styles.searchBar}>
+            <Search size={16} color={colors.textMuted} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search uploaded document title or code..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.searchInput}
+            />
+          </View>
+
           {showUploadSuccess && (
             <View style={styles.successBanner}>
               <Text style={styles.successTitle}>Upload complete</Text>
@@ -156,8 +192,10 @@ export const MyUploadsScreen: React.FC = () => {
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}><CloudUpload size={30} color={colors.primary} /></View>
-              <Text style={styles.emptyTitle}>No uploads yet</Text>
-              <Text style={styles.emptySubtitle}>Upload materials from Library. Akademi will file them by course, level, and semester.</Text>
+              <Text style={styles.emptyTitle}>No uploads found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery ? `No document matching "${searchQuery}"` : "Upload materials from Library. Akademi will file them by course, level, and semester."}
+              </Text>
             </View>
           )}
         </ScrollView>
@@ -169,6 +207,43 @@ export const MyUploadsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   list: { padding: 18, paddingBottom: 40 },
+  summaryCard: {
+    alignItems: "center",
+    borderColor: "rgba(34,197,94,0.25)",
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 18,
+  },
+  summaryIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderRadius: 12,
+    height: 44,
+    justifyContent: "center",
+    marginBottom: 10,
+    width: 44,
+  },
+  summaryTitle: { ...typography.h3, color: colors.textPrimary, textAlign: "center", fontSize: 18, fontWeight: "800" },
+  summarySubtitle: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 4, textAlign: "center" },
+  searchBar: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    height: 48,
+    marginBottom: 18,
+    paddingHorizontal: 14,
+  },
+  searchInput: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontFamily: "Inter-Regular",
+    fontSize: 14,
+    marginLeft: 10,
+  },
   successBanner: { backgroundColor: "rgba(34, 197, 94, 0.1)", borderWidth: 1, borderColor: "rgba(34, 197, 94, 0.35)", borderRadius: 10, padding: 14, marginBottom: 14 },
   successTitle: { color: colors.primary, fontSize: 13, fontFamily: "Inter-Bold", fontWeight: "700" },
   successText: { color: colors.textSecondary, fontSize: 11, fontFamily: "Inter-Regular", lineHeight: 16, marginTop: 4 },

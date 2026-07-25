@@ -508,9 +508,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     paddingBottom: 100,
   },
   tabContainer: {
+    borderColor: colors.border,
+    borderRadius: 24,
+    borderWidth: 1,
     flexDirection: "row",
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 24,
     padding: 4,
     marginBottom: 24,
   },
@@ -521,15 +523,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderRadius: 20,
   },
   activeTab: {
-    backgroundColor: colors.primary,
+    backgroundColor: "#04110A",
+    borderColor: "rgba(34, 197, 94, 0.35)",
+    borderWidth: 1,
   },
   tabText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: "Inter-SemiBold",
+    fontWeight: "700",
     color: colors.textSecondary,
   },
   activeTabText: {
-    color: "#FFFFFF",
+    color: colors.primary,
   },
   contentContainer: {
     gap: 16,

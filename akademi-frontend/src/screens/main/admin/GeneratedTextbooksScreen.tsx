@@ -19,6 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED_QUALITY_CHECK: "#F59E0B",
   GENERATING: "#38BDF8",
   PENDING: "#71717A",
+  AWAITING_CAPACITY: "#A855F7",
 };
 
 const formatAgo = (value: string) => {
@@ -33,7 +34,10 @@ const formatAgo = (value: string) => {
 const summarizeStatus = (item: GeneratedTextbookOverviewItem) => {
   const generated = item.status_counts.GENERATED || 0;
   const adminQueued = item.status_counts.ADMIN_QUEUED || 0;
-  const parts = [`${generated}/${item.total_leaf_nodes} generated`];
+  const completed = generated + adminQueued;
+  const progress = item.total_leaf_nodes > 0 ? Math.round((completed / item.total_leaf_nodes) * 100) : 0;
+  
+  const parts = [`${progress}% complete (${completed}/${item.total_leaf_nodes})`];
   if (adminQueued > 0) parts.push(`${adminQueued} admin-queued`);
   if (item.diagrams_needed > 0) parts.push(`${item.diagrams_fetched}/${item.diagrams_needed} diagrams fetched`);
   return parts.join(" · ");
@@ -119,27 +123,58 @@ export const GeneratedTextbooksScreen: React.FC = () => {
             </Text>
           </View>
         ) : (
-          outlines.map((item) => (
-            <TouchableOpacity key={item.id} onPress={() => openDetail(item.id)} activeOpacity={0.8}>
-              <Card style={styles.outlineCard}>
-                <View style={styles.outlineHeader}>
-                  <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>
-                    {item.course_code}
+          outlines.map((item) => {
+            const isGenerating = !item.is_published && !item.is_current;
+            const awaitingCapacity = (item.status_counts.AWAITING_CAPACITY || 0) > 0;
+            const activelyGenerating = (item.status_counts.GENERATING || 0) > 0;
+            
+            let label = item.is_published ? (item.is_current ? "Published" : "Superseded") : "Generating";
+            let variant: "success" | "warning" | "blue" | "purple" = item.is_published ? (item.is_current ? "success" : "warning") : "blue";
+            
+            if (isGenerating && awaitingCapacity && !activelyGenerating) {
+              label = "Waiting for AI capacity";
+              variant = "purple"; // Assuming purple translates to a custom status in Badge or we'll map it to colors
+            }
+
+            const completed = (item.status_counts.GENERATED || 0) + (item.status_counts.ADMIN_QUEUED || 0);
+            const progress = item.total_leaf_nodes > 0 ? (completed / item.total_leaf_nodes) * 100 : 0;
+
+            return (
+              <TouchableOpacity key={item.id} onPress={() => openDetail(item.id)} activeOpacity={0.8}>
+                <Card style={styles.outlineCard}>
+                  <View style={styles.outlineHeader}>
+                    <Text style={[typography.body, { fontWeight: "700", color: colors.textPrimary }]}>
+                      {item.course_code}
+                    </Text>
+                    <Badge
+                      label={label}
+                      variant={variant}
+                    />
+                  </View>
+
+                  {!item.is_current && item.total_leaf_nodes > 0 && (
+                    <View style={styles.progressContainer}>
+                      <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
+                        <View 
+                          style={[styles.progressBarFill, { 
+                            backgroundColor: variant === "purple" ? STATUS_COLORS.AWAITING_CAPACITY : colors.primary, 
+                            width: `${progress}%` 
+                          }]} 
+                        />
+                      </View>
+                    </View>
+                  )}
+
+                  <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 6 }]}>
+                    {summarizeStatus(item)}
                   </Text>
-                  <Badge
-                    label={item.is_published ? (item.is_current ? "Published" : "Superseded") : "Generating"}
-                    variant={item.is_published ? (item.is_current ? "success" : "warning") : "blue"}
-                  />
-                </View>
-                <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 6 }]}>
-                  {summarizeStatus(item)}
-                </Text>
-                <Text style={[typography.caption, { color: colors.textMuted, marginTop: 6 }]}>
-                  CCMAS v{item.ccmas_version} · built {formatAgo(item.created_at)}
-                </Text>
-              </Card>
-            </TouchableOpacity>
-          ))
+                  <Text style={[typography.caption, { color: colors.textMuted, marginTop: 6 }]}>
+                    CCMAS v{item.ccmas_version} · built {formatAgo(item.created_at)}
+                  </Text>
+                </Card>
+              </TouchableOpacity>
+            );
+          })
         )}
       </View>
 
@@ -266,5 +301,18 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  progressContainer: {
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  progressBarBg: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 3,
   },
 });

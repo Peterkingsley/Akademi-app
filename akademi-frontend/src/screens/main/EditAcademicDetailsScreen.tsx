@@ -326,7 +326,26 @@ export const EditAcademicDetailsScreen: React.FC = () => {
               loading={schoolLoading}
             />
           ) : null}
-          <Input label="Current Level" placeholder="e.g. 300" value={form.level} onChangeText={(text) => setForm({ ...form, level: text })} keyboardType="numeric" leftIcon={<Layers size={20} color={colors.textMuted} />} />
+          <View style={styles.levelSectionWrap}>
+            <Text style={styles.miniLabel}>CURRENT LEVEL</Text>
+            <View style={styles.levelPillRow}>
+              {["100", "200", "300", "400", "500", "600"].map((lvl) => {
+                const isSelected = form.level === lvl || form.level === `${lvl}L`;
+                return (
+                  <TouchableOpacity
+                    key={lvl}
+                    style={[styles.levelPill, isSelected && styles.levelPillActive]}
+                    activeOpacity={0.8}
+                    onPress={() => setForm({ ...form, level: lvl })}
+                  >
+                    <Text style={[styles.levelPillText, isSelected && styles.levelPillTextActive]}>
+                      {lvl}L
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </View>
 
         <View style={styles.courseHeader}>
@@ -538,4 +557,27 @@ const styles = StyleSheet.create({
   pickerItemSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 3 },
   emptyPicker: { alignItems: "center", justifyContent: "center", padding: 32 },
   emptyPickerText: { ...typography.bodySmall, color: colors.textSecondary, textAlign: "center" },
+  levelSectionWrap: { marginTop: 6, marginBottom: 14 },
+  levelPillRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 4 },
+  levelPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  levelPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  levelPillText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  levelPillTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
 });

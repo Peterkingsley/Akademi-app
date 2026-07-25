@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -19,6 +20,7 @@ import {
   Bookmark,
   Sparkles,
 } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../components/layout/Screen";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
@@ -89,6 +91,7 @@ export const SessionsScreen: React.FC = () => {
   const [sessions, setSessions] = useState<SessionUI[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchSessions = async () => {
     try {
@@ -134,12 +137,17 @@ export const SessionsScreen: React.FC = () => {
     fetchSessions();
   };
 
-  const filteredSessions = sessions.filter((s) => {
-    if (activeTab === "All") return true;
-    if (activeTab === "Assignments") return s.type === "SOLVE ASSIGNMENT";
-    if (activeTab === "Study Mode") return s.type === "STUDY";
-    return true;
-  });
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      if (activeTab === "Assignments" && s.type !== "SOLVE ASSIGNMENT") return false;
+      if (activeTab === "Study Mode" && s.type !== "STUDY") return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase();
+        return s.title.toLowerCase().includes(q) || s.course.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [sessions, activeTab, searchQuery]);
 
   const isEmpty = filteredSessions.length === 0 && !loading;
 
@@ -158,10 +166,34 @@ export const SessionsScreen: React.FC = () => {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <ChevronLeft size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Sessions</Text>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Search size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Study Sessions</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        {/* Hero Card */}
+        <LinearGradient
+          colors={["#0B1E12", "#04110A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroCard}
+        >
+          <View style={styles.heroIcon}>
+            <BookOpen size={22} color={colors.primary} />
+          </View>
+          <Text style={styles.heroTitle}>{sessions.length} Recorded Sessions</Text>
+          <Text style={styles.heroSubtitle}>Review your solved assignments, AI conversations & study topics</Text>
+        </LinearGradient>
+
+        {/* Search Input Bar */}
+        <View style={styles.searchBar}>
+          <Search size={16} color={colors.textMuted} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search session title or course code..."
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+          />
         </View>
 
         {/* Filter Tabs */}
@@ -169,19 +201,16 @@ export const SessionsScreen: React.FC = () => {
           {(["All", "Assignments", "Study Mode"] as FilterTab[]).map((tab) => (
             <TouchableOpacity
               key={tab}
-              style={styles.tabItem}
+              style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
               onPress={() => setActiveTab(tab)}
               activeOpacity={0.7}
             >
               <Text style={[styles.tabLabel, activeTab === tab && styles.activeTabLabel]}>
                 {tab}
               </Text>
-              {activeTab === tab && <View style={styles.tabUnderline} />}
             </TouchableOpacity>
           ))}
         </View>
-
-        <View style={styles.divider} />
 
         {loading && !refreshing ? (
           <View style={{ paddingTop: 100 }}>
@@ -200,9 +229,9 @@ export const SessionsScreen: React.FC = () => {
                 <MessageSquare size={18} color="#FFFFFF" />
               </View>
             </View>
-            <Text style={styles.emptyTitle}>No sessions yet</Text>
+            <Text style={styles.emptyTitle}>No sessions found</Text>
             <Text style={styles.emptySubtext}>
-              Solve your first assignment and it'll show up here.
+              {searchQuery ? `No session matching "${searchQuery}"` : "Solve your first assignment and it'll show up here."}
             </Text>
             <TouchableOpacity
               style={styles.solveBtn}
@@ -290,7 +319,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 20,
+    marginBottom: 14,
   },
   backBtn: {
     padding: 4,
@@ -299,45 +328,81 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     ...typography.h2,
     color: colors.primary,
   },
-  iconBtn: {
-    padding: 6,
+
+  // Hero Card
+  heroCard: {
+    alignItems: "center",
+    borderColor: "rgba(34,197,94,0.25)",
+    borderRadius: 14,
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 18,
+  },
+  heroIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderRadius: 12,
+    height: 44,
+    justifyContent: "center",
+    marginBottom: 10,
+    width: 44,
+  },
+  heroTitle: { ...typography.h3, color: colors.textPrimary, textAlign: "center", fontSize: 18, fontWeight: "800" },
+  heroSubtitle: { ...typography.bodySmall, color: colors.textSecondary, fontSize: 11, lineHeight: 17, marginTop: 4, textAlign: "center" },
+
+  // Search Bar
+  searchBar: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    height: 48,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+  },
+  searchInput: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontFamily: "Inter-Regular",
+    fontSize: 14,
+    marginLeft: 10,
   },
 
   // Tabs
   tabsRow: {
     flexDirection: "row",
-    paddingHorizontal: 20,
-    gap: 24,
+    paddingHorizontal: 16,
+    gap: 10,
+    marginBottom: 16,
   },
   tabItem: {
-    paddingBottom: 12,
-    position: "relative",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  activeTabItem: {
+    backgroundColor: "#04110A",
+    borderColor: "rgba(34, 197, 94, 0.4)",
   },
   tabLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: "Inter-Medium",
     color: colors.textSecondary,
   },
   activeTabLabel: {
-    color: colors.textPrimary,
+    color: colors.primary,
+    fontWeight: "700",
     fontFamily: "Inter-SemiBold",
   },
-  tabUnderline: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginBottom: 20,
-  },
 
-  // Session Cards
+  // Sessions List
   sessionsList: {
     paddingHorizontal: 16,
   },
@@ -345,15 +410,17 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
     borderRadius: 14,
-    padding: 16,
+    padding: 14,
     gap: 12,
     marginBottom: 10,
   },
   sessionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -364,7 +431,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   courseBadge: {
     paddingHorizontal: 8,

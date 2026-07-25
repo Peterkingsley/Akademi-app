@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react-native";
 
+import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -111,24 +112,29 @@ export const NotificationsSettingsScreen: React.FC = () => {
   return (
     <Screen title="Notifications" onBack={() => navigation.goBack()} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.hero}>
+        <LinearGradient
+          colors={["#0B1E12", "#04110A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.hero}
+        >
           <View style={styles.heroIcon}>
             {settings.pauseAll ? (
-              <BellOff size={28} color={colors.warning} />
+              <BellOff size={26} color={colors.warning} />
             ) : (
-              <Bell size={28} color={colors.primary} />
+              <Bell size={26} color={colors.primary} />
             )}
           </View>
           <View style={styles.heroCopy}>
-            <Text style={styles.heroKicker}>Preference center</Text>
+            <Text style={styles.heroKicker}>PREFERENCE CENTER</Text>
             <Text style={styles.heroTitle}>
-              {settings.pauseAll ? "Notifications are paused" : `${activeCount} alerts enabled`}
+              {settings.pauseAll ? "Notifications Are Paused" : `${activeCount} Alerts Enabled`}
             </Text>
             <Text style={styles.heroText}>
               Control study nudges, approvals, new materials, progress summaries, and exam reminders.
             </Text>
           </View>
-        </View>
+        </LinearGradient>
 
         {saved && (
           <View style={styles.savedRow}>

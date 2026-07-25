@@ -1,6 +1,7 @@
 import prisma from '../config/db';
 import { aiProvider, TransientCapacityError } from '../modules/ai/ai.provider';
-import { buildExplainBackContract, buildCalculationTeachingRules, buildSolveOperationGuidance } from '../modules/ai/ai.prompts';
+import { buildTextbookWritingContract } from '../modules/ai/textbook-writing.prompts';
+import { buildTextbookCalculationRules, buildTextbookSolveOperationGuidance } from '../modules/ai/textbook-calculation.prompts';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 
 // Same throwing-parser shape as decomposeCurriculum.job.ts — a parse failure on a section is a
@@ -38,9 +39,9 @@ function buildTextbookSectionPrompt(params: {
   const registryEntries = Object.entries(params.terminologyRegistry);
 
   return [
-    buildExplainBackContract(),
+    buildTextbookWritingContract(),
     '',
-    'You are writing ONE section of an Akademi Generated Textbook — a syllabus-aligned study material for a Nigerian university course. Write the section for the topic below, following the Explain-Back Contract above exactly.',
+    'You are writing ONE section of an Akademi Generated Textbook — a syllabus-aligned study material for a Nigerian university course. Write the section for the topic below, following the Textbook Writing Contract above exactly.',
     `Topic: ${params.title}`,
     `Learning outcome: ${params.learningOutcome}`,
     params.priorFailureNotes
@@ -76,8 +77,8 @@ function buildTextbookSectionPrompt(params: {
     '============================================================',
     '',
     'If this topic involves a calculation, formula application, or worked procedure, you MUST follow these rigor rules:',
-    buildCalculationTeachingRules('STUDY'),
-    buildSolveOperationGuidance(),
+    buildTextbookCalculationRules(),
+    buildTextbookSolveOperationGuidance(),
     '',
     'If this topic is conceptual and does NOT involve calculations, follow this rule:',
     'Don\'t just assert an approach, framework, or definition — explain why this approach is used and, where a real alternative exists, briefly note why that alternative isn\'t used instead.',

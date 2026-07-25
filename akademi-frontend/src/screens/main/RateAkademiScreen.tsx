@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,9 +28,14 @@ export const RateAkademiScreen: React.FC = () => {
   return (
     <Screen style={{ flex: 1 }} title="Rate Akademi" onBack={() => navigation.goBack()}>
       <View style={styles.container}>
-        <View style={styles.content}>
+        <LinearGradient
+          colors={["#0B1E12", "#04110A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.card}
+        >
           <View style={styles.heartWrapper}>
-            <Heart size={48} color={colors.primary} fill={colors.primary} />
+            <Heart size={36} color={colors.primary} fill={colors.primary} />
           </View>
 
           <Text style={styles.title}>Enjoying Akademi?</Text>
@@ -39,9 +45,9 @@ export const RateAkademiScreen: React.FC = () => {
 
           <View style={styles.stars}>
             {[1, 2, 3, 4, 5].map((i) => (
-              <TouchableOpacity key={i} onPress={() => setRating(i)}>
+              <TouchableOpacity key={i} activeOpacity={0.8} onPress={() => setRating(i)}>
                 <Star
-                  size={40}
+                  size={36}
                   color={i <= rating ? "#F59E0B" : colors.border}
                   fill={i <= rating ? "#F59E0B" : "transparent"}
                 />
@@ -51,14 +57,14 @@ export const RateAkademiScreen: React.FC = () => {
 
           {rating > 0 && (
             <Text style={styles.ratingText}>
-              {rating <= 3 ? "We'd love to hear how we can improve." : "We're so glad you like it!"}
+              {rating <= 3 ? "We'd love to hear how we can improve!" : "We're so glad Akademi is helping your studies! 🎉"}
             </Text>
           )}
-        </View>
+        </LinearGradient>
 
         <View style={styles.footer}>
           <Button
-            label="Submit Feedback"
+            label="Submit Rating"
             disabled={rating === 0}
             onPress={handleRate}
             style={styles.button}
@@ -75,55 +81,66 @@ export const RateAkademiScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: 18,
+    paddingBottom: 32,
     justifyContent: "space-between",
   },
-  content: {
+  card: {
     alignItems: "center",
-    paddingTop: 40,
+    borderColor: "rgba(34,197,94,0.25)",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    marginTop: 10,
   },
   heartWrapper: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary + "20",
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderColor: "rgba(34,197,94,0.3)",
+    borderWidth: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 18,
   },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 8,
   },
   subtitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.textSecondary,
     textAlign: "center",
-    fontSize: 14,
-    lineHeight: 22,
-    paddingHorizontal: 20,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: 10,
   },
   stars: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 40,
-    marginBottom: 24,
+    marginTop: 28,
+    marginBottom: 20,
   },
   ratingText: {
-    fontSize: 14,
-    fontFamily: "Inter-Medium",
+    fontSize: 12,
+    fontWeight: "700",
+    fontFamily: "Inter-SemiBold",
     color: colors.primary,
+    textAlign: "center",
   },
   footer: {
-    gap: 16,
+    gap: 14,
     alignItems: "center",
   },
   button: {
     width: "100%",
   },
   maybeLater: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textMuted,
     fontFamily: "Inter-Medium",
   },

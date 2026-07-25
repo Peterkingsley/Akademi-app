@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView,
 import { Screen } from "../../../components/layout/Screen";
 import { useTheme } from "../../../theme/ThemeContext";
 import { adminService, DisciplineDocumentSplitPreview } from "../../../services/adminService";
-import { Search, ChevronRight, BookOpen, X, Plus, AlertTriangle, Check } from "lucide-react-native";
+import { Search, ChevronRight, BookOpen, X, Plus, AlertTriangle, Check, Scissors, UploadCloud, ArrowLeft } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { AdminStackParamList } from "../../../navigation/types";
@@ -11,6 +11,7 @@ import { Badge } from "../../../components/ui/Badge";
 import api from "../../../services/api";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Dedicated screen for the one specific case DisciplineDocumentsScreen's general-purpose
 // upload modal makes error-prone: uploading a real department-wide CCMAS document meant for
