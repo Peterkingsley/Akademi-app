@@ -33,3 +33,6 @@ coverage/
 
 # Chat/agent tool attachments — never intended for source control
 .codex-remote-attachments/
+
+# Raw content dumps from reporting scripts — regenerable, not for source control
+docs/.legacy-textbook-baseline-content/

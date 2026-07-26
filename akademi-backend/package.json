@@ -20,6 +20,7 @@
     "script:calculate-rankings": "ts-node src/scripts/calculate-rankings.ts",
     "script:backfill-textbook-generation": "ts-node src/scripts/backfill-textbook-generation.ts",
     "script:regenerate-all-textbooks": "ts-node src/scripts/regenerate-all-textbooks.ts",
+    "script:textbook-baseline-report": "tsx src/scripts/textbook-baseline-report.ts",
     "backfill:course-ids": "tsx src/scripts/backfill-course-ids.ts",
     "backfill:textbook-generation": "tsx src/scripts/backfill-textbook-generation.ts",
     "check:elevenlabs": "tsx src/scripts/check-elevenlabs-voice.ts",
