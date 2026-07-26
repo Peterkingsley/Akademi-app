@@ -1,4 +1,5 @@
 import prisma from '../../config/db';
+import { config } from '../../config/env';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 
 export type EnsureTextbookGenerationResult = 'queued' | 'skipped';
@@ -55,6 +56,8 @@ export async function ensureTextbookGenerationQueued(
   courseCode: string,
   universityId?: string | null,
 ): Promise<EnsureTextbookGenerationResult> {
+  if (config.textbookGenerationPaused) return 'skipped';
+
   const code = courseCode.trim().toUpperCase();
 
   if (await hasExistingTextbookOutline(code, universityId)) return 'skipped';
@@ -87,6 +90,8 @@ export async function forceRegenerateTextbookOutline(
   courseCode: string,
   universityId?: string | null,
 ): Promise<EnsureTextbookGenerationResult> {
+  if (config.textbookGenerationPaused) return 'skipped';
+
   const code = courseCode.trim().toUpperCase();
 
   // Check if it's already in the queue

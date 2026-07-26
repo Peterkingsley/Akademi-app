@@ -73,6 +73,11 @@ export const config = {
   unlockAllFeatures: process.env.UNLOCK_ALL_FEATURES === 'true',
   tournamentActivationIntervalMs: parseInt(process.env.TOURNAMENT_ACTIVATION_INTERVAL_MS || '15000', 10),
   adminReingestSecret: process.env.ADMIN_REINGEST_SECRET || '',
+  // Kill switch for the legacy textbook generation pipeline reset — see
+  // scripts/reset-generated-textbooks.ts. When true, no new decomposition/section/audit jobs are
+  // enqueued and the capacity sweeper's cron tick is a no-op. Must be set true in every deployed
+  // environment's own env vars to actually take effect there, not just locally.
+  textbookGenerationPaused: process.env.TEXTBOOK_GENERATION_PAUSED === 'true',
   // Fraction of stripped Teacher's Notebook blocks (see ai.prompts.ts) to log as telemetry.
   // Defaults to logging everything; dial down once volume makes that expensive at scale.
   notebookLogSampleRate: Math.min(1, Math.max(0, parseFloat(process.env.NOTEBOOK_LOG_SAMPLE_RATE ?? '1.0') || 0)),

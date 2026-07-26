@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../config/db';
+import { config } from '../config/env';
 import { systemQueue, JOB_NAMES } from '../config/queue';
 import { forceRegenerateTextbookOutline } from '../modules/textbooks/textbook-trigger';
 
@@ -7,6 +8,11 @@ export function startCapacitySweeper() {
   // Run every 2 minutes
   cron.schedule('*/2 * * * *', async () => {
     try {
+      if (config.textbookGenerationPaused) {
+        console.log('[capacity-sweeper] Skipping — TEXTBOOK_GENERATION_PAUSED is set.');
+        return;
+      }
+
       console.log('[capacity-sweeper] Running sweeper...');
 
       // 1. Re-enqueue AWAITING_CAPACITY nodes (existing logic)
