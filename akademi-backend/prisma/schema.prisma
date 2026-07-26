@@ -1615,3 +1615,412 @@ model WaitlistEvent {
   @@index([created_at])
   @@map("waitlist_events")
 }
+
+// ─── Validation Field Consumers Table ─────────────────────
+// Field                                  Only Consumer
+// KnowledgeComponent.traceEvidence       A2
+// KnowledgeComponent.isSelection         A13
+// Archetype.actionSignature              A7 (DB-enforced)
+// Archetype.distinctBecause              A7
+// DifficultyFactor.perturbationResult    A8
+// ItemModel.harvestedStemRef             A10
+// ItemModel.branchCoverageRequired       A11, B5
+// ItemModel.minTraceEvidence             A2 propagation
+// Misconception.confrontable             A14
+// SupportRung.stepsRemoved ordering      A17
+// SupportRung.ordinal                    B9
+// Item.solveAgreement                    B3
+// Item.judgedTier                        B4
+// Item.errorMarked                       B8
+// Item.branchId                          B5
+
+// ─── enums ────────────────────────────────────────────────
+
+enum KCType {
+  FACT
+  CONCEPT
+  PRINCIPLE
+  PROCEDURE
+}
+
+enum TierSource {
+  MODELLED
+  EMPIRICAL
+}
+
+enum MisconceptionKind {
+  SLIP
+  MISAPPLICATION
+  INTUITIVE_THEORY
+}
+
+enum ItemKind {
+  STANDARD
+  NON_EXAMPLE
+  ERRONEOUS
+}
+
+enum Variability {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SupportLevel {
+  FULL
+  FADED
+  SOLO
+}
+
+enum FloorPolicy {
+  ASSUME
+  JIT_REFRESH
+  TEACH
+}
+
+enum GapResolution {
+  JIT_REFRESH
+  FORWARD_REF
+  RELOCATE
+  PROMOTE
+  UNRESOLVED
+}
+
+enum PerturbationResult {
+  RADICAL
+  INCIDENTAL
+  INCONCLUSIVE
+}
+
+enum ModelStatus {
+  DRAFT
+  VALIDATING
+  FAILED
+  READY
+  SUPERSEDED
+}
+
+enum Severity {
+  HARD
+  SOFT
+  WARN
+}
+
+enum Surface {
+  TEXTBOOK
+  CBT
+}
+
+enum TeachingBlockKind {
+  SELECTION_TABLE
+  JIT_REFRESH
+  PRIOR_KNOWLEDGE
+}
+
+// ─── course-level ─────────────────────────────────────────
+
+model CourseFloor {
+  id               String   @id @default(cuid())
+  courseCode       String   @unique
+  assumesCompleted String[]              // ['SSCE Mathematics', 'MTH 101']
+  floorPolicy      FloorPolicy @default(JIT_REFRESH)
+  assumedKCIds     String[]              // expanded index
+}
+
+model ScenarioPool {
+  id         String   @id @default(cuid())
+  courseCode String                       // A19 scoping
+  slotKind   String                       // 'scenario' | 'unit' | ...
+  values     String[]
+  @@unique([courseCode, slotKind])
+}
+
+model TerminologyEntry {
+  id         String  @id @default(cuid())
+  courseCode String
+  term       String
+  definition String
+  notation   String?
+  firstUsedIn String?                     // topic id
+  @@unique([courseCode, term])
+}
+
+// ─── the model ────────────────────────────────────────────
+
+model KnowledgeModel {
+  id              String   @id @default(cuid())
+  topicId         String   @unique
+  courseCode      String
+  academicLevel   Int
+  learningOutcome String
+  ccmasVersion    String                  // staleness detection
+  status          ModelStatus @default(DRAFT)
+  createdAt       DateTime @default(now())
+
+  kcs             KnowledgeComponent[]
+  archetypes      Archetype[]
+  difficultyFactors DifficultyFactor[]
+  misconceptions  Misconception[]
+  itemModels      ItemModel[]
+  jitBlocks       JitBlock[]
+  teachingBlocks  TeachingBlock[]
+  validationRuns  ValidationRun[]
+
+  @@index([courseCode, status])
+}
+
+model KnowledgeComponent {
+  id            String   @id @default(cuid())
+  modelId       String
+  model         KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  publicId      String                     // MTH102.limits.05 — stable across regen
+  type          KCType
+  statement     String
+  steps         String[]                   // PROCEDURE only
+  isSelection   Boolean  @default(false)   // A13 — integrative KC
+  traceEvidence Int                        // A2
+
+  dependsOn     KCDependency[] @relation("dependent")
+  requiredBy    KCDependency[] @relation("prerequisite")
+
+  @@unique([modelId, publicId])
+  @@index([modelId, type])                 // A12 scans by type
+}
+
+model KCDependency {
+  id             String @id @default(cuid())
+  dependentId    String
+  dependent      KnowledgeComponent @relation("dependent", fields: [dependentId], references: [id], onDelete: Cascade)
+
+  prerequisiteId String?                   // null when unresolved gap
+  prerequisite   KnowledgeComponent? @relation("prerequisite", fields: [prerequisiteId], references: [id])
+
+  gapDescription String?                   // populated when prerequisiteId is null
+  resolution     GapResolution @default(UNRESOLVED)   // A4
+  resolvedAt     String?                   // topic id, for FORWARD_REF
+
+  @@index([dependentId])
+  @@index([resolution])                    // A4 is a hot query
+}
+
+model Archetype {
+  id              String @id @default(cuid())
+  modelId         String
+  model           KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  publicId        String
+  trigger         String
+  method          String
+  canonicalStem   String
+  sourcedFrom     String                   // 'harvested' | 'inferred-gap'
+  distinctBecause String                   // A7
+  actionSignature String                   // hash of ordered KC ids — A7 uniqueness
+
+  radicals        ArchetypeRadical[]
+  itemModels      ItemModel[]
+
+  @@unique([modelId, publicId])
+  @@unique([modelId, actionSignature])     // A7 enforced at DB level
+}
+
+model DifficultyFactor {
+  id                 String @id @default(cuid())
+  modelId            String
+  model              KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  publicId           String
+  label              String
+  whyHard            String
+  recruitsKCId       String?                // the KC the perturbation revealed
+  perturbationResult PerturbationResult     // A8
+
+  archetypes         ArchetypeRadical[]
+
+  @@unique([modelId, publicId])
+}
+
+model ArchetypeRadical {
+  archetypeId String
+  archetype   Archetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  factorId    String
+  factor      DifficultyFactor @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  @@id([archetypeId, factorId])
+}
+
+model Misconception {
+  id             String @id @default(cuid())
+  modelId        String
+  model          KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  publicId       String
+  belief         String
+  kind           MisconceptionKind
+  relatedKCId    String
+  atStep         Int?
+  producesAnswer String                     // derivation RULE, not a value
+  confrontation  String?
+  confrontable   Boolean @default(false)    // A14
+  source         String                     // 'trace' | 'literature' | 'both'
+  evidenceCount  Int     @default(1)
+
+  distractorRules DistractorRule[]
+  erroneousModels ItemModel[] @relation("erroneousSource")
+
+  @@unique([modelId, publicId])
+  @@index([modelId, kind, confrontable])    // A14
+}
+
+// ─── items ────────────────────────────────────────────────
+
+model ItemModel {
+  id                     String @id @default(cuid())
+  modelId                String
+  model                  KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  archetypeId            String?
+  archetype              Archetype? @relation(fields: [archetypeId], references: [id])
+
+  publicId               String
+  targetKCIds            String[]            // B2
+  radicalIds             String[]
+
+  tier                   Int
+  tierSource             TierSource @default(MODELLED)
+  bloom                  String
+
+  stemTemplate           String
+  incidentalSlots        Json                // slot name → {kind,pool,range,constraint}
+  variability            Variability         // A16
+  solutionProcedure      String[]
+
+  branchCoverageRequired Boolean @default(false)   // A11, B5
+  branches               ItemModelBranch[]
+
+  kind                   ItemKind @default(STANDARD)
+  erroneousSourceId      String?
+  erroneousSource        Misconception? @relation("erroneousSource", fields: [erroneousSourceId], references: [id])
+  prompts                String[]            // A17/B8 — erroneous + self-explanation
+
+  supportRungs           SupportRung[]
+  distractorRules        DistractorRule[]
+  items                  Item[]
+
+  minTraceEvidence       Int
+  harvestedStemRef       String?             // A10
+
+  @@unique([modelId, publicId])
+  @@index([modelId, tier])                   // A9
+  @@index([modelId, kind])                   // A12
+}
+
+model ItemModelBranch {
+  id          String @id @default(cuid())
+  itemModelId String
+  itemModel   ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  publicId    String                          // 'deg-num-greater'
+  condition   String
+  conclusion  String
+  @@unique([itemModelId, publicId])
+}
+
+model SupportRung {
+  id                    String @id @default(cuid())
+  itemModelId           String
+  itemModel             ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  ordinal               Int                   // B9
+  support               SupportLevel
+  stepsRemoved          Int[]                 // A17 — indices from the END
+  selfExplanationPrompt String?
+  @@unique([itemModelId, ordinal])
+}
+
+model DistractorRule {
+  id              String @id @default(cuid())
+  itemModelId     String
+  itemModel       ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  misconceptionId String
+  misconception   Misconception @relation(fields: [misconceptionId], references: [id])
+  derivation      String                       // A15 — references slot names
+}
+
+model Item {
+  id              String @id @default(cuid())
+  itemModelId     String
+  itemModel       ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+
+  surface         Surface
+  seed            String                       // reproducible instantiation
+  branchId        String?                      // B5
+  rungOrdinal     Int?                         // B9 — textbook only
+
+  renderedStem    String
+  renderedSolution String[]
+  renderedDistractors Json?                    // CBT only
+
+  targetKCIds     String[]                     // denormalised for B2
+  solveAgreement  Int                          // B3 — 0..3
+  judgedTier      Int?                         // B4
+  errorMarked     Boolean @default(false)      // B8
+
+  @@index([itemModelId, surface])
+  @@index([surface, seed])                     // CBT exposure control
+}
+
+// ─── placement + audit ────────────────────────────────────
+
+model JitBlock {
+  id               String @id @default(cuid())
+  modelId          String
+  model            KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  forKCId          String
+  placement        String                      // 'inline-before-first-use'
+  anchorItemModelId String?                    // A20 — resolves placement
+  content          String
+  fullTreatmentAt  String?
+  reason           String
+}
+
+model TeachingBlock {
+  id       String @id @default(cuid())
+  modelId  String
+  model    KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  kind     TeachingBlockKind                   // A13
+  forKCId  String
+  content  String
+  @@index([modelId, kind])
+}
+
+model RelocationRequest {
+  id            String @id @default(cuid())
+  courseCode    String
+  kcPublicId    String
+  fromTopicId   String
+  toTopicId     String
+  reason        String
+  applied       Boolean @default(false)
+  @@index([courseCode, applied])
+}
+
+model ValidationRun {
+  id        String @id @default(cuid())
+  modelId   String
+  model     KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  gate      String                             // 'A' | 'B'
+  attempt   Int
+  passed    Boolean
+  runAt     DateTime @default(now())
+  findings  ValidationFinding[]
+  @@index([modelId, gate, attempt])
+}
+
+model ValidationFinding {
+  id        String @id @default(cuid())
+  runId     String
+  run       ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  checkId   String                             // 'A12'
+  severity  Severity
+  subjectId String?                            // the KC / ItemModel that failed
+  detail    String
+  @@index([runId, severity])
+}
+
