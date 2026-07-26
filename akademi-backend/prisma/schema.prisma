@@ -360,6 +360,10 @@ model Material {
   // GeneratedTextbookOutline). Never set by the student-upload path.
   is_akademi_generated    Boolean                  @default(false)
   generated_outline_id    String?                  @unique
+  // Set when an Akademi-generated textbook is retired by the reset pipeline (see
+  // scripts/reset-generated-textbooks.ts). Null means currently live/visible. Never set on
+  // student-uploaded materials — that flow uses verification_status instead.
+  unpublished_at          DateTime?
 
   user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
   course                        Course?                      @relation(fields: [course_id], references: [id])
@@ -389,6 +393,7 @@ model Material {
   @@index([verification_status])
   @@index([processing_status, next_retry_at])
   @@index([course_code, is_akademi_generated])
+  @@index([unpublished_at])
   @@map("materials")
 }
 
@@ -1068,9 +1073,14 @@ model GeneratedTextbookSection {
   quality_check_passed Boolean  @default(false)
   quality_check_notes  String?  @db.Text
   generated_at         DateTime @default(now())
+  // Set when the reset pipeline retires this section (see scripts/reset-generated-textbooks.ts).
+  // Null means still live. The outline/node tree above this is never soft-deleted alongside it —
+  // only the generated prose itself.
+  deleted_at           DateTime?
 
   node GeneratedTextbookOutlineNode @relation(fields: [node_id], references: [id], onDelete: Cascade)
 
+  @@index([deleted_at])
   @@map("generated_textbook_sections")
 }
 

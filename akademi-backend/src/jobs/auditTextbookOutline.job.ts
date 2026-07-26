@@ -69,7 +69,7 @@ async function assessSectionQuality(
   };
 }
 
-async function publishGeneratedTextbook(outlineId: string) {
+export async function publishGeneratedTextbook(outlineId: string) {
   const outline = await prisma.generatedTextbookOutline.findUnique({
     where: { id: outlineId },
     include: { ccmas_document: true },

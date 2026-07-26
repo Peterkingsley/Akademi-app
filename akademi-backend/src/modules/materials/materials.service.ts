@@ -104,6 +104,7 @@ export class MaterialsService {
         level: filter.level ? Number(filter.level) : undefined,
         semester: filter.semester ? Number(filter.semester) : undefined,
         verification_status: VerificationStatus.VERIFIED,
+        unpublished_at: null,
       },
       orderBy: { created_at: 'desc' },
     });
@@ -178,7 +179,17 @@ export class MaterialsService {
     };
   }
 
-  private canAccessMaterial(material: { verification_status: VerificationStatus; uploaded_by: string }, requestingUserId?: string | null, requestingAdminRole?: AdminRole | null) {
+  private canAccessMaterial(
+    material: { verification_status: VerificationStatus; uploaded_by: string; is_akademi_generated: boolean; unpublished_at: Date | null },
+    requestingUserId?: string | null,
+    requestingAdminRole?: AdminRole | null,
+  ) {
+    // Retired by the generated-textbook reset — invisible to everyone except admins,
+    // regardless of verification_status (which the reset deliberately leaves untouched).
+    if (material.is_akademi_generated && material.unpublished_at) {
+      return Boolean(requestingAdminRole);
+    }
+
     if (material.verification_status === VerificationStatus.VERIFIED) {
       return true;
     }
