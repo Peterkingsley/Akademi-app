@@ -5,7 +5,6 @@ import { FileType } from '@prisma/client';
 import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 import { computeMaterialRetryAt } from '../modules/materials/material-processing';
@@ -22,7 +21,6 @@ const s3Client = new S3Client({
 });
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
-let geminiClient: GoogleGenerativeAI | null = null;
 
 const getVisionClient = () => {
   if (!visionClient) {
@@ -33,28 +31,44 @@ const getVisionClient = () => {
   return visionClient;
 };
 
-const PLACEHOLDER_KEYWORDS = ['your_', 'replace_me', 'api_key', 'dummy'];
+// Below this average, we treat the text layer as effectively absent (e.g. a scanned/image-only
+// PDF where pdf-parse's own page-marker joining — "-- 1 of 11 --" between empty pages — makes the
+// string technically non-empty even though it contains no real content). Tunable without a
+// redeploy since scan quality varies a lot across uploads.
+const MIN_PDF_CHARS_PER_PAGE = Math.max(Number(process.env.MIN_PDF_CHARS_PER_PAGE || 40), 1);
+// Vision's synchronous batchAnnotateFiles caps at 5 pages per request for inline (non-GCS) content.
+const VISION_MAX_PAGES_PER_FILE_REQUEST = 5;
 
-function hasUsableGeminiKey() {
-  const key = config.geminiApiKey;
-  return !!key && !PLACEHOLDER_KEYWORDS.some(keyword => key.toLowerCase().includes(keyword));
+type PdfExtractionMethod = 'gemini' | 'pdf-parse' | 'vision-ocr';
+
+function meaningfulCharCount(text: string): number {
+  return text.replace(/\s+/g, '').length;
 }
 
-function getGeminiClient() {
-  if (!hasUsableGeminiKey()) return null;
-  if (!geminiClient) {
-    geminiClient = new GoogleGenerativeAI(config.geminiApiKey);
+function hasSufficientTextLayer(text: string, pageCount: number): boolean {
+  const pages = Math.max(pageCount, 1);
+  return meaningfulCharCount(text) / pages >= MIN_PDF_CHARS_PER_PAGE;
+}
+
+// Uses pdf-parse's own page-by-page text (not just its concatenated .text, which is exactly what
+// hides the scanned-PDF failure case) purely as a local, free way to know the true page count and
+// a baseline candidate text — no network call.
+async function parsePdfLocally(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
+  const parserModule = pdfParse as any;
+  if (typeof parserModule.PDFParse !== 'function') {
+    throw new Error('PDF parser is not available');
   }
-  return geminiClient;
+  const parser = new parserModule.PDFParse({ data: buffer });
+  const data = await parser.getText();
+  await parser.destroy?.();
+  return { text: data.text || '', pageCount: data.total || data.pages?.length || 1 };
 }
 
-async function extractPdfText(buffer: Buffer, geminiClient: GoogleGenerativeAI | null) {
-  if (geminiClient) {
-    try {
-      const model = geminiClient.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const result = await model.generateContent([
-        {
-          text: `Extract all text from this PDF document.
+async function extractPdfTextWithGemini(buffer: Buffer): Promise<string> {
+  return aiProvider.generateMultimodalResponse(
+    [
+      {
+        text: `Extract all text from this PDF document.
 Important rules:
 - Preserve ALL mathematical formulas exactly, writing them in LaTeX notation wrapped in \\( \\) for inline math or \\[ \\] for display math
 - For example: if you see F = ma, write it as \\(F = ma\\)
@@ -63,63 +77,118 @@ Important rules:
 - If you see subscripts like a₁, write \\(a_1\\)
 - Preserve all headings, paragraphs, bullet points, and tables
 - Output plain text with LaTeX math notation only - no markdown, no HTML`,
+      },
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: buffer.toString('base64'),
         },
-        {
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: buffer.toString('base64'),
-          },
-        },
-      ]);
+      },
+    ],
+    { extendedTimeouts: true },
+  );
+}
 
-      const extracted = result.response.text().trim();
-      if (extracted.length > 100) {
-        return extracted;
-      }
-    } catch (error) {
-      console.error('Gemini PDF extraction failed, falling back to pdf-parse:', error);
+// Real OCR fallback for scanned/image-only PDFs, matching the Vision textDetection pattern already
+// used for standalone IMAGE uploads below — but PDFs go through Vision's file-annotation API
+// (DOCUMENT_TEXT_DETECTION over inline PDF bytes) since textDetection only accepts raster images.
+// Chunked into groups of VISION_MAX_PAGES_PER_FILE_REQUEST since sync batchAnnotateFiles rejects
+// more than 5 pages per request for inline content.
+async function ocrPdfWithVision(buffer: Buffer, pageCount: number): Promise<string> {
+  const client = getVisionClient();
+  const pageTexts: string[] = [];
+
+  for (let start = 1; start <= pageCount; start += VISION_MAX_PAGES_PER_FILE_REQUEST) {
+    const pages: number[] = [];
+    for (let p = start; p < start + VISION_MAX_PAGES_PER_FILE_REQUEST && p <= pageCount; p += 1) {
+      pages.push(p);
+    }
+
+    const [result] = await client.batchAnnotateFiles({
+      requests: [
+        {
+          inputConfig: { content: buffer, mimeType: 'application/pdf' },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+          pages,
+        },
+      ],
+    });
+
+    const fileResponse = result.responses?.[0];
+    if (fileResponse?.error) {
+      throw new Error(`Vision PDF OCR failed on pages ${pages.join(',')}: ${fileResponse.error.message}`);
+    }
+
+    for (const pageResponse of fileResponse?.responses || []) {
+      pageTexts.push(pageResponse.fullTextAnnotation?.text?.trim() || '');
     }
   }
 
-  const parserModule = pdfParse as any;
-  const parse = parserModule.default || parserModule;
+  return pageTexts.filter(Boolean).join('\n\n');
+}
 
-  if (typeof parse === 'function') {
-    const data = await parse(buffer);
-    return data.text || '';
+async function extractPdfContent(
+  buffer: Buffer,
+  materialId: string,
+): Promise<{ text: string; method: PdfExtractionMethod; pageCount: number }> {
+  const { text: localText, pageCount } = await parsePdfLocally(buffer);
+
+  let candidateText = localText;
+  let method: PdfExtractionMethod = 'pdf-parse';
+
+  try {
+    const geminiText = await extractPdfTextWithGemini(buffer);
+    if (geminiText.length > 100) {
+      candidateText = geminiText;
+      method = 'gemini';
+    }
+  } catch (error) {
+    console.error('Gemini PDF extraction failed, falling back to pdf-parse:', error);
   }
 
-  if (typeof parserModule.PDFParse === 'function') {
-    const parser = new parserModule.PDFParse({ data: buffer });
-    const data = await parser.getText();
-    await parser.destroy?.();
-    return data.text || '';
+  if (!hasSufficientTextLayer(candidateText, pageCount)) {
+    console.log(
+      `[ingest-material] material ${materialId}: ${method} extraction insufficient ` +
+        `(${meaningfulCharCount(candidateText)} meaningful chars over ${pageCount} pages) — falling back to Vision OCR.`,
+    );
+    try {
+      const ocrText = await ocrPdfWithVision(buffer, pageCount);
+      if (meaningfulCharCount(ocrText) > meaningfulCharCount(candidateText)) {
+        candidateText = ocrText;
+        method = 'vision-ocr';
+      }
+    } catch (error) {
+      console.error(`[ingest-material] material ${materialId}: Vision OCR fallback failed:`, error);
+    }
   }
 
-  throw new Error('PDF parser is not available');
+  if (meaningfulCharCount(candidateText) === 0) {
+    throw new Error(`No usable text extracted from PDF after OCR fallback (${pageCount} pages)`);
+  }
+
+  console.log(
+    `[ingest-material] material ${materialId}: PDF extraction path = ${method} ` +
+      `(${pageCount} pages, ${meaningfulCharCount(candidateText)} meaningful chars).`,
+  );
+
+  return { text: candidateText, method, pageCount };
 }
 
 async function describeEmbeddedImage(buffer: Buffer, mimeType: string) {
-  const client = getGeminiClient();
-
-  if (client) {
-    try {
-      const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const result = await model.generateContent([
-        {
-          text: 'Describe this image briefly for a student reading a study material. Focus on what the image shows, such as a diagram, chart, table, or labeled object. Keep it to 2 sentences maximum.',
+  try {
+    return await aiProvider.generateMultimodalResponse([
+      {
+        text: 'Describe this image briefly for a student reading a study material. Focus on what the image shows, such as a diagram, chart, table, or labeled object. Keep it to 2 sentences maximum.',
+      },
+      {
+        inlineData: {
+          mimeType,
+          data: buffer.toString('base64'),
         },
-        {
-          inlineData: {
-            mimeType,
-            data: buffer.toString('base64'),
-          },
-        },
-      ]);
-      return result.response.text().trim();
-    } catch (error) {
-      console.error('Gemini image description failed, falling back:', error);
-    }
+      },
+    ]);
+  } catch (error) {
+    console.error('Gemini image description failed, falling back:', error);
   }
 
   try {
@@ -212,10 +281,14 @@ export async function ingestMaterialJob(materialId: string) {
 
     let extractedText = '';
     let readerStructure: any = null;
+    let extractionMethod = 'unknown';
 
     if (claimedMaterial.file_type === FileType.PDF) {
-      extractedText = await extractPdfText(buffer, getGeminiClient());
+      const pdfResult = await extractPdfContent(buffer, materialId);
+      extractedText = pdfResult.text;
+      extractionMethod = pdfResult.method;
     } else if (claimedMaterial.file_type === FileType.DOC) {
+      extractionMethod = 'mammoth';
       const rawTextResult = await mammoth.extractRawText({ buffer });
       extractedText = rawTextResult.value;
 
@@ -242,25 +315,21 @@ export async function ingestMaterialJob(materialId: string) {
         imageMetaBySrc,
       );
     } else if (claimedMaterial.file_type === FileType.IMAGE) {
-      const client = getGeminiClient();
-      if (client) {
-        try {
-          const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
-          const result = await model.generateContent([
-            {
-              text: 'Extract all text from this image exactly as written. If it contains mathematical notation, preserve it accurately. Include all headings, examples, definitions, and formulas. Output plain text only.',
+      try {
+        extractedText = await aiProvider.generateMultimodalResponse([
+          {
+            text: 'Extract all text from this image exactly as written. If it contains mathematical notation, preserve it accurately. Include all headings, examples, definitions, and formulas. Output plain text only.',
+          },
+          {
+            inlineData: {
+              mimeType: guessImageMimeType(claimedMaterial.file_ref),
+              data: buffer.toString('base64'),
             },
-            {
-              inlineData: {
-                mimeType: guessImageMimeType(claimedMaterial.file_ref),
-                data: buffer.toString('base64'),
-              },
-            },
-          ]);
-          extractedText = result.response.text().trim();
-        } catch (error) {
-          console.error('Gemini image extraction failed, falling back to Vision OCR:', error);
-        }
+          },
+        ]);
+        extractionMethod = 'gemini-image';
+      } catch (error) {
+        console.error('Gemini image extraction failed, falling back to Vision OCR:', error);
       }
 
       if (!extractedText) {
@@ -270,6 +339,7 @@ export async function ingestMaterialJob(materialId: string) {
           detections && detections.length > 0
             ? detections[0].description || ''
             : '';
+        extractionMethod = 'vision-image-ocr';
       }
     }
 
@@ -277,8 +347,11 @@ export async function ingestMaterialJob(materialId: string) {
       throw new Error('No text extracted from material');
     }
 
+    console.log(`[ingest-material] material ${materialId}: extraction_method=${extractionMethod}`);
+
     const normalizedText = normalizeExtractedText(extractedText);
     const resolvedReaderStructure = readerStructure || buildReaderStructure(normalizedText);
+    resolvedReaderStructure.extraction_method = extractionMethod;
 
     await prisma.material.update({
       where: { id: materialId },

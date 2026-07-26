@@ -22,6 +22,10 @@ export interface ReaderStructure {
   version: number;
   generated_at: string;
   pages: ReaderPage[];
+  // Which extraction path actually produced this material's content — 'gemini' | 'pdf-parse' |
+  // 'vision-ocr' | 'mammoth' | 'gemini-image' | 'vision-image-ocr'. Optional/absent on structures
+  // built before this was tracked. Lets us query later how much of the corpus came from OCR.
+  extraction_method?: string;
 }
 
 const BOOK_PAGE_TARGET_CHARS = 3500;

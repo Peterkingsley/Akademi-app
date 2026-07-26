@@ -238,6 +238,70 @@ export class AIProvider {
     throw new Error('AI is temporarily busy. Please try again in a moment.');
   }
 
+  // Same model-fallback mechanism as generateResponse (config.geminiModel, then
+  // GEMINI_FALLBACK_MODELS in order), but for calls that need to attach binary content —
+  // PDF/image bytes — rather than a plain text prompt. This is the only place outside
+  // generateResponse/transcribeAudio that should ever pick a Gemini model; any caller needing
+  // multimodal input (PDF/image extraction, etc.) should go through this rather than
+  // instantiating its own GoogleGenerativeAI client with a hardcoded model name.
+  async generateMultimodalResponse(
+    parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>,
+    options: AIRequestOptions = {}
+  ): Promise<string> {
+    const { maxTokens, extendedTimeouts = false } = options;
+
+    const geminiAttemptTimeoutMs = extendedTimeouts ? EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS : GEMINI_ATTEMPT_TIMEOUT_MS;
+    const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
+
+    const geminiClient = this.getGemini();
+    if (!geminiClient) {
+      throw new Error('Gemini API key is missing or invalid');
+    }
+
+    let lastError: string | null = null;
+    let lastErrorWasTransient = false;
+    const geminiDeadline = Date.now() + geminiTotalBudgetMs;
+
+    for (const geminiModelName of uniqueModels(config.geminiModel)) {
+      const remainingBudget = geminiDeadline - Date.now();
+      if (remainingBudget <= 0) {
+        lastError = lastError || 'Gemini budget exhausted before a model could respond';
+        break;
+      }
+
+      try {
+        const geminiModel = geminiClient.getGenerativeModel({
+          model: geminiModelName,
+          ...(maxTokens ? { generationConfig: { maxOutputTokens: maxTokens } } : {}),
+        });
+        const result = await withTimeout(
+          geminiModel.generateContent(parts),
+          Math.min(geminiAttemptTimeoutMs, remainingBudget),
+          `Gemini (${geminiModelName})`
+        );
+        const text = result.response.text().trim();
+        if (!text) throw new Error('Gemini returned empty response');
+        return text;
+      } catch (error: any) {
+        const errorMessage = error.message || 'Unknown Gemini error';
+        lastError = errorMessage;
+        console.error(`Gemini API error on ${geminiModelName}:`, error);
+        if (!(error instanceof ProviderTimeoutError) && !isRetryableGeminiError(errorMessage)) {
+          lastErrorWasTransient = false;
+          break;
+        }
+        lastErrorWasTransient = true;
+        await sleep(350);
+      }
+    }
+
+    console.error('Gemini multimodal request failed', { lastError });
+    if (lastErrorWasTransient) {
+      throw new TransientCapacityError(`AI is temporarily out of capacity: ${lastError}`);
+    }
+    throw new Error(lastError || 'Gemini multimodal request failed.');
+  }
+
   async transcribeAudio(buffer: Buffer, mimeType: string): Promise<string> {
     const geminiClient = this.getGemini();
     if (!geminiClient) {

@@ -29,7 +29,11 @@ export const config = {
   enableWebSocketRedisAdapter: process.env.ENABLE_WEBSOCKET_REDIS_ADAPTER === 'true',
   jwtSecret: process.env.JWT_SECRET as string,
   geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  // gemini-2.5-flash-lite / gemini-2.5-flash / gemini-1.5-flash are all retired (404 as of
+  // 2026-07-26). See modules/ai/ai.provider.ts's GEMINI_FALLBACK_MODELS for the fallback chain —
+  // these are the only two places a Gemini model name should ever appear (enforced by
+  // tests/no-hardcoded-gemini-models.test.ts).
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
   googleTtsApiKey: process.env.GOOGLE_TTS_API_KEY || '',
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY || '',
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
