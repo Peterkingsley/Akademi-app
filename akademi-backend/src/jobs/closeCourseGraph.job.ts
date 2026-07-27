@@ -26,7 +26,9 @@ export async function closeCourseGraphJob(courseCode: string, generation: number
   let anyRelocationCreated = false;
 
   for (const topic of outline.nodes) {
-    const model = await prisma.knowledgeModel.findUnique({
+    // topicId is no longer unique alone (course-scoped models share the table with
+    // topicId: null — see ModelScope), so this is findFirst rather than findUnique.
+    const model = await prisma.knowledgeModel.findFirst({
       where: { topicId: topic.id },
       include: { kcs: { include: { dependsOn: true } } }
     });

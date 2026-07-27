@@ -364,6 +364,10 @@ model Material {
   // scripts/reset-generated-textbooks.ts). Null means currently live/visible. Never set on
   // student-uploaded materials — that flow uses verification_status instead.
   unpublished_at          DateTime?
+  // Count of worked examples found by the verbatim extraction pass used by the archetype
+  // pipeline (scripts/compute-material-example-density.ts). Null = not yet computed. Density
+  // (content.length / this) gates whether archetype extraction is worth attempting on a course.
+  extracted_example_count Int?
 
   user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
   course                        Course?                      @relation(fields: [course_id], references: [id])
@@ -1700,6 +1704,11 @@ enum ModelStatus {
   SUPERSEDED
 }
 
+enum ModelScope {
+  COURSE
+  TOPIC
+}
+
 enum Severity {
   HARD
   SOFT
@@ -1745,11 +1754,25 @@ model TerminologyEntry {
   @@unique([courseCode, term])
 }
 
+// One frozen closed vocabulary per course, built by the v6 archetype-layer method
+// (modelTopicKnowledge.job.ts): consolidate raw step labels, split catch-alls into real
+// techniques, classify DISCRIMINATING/GENERIC by fixed rule. Never re-opened after freezing —
+// a later re-run for the same courseCode is expected to overwrite this row wholesale, not append.
+model OperationVocabulary {
+  id         String   @id @default(cuid())
+  courseCode String   @unique
+  entries    Json     // [{canonicalName, class, aliases[]}]
+  frozenAt   DateTime @default(now())
+}
+
 // ─── the model ────────────────────────────────────────────
 
 model KnowledgeModel {
   id              String   @id @default(cuid())
-  topicId         String   @unique
+  // Null for COURSE-scoped models (the archetype layer, for now — see ModelScope). Set to a real
+  // GeneratedTextbookOutlineNode.id once topic-level attribution (KC extraction) is built.
+  topicId         String?
+  scope           ModelScope @default(TOPIC)
   courseCode      String
   academicLevel   Int
   learningOutcome String
@@ -1766,6 +1789,7 @@ model KnowledgeModel {
   teachingBlocks  TeachingBlock[]
   validationRuns  ValidationRun[]
 
+  @@unique([courseCode, topicId])
   @@index([courseCode, status])
 }
 
@@ -1816,6 +1840,9 @@ model Archetype {
   sourcedFrom     String                   // 'harvested' | 'inferred-gap'
   distinctBecause String                   // A7
   actionSignature String                   // hash of ordered KC ids — A7 uniqueness
+  // How many source examples shared this exact signature (v6 archetype-layer pipeline).
+  // Not part of the original A7 design — added for modelTopicKnowledge.job.ts's archetype pass.
+  memberCount     Int      @default(1)
 
   radicals        ArchetypeRadical[]
   itemModels      ItemModel[]

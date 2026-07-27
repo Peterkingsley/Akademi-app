@@ -81,8 +81,10 @@ export async function runGateBValidation(nodeId: string, content: string): Promi
 
   if (!node) return { passed: false, findings: [{ checkId: 'B_NODE', severity: 'HARD', detail: 'Node not found' }] };
 
-  // Locate KnowledgeModel for topic
-  const model = await prisma.knowledgeModel.findUnique({
+  // Locate KnowledgeModel for topic. topicId is no longer unique on its own (course-scoped
+  // models now share the table with topicId: null — see ModelScope), so this is findFirst rather
+  // than findUnique; a real node id is still unique enough among TOPIC-scoped rows in practice.
+  const model = await prisma.knowledgeModel.findFirst({
     where: { topicId: nodeId },
     include: {
       kcs: true,

@@ -8,6 +8,9 @@ export interface AIRequestOptions {
   // wall-clock time than a chat turn; this widens the per-provider time limits while
   // still keeping the worst case far inside the frontend's request timeout.
   extendedTimeouts?: boolean;
+  // Omitted by default (uses the model's own default). Exists for callers that need explicit
+  // control — e.g. an experiment sampling multiple independent runs at a fixed temperature.
+  temperature?: number;
 }
 
 const PLACEHOLDER_KEYWORDS = [
@@ -148,7 +151,18 @@ export class AIProvider {
     prompt: string,
     options: AIRequestOptions = {}
   ): Promise<string> {
-    const { maxTokens = 1000, systemPrompt, extendedTimeouts = false } = options;
+    const { text } = await this.generateResponseWithModel(prompt, options);
+    return text;
+  }
+
+  // Same as generateResponse, but also reports which model in the fallback chain actually served
+  // the request — useful for callers that want to know whether a result came from the primary
+  // model or a fallback (e.g. to distinguish quality/behavior differences, or track quota usage).
+  async generateResponseWithModel(
+    prompt: string,
+    options: AIRequestOptions = {}
+  ): Promise<{ text: string; model: string }> {
+    const { maxTokens = 1000, systemPrompt, extendedTimeouts = false, temperature } = options;
 
     const geminiAttemptTimeoutMs = extendedTimeouts ? EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS : GEMINI_ATTEMPT_TIMEOUT_MS;
     const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
@@ -185,7 +199,10 @@ export class AIProvider {
 
             const geminiModel = geminiClient.getGenerativeModel({
               model: geminiModelName,
-              generationConfig: { maxOutputTokens: attemptMaxTokens },
+              generationConfig: {
+                maxOutputTokens: attemptMaxTokens,
+                ...(temperature !== undefined ? { temperature } : {}),
+              },
             });
             const result = await withTimeout(
               geminiModel.generateContent(combinedPrompt),
@@ -214,7 +231,7 @@ export class AIProvider {
             );
           }
 
-          return text;
+          return { text, model: geminiModelName };
         } catch (error: any) {
           const errorMessage = error.message || 'Unknown Gemini error';
           geminiError = errorMessage;
@@ -248,7 +265,7 @@ export class AIProvider {
     parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>,
     options: AIRequestOptions = {}
   ): Promise<string> {
-    const { maxTokens, extendedTimeouts = false } = options;
+    const { maxTokens, extendedTimeouts = false, temperature } = options;
 
     const geminiAttemptTimeoutMs = extendedTimeouts ? EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS : GEMINI_ATTEMPT_TIMEOUT_MS;
     const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
@@ -270,9 +287,16 @@ export class AIProvider {
       }
 
       try {
+        const generationConfig =
+          maxTokens || temperature !== undefined
+            ? {
+                ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+                ...(temperature !== undefined ? { temperature } : {}),
+              }
+            : undefined;
         const geminiModel = geminiClient.getGenerativeModel({
           model: geminiModelName,
-          ...(maxTokens ? { generationConfig: { maxOutputTokens: maxTokens } } : {}),
+          ...(generationConfig ? { generationConfig } : {}),
         });
         const result = await withTimeout(
           geminiModel.generateContent(parts),

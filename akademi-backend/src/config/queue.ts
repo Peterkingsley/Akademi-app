@@ -188,6 +188,16 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
       await auditTextbookOutlineJob(payload.outlineId);
       return;
     }
+    case JOB_NAMES.MODEL_TOPIC_PHASE_1: {
+      if (!payload.courseCode) throw new Error('MODEL_TOPIC_PHASE_1 requires courseCode');
+      const { modelTopicKnowledgeJob } = await import('../jobs/modelTopicKnowledge.job');
+      await modelTopicKnowledgeJob({ courseCode: payload.courseCode, nodeId: payload.nodeId });
+      return;
+    }
+    // CLOSE_COURSE_GRAPH, MODEL_TOPIC_PHASE_3, VALIDATE_MODEL_GATE_A: still scaffolding, not
+    // wired yet — they depend on KC extraction/item generation, which the archetype-only phase
+    // above does not produce. Left as registered-but-unwired (falls through to `default`, a no-op)
+    // on purpose.
     case JOB_NAMES.ACTIVATE_TOURNAMENTS: {
       const { activateTournamentsJob } = await import('../jobs/activateTournaments.job');
       await activateTournamentsJob();
