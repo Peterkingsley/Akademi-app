@@ -346,19 +346,65 @@ export class AuthService {
   }
 
   async googleLogin(token: string, deviceInfo: { name: string; type: any }): Promise<AuthResponse> {
+    if (!token) {
+      throw new Error('Missing Google token');
+    }
+
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
       audience: config.googleOauthClientId,
     });
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
+
+    // Only trust fields Google itself signed and vouched for — never anything
+    // the client could have sent alongside the token.
+    if (!payload || !payload.email || payload.email_verified !== true) {
       throw new Error('Invalid Google token');
     }
 
-    let user = await prisma.user.findUnique({ where: { email: payload.email } });
+    const email = payload.email;
+    const name = payload.name?.trim() || payload.given_name?.trim() || email.split('@')[0];
 
-    if (!user || user.is_deleted) {
+    let user = await prisma.user.findUnique({ where: { email } });
+    let needsOnboarding: boolean;
+
+    if (!user) {
+      user = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            name,
+            email,
+            password_hash: null,
+            // University/faculty/department/level can't come from a Google
+            // token — needs_onboarding routes the frontend into the picker
+            // flow to collect them before the account is fully usable.
+            university: '',
+            faculty: '',
+            department: '',
+            level: 0,
+            needs_onboarding: true,
+            auth_provider: AuthProvider.GOOGLE,
+            is_verified: true,
+          },
+        });
+
+        await tx.learningProfile.create({
+          data: {
+            user_id: createdUser.id,
+            subject_strengths: {},
+            subject_weaknesses: {},
+            question_patterns: {},
+            vocabulary_level: VocabularyLevel.BASIC,
+          },
+        });
+
+        return createdUser;
+      });
+      needsOnboarding = true;
+    } else if (user.is_deleted) {
       throw new Error('User not found. Please register first.');
+    } else {
+      needsOnboarding = user.needs_onboarding;
     }
 
     const accessToken = this.generateAccessToken({ userId: user.id, email: user.email });
@@ -371,7 +417,8 @@ export class AuthService {
       accessToken,
       refreshToken,
       adminAccessToken: adminAuth.adminAccessToken,
-      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole }
+      user: { ...userWithoutPassword, admin_role: adminAuth.adminRole },
+      needsOnboarding,
     };
   }
 

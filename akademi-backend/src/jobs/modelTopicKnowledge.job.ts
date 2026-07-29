@@ -1,5 +1,6 @@
 import prisma from '../config/db';
 import { aiProvider } from '../modules/ai/ai.provider';
+import { withTransientRetry } from '../shared/ai/retryTransient';
 
 // ─── GATE A: Model Validation Function (unchanged — validates KCs/ItemModels/etc. that the
 // archetype-only phase below does not yet produce; not called from modelTopicKnowledgeJob) ──────
@@ -181,7 +182,12 @@ export async function runGateAValidation(modelId: string, attempt: number = 1): 
 
 const CHUNK_SIZE = 8000;
 const CHUNK_OVERLAP = 500;
-const CHUNKS_PER_EXTRACTION_CALL = 2;
+// Was 2. Repeated failures today traced to this specifically: a 2-chunk batch (up to 16,000 input
+// chars) asks for a verbatim-text JSON response large enough to hit maxOutputTokens=8000, the
+// provider's own truncation-retry then exceeds the per-attempt timeout, and the whole batch fails.
+// 1 chunk per call roughly doubles the call count but keeps each individual call's output small
+// enough to actually complete on the fallback model.
+const CHUNKS_PER_EXTRACTION_CALL = 1;
 const LABEL_BATCH_SIZE = 5;
 const MIN_MS_BETWEEN_CALLS = 4500; // confirmed fallback-model per-minute cap (v3)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -331,15 +337,25 @@ ${batch.map((c) => `=== chunk_id: ${c.chunkId} ===\n${c.text}`).join('\n\n')}
 Format as JSON: { "chunkResults": [ { "chunkId": string, "examples": [ { "problemText": string, "solutionSteps": string[] } ] } ] }
 Include an entry in "chunkResults" for every chunk_id given above, even if its "examples" array is empty.`;
 
-  const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
-    systemPrompt: 'You are a precise text-extraction tool. You extract worked examples verbatim from source text — you never interpret, generalize, or paraphrase. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 8000,
-    extendedTimeouts: true,
-    temperature: 0.7,
-  });
+  // Parsing happens INSIDE the retry closure, not after it — a call that returns 200 but with
+  // truncated/malformed JSON (hits maxOutputTokens mid-object) must also trigger a fresh retry,
+  // not crash the job. Confirmed necessary by a real failure: a truncated response parsed outside
+  // the wrapper threw SyntaxError and killed a run that had otherwise gotten further than any
+  // previous attempt.
+  const { parsed, model } = await withTransientRetry(
+    async () => {
+      const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
+        systemPrompt: 'You are a precise text-extraction tool. You extract worked examples verbatim from source text — you never interpret, generalize, or paraphrase. Return ONLY valid JSON, no prose outside the JSON object.',
+        maxTokens: 8000,
+        extendedTimeouts: true,
+        temperature: 0.7,
+      });
+      return { parsed: parseJsonObject(text), model };
+    },
+    { label: 'extract' },
+  );
   recordUsage(usage, 'extract', model);
 
-  const parsed = parseJsonObject(text);
   const results = new Map<string, { problemText: string; solutionSteps: string[] }[]>();
   const chunkResults = Array.isArray(parsed?.chunkResults) ? parsed.chunkResults : [];
   for (const cr of chunkResults) {
@@ -399,15 +415,20 @@ ${batch.map((e) => `=== exampleId: ${e.exampleId} ===\nPROBLEM: ${e.problemText}
 Format as JSON: { "results": [ { "exampleId": string, "actionLabels": string[] } ] }
 "actionLabels" is the flattened, ordered list of operation labels across all steps of that example. Include an entry for every exampleId above.`;
 
-  const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
-    systemPrompt: 'You label solution steps with short, precise operation names only. Never describe the topic or the result. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 2000,
-    extendedTimeouts: true,
-    temperature: LABEL_TEMPERATURE,
-  });
+  const { parsed, model } = await withTransientRetry(
+    async () => {
+      const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
+        systemPrompt: 'You label solution steps with short, precise operation names only. Never describe the topic or the result. Return ONLY valid JSON, no prose outside the JSON object.',
+        maxTokens: 2000,
+        extendedTimeouts: true,
+        temperature: LABEL_TEMPERATURE,
+      });
+      return { parsed: parseJsonObject(text), model };
+    },
+    { label: 'label' },
+  );
   recordUsage(usage, 'label', model);
 
-  const parsed = parseJsonObject(text);
   const results = Array.isArray(parsed?.results) ? parsed.results : [];
   return results.map((r: any) => ({ exampleId: String(r?.exampleId || ''), actionLabels: Array.isArray(r?.actionLabels) ? r.actionLabels.map((l: any) => String(l).trim()).filter(Boolean) : [] }));
 }
@@ -434,15 +455,20 @@ ${labels.map((l, i) => `${i}. ${l}`).join('\n')}
 Format as JSON: { "mapping": [ { "raw": string, "canonical": string } ] }
 Include an entry for every label above. If a label doesn't merge with anything, its "canonical" value should just be a cleaned-up version of itself (never a different operation).`;
 
-  const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
-    systemPrompt: 'You are a strict vocabulary normalizer merging only exact-same-operation synonyms. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 4000,
-    extendedTimeouts: true,
-    temperature: NORMALIZE_TEMPERATURE,
-  });
+  const { parsed, model } = await withTransientRetry(
+    async () => {
+      const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
+        systemPrompt: 'You are a strict vocabulary normalizer merging only exact-same-operation synonyms. Return ONLY valid JSON, no prose outside the JSON object.',
+        maxTokens: 4000,
+        extendedTimeouts: true,
+        temperature: NORMALIZE_TEMPERATURE,
+      });
+      return { parsed: parseJsonObject(text), model };
+    },
+    { label: phase },
+  );
   recordUsage(usage, phase, model);
 
-  const parsed = parseJsonObject(text);
   const mappingArr = Array.isArray(parsed?.mapping) ? parsed.mapping : [];
   const mapping: Record<string, string> = {};
   for (const m of mappingArr) {
@@ -495,15 +521,20 @@ ${items.map((l, i) => `${i}. ${l}`).join('\n')}
 Format as JSON: { "entries": [ { "name": string, "aliases": string[] } ] }
 "aliases" must list every label above that maps to this entry. Every label above must appear in exactly one entry's aliases — do not drop any.`;
 
-  const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
-    systemPrompt: 'You are a strict vocabulary consolidator merging only exact-same-operation synonyms. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 4000,
-    extendedTimeouts: true,
-    temperature: NORMALIZE_TEMPERATURE,
-  });
+  const { parsed, model } = await withTransientRetry(
+    async () => {
+      const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
+        systemPrompt: 'You are a strict vocabulary consolidator merging only exact-same-operation synonyms. Return ONLY valid JSON, no prose outside the JSON object.',
+        maxTokens: 4000,
+        extendedTimeouts: true,
+        temperature: NORMALIZE_TEMPERATURE,
+      });
+      return { parsed: parseJsonObject(text), model };
+    },
+    { label: phase },
+  );
   recordUsage(usage, phase, model);
 
-  const parsed = parseJsonObject(text);
   const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
   return entries
     .map((e: any) => ({ name: String(e?.name || '').trim(), classification: 'DISCRIMINATING' as Classification, aliases: Array.isArray(e?.aliases) ? e.aliases.map((a: any) => String(a).trim()).filter(Boolean) : [] }))
@@ -584,15 +615,20 @@ ${aliases.map((a, i) => `${i}. ${a}`).join('\n')}
 Format as JSON: { "entries": [ { "name": string, "aliases": string[] } ] }
 Every alias above must appear in exactly one entry's aliases — do not drop any.`;
 
-  const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
-    systemPrompt: 'You split an overly-broad catch-all operation label into distinct, real, named techniques. Return ONLY valid JSON, no prose outside the JSON object.',
-    maxTokens: 4000,
-    extendedTimeouts: true,
-    temperature: SPLIT_TEMPERATURE,
-  });
+  const { parsed, model } = await withTransientRetry(
+    async () => {
+      const { text, model } = await aiProvider.generateResponseWithModel(prompt, {
+        systemPrompt: 'You split an overly-broad catch-all operation label into distinct, real, named techniques. Return ONLY valid JSON, no prose outside the JSON object.',
+        maxTokens: 4000,
+        extendedTimeouts: true,
+        temperature: SPLIT_TEMPERATURE,
+      });
+      return { parsed: parseJsonObject(text), model };
+    },
+    { label: `split[${entryName}]` },
+  );
   recordUsage(usage, `split[${entryName}]`, model);
 
-  const parsed = parseJsonObject(text);
   const entries = Array.isArray(parsed?.entries) ? parsed.entries : [];
   const result: VocabEntry[] = entries
     .map((e: any) => ({ name: String(e?.name || '').trim(), classification: 'DISCRIMINATING' as Classification, aliases: Array.isArray(e?.aliases) ? e.aliases.map((a: any) => String(a).trim()).filter(Boolean) : [] }))
@@ -696,7 +732,8 @@ async function buildVocabulary(examples: ExtractedExample[], labeled: LabeledExa
 
 // ─── Step e-f: signatures, grouping, DIRECT_EVALUATION, UNMAPPED flagging (deterministic) ───────
 
-type ArchetypeGroup = { signature: string; memberCount: number; canonicalStem: string };
+type MemberExample = { problemText: string; solutionSteps: string[] };
+type ArchetypeGroup = { signature: string; memberCount: number; canonicalStem: string; memberExamples: MemberExample[] };
 
 function buildSignature(actionLabels: string[], mapping: Record<string, string>, vocabByName: Map<string, VocabEntry>): { signature: string | null; unmapped: string[] } {
   const unmapped: string[] = [];
@@ -720,7 +757,7 @@ function buildArchetypeGroups(
   vocabByName: Map<string, VocabEntry>,
 ): { groups: ArchetypeGroup[]; flaggedCount: number } {
   const examplesById = new Map(examples.map((e) => [e.exampleId, e]));
-  const groups = new Map<string, { memberCount: number; canonicalStem: string }>();
+  const groups = new Map<string, { memberCount: number; canonicalStem: string; memberExamples: MemberExample[] }>();
   let flaggedCount = 0;
 
   for (const le of labeled) {
@@ -731,16 +768,17 @@ function buildArchetypeGroups(
       continue;
     }
     const example = examplesById.get(le.exampleId);
-    if (!groups.has(signature)) groups.set(signature, { memberCount: 0, canonicalStem: example?.problemText || '' });
+    if (!groups.has(signature)) groups.set(signature, { memberCount: 0, canonicalStem: example?.problemText || '', memberExamples: [] });
     const g = groups.get(signature)!;
     g.memberCount += 1;
     if (signature !== DIRECT_EVALUATION && example && (g.canonicalStem === '' || example.problemText.length < g.canonicalStem.length)) {
       g.canonicalStem = example.problemText;
     }
+    if (example) g.memberExamples.push({ problemText: example.problemText, solutionSteps: example.solutionSteps });
   }
 
   const result = Array.from(groups.entries())
-    .map(([signature, g]) => ({ signature, memberCount: g.memberCount, canonicalStem: g.canonicalStem || '(many different trivial problems)' }))
+    .map(([signature, g]) => ({ signature, memberCount: g.memberCount, canonicalStem: g.canonicalStem || '(many different trivial problems)', memberExamples: g.memberExamples }))
     .sort((a, b) => b.memberCount - a.memberCount);
   return { groups: result, flaggedCount };
 }
@@ -847,6 +885,7 @@ export async function modelTopicKnowledgeJob(payload: { courseCode: string; node
           : `Unique ordered sequence of DISCRIMINATING operations: ${g.signature}`,
         actionSignature: g.signature,
         memberCount: g.memberCount,
+        memberExamples: g.memberExamples as any,
       },
     });
   }

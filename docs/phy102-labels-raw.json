@@ -1,0 +1,597 @@
+{
+  "note": "Raw per-example action labels for the 80% PHY102 training set (held-out 20% excluded).",
+  "labeled": [
+    {
+      "exampleId": "phy0",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy1",
+      "actionLabels": [
+        "identify variables",
+        "convert units",
+        "state formula",
+        "substitute values",
+        "calculate arithmetic",
+        "interpret sign"
+      ]
+    },
+    {
+      "exampleId": "phy2",
+      "actionLabels": [
+        "identify geometry",
+        "apply superposition principle",
+        "apply Coulomb's law",
+        "substitute values",
+        "calculate arithmetic",
+        "apply Coulomb's law",
+        "substitute values",
+        "calculate arithmetic",
+        "apply vector addition",
+        "calculate magnitude",
+        "apply inverse trigonometric function"
+      ]
+    },
+    {
+      "exampleId": "phy3",
+      "actionLabels": [
+        "apply electric field formula",
+        "substitute values",
+        "calculate arithmetic",
+        "apply electric field formula",
+        "substitute values",
+        "calculate arithmetic",
+        "apply superposition principle",
+        "calculate arithmetic",
+        "apply electric field formula",
+        "calculate arithmetic",
+        "apply electric field formula",
+        "calculate arithmetic",
+        "resolve into components",
+        "apply superposition principle",
+        "calculate arithmetic"
+      ]
+    },
+    {
+      "exampleId": "phy4",
+      "actionLabels": [
+        "apply flux integral definition",
+        "decompose integral",
+        "apply dot product definition",
+        "calculate integral",
+        "apply dot product definition",
+        "calculate integral",
+        "apply dot product definition",
+        "calculate integral",
+        "sum flux components",
+        "simplify result"
+      ]
+    },
+    {
+      "exampleId": "phy5",
+      "actionLabels": [
+        "define Gaussian surface",
+        "evaluate dot product",
+        "apply Gauss's law",
+        "factor out constant",
+        "evaluate surface integral",
+        "substitute area",
+        "isolate variable"
+      ]
+    },
+    {
+      "exampleId": "phy6",
+      "actionLabels": [
+        "reference diagram",
+        "label axis",
+        "label axis",
+        "describe physical relationship"
+      ]
+    },
+    {
+      "exampleId": "phy7",
+      "actionLabels": [
+        "interpret equation",
+        "describe physical behavior"
+      ]
+    },
+    {
+      "exampleId": "phy8",
+      "actionLabels": [
+        "define work",
+        "apply Coulomb's law",
+        "substitute force",
+        "integrate expression",
+        "evaluate definite integral"
+      ]
+    },
+    {
+      "exampleId": "phy9",
+      "actionLabels": [
+        "perform variable substitution",
+        "differentiate",
+        "substitute differential",
+        "apply power rule",
+        "evaluate definite integral"
+      ]
+    },
+    {
+      "exampleId": "phy10",
+      "actionLabels": [
+        "define system potential energy",
+        "sum pairwise potential energies",
+        "simplify algebraic expression",
+        "substitute numerical values",
+        "calculate final result"
+      ]
+    },
+    {
+      "exampleId": "phy12",
+      "actionLabels": [
+        "calculate parallel capacitance",
+        "apply charge equality in series",
+        "define potential difference variables",
+        "relate potential differences",
+        "state source voltage",
+        "calculate potential differences",
+        "apply voltage equality in parallel",
+        "define charge relations",
+        "simplify algebraic ratios",
+        "apply charge conservation",
+        "solve for charges",
+        "summarize charges",
+        "summarize potential differences"
+      ]
+    },
+    {
+      "exampleId": "phy14",
+      "actionLabels": [
+        "state resistivity formula",
+        "identify variable meanings",
+        "convert units",
+        "substitute values into formula",
+        "calculate final result"
+      ]
+    },
+    {
+      "exampleId": "phy16",
+      "actionLabels": [
+        "apply series and parallel reduction",
+        "apply Ohm's law",
+        "apply current conservation",
+        "calculate voltage drop",
+        "apply Ohm's law"
+      ]
+    },
+    {
+      "exampleId": "phy18",
+      "actionLabels": [
+        "apply Kirchhoff's point rule",
+        "apply Kirchhoff's loop rule",
+        "apply Kirchhoff's loop rule",
+        "apply Kirchhoff's loop rule",
+        "solve system of linear equations",
+        "interpret physical significance of sign"
+      ]
+    },
+    {
+      "exampleId": "phy19",
+      "actionLabels": [
+        "equate potential differences",
+        "apply Ohm's law",
+        "solve for variable"
+      ]
+    },
+    {
+      "exampleId": "phy20",
+      "actionLabels": [
+        "apply Ohm's law",
+        "equate potential difference",
+        "divide terms",
+        "subtract values"
+      ]
+    },
+    {
+      "exampleId": "phy21",
+      "actionLabels": [
+        "set up integral",
+        "evaluate integral",
+        "simplify expression",
+        "multiply by number of sides"
+      ]
+    },
+    {
+      "exampleId": "phy22",
+      "actionLabels": [
+        "select kinematic equation",
+        "substitute variables",
+        "calculate value",
+        "interpret sign"
+      ]
+    },
+    {
+      "exampleId": "phy24",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy26",
+      "actionLabels": [
+        "apply gas laws",
+        "calculate mass from density",
+        "calculate electric charge",
+        "calculate electrochemical equivalent",
+        "apply Faraday's law of electrolysis",
+        "calculate mass deposited"
+      ]
+    },
+    {
+      "exampleId": "phy27",
+      "actionLabels": [
+        "calculate beam current",
+        "calculate electric power"
+      ]
+    },
+    {
+      "exampleId": "phy28",
+      "actionLabels": [
+        "rearrange power formula",
+        "substitute values",
+        "calculate square root"
+      ]
+    },
+    {
+      "exampleId": "phy29",
+      "actionLabels": [
+        "calculate total energy",
+        "convert units",
+        "calculate total cost"
+      ]
+    },
+    {
+      "exampleId": "phy30",
+      "actionLabels": [
+        "apply terminal voltage formula",
+        "substitute values",
+        "solve for current",
+        "apply power formula",
+        "substitute values",
+        "calculate terms",
+        "identify component rates"
+      ]
+    },
+    {
+      "exampleId": "phy32",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy33",
+      "actionLabels": [
+        "apply Ampere's law",
+        "calculate net current",
+        "equate expressions",
+        "calculate magnetizing field",
+        "calculate magnetization",
+        "identify direction"
+      ]
+    },
+    {
+      "exampleId": "phy34",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy36",
+      "actionLabels": [
+        "define variable",
+        "apply Biot-Savart law",
+        "identify constant",
+        "apply tangent galvanometer formula",
+        "equate expressions",
+        "solve for current"
+      ]
+    },
+    {
+      "exampleId": "phy37",
+      "actionLabels": [
+        "apply right-hand rule",
+        "assign sign convention",
+        "calculate initial magnetic flux",
+        "calculate final magnetic flux",
+        "calculate rate of change",
+        "apply Faraday's law"
+      ]
+    },
+    {
+      "exampleId": "phy38",
+      "actionLabels": [
+        "define formula",
+        "substitute values",
+        "calculate product",
+        "define formula",
+        "calculate quotient",
+        "scale by number of turns",
+        "apply trigonometric projection",
+        "calculate quotient"
+      ]
+    },
+    {
+      "exampleId": "phy39",
+      "actionLabels": [
+        "define formula",
+        "define derivative",
+        "apply differentiation",
+        "apply Faraday's law",
+        "apply Lenz's law"
+      ]
+    },
+    {
+      "exampleId": "phy40",
+      "actionLabels": [
+        "calculate change in flux",
+        "apply Faraday's law",
+        "apply Ohm's law",
+        "calculate charge"
+      ]
+    },
+    {
+      "exampleId": "phy43",
+      "actionLabels": [
+        "define formula",
+        "apply Biot-Savart law",
+        "substitute and simplify"
+      ]
+    },
+    {
+      "exampleId": "phy44",
+      "actionLabels": [
+        "calculate time constant",
+        "apply exponential growth property",
+        "evaluate condition",
+        "calculate time constant",
+        "apply exponential growth property"
+      ]
+    },
+    {
+      "exampleId": "phy45",
+      "actionLabels": [
+        "calculate power current",
+        "identify rms voltage",
+        "calculate peak voltage",
+        "calculate average voltage"
+      ]
+    },
+    {
+      "exampleId": "phy46",
+      "actionLabels": [
+        "apply capacitive reactance formula"
+      ]
+    },
+    {
+      "exampleId": "phy47",
+      "actionLabels": [
+        "apply inductive reactance formula",
+        "apply ohm's law"
+      ]
+    },
+    {
+      "exampleId": "phy48",
+      "actionLabels": [
+        "calculate voltage across resistor",
+        "calculate voltage across inductor",
+        "calculate voltage across capacitor",
+        "calculate net reactive voltage",
+        "calculate total voltage via phasor sum",
+        "calculate total impedance",
+        "calculate total voltage via ohm's law",
+        "compare results",
+        "calculate phase angle",
+        "construct impedance diagram"
+      ]
+    },
+    {
+      "exampleId": "phy50",
+      "actionLabels": [
+        "apply capacitive reactance formula",
+        "apply inductive reactance formula",
+        "apply ohm's law"
+      ]
+    },
+    {
+      "exampleId": "phy51",
+      "actionLabels": [
+        "calculate voltage amplitude",
+        "calculate voltage amplitude",
+        "calculate voltage amplitude",
+        "calculate net voltage",
+        "apply pythagorean theorem",
+        "calculate impedance",
+        "calculate voltage amplitude",
+        "compare results",
+        "calculate phase angle",
+        "draw diagram"
+      ]
+    },
+    {
+      "exampleId": "phy52",
+      "actionLabels": [
+        "convert cosine to sine",
+        "compare phase constants"
+      ]
+    },
+    {
+      "exampleId": "phy53",
+      "actionLabels": [
+        "extract angular frequency",
+        "calculate frequency",
+        "calculate period",
+        "substitute time",
+        "calculate instantaneous voltage"
+      ]
+    },
+    {
+      "exampleId": "phy54",
+      "actionLabels": [
+        "apply pythagorean theorem",
+        "calculate phase angle"
+      ]
+    },
+    {
+      "exampleId": "phy55",
+      "actionLabels": [
+        "calculate angular frequency",
+        "rearrange resonance formula",
+        "calculate capacitance"
+      ]
+    },
+    {
+      "exampleId": "phy56",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy57",
+      "actionLabels": [
+        "substitute values",
+        "evaluate expression",
+        "state photoelectric equation",
+        "substitute values",
+        "evaluate expression",
+        "evaluate expression"
+      ]
+    },
+    {
+      "exampleId": "phy58",
+      "actionLabels": [
+        "convert units",
+        "arrange formula",
+        "substitute values",
+        "evaluate expression",
+        "define formula",
+        "substitute values",
+        "define conversion factor",
+        "substitute values",
+        "evaluate expression",
+        "convert units",
+        "arrange formula",
+        "substitute values",
+        "evaluate expression",
+        "state photoelectric equation",
+        "substitute values",
+        "evaluate expression",
+        "rearrange formula",
+        "substitute values",
+        "evaluate expression"
+      ]
+    },
+    {
+      "exampleId": "phy59",
+      "actionLabels": [
+        "state formula",
+        "substitute values",
+        "evaluate expression",
+        "state energy conservation principle",
+        "evaluate expression",
+        "convert units",
+        "state stopping potential formula",
+        "evaluate expression"
+      ]
+    },
+    {
+      "exampleId": "phy60",
+      "actionLabels": []
+    },
+    {
+      "exampleId": "phy62",
+      "actionLabels": [
+        "substitute values",
+        "calculate quotient",
+        "substitute values",
+        "calculate quotient"
+      ]
+    },
+    {
+      "exampleId": "phy63",
+      "actionLabels": [
+        "identify equation",
+        "rearrange formula",
+        "substitute values",
+        "substitute values",
+        "apply exponentiation",
+        "apply logarithm",
+        "change base",
+        "calculate product",
+        "analyze dimensions"
+      ]
+    },
+    {
+      "exampleId": "phy64",
+      "actionLabels": [
+        "count particles",
+        "retrieve constant",
+        "calculate product",
+        "calculate sum",
+        "calculate difference",
+        "calculate product",
+        "calculate quotient"
+      ]
+    },
+    {
+      "exampleId": "phy65",
+      "actionLabels": [
+        "calculate quotient",
+        "apply iteration",
+        "calculate difference",
+        "substitute values",
+        "calculate product",
+        "calculate exponentiation",
+        "calculate product",
+        "calculate difference"
+      ]
+    },
+    {
+      "exampleId": "phy66",
+      "actionLabels": [
+        "define proportionality",
+        "apply dimensional analysis",
+        "equate exponents",
+        "solve algebraic system",
+        "substitute exponents"
+      ]
+    },
+    {
+      "exampleId": "phy67",
+      "actionLabels": [
+        "identify kinematic formula",
+        "substitute values",
+        "calculate result"
+      ]
+    },
+    {
+      "exampleId": "phy70",
+      "actionLabels": [
+        "define mechanical energy equation",
+        "differentiate with respect to time",
+        "substitute values",
+        "calculate result"
+      ]
+    },
+    {
+      "exampleId": "phy71",
+      "actionLabels": [
+        "identify conversion formula",
+        "calculate result"
+      ]
+    },
+    {
+      "exampleId": "phy73",
+      "actionLabels": [
+        "identify given parameters",
+        "assign variable",
+        "assign variable",
+        "calculate variable",
+        "identify work formula",
+        "substitute values",
+        "calculate difference",
+        "calculate product"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1633 @@
+{
+  "note": "v3 never persisted raw per-example action labels to disk — only this script's final markdown report survived, which records archetype-level aggregates (every example already grouped into its exact-signature archetype). Each entry below is one v3 archetype, not one example: \"signature\" is the full ordered label sequence shared by every member, \"memberCount\" is how many of the 356 cached examples share it, and \"canonicalStem\" is the shortest member problemText. This is mathematically sufficient input for v4 Steps 1-2 (vocabulary consolidation and discriminating-only regrouping), which only need to know each distinct full signature and how many examples carry it — it does not give exampleId-level granularity beyond that.",
+  "sourceReport": "docs\\archetype-experiment-mth102-v3.md",
+  "archetypeCount": 325,
+  "totalExamplesCovered": 356,
+  "archetypes": [
+    {
+      "signature": "apply fundamental theorem of calculus",
+      "memberCount": 5,
+      "canonicalStem": "4.5. Find R cos x dx."
+    },
+    {
+      "signature": "divide by highest power -> apply limit laws -> evaluate limit",
+      "memberCount": 3,
+      "canonicalStem": "Example 2.28. Find lim\nx→∞\n2x2 + 1\n5x3 − 3x."
+    },
+    {
+      "signature": "apply power rule -> evaluate expression",
+      "memberCount": 3,
+      "canonicalStem": "Example 3.58. For C(q) = 5000 + 30q + 0.05q2,  nd the marginal cost function and\nevaluate at q = 200."
+    },
+    {
+      "signature": "remove absolute value -> subtract constant -> divide by coefficient -> express as interval",
+      "memberCount": 2,
+      "canonicalStem": "olve the inequality |2x + 1| < 7."
+    },
+    {
+      "signature": "identify degree -> identify leading coefficient",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.52. Describe the end behavior of f (x) = −2x3 + 4x2 − 1."
+    },
+    {
+      "signature": "set numerator to zero -> solve for x -> evaluate denominator -> set x to zero -> evaluate expression",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.63. Find the x-intercepts and y-intercept of f (x) = x2−4 x2−1 ."
+    },
+    {
+      "signature": "substitute y for f(x) -> subtract -> divide -> swap variables",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.91. Find the inverse of f (x) = 2x + 3."
+    },
+    {
+      "signature": "substitute y for f(x) -> take square root -> swap variables",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.92. For f (x) = x2 with domain [0, ∞),  nd the inverse."
+    },
+    {
+      "signature": "define function -> substitute value -> multiply -> add -> substitute value -> multiply -> add -> set equation to constant -> subtract constant -> divide by coefficient",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.96. A utility company charges a  xed monthly connection fee of $15 plus\n$0.12 per kilowatt-hour (kWh) of electricity used. Find: (a) The cost function. (b) The\ncost for using 400 kWh. (c) The cost for using 800 kWh. (d) How many kWh were used\nif the bill is $75?"
+    },
+    {
+      "signature": "define function -> subtract -> distribute negative sign -> combine like terms -> set equation to zero -> add constants -> divide by coefficient -> substitute value -> multiply -> subtract",
+      "memberCount": 2,
+      "canonicalStem": "Example 1.97. A company manufactures widgets. The cost function is C(q) = 8000 +\n40q and each widget sells for $80. Find: (a) The revenue function. (b) The pro t\nfunction. (c) The break-even point. (d) The pro t when 300 widgets are sold."
+    },
+    {
+      "signature": "factor numerator -> cancel common factors -> evaluate limit",
+      "memberCount": 2,
+      "canonicalStem": "Example 2.9. Find limx→3 x2−9\nx−3 ."
+    },
+    {
+      "signature": "select piece -> evaluate limit -> select piece -> evaluate limit -> compare limits",
+      "memberCount": 2,
+      "canonicalStem": "Example 2.14. For f (x) =\n(\n3, x ≤ 2\nx + 1, x > 2 ,  nd limx→2 f (x)."
+    },
+    {
+      "signature": "apply root law",
+      "memberCount": 2,
+      "canonicalStem": "Example 2.20. Find limx→27 3\n√x."
+    },
+    {
+      "signature": "divide by highest power -> evaluate limit",
+      "memberCount": 2,
+      "canonicalStem": "Find lim x→∞ 3x2 + 2x + 1 x2 − 1 ."
+    },
+    {
+      "signature": "multiply by conjugate -> simplify numerator -> cancel common factors -> evaluate limit",
+      "memberCount": 2,
+      "canonicalStem": "Find lim x→0 √1 + x − 1 x ."
+    },
+    {
+      "signature": "divide by x3 -> evaluate limit",
+      "memberCount": 2,
+      "canonicalStem": "Find lim x→∞ 5x3 − 2x + 1 2x3 + x2 − 4 ."
+    },
+    {
+      "signature": "evaluate function -> evaluate limit -> compare values",
+      "memberCount": 2,
+      "canonicalStem": "Is f (x) = x2 + 3x − 2 continuous at x = 1?"
+    },
+    {
+      "signature": "apply power rule -> apply constant multiple rule -> simplify",
+      "memberCount": 2,
+      "canonicalStem": "Find d dx (4x6 − 2x4 + 5x2 − 8)."
+    },
+    {
+      "signature": "identify components -> calculate derivatives -> apply quotient rule -> factor expression -> simplify exponent",
+      "memberCount": 2,
+      "canonicalStem": "Find y′ for y = x2 ex ."
+    },
+    {
+      "signature": "substitute u -> apply chain rule",
+      "memberCount": 2,
+      "canonicalStem": "Find y′ for y = ex2 ."
+    },
+    {
+      "signature": "identify indeterminate form -> apply L'Hôpital's rule -> simplify fraction -> evaluate limit",
+      "memberCount": 2,
+      "canonicalStem": "Find limx→∞ ln x x ."
+    },
+    {
+      "signature": "apply power rule -> apply power rule -> evaluate inequality",
+      "memberCount": 2,
+      "canonicalStem": "Example 3.90. For a cost function C(q) = 1000+20q +0.05q2,  nd C′′(q) and interpret."
+    },
+    {
+      "signature": "apply power rule -> apply trigonometric rule -> apply exponential rule -> combine terms",
+      "memberCount": 2,
+      "canonicalStem": "Example 4.7. Find R (3x2 − 2 sin x + ex) dx."
+    },
+    {
+      "signature": "apply trigonometric identity -> distribute integral -> evaluate integral -> simplify",
+      "memberCount": 2,
+      "canonicalStem": "Example 4.27. Find R sin2 x dx."
+    },
+    {
+      "signature": "identify trigonometric antiderivative -> evaluate boundaries -> substitute trigonometric values -> simplify arithmetic",
+      "memberCount": 2,
+      "canonicalStem": "Example 5.5. Compute R π 0 sin x dx."
+    },
+    {
+      "signature": "compute cartesian product -> compute cartesian product",
+      "memberCount": 2,
+      "canonicalStem": "Example 3: If \\(A = \\{a_1, a_2\\}\\). Then"
+    },
+    {
+      "signature": "compute cartesian product -> calculate cardinality",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.2. Let A = {1, 2, 3} and B = {x, y}. Then A × B = {(1, x), (1, y), (2, x), (2, y), (3, x), (3, y)}. The cardinality is |A| · |B| = 3 × 2 = 6."
+    },
+    {
+      "signature": "evaluate relation condition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.4. Let A = {1, 2, 3, 4}, B = {2, 4, 6, 8}. De ne R = {(a, b) ∈ A × B | b = 2a}. Then R = {(1, 2), (2, 4), (3, 6), (4, 8)}."
+    },
+    {
+      "signature": "set output equality -> simplify equation",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.7. f (x) = 3x − 2 is injective because 3x1 − 2 = 3x2 − 2 implies x1 = x2."
+    },
+    {
+      "signature": "evaluate function at positive value -> evaluate function at negative value -> compare inputs",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.8. f (x) = x2 is NOT injective because f (2) = f (−2) = 4 but 2̸ = −2."
+    },
+    {
+      "signature": "invert function",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.10. f (x) = 3x − 2 is surjective because for any y, x = (y + 2)/3 works."
+    },
+    {
+      "signature": "identify range constraint",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.11. f (x) = x2 is NOT surjective onto R because negative numbers have no preimage."
+    },
+    {
+      "signature": "verify bijective property -> verify bijective property",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.13. f (x) = 3x − 2 is bijective. f (x) = x3 is also bijective."
+    },
+    {
+      "signature": "equate expressions -> subtract constant -> divide by coefficient -> solve for x -> verify real domain -> conclude bijection",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.14. Determine if f : R → R, f (x) = 2x + 3 is injective, surjective, or bijective."
+    },
+    {
+      "signature": "provide counterexample",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.15. Determine if f : Z → Z, f (n) = n2 is injective."
+    },
+    {
+      "signature": "solve for preimage",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.16. Determine if f : R → [0, ∞), f (x) = x2 is surjective."
+    },
+    {
+      "signature": "evaluate constant function",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.18. Let f (x) = 5. Find f (0), f (10), and f (−3)."
+    },
+    {
+      "signature": "define function -> define domain -> define range",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.19. A taxi company charges a  at fee of $3 per ride regardless of distance. Write the cost function and state its domain and range."
+    },
+    {
+      "signature": "evaluate identity function -> evaluate identity function -> evaluate identity function",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.21. For f (x) = x, compute f (5), f (−2), and f (0)."
+    },
+    {
+      "signature": "apply injective definition -> apply surjective definition -> conclude bijection",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.22. Show that the identity function is bijective."
+    },
+    {
+      "signature": "add terms -> evaluate absolute value -> evaluate absolute value -> add terms -> compare values",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.24. Verify the triangle inequality for a = 5 and b = −3."
+    },
+    {
+      "signature": "evaluate absolute value -> evaluate absolute value -> compare values",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.25. Verify the reverse triangle inequality for a = 7 and b = 2."
+    },
+    {
+      "signature": "interpret definition -> split into cases -> solve linear equations",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.26. Solve the equation |x − 3| = 5 using the properties of absolute value."
+    },
+    {
+      "signature": "state inequality properties -> add inequalities -> apply absolute value definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.28. Prove the triangle inequality: |a + b| ≤ |a| + |b|."
+    },
+    {
+      "signature": "define inequality bounds -> add inequalities -> apply absolute value definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.28. Prove the triangle inequality: |a + b| ≤ |a| + |b|."
+    },
+    {
+      "signature": "apply signum definition -> apply signum definition -> apply signum definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.30. Evaluate sgn(10), sgn(−5), and sgn(0)."
+    },
+    {
+      "signature": "define piecewise function -> substitute positive value -> substitute negative value -> evaluate boundary condition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.31. Express f (x) = |x| using the signum function."
+    },
+    {
+      "signature": "multiply arguments -> apply signum definition -> evaluate signum factors -> multiply results -> compare values",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.32. Verify the multiplicativity property: sgn(xy) = sgn(x) · sgn(y) for x = 2 and y = −3."
+    },
+    {
+      "signature": "apply square property",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.33. Simplify the expression sgn(x2) for x̸ = 0."
+    },
+    {
+      "signature": "apply floor definition -> apply floor definition -> apply floor definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.35. Evaluate ⌊3.7⌋, ⌊−2.3⌋, and ⌊5⌋."
+    },
+    {
+      "signature": "convert floor to inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.36. Solve ⌊x⌋ = 4."
+    },
+    {
+      "signature": "identify segment intervals -> define endpoint markers",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.37. Graph f (x) = ⌊x⌋ for −3 ≤ x ≤ 3."
+    },
+    {
+      "signature": "apply ceiling definition -> apply ceiling definition -> apply ceiling definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.39. Evaluate ⌈3.2⌉, ⌈−2.7⌉, and ⌈5⌉."
+    },
+    {
+      "signature": "convert ceiling to inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.40. Solve the equation ⌈x⌉ = 3."
+    },
+    {
+      "signature": "interpret inequality -> apply ceiling definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.41. Solve the inequality ⌈x⌉ ≤ 2."
+    },
+    {
+      "signature": "define interval mapping -> specify endpoint conditions",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.42. Graph f (x) = ⌈x⌉ for −3 ≤ x ≤ 3."
+    },
+    {
+      "signature": "approximate value -> apply ceiling definition -> approximate value -> apply ceiling definition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.43. Find ⌈π⌉ and ⌈−π⌉."
+    },
+    {
+      "signature": "evaluate ceiling -> evaluate floor -> negate result -> evaluate ceiling -> evaluate floor -> negate result",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.44. Verify the relationship ⌈x⌉ = −⌊−x⌋ for x = 2.3 and x = −1.5."
+    },
+    {
+      "signature": "model piecewise cost -> construct ceiling expression -> algebraic simplification",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.45. A parking garage charges $5 for the rst hour or any part of an hour, and $3 for each additional hour or part thereof. Write the cost function C(t) for parking time t hours (where t > 0)."
+    },
+    {
+      "signature": "define piecewise function -> distribute constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.46. A courier company charges $8 for the rst kilogram or fraction thereof, and $4 for each additional kilogram or fraction thereof. Find the cost to ship a package weighing w kilograms, where w > 0."
+    },
+    {
+      "signature": "interpret ceiling inequality -> evaluate boundary condition",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.47. Solve the inequality ⌈x⌉ > 2."
+    },
+    {
+      "signature": "determine polynomial domain -> complete the square -> apply inequality property -> determine range",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.50. Find the domain and range of f (x) = x2 − 4x + 7."
+    },
+    {
+      "signature": "factor expression -> apply zero product property",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.51. Find the zeros (roots) of f (x) = x2 − 5x + 6."
+    },
+    {
+      "signature": "set denominator to zero -> factor expression -> solve for x -> exclude values from domain -> convert to interval notation",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.54. Find the domain of f (x) = x+2 x2−9 ."
+    },
+    {
+      "signature": "analyze denominator sign -> conclude domain",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.55. Find the domain of f (x) = 2x+1 x2+4 ."
+    },
+    {
+      "signature": "factor denominator -> solve for x -> compare factors -> identify asymptotes",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.56. Find the vertical asymptotes of f (x) = x x2−4 ."
+    },
+    {
+      "signature": "factor numerator -> simplify fraction -> cancel common factors -> identify hole",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.57. Find the vertical asymptotes of f (x) = x2−4 x−2 ."
+    },
+    {
+      "signature": "compare degrees -> identify leading coefficients -> calculate ratio",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.58. Find the horizontal asymptote of f (x) = 3x2+2 x2−1 ."
+    },
+    {
+      "signature": "compare degrees -> assign horizontal asymptote",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.59. Find the horizontal asymptote of f (x) = 5x+2 x3−1 ."
+    },
+    {
+      "signature": "compare degrees -> perform polynomial division",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.60. Find the horizontal asymptote of f (x) = 2x3−4x+1 x2+3 ."
+    },
+    {
+      "signature": "factor numerator -> cancel common factors -> substitute x-value",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.61. Identify any holes in the graph of f (x) = x2−4 x−2 ."
+    },
+    {
+      "signature": "factor numerator -> factor denominator -> simplify expression -> identify common factor -> substitute x-value -> evaluate expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.62. Identify any holes in the graph of f (x) = x2−3x+2 x2−1 ."
+    },
+    {
+      "signature": "factor numerator -> factor denominator -> cancel common factors -> identify hole -> substitute x-value -> evaluate expression -> set denominator to zero -> solve for x -> compare degrees -> identify leading coefficients",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.65. Find all asymptotes of f (x) = 2x2+3x−2 x2−x−6 ."
+    },
+    {
+      "signature": "set denominator to zero -> identify vertical asymptote -> compare degrees -> set numerator to zero -> set x to zero -> evaluate expression -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.66. Sketch the graph of f (x) = 1 x−2 by identifying its asymptotes and intercepts."
+    },
+    {
+      "signature": "factor numerator -> factor denominator -> cancel common factors -> identify hole -> substitute x-value -> evaluate expression -> identify domain restrictions -> set denominator to zero -> compare degrees -> identify leading coefficients",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.67. Find the domain, vertical asymptotes, and horizontal asymptote of\nf (x) = x2−9\nx2+4x+3 ."
+    },
+    {
+      "signature": "identify factors -> compare degrees -> construct function -> substitute point -> simplify expression -> solve for constant -> substitute constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.68. A rational function has vertical asymptotes at x = 2 and x = −3,\na horizontal asymptote at y = 0, and passes through the point (0, 1). Find a possible\nequation."
+    },
+    {
+      "signature": "distribute division -> evaluate limit -> identify asymptotes -> interpret result",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.69. A company's average cost per unit when producing x units is given by\nC(x) = 5000+30x\nx . Find the horizontal asymptote and interpret its meaning."
+    },
+    {
+      "signature": "evaluate power -> evaluate power -> evaluate power",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.71. Evaluate 23, 1\n2\n 4, and e0."
+    },
+    {
+      "signature": "analyze growth -> apply reflection -> identify intercept",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.72. Graph f (x) = 2x and g(x) = 1\n2\n x on the same axes."
+    },
+    {
+      "signature": "express as common base -> equate exponents",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.73. Solve the equation 2x = 8."
+    },
+    {
+      "signature": "define exponential function",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.74. A population of bacteria doubles every hour. If the initial population is\n100, write the population as a function of time t (in hours)."
+    },
+    {
+      "signature": "rewrite base -> rewrite base -> apply identity property",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.76. Evaluate log2 8, log3 1\n9 , and ln e5."
+    },
+    {
+      "signature": "apply quotient rule -> apply product rule -> apply power rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.77. Expand ln\n x2y\nz3\n ."
+    },
+    {
+      "signature": "convert to exponential form -> subtract constant -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.78. Solve log2(x + 1) = 4."
+    },
+    {
+      "signature": "apply product rule -> equate arguments -> expand binomial -> factor quadratic -> extract roots -> check domain constraints",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.79. Solve ln x + ln(x − 2) = ln 8."
+    },
+    {
+      "signature": "evaluate trigonometric functions",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.81. Evaluate sin π\n6 , cos π\n3 , and tan π\n4 ."
+    },
+    {
+      "signature": "identify reference angle -> apply quadrant identity",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.82. Solve sin x = 1\n2 for 0 ≤ x < 2π."
+    },
+    {
+      "signature": "rewrite tangent as quotient -> set denominator to zero -> solve trigonometric equation -> define domain",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.83. Find the domain of f (x) = tan x."
+    },
+    {
+      "signature": "apply sine range bounds -> scale range -> shift range",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.84. A Ferris wheel of radius 10 meters rotates once every 60 seconds. The\nheight of a passenger above the ground is given by h(t) = 15 + 10 sin πt\n30 − π\n2\n . Find the\nmaximum and minimum heights."
+    },
+    {
+      "signature": "set radicand non-negative -> solve inequality -> determine domain -> evaluate function monotonicity -> determine range",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.85. Find the domain and range of f (x) = √x − 3."
+    },
+    {
+      "signature": "set denominator unequal to zero -> solve inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.86. Find the domain of f (x) = 1\nx2−4 ."
+    },
+    {
+      "signature": "set argument positive -> isolate variable -> solve inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.87. Find the domain of f (x) = ln(x2 − 9)."
+    },
+    {
+      "signature": "assume equality -> apply cube root",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.88. Determine if f (x) = x3 is injective."
+    },
+    {
+      "signature": "test counterexample",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.89. Determine if f (x) = x2 is surjective onto R."
+    },
+    {
+      "signature": "analyze function range",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.90. Determine if f (x) = ex is surjective onto R."
+    },
+    {
+      "signature": "define linear function -> substitute value -> multiply -> add -> substitute value -> multiply -> add -> substitute value -> multiply -> add",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.93. A manufacturing company has  xed costs of $10,000 per month and\nvariable costs of $25 per unit produced. Write the cost function and  nd the total cost for\nproducing 200 units, 500 units, and 1000 units."
+    },
+    {
+      "signature": "define function -> substitute value -> multiply -> add -> substitute value -> multiply -> add",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.95. A car rental company charges a  at fee of $50 per day plus $0.20 per\nmile driven. Write the cost function and  nd the cost for a 3-day rental with 150 miles\ndriven."
+    },
+    {
+      "signature": "define cost function -> define revenue function -> define profit function -> simplify expression -> set equation to zero -> add constants -> divide by coefficient -> approximate decimal -> substitute value -> multiply -> subtract constants -> set equation to constant -> add constants -> divide by coefficient -> approximate decimal",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.99. A book publisher has  xed costs of $50,000 for a new book. The variable\ncost per book is $8, and the book sells for $20. Find: (a) The cost, revenue, and pro t\nfunctions. (b) The break-even point. (c) The pro t if 10,000 books are sold. (d) How\nmany books must be sold to make a pro t of $30,000?"
+    },
+    {
+      "signature": "define revenue function -> define profit function -> simplify expression -> set equation to zero -> add constants -> divide by coefficient -> substitute value -> multiply -> subtract constants -> set equation to constant -> add constants -> divide by coefficient",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.100. A toy company produces a game. The cost to produce q games is\nC(q) = 2500 + 15q. The company sells each game for $25. Find: (a) The pro t function.\n(b) The break-even point. (c) The pro t when 400 games are sold. (d) How many games\nmust be sold to achieve a pro t of $5,000?"
+    },
+    {
+      "signature": "define height function",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.101. A ball is thrown upward from ground level (h0 = 0) with an initial\nvelocity of 20 m/s. Use g = 9.8 m/s2. Find: (a) The height function. (b) The time at\nwhich the ball reaches its maximum height. (c) The maximum height reached. (d) The\ntime when the ball hits the ground."
+    },
+    {
+      "signature": "define height function -> identify vertex formula -> substitute values -> simplify quotient -> approximate decimal -> substitute values -> square term -> multiply -> subtract constants -> approximate decimal -> set equation to zero -> factor expression -> solve for variable -> add constants -> divide by coefficient -> approximate decimal",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.101. A ball is thrown upward from ground level (h0 = 0) with an initial\nvelocity of 20 m/s. Use g = 9.8 m/s2. Find: (a) The height function. (b) The time at\nwhich the ball reaches its maximum height. (c) The maximum height reached. (d) The\ntime when the ball hits the ground."
+    },
+    {
+      "signature": "define height function -> identify vertex formula -> substitute values -> simplify quotient -> approximate decimal -> substitute values -> square term -> multiply -> add constants -> subtract constants -> approximate decimal -> set equation to zero -> multiply by constant -> apply quadratic formula -> square term -> multiply constants -> add constants -> calculate square root -> add terms -> divide by coefficient -> approximate decimal",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.102. A rock is thrown upward from a cli  that is 50 meters high, with an\ninitial velocity of 15 m/s. Find: (a) The height function. (b) The maximum height\nreached above ground. (c) The time when the rock reaches its maximum height. (d) The\ntime when the rock hits the ground below the cli ."
+    },
+    {
+      "signature": "define height function -> calculate vertex -> evaluate function -> set equation to zero -> multiply by constant -> apply quadratic formula -> calculate square root -> calculate final times",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.103. An arrow is shot straight upward from a height of 2 meters with an\ninitial velocity of 30 m/s. Find: (a) The height function. (b) The time to reach maximum\nheight. (c) The maximum height. (d) The total time the arrow is in the air."
+    },
+    {
+      "signature": "define height function -> calculate vertex -> evaluate function -> set equation to constant -> rearrange equation -> multiply by constant -> apply quadratic formula -> calculate square root -> calculate final times",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.104. A water balloon is launched upward from a platform 10 meters high\nwith an initial velocity of 12 m/s. Find: (a) The height function. (b) The time when the\nballoon reaches its peak. (c) The peak height. (d) When does the balloon pass the height\nof 15 meters on the way up and on the way down?"
+    },
+    {
+      "signature": "define population function -> evaluate function -> calculate doubling time -> set equation to constant -> divide by constant -> apply natural logarithm -> divide by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.105. A bacterial culture starts with 100 bacteria and grows at a rate of\nk = 0.3 per hour. Find: (a) The population function. (b) The population after 5 hours.\n(c) The doubling time. (d) The time when the population reaches 10,000."
+    },
+    {
+      "signature": "substitute values -> divide by constant -> apply natural logarithm -> divide by constant -> define population function -> evaluate function -> calculate doubling time",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.106. A population of 500 rabbits grows exponentially. After 3 years, the\npopulation is 800. Find: (a) The growth rate k. (b) The population function. (c) The\npopulation after 6 years. (d) The doubling time."
+    },
+    {
+      "signature": "convert units -> rearrange equation -> define population function -> evaluate function -> set equation to constant -> divide by constant -> apply natural logarithm -> divide by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.107. A certain strain of bacteria doubles every 45 minutes. Find: (a) The\ngrowth rate k (in hours). (b) The population function if initial population is 200. (c) The\npopulation after 3 hours. (d) The time to reach 10,000 bacteria."
+    },
+    {
+      "signature": "substitute values -> divide by constant -> apply natural logarithm -> evaluate logarithm -> solve for variable -> define function -> evaluate function -> set equation -> divide by constant -> apply natural logarithm -> solve for variable",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.108. A mold culture starts with 50 spores and grows to 200 spores in 2 hours.\nFind: (a) The growth rate k. (b) The population function. (c) The population after 5\nhours. (d) The time to reach 5000 spores."
+    },
+    {
+      "signature": "solve for variable -> evaluate constant -> define function -> evaluate function -> set equation -> divide by constant -> apply natural logarithm -> solve for variable",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.109. A sample of radioactive material has a half-life of 100 years. Initial\namount is 500 grams. Find: (a) The decay constant λ. (b) The decay function. (c) The\namount remaining after 200 years. (d) The time when only 50 grams remain."
+    },
+    {
+      "signature": "solve for variable -> evaluate constant -> substitute values -> divide by constant -> apply natural logarithm -> apply log properties -> solve for variable -> multiply by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.110. Carbon-14 has a half-life of 5730 years. A fossil contains 25% of its\noriginal Carbon-14. Find the age of the fossil."
+    },
+    {
+      "signature": "evaluate half-life -> evaluate function -> set equation -> divide by constant -> apply natural logarithm -> solve for variable -> set equation -> divide by constant -> apply natural logarithm -> solve for variable",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.111. A radioactive isotope has a decay constant λ = 0.02 per year. Initial\namount is 1000 grams. Find: (a) The half-life. (b) The amount after 50 years. (c) The\ntime when 100 grams remain. (d) The time when 1 gram remains."
+    },
+    {
+      "signature": "substitute values -> divide by constant -> apply natural logarithm -> solve for variable -> evaluate half-life -> evaluate function -> set equation -> divide by constant -> apply natural logarithm -> solve for variable",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.112. A sample originally contains 200 mg of a radioactive substance. After\n80 years, only 50 mg remains. Find: (a) The decay constant λ. (b) The half-life. (c)\nThe amount after 120 years. (d) The time when 10 mg remains."
+    },
+    {
+      "signature": "substitute values -> simplify coefficient -> substitute variable -> simplify product -> convert to degrees -> apply trigonometric identity -> evaluate sine -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.113. A standard US household outlet supplies 120 V RMS (root mean square)\nat 60 Hz. The peak voltage is V0 = 120√2 ≈ 169.7 V. Find: (a) The voltage function.\n(b) The voltage at t = 0.005 seconds. (c) The period. (d) The frequency in radians per\nsecond (ω)."
+    },
+    {
+      "signature": "substitute values -> simplify product -> substitute variable -> simplify product -> evaluate sine -> multiply constants -> set equation -> isolate sine -> apply inverse sine -> convert to degrees -> divide by coefficient",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.114. In a European country, AC voltage has frequency 50 Hz and peak voltage\n325 V. Find: (a) The voltage function. (b) The voltage at t = 0.01 seconds. (c) The\nperiod. (d) The time when the voltage  rst reaches 300 V."
+    },
+    {
+      "signature": "identify peak amplitude -> equate angular frequency -> divide by coefficient -> calculate reciprocal -> substitute variable -> simplify product -> convert to degrees -> evaluate sine -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.115. Given V (t) = 100 sin(200πt),  nd: (a) The peak voltage. (b) The\nfrequency f . (c) The period. (d) The voltage at t = 0.0025 seconds."
+    },
+    {
+      "signature": "equate angular frequency -> divide by coefficient -> calculate reciprocal -> substitute variable -> simplify product -> evaluate sine -> multiply constants -> set equation -> isolate sine -> apply inverse sine -> divide by coefficient",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.116. An AC voltage is given by V (t) = 150 sin(60πt). Find: (a) The fre-\nquency and period. (b) The voltage at t = 0.00833 seconds. (c) The  rst two times when\nV (t) = 75 V. (d) The root mean square voltage (RMS = V0/√2)."
+    },
+    {
+      "signature": "substitute constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply by coefficient -> substitute variable -> evaluate exponents -> subtract terms -> multiply by coefficient -> evaluate limits",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.117. A drug is administered orally. The absorption rate is ka = 2 per hour\nand the elimination rate is ke = 0.5 per hour. C0 = 10 mg/L. Find: (a) The concentration\nfunction. (b) The concentration at t = 1 hour. (c) The concentration at t = 2 hours. (d)\nWhat happens to the concentration as t becomes very large?"
+    },
+    {
+      "signature": "define function -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.118. For a certain drug, ka = 1.5 per hour, ke = 0.3 per hour, and the peak\nconcentration occurs at t = ln(ka/ke) ka−ke = ln(1.5/0.3) 1.2 = ln 5 1.2 ≈ 1.6094 1.2 ≈ 1.34 hours. If C0 = 8\nmg/L,  nd: (a) The concentration function. (b) The concentration at peak time. (c) The\nconcentration at t = 3 hours."
+    },
+    {
+      "signature": "substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> assign variables -> substitute variable -> evaluate logarithm -> divide constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.119. A patient takes a medication. The concentration function is C(t) =\n5(e−0.2t − e−1.0t). Find: (a) The concentration at t = 2 hours. (b) The concentration at\nt = 5 hours. (c) The time when concentration is maximum (given by tmax = ln(ka/ke) ka−ke ).\n(d) The maximum concentration."
+    },
+    {
+      "signature": "define function -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate logarithm -> divide constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 1.120. For a drug with ka = 2.5 per hour, ke = 0.4 per hour, and C0 = 12\nmg/L,  nd: (a) The concentration function. (b) The concentration at t = 0.5 hours. (c)\nThe concentration at t = 4 hours. (d) The peak time and peak concentration."
+    },
+    {
+      "signature": "define function -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants -> substitute variable -> evaluate logarithm -> divide constants -> substitute variable -> evaluate exponents -> subtract terms -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "hour, and C0 = 12\nmg/L,  nd: (a) The concentration function. (b) The concentration at t = 0.5 hours. (c)\nThe concentration at t = 4 hours. (d) The peak time and peak concentration."
+    },
+    {
+      "signature": "state definition -> simplify expression -> factor expression -> set inequality -> isolate term -> assign delta -> substitute delta -> simplify expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.2. Use the epsilon-delta de nition to prove that limx→2(3x + 1) = 7."
+    },
+    {
+      "signature": "state definition -> simplify expression -> isolate term -> assign delta -> verify inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.3. Prove that limx→1(2x + 3) = 5 using the epsilon-delta de nition."
+    },
+    {
+      "signature": "state definition -> factor expression -> bound term -> assign delta -> verify inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.4. Prove that limx→3 x2 = 9 using the epsilon-delta de nition."
+    },
+    {
+      "signature": "state definition -> multiply by conjugate -> apply inequality -> isolate term -> assign delta -> verify inequality",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.5. Prove that limx→4\n√x = 2 using the epsilon-delta de nition."
+    },
+    {
+      "signature": "substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.7. Find limx→2(3x + 1)."
+    },
+    {
+      "signature": "factor numerator -> cancel common factors -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.8. Find limx→2 x2−4\nx−2 ."
+    },
+    {
+      "signature": "define absolute value -> simplify fraction -> evaluate limit -> define absolute value -> simplify fraction -> evaluate limit -> compare limits",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.13. Find limx→0 |x|\nx ."
+    },
+    {
+      "signature": "evaluate one-sided limits -> conclude limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.15. Find limx→0 1\nx2 using one-sided limits."
+    },
+    {
+      "signature": "apply limit laws -> evaluate terms -> calculate sum",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.17. Find limx→2(x2 − 3x + 5)."
+    },
+    {
+      "signature": "evaluate limit of denominator -> evaluate limit of numerator -> evaluate limit of denominator -> analyze growth behavior -> evaluate right-hand limit -> evaluate left-hand limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.18. Find limx→1 x2+2\nx−1 if it exists."
+    },
+    {
+      "signature": "evaluate individual limits -> apply product law",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.19. Find limx→4\n√x · (x + 2)."
+    },
+    {
+      "signature": "apply limit laws -> apply product law",
+      "memberCount": 1,
+      "canonicalStem": "Find limx→4\n√x · (x + 2)."
+    },
+    {
+      "signature": "multiply by constant -> substitute u -> apply limit laws",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.21. Find limx→0 sin 3x\nx ."
+    },
+    {
+      "signature": "expand trigonometric identity -> apply product law",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.22. Find limx→0 tan x\nx ."
+    },
+    {
+      "signature": "apply trigonometric identity -> algebraic simplification -> substitute value -> apply limit laws",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.23. Find limx→0 1−cos x\nx2 ."
+    },
+    {
+      "signature": "multiply by constant -> substitute value -> apply limit laws -> evaluate standard limit -> multiply by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.24. Find limx→0 e2x−1\nx ."
+    },
+    {
+      "signature": "factor x squared from radical -> simplify fraction -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.30. Find lim\nx→∞\n√4x2 + 1\nx ."
+    },
+    {
+      "signature": "multiply by conjugate -> simplify numerator -> divide numerator and denominator by x -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.31. Find lim\nx→∞(√x2 + 3x − x)."
+    },
+    {
+      "signature": "factor x squared from radical -> substitute absolute value definition -> simplify fraction -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.32. Find lim\nx→−∞\n√4x2 + 1\nx ."
+    },
+    {
+      "signature": "factor x from radical -> divide numerator and denominator by x -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.33. Find lim\nx→∞\n√9x2 + 2x\n2x + 1 ."
+    },
+    {
+      "signature": "bound sine function -> multiply inequality by x squared -> apply squeeze theorem",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.35. Find lim\nx→0 x2 sin\n  1\nx\n  ."
+    },
+    {
+      "signature": "apply squeeze theorem -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.36. Find lim\nx→0 x cos\n  1\nx2\n  ."
+    },
+    {
+      "signature": "apply limit laws -> evaluate limit -> interpret result",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.37 (Business: Average Cost as Production Increases). A company's total\ncost function is C(x) = 5000 + 30x where x is the number of units produced. The average\ncost function is A(x) = C(x)\nx = 5000\nx + 30. Find limx→∞ A(x) and interpret the result."
+    },
+    {
+      "signature": "substitute value -> expand polynomial -> combine like terms -> evaluate function -> subtract -> divide by variable -> apply limit -> interpret result",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.38 (Business: Marginal Cost as Limit of Average Rate of Change). The\nmarginal cost is de ned as M C(x) = limh→0 C(x+h)−C(x)\nh . For a cost function C(x) =\n1000 + 20x + 0.1x2,  nd the marginal cost at x = 100."
+    },
+    {
+      "signature": "evaluate limit -> interpret result",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.39 (Accounting: Present Value with Continuous Compounding). The present\nvalue of a future payment P received after t years with continuous compounding at annual\ninterest rate r is P V = P e−rt. As the time until payment approaches 0, what happens to\nthe present value?"
+    },
+    {
+      "signature": "evaluate function -> expand polynomial -> subtract -> divide by variable -> apply limit -> interpret result",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.40 (Business: Revenue from Very Small Price Change). A company's revenue\nfunction is R(p) = 1000p − 50p2 where p is the price per unit. The average rate of change\nof revenue as price changes from p = 10 to p = 10 + h is R(10+h)−R(10)\nh . Find the limit as\nh → 0."
+    },
+    {
+      "signature": "rewrite expression -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.41. Find lim\nx→0\nsin2 x\nx2 ."
+    },
+    {
+      "signature": "factor polynomial -> cancel common factors -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 2.42. Find lim\nx→2\nx2 − 4\nx2 − 3x + 2."
+    },
+    {
+      "signature": "divide by x4 -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find lim x→∞ 4x3 − 2x 5x4 + 3 ."
+    },
+    {
+      "signature": "divide by x -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find lim x→∞ x2 + 1 x + 1 ."
+    },
+    {
+      "signature": "divide by x -> simplify exponent -> evaluate limit -> sum terms",
+      "memberCount": 1,
+      "canonicalStem": "A manufacturing company has a cost function C(x) = 100x0.8 + 5000 for producing x units. Find the average cost function and its limit as production increases inde nitely."
+    },
+    {
+      "signature": "substitute value -> simplify exponent -> evaluate exponential -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "An investment of $1000 earns interest at an annual rate of 5% compounded n times per year. The amount after t years is An(t) = 1000 1 + 0.05 n nt. As n → ∞, we get continuous compounding: A(t) = limn→∞ An(t) = 1000e0.05t. Find the amount after 10 years with continuous compounding."
+    },
+    {
+      "signature": "substitute value -> substitute value -> expand polynomial -> distribute constant -> combine like terms -> subtract functions -> divide by variable -> apply limit",
+      "memberCount": 1,
+      "canonicalStem": "A company's revenue function is R(q) = 500q − 2q2. Use the limit de nition of the derivative to  nd the marginal revenue at q = 50."
+    },
+    {
+      "signature": "evaluate limit -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "A piece of equipment is purchased for $50,000 and its value after t years is given by V (t) = 50000e−0.1t. As the equipment ages inde nitely, what value does it approach?"
+    },
+    {
+      "signature": "evaluate denominator -> identify discontinuity",
+      "memberCount": 1,
+      "canonicalStem": "Is f (x) = 1 x−3 continuous at x = 3?"
+    },
+    {
+      "signature": "factor expression -> cancel terms -> identify undefined point",
+      "memberCount": 1,
+      "canonicalStem": "Where is f (x) = x2−4 x−2 discontinuous?"
+    },
+    {
+      "signature": "define function -> evaluate function -> apply intermediate value theorem",
+      "memberCount": 1,
+      "canonicalStem": "Show that the equation x3 − 2x − 5 = 0 has a root between 2 and 3."
+    },
+    {
+      "signature": "evaluate function -> apply intermediate value theorem",
+      "memberCount": 1,
+      "canonicalStem": "Show that f (x) = cos x − x has a root in (0, 1)."
+    },
+    {
+      "signature": "evaluate function -> evaluate function -> apply intermediate value theorem",
+      "memberCount": 1,
+      "canonicalStem": "A company's pro t function is π(q) = −0.01q2 + 10q − 500 for q ≥ 0. Show that there is a production level between 50 and 100 units where pro t is exactly $200."
+    },
+    {
+      "signature": "substitute function -> combine like terms -> evaluate at endpoints -> apply intermediate value theorem",
+      "memberCount": 1,
+      "canonicalStem": "A company's revenue function is R(q) = 80q and cost function is C(q) = 5000 + 30q. Show that there is a break-even point between 0 and 200 units."
+    },
+    {
+      "signature": "expand binomial -> combine like terms -> factor variable -> cancel terms -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(2) for f (x) = x2."
+    },
+    {
+      "signature": "multiply by conjugate -> expand numerator -> cancel terms -> simplify fraction -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(x) for f (x) = √x."
+    },
+    {
+      "signature": "substitute values -> expand binomial -> distribute constant -> combine like terms -> cancel terms -> factor variable -> cancel terms -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(3) for f (x) = 2x2 − 3x + 1 using the limit de nition."
+    },
+    {
+      "signature": "expand numerator -> cancel terms -> simplify fraction -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(x) for f (x) = √x."
+    },
+    {
+      "signature": "substitute function -> expand binomial -> distribute constant -> combine like terms -> cancel terms -> divide by variable -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(3) for f (x) = 2x2 − 3x + 1 using the limit de nition."
+    },
+    {
+      "signature": "find common denominator -> simplify numerator -> cancel terms -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(x) for f (x) = 1 x using the limit de nition."
+    },
+    {
+      "signature": "expand binomial -> combine like terms -> divide by variable -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Find f ′(x) for f (x) = x3 using the limit de nition."
+    },
+    {
+      "signature": "evaluate function -> apply power rule -> evaluate derivative -> apply point-slope form -> rearrange equation -> calculate negative reciprocal -> apply point-slope form -> rearrange equation",
+      "memberCount": 1,
+      "canonicalStem": "Find the equations of the tangent and normal lines to f (x) = x2 at x = 3."
+    },
+    {
+      "signature": "evaluate function -> apply power rule -> evaluate derivative -> apply point-slope form -> rearrange equation",
+      "memberCount": 1,
+      "canonicalStem": "Find the equation of the tangent line to f (x) = √x at x = 4."
+    },
+    {
+      "signature": "evaluate function -> apply power rule -> evaluate derivative -> calculate negative reciprocal -> apply point-slope form -> simplify equation",
+      "memberCount": 1,
+      "canonicalStem": "Find the equation of the normal line to f (x) = x3 − 2x at x = 1."
+    },
+    {
+      "signature": "identify slope -> apply power rule -> equate derivative to slope -> solve for x -> evaluate function",
+      "memberCount": 1,
+      "canonicalStem": "Find the point on f (x) = x2 where the tangent line is parallel to the line y = 4x − 3."
+    },
+    {
+      "signature": "identify slope -> equate normal slope formula -> solve for derivative -> apply power rule -> solve for x -> evaluate function",
+      "memberCount": 1,
+      "canonicalStem": "Find the point on f (x) = x3 where the normal line is parallel to the line y = −1 3 x + 2."
+    },
+    {
+      "signature": "rewrite with negative exponent -> apply power rule -> rewrite with positive exponent",
+      "memberCount": 1,
+      "canonicalStem": "Find d dx ( 1 x3 ) using the power rule."
+    },
+    {
+      "signature": "rewrite as fractional exponent -> apply power rule -> rewrite with radical",
+      "memberCount": 1,
+      "canonicalStem": "Find d dx (√x) using the power rule."
+    },
+    {
+      "signature": "apply power rule -> rewrite with positive exponent",
+      "memberCount": 1,
+      "canonicalStem": "Find d dx (x−2)."
+    },
+    {
+      "signature": "calculate derivatives -> apply product rule -> simplify expression",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = x2 sin x."
+    },
+    {
+      "signature": "calculate derivatives -> apply product rule -> factor common term",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = ex cos x."
+    },
+    {
+      "signature": "assign functions -> apply power rule -> apply product rule -> distribute terms -> combine like terms",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = (2x + 1)(3x2 − 4)."
+    },
+    {
+      "signature": "assign functions -> apply power rule -> apply natural log derivative -> apply product rule -> simplify",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = x ln x."
+    },
+    {
+      "signature": "assign functions -> apply power rule -> apply exponential derivative -> apply product rule -> factor exponential -> factor polynomial",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = x2ex."
+    },
+    {
+      "signature": "assign functions -> apply power rule -> apply quotient rule -> expand numerator -> combine like terms",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = x2+1 x−2 ."
+    },
+    {
+      "signature": "assign functions -> apply trigonometric derivative rule -> apply power rule -> apply quotient rule -> rearrange terms",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = sin x x ."
+    },
+    {
+      "signature": "identify components -> calculate derivatives -> apply quotient rule -> simplify expression",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = ln x x ."
+    },
+    {
+      "signature": "substitute u -> apply chain rule -> differentiate inner function -> multiply",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = (3x2 + 1)5."
+    },
+    {
+      "signature": "substitute u -> apply chain rule -> differentiate inner function",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = sin(2x)."
+    },
+    {
+      "signature": "rewrite expression -> substitute u -> apply chain rule -> apply trigonometric identity",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = cos2 x."
+    },
+    {
+      "signature": "apply product rule -> apply chain rule -> factor common term",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = e2x sin(3x)."
+    },
+    {
+      "signature": "apply chain rule -> simplify trigonometric expression",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = ln(sin x)."
+    },
+    {
+      "signature": "apply chain rule -> multiply",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = tan(ex)."
+    },
+    {
+      "signature": "apply chain rule -> rearrange terms",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = esin x."
+    },
+    {
+      "signature": "rewrite as power -> apply chain rule -> simplify expression",
+      "memberCount": 1,
+      "canonicalStem": "Find y′ for y = √ln x."
+    },
+    {
+      "signature": "differentiate numerator -> differentiate denominator -> evaluate limit -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Find limx→0 sin x x using L'Hôpital's Rule."
+    },
+    {
+      "signature": "differentiate numerator -> differentiate denominator -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Find limx→0 ex−1 x ."
+    },
+    {
+      "signature": "identify indeterminate form -> differentiate numerator -> differentiate denominator -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.38. Find limx→0 sin x\nx using L'Hôpital's Rule."
+    },
+    {
+      "signature": "identify indeterminate form -> apply L'Hôpital's rule -> differentiate numerator -> differentiate denominator -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.39. Find limx→0 ex−1\nx ."
+    },
+    {
+      "signature": "identify indeterminate form -> apply L'Hôpital's rule -> identify indeterminate form -> apply L'Hôpital's rule -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.41. Find limx→0 1−cos x\nx2 ."
+    },
+    {
+      "signature": "rewrite fraction -> apply L'Hôpital's rule -> simplify fraction -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.42. Find limx→0+ x ln x."
+    },
+    {
+      "signature": "apply implicit differentiation -> isolate derivative",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.43. Find dy\ndx for x2 + y2 = 25."
+    },
+    {
+      "signature": "apply implicit differentiation -> collect derivative terms -> factor derivative -> divide by coefficient -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.44. Find dy\ndx for x3 + y3 = 6xy."
+    },
+    {
+      "signature": "apply chain rule -> apply power rule -> equate derivatives -> distribute terms -> collect derivative terms -> factor derivative -> divide by coefficient",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.45. Find dy\ndx for exy = x2 + y2."
+    },
+    {
+      "signature": "apply logarithm property -> apply implicit differentiation -> collect derivative terms -> factor derivative -> divide by coefficient -> multiply by reciprocal",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.46. Find dy\ndx for ln(xy) = x + y."
+    },
+    {
+      "signature": "apply implicit differentiation -> collect derivative terms -> factor derivative -> isolate derivative -> substitute point coordinates -> arithmetic evaluation",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.47. Find the slope of the tangent line to x2 + xy + y2 = 7 at the point (2, 1)."
+    },
+    {
+      "signature": "apply power rule -> apply power rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.48. For f (x) = x4 − 3x2,  nd f ′(x) and f ′′(x)."
+    },
+    {
+      "signature": "apply trigonometric derivative rule -> apply trigonometric derivative rule -> apply trigonometric derivative rule -> apply trigonometric derivative rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.49. For f (x) = sin x,  nd the  rst four derivatives."
+    },
+    {
+      "signature": "apply chain rule -> apply chain rule -> apply chain rule -> generalize pattern",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.50. For f (x) = e2x,  nd f ′′(x) and f ′′′(x)."
+    },
+    {
+      "signature": "apply reciprocal rule -> rewrite using negative exponent -> apply power rule -> rewrite using negative exponent -> apply power rule -> rewrite using negative exponent",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.51. For f (x) = ln x,  nd f ′′(x) and f ′′′(x)."
+    },
+    {
+      "signature": "apply power rule -> apply power rule -> substitute value -> evaluate expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.52. For f (x) = x5 − 2x3 + 4x,  nd f ′′(x) and evaluate f ′′(2)."
+    },
+    {
+      "signature": "apply power rule -> apply power rule -> substitute value -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.53. A ball is thrown upward with position s(t) = −4.9t2 + 20t + 1. Find the\nvelocity and acceleration at t = 2 seconds."
+    },
+    {
+      "signature": "apply power rule -> factor constant -> factor quadratic -> apply zero product property",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.54. A particle moves along a line with position s(t) = t3 − 6t2 + 9t + 2. Find\nwhen the particle is at rest."
+    },
+    {
+      "signature": "apply power rule -> substitute value -> evaluate expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.55. For the particle in the previous example,  nd the acceleration at t = 2."
+    },
+    {
+      "signature": "set equation to zero -> isolate variable -> calculate square root -> apply power rule -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.56. A falling object has position s(t) = 100 − 4.9t2. Find the velocity when\nit hits the ground."
+    },
+    {
+      "signature": "integrate expression -> substitute initial condition -> solve for constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.59. A company  nds that the marginal cost is M C(q) = 50 − 0.2q. If  xed\ncosts are $2000,  nd the total cost function."
+    },
+    {
+      "signature": "apply power rule -> simplify expression -> substitute value -> evaluate expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.61. For C(q) = 8000 + 25q + 0.5√q,  nd C′(100)."
+    },
+    {
+      "signature": "apply power rule -> evaluate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.62. A company's revenue is R(q) = 50q − 0.1q2. Find the marginal revenue\nat q = 200."
+    },
+    {
+      "signature": "substitute expression -> distribute variable -> apply power rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.63. If demand is p = 100 − 0.5q,  nd the marginal revenue function."
+    },
+    {
+      "signature": "apply power rule -> set to zero -> solve for variable",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.64. For R(q) = 200q − 0.2q2,  nd the quantity that makes marginal revenue\nzero."
+    },
+    {
+      "signature": "define function -> apply power rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.65. A company sells its product at a constant price of $75. Find the marginal\nrevenue."
+    },
+    {
+      "signature": "integrate expression -> evaluate constant -> substitute constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.66. If marginal revenue is M R(q) = 80 − 0.4q and  xed costs are $5000,\n nd the revenue function."
+    },
+    {
+      "signature": "subtract polynomials -> combine like terms -> apply power rule -> set equation to zero -> isolate variable -> apply power rule -> evaluate inequality -> round result",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.67. Given R(q) = 100q − 0.5q2 and C(q) = 5000 + 20q + 0.1q2,  nd the\npro t-maximizing quantity."
+    },
+    {
+      "signature": "subtract polynomials -> combine like terms -> apply power rule -> set equation to zero -> isolate variable -> substitute value -> evaluate power -> perform multiplication -> perform addition and subtraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.68. For R(q) = 120q and C(q) = 3000 + 40q + 0.2q2,  nd the pro t-\nmaximizing quantity and maximum pro t."
+    },
+    {
+      "signature": "apply power rule -> set equation to zero -> isolate variable -> apply power rule -> evaluate inequality -> substitute value -> evaluate power -> perform multiplication -> perform subtraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.69. A company's pro t function is π(q) = 400q − 2q2 − 10000. Find the\nquantity that maximizes pro t."
+    },
+    {
+      "signature": "apply power rule -> set equation to zero -> isolate variable -> substitute value -> evaluate power -> perform multiplication -> perform addition and subtraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.70. If π(q) = −0.01q2 + 10q − 500,  nd the maximum pro t."
+    },
+    {
+      "signature": "subtract polynomials",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.71. A  rm has R(q) = 80q and C(q) = 2000 + 30q + 0.05q2. Find the\nbreak-even points and the pro t-maximizing quantity."
+    },
+    {
+      "signature": "compute derivative -> set to zero -> solve for q -> compute second derivative -> evaluate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.69. A company's pro t function is π(q) = 400q − 2q2 − 10000. Find the\nquantity that maximizes pro t."
+    },
+    {
+      "signature": "compute derivative -> set to zero -> solve for q -> evaluate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.70. If π(q) = −0.01q2 + 10q − 500,  nd the maximum pro t."
+    },
+    {
+      "signature": "subtract functions -> simplify expression -> compute derivative -> set to zero -> solve for q -> set to zero -> multiply equation -> reorder terms -> apply quadratic formula -> simplify radical -> calculate values",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.71. A  rm has R(q) = 80q and C(q) = 2000 + 30q + 0.05q2. Find the\nbreak-even points and the pro t-maximizing quantity."
+    },
+    {
+      "signature": "apply chain rule -> simplify coefficients -> substitute value -> evaluate exponential -> perform multiplication",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.72. A car's value is V (t) = 25000e−0.15t. Find the depreciation rate at t = 3\nyears."
+    },
+    {
+      "signature": "calculate slope -> construct linear equation -> compute derivative",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.73. Equipment depreciates linearly from $50,000 to $5,000 over 10 years.\nFind the depreciation function and rate."
+    },
+    {
+      "signature": "rewrite base -> apply chain rule -> calculate logarithm -> substitute value -> evaluate expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.74. A machine's value is V (t) = 20000(0.8)t. Find the rate of depreciation\nat t = 2."
+    },
+    {
+      "signature": "apply chain rule -> calculate logarithm -> substitute value -> evaluate power -> perform multiplication",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.75. A building depreciates using the declining balance method: V (t) =\n100000(0.85)t. Find the depreciation rate at t = 5."
+    },
+    {
+      "signature": "define function -> substitute value -> simplify fraction -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.76. A company uses sum-of-years-digits depreciation for a $60,000 asset\nwith 5-year life. The depreciation in year t is D(t) = 2(5−t+1)\n5·6 × 60000. Find the rate of\nchange of book value at t = 2."
+    },
+    {
+      "signature": "apply chain rule -> simplify constant -> substitute value -> evaluate exponential -> perform multiplication",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.77. A bacteria population grows as P (t) = 500e0.3t. Find the growth rate at\nt = 5 hours."
+    },
+    {
+      "signature": "apply chain rule -> simplify expression -> evaluate exponential -> evaluate denominator -> evaluate square -> evaluate numerator -> calculate quotient",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.78. A population of deer is modeled by P (t) = 10000\n1+9e−0.2t . Find the growth\nrate at t = 10 years."
+    },
+    {
+      "signature": "apply power rule -> substitute value",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.79. A culture of yeast grows according to P (t) = 2000 + 100t2. Find the\ninstantaneous growth rate at t = 4 hours."
+    },
+    {
+      "signature": "apply chain rule -> simplify constant -> substitute value -> evaluate exponential -> multiply constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.80. The population of a city is P (t) = 250000e0.02t. Find the growth rate at\nt = 10 years."
+    },
+    {
+      "signature": "set constant -> equate expression -> isolate term -> isolate exponential -> apply natural logarithm -> define function -> apply chain rule -> substitute value -> evaluate denominator -> evaluate numerator -> calculate quotient",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.81. A  sh population follows logistic growth: P (t) = 10000\n1+4e−0.1t . Find the\nmaximum growth rate."
+    },
+    {
+      "signature": "compute derivative -> substitute value -> evaluate denominator -> multiply constants -> calculate quotient -> compare magnitude",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.82. For demand function D(p) = 100 − 2p,  nd the elasticity at p = 30."
+    },
+    {
+      "signature": "compute derivative -> evaluate function -> substitute values -> multiply constants -> calculate quotient -> classify result",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.83. For D(p) = 200 − 5p,  nd the elasticity at p = 20."
+    },
+    {
+      "signature": "apply chain rule -> simplify coefficient -> substitute expression -> cancel terms -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.84. For D(p) = 500e−0.1p,  nd the elasticity."
+    },
+    {
+      "signature": "rewrite exponent -> apply power rule -> substitute expression -> substitute expression -> multiply fractions -> simplify exponents",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.85. For D(p) = 1000\np ,  nd the elasticity."
+    },
+    {
+      "signature": "distribute p -> apply power rule -> set derivative to zero -> solve linear equation -> evaluate function -> differentiate polynomial -> substitute expression -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.86. A product has demand D(p) = 300 − 3p. Find the price that maximizes\nrevenue."
+    },
+    {
+      "signature": "apply power rule -> apply power rule -> evaluate at point -> evaluate at point",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.87. For s(t) = t3 − 6t2 + 9t,  nd velocity and acceleration at t = 2."
+    },
+    {
+      "signature": "apply product rule -> factor exponential -> apply product rule -> distribute negative -> combine like terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.88. If x(t) = e−t sin t,  nd x′′(t)."
+    },
+    {
+      "signature": "apply power rule -> apply power rule -> factor constant -> factor quadratic -> solve equation",
+      "memberCount": 1,
+      "canonicalStem": "Example 3.91. The position of a particle is s(t) = t4 − 4t3 + 6t2. Find when the\nacceleration is zero."
+    },
+    {
+      "signature": "apply reverse power rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.2. Find R x3 dx."
+    },
+    {
+      "signature": "apply logarithmic integration rule",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.3. Find R 1\nx dx."
+    },
+    {
+      "signature": "apply power rule -> apply trigonometric rule -> apply logarithmic rule -> combine terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.8. Find R (4x3 + 5 cos x − 1 x ) dx."
+    },
+    {
+      "signature": "apply logarithmic rule -> apply trigonometric rule -> apply exponential rule -> combine terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.10. Find R 2 x + 3 sin x − 4ex dx."
+    },
+    {
+      "signature": "rewrite as power -> apply power rule -> rewrite as power -> apply power rule -> combine terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.11. Find R √x + 1 √x dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> substitute u -> integrate exponential -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.12. Find R 2xex2 dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> substitute u -> integrate sine -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.13. Find R sin(ln x) x dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> isolate differential -> substitute u -> factor constant -> apply power rule -> simplify coefficient -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.14. Find R x√x2 + 1 dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> isolate differential -> substitute u -> factor constant -> integrate reciprocal -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.15. Find R x x2+1 dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> isolate differential -> substitute u -> factor constant -> integrate cosine -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.16. Find R cos(3x) dx."
+    },
+    {
+      "signature": "assign variables for integration by parts -> apply integration by parts formula -> evaluate integral -> factor expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.17. Find R xex dx."
+    },
+    {
+      "signature": "assign variables for integration by parts -> apply integration by parts formula -> simplify integrand -> evaluate integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.18. Find R ln x dx."
+    },
+    {
+      "signature": "assign variables for integration by parts -> apply integration by parts formula -> substitute known integral result -> distribute constant -> combine like terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.19. Find R x2ex dx."
+    },
+    {
+      "signature": "assign variables for integration by parts -> apply integration by parts formula -> evaluate integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.20. Find R x cos x dx."
+    },
+    {
+      "signature": "assign variables for integration by parts -> apply integration by parts formula -> assign variables for integration by parts -> apply integration by parts formula -> substitute expression -> add integral to both sides -> divide by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.21. Find R ex sin x dx."
+    },
+    {
+      "signature": "factor denominator -> set partial fraction decomposition -> multiply by common denominator -> expand polynomial -> equate coefficients -> substitute value -> solve for constants -> integrate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.22. Find R 1 x2−4 dx."
+    },
+    {
+      "signature": "factor denominator -> cancel common factors -> integrate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.23. Find R x+2 x2+3x+2 dx."
+    },
+    {
+      "signature": "identify derivative -> substitute u -> integrate reciprocal -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.24. Find R 2x+3 x2+3x+2 dx."
+    },
+    {
+      "signature": "set partial fraction decomposition -> multiply by common denominator -> expand polynomial -> equate coefficients -> subtract equations -> solve for constants -> integrate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.25. Find R 3x+5 (x+1)(x+2) dx."
+    },
+    {
+      "signature": "factor denominator -> set partial fraction decomposition -> multiply by common denominator -> expand polynomial -> equate coefficients -> substitute value -> solve system of equations -> solve for constants -> integrate function",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.26. Find R 2x2+3x+4 x3+x2−2x dx."
+    },
+    {
+      "signature": "factor expression -> substitute u -> evaluate integral -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.29. Find R sin3 x dx."
+    },
+    {
+      "signature": "factor expression -> substitute u -> expand polynomial -> evaluate integral -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.30. Find R sin2 x cos3 x dx."
+    },
+    {
+      "signature": "apply trigonometric identity -> expand binomial -> apply trigonometric identity -> simplify fraction -> distribute integral -> evaluate integral -> simplify",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.31. Find R sin4 x dx."
+    },
+    {
+      "signature": "rewrite trigonometric function -> substitute u -> evaluate integral -> substitute back -> apply logarithmic identity",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.32. Find R tan x dx."
+    },
+    {
+      "signature": "multiply by conjugate -> distribute term -> substitute u -> evaluate integral -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.33. Find R sec x dx."
+    },
+    {
+      "signature": "apply trigonometric identity -> distribute integral -> evaluate integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.34. Find R tan2 x dx."
+    },
+    {
+      "signature": "apply integration by parts -> substitute identity -> distribute term -> add integral to both sides -> divide by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.35. Find R sec3 x dx."
+    },
+    {
+      "signature": "factor expression -> substitute identity -> substitute u -> expand polynomial -> evaluate integral -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.36. Find R tan3 x sec3 x dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> simplify radical -> substitute expression -> apply trigonometric identity -> apply power-reduction identity -> integrate -> apply double angle identity -> apply inverse trigonometric function -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.37. Find R √1 − x2 dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> simplify radical -> substitute expression -> cancel terms -> integrate -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.38. Find R 1 √4−x2 dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> substitute expression -> cancel terms -> apply trigonometric identity -> integrate -> convert trigonometric functions -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.39. Find R 1 x2√4−x2 dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> apply trigonometric identity -> substitute expression -> cancel terms -> integrate -> substitute back",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.40. Find R 1 x2+9 dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> simplify radical -> substitute expression -> apply trigonometric identity -> distribute terms -> split integral -> apply reduction formula -> apply integral formula -> substitute expression -> simplify expression -> substitute back -> simplify",
+      "memberCount": 1,
+      "canonicalStem": "Example 4.41. Find R √x2 − 4 dx."
+    },
+    {
+      "signature": "apply power rule for integration -> evaluate boundaries -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.4. Compute R 2 0 x3 dx."
+    },
+    {
+      "signature": "identify logarithmic antiderivative -> evaluate boundaries -> apply logarithm property",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.6. Compute R 4 1 1 x dx."
+    },
+    {
+      "signature": "apply u-substitution rule -> evaluate boundaries -> factor constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.7. Compute R 1 0 e2x dx."
+    },
+    {
+      "signature": "apply power rule -> simplify coefficient -> evaluate boundaries -> apply power rule -> evaluate boundaries -> apply power rule -> evaluate boundaries -> combine terms",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.9. Use properties to evaluate R 2 0 (3x2 − 2x + 1)dx."
+    },
+    {
+      "signature": "apply linearity property -> substitute values -> multiply constants -> subtract constants",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.10. If R 2 0 f (x)dx = 5 and R 2 0 g(x)dx = 3, nd R 2 0 (4f (x) − 2g(x))dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> isolate differential -> change lower bound -> change upper bound -> substitute variable -> factor constant -> apply fundamental theorem of calculus -> evaluate boundaries",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.11. Compute R 1 0 xex2 dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> change lower bound -> change upper bound -> substitute variable -> apply power rule -> evaluate boundaries",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.12. Compute R π/2 0 sin x cos x dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> isolate differential -> change lower bound -> change upper bound -> substitute variable -> factor constant -> apply natural log integral -> evaluate boundaries",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.13. Compute R 1 0 x x2+1 dx."
+    },
+    {
+      "signature": "substitute u -> calculate differential -> evaluate limits -> substitute variable -> evaluate integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.14. Compute R π 0 sin2 x cos x dx."
+    },
+    {
+      "signature": "substitute trigonometric function -> calculate differential -> evaluate limits -> substitute variable -> simplify integrand -> cancel terms -> evaluate integral -> apply fundamental theorem of calculus",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.15. Compute R 2 0 dx √4−x2 ."
+    },
+    {
+      "signature": "apply limit definition -> rewrite exponent -> apply power rule -> apply fundamental theorem of calculus -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.16. Compute R ∞ 1 1 x2 dx."
+    },
+    {
+      "signature": "apply limit definition -> apply exponential rule -> apply fundamental theorem of calculus -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.17. Compute R ∞ 0 e−x dx."
+    },
+    {
+      "signature": "apply limit definition -> apply logarithmic rule -> apply fundamental theorem of calculus -> evaluate limit",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.18. Compute R ∞ 1 1 x dx."
+    },
+    {
+      "signature": "identify discontinuity -> rewrite as limit -> rewrite integrand -> apply power rule -> evaluate limits -> simplify",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.19. Compute R 1 0 1 √x dx."
+    },
+    {
+      "signature": "split integral at discontinuity -> apply power rule -> evaluate boundaries -> simplify -> evaluate limit -> state divergence",
+      "memberCount": 1,
+      "canonicalStem": "Example 5.20. Compute R 2 0 1 (x−1)2 dx. (This integral has a discontinuity at x = 1.)"
+    },
+    {
+      "signature": "compare functions -> set up integral -> apply power rule -> evaluate boundaries -> subtract fractions",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.1. Find the area between y = x2 and y = x from x = 0 to x = 1."
+    },
+    {
+      "signature": "equate functions -> solve for x -> compare functions -> set up sum of integrals -> apply trigonometric integration -> evaluate boundaries -> simplify -> apply trigonometric integration -> evaluate boundaries -> simplify -> add results",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.2. Find the area between y = sin x and y = cos x from x = 0 to x = π/2."
+    },
+    {
+      "signature": "equate functions -> subtract terms -> factor expression -> solve for x -> compare functions -> set up integral -> combine like terms -> apply power rule -> evaluate boundaries -> subtract fractions",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.3. Find the area enclosed by y = x2 and y = 2x − x2."
+    },
+    {
+      "signature": "compare functions -> set up integral -> apply power rule -> evaluate limits -> simplify arithmetic -> identify symmetry -> apply absolute value -> apply power rule -> evaluate limits -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.4. Find the area between y = x3 and y = x from x = −1 to x = 1."
+    },
+    {
+      "signature": "compare functions -> set up integral -> apply integration by parts -> evaluate limits -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.5. Find the area bounded by y = ln x, y = 0, x = 1, and x = e."
+    },
+    {
+      "signature": "set up integral -> simplify integrand -> apply power rule -> evaluate limits -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.6. Find the volume of the solid obtained by rotating y = √x from x = 0 to x = 4 about the x-axis."
+    },
+    {
+      "signature": "define rotation -> set up integral -> apply power rule -> evaluate limits -> distribute terms -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.7. Find the volume of a sphere of radius R."
+    },
+    {
+      "signature": "set up integral -> apply power-reduction identity -> factor constant -> apply integration -> evaluate limits -> simplify arithmetic",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.8. Find the volume of the solid obtained by rotating y = sin x from x = 0 to x = π about the x-axis."
+    },
+    {
+      "signature": "identify radii -> set up integral -> apply power rule -> evaluate limits -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.9. Find the volume obtained by rotating the region between y = x2 and y = x from x = 0 to x = 1 about the x-axis."
+    },
+    {
+      "signature": "equate functions -> solve for variable -> compare functions -> identify radii -> set up integral -> apply power rule -> evaluate limits -> find common denominator -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.10. Find the volume of the solid obtained by rotating the region bounded by y = x2 and y = 2x about the x-axis."
+    },
+    {
+      "signature": "equate functions -> solve for variable -> compare functions -> identify radii -> set up integral -> apply power rule -> evaluate limits -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.11. Find the volume obtained by rotating the region between y = √x and y = x2 about the x-axis."
+    },
+    {
+      "signature": "set up integral -> simplify integrand -> apply power rule -> evaluate limits -> simplify expression",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.12. Find the volume obtained by rotating the region under y = x2 from x = 0 to x = 2 about the y-axis."
+    },
+    {
+      "signature": "define shell variables -> set up integral -> distribute variable -> apply power rule -> evaluate limits -> find common denominator -> simplify fraction",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.13. Find the volume obtained by rotating the region between y = x2 and y = x from x = 0 to x = 1 about the y-axis."
+    },
+    {
+      "signature": "set up integral -> define substitution variables -> apply integration by parts -> evaluate definite integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.14. Find the volume obtained by rotating the region under y = sin x from x = 0 to x = π about the y-axis."
+    },
+    {
+      "signature": "calculate derivative -> simplify expression -> set up integral -> perform u-substitution -> change limits of integration -> evaluate power rule -> evaluate at limits",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.15. Find the length of y = x3/2 from x = 0 to x = 4."
+    },
+    {
+      "signature": "calculate derivative -> simplify expression -> set up integral -> apply power rule -> evaluate definite integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.16. Find the length of y = 2/3 x3/2 from x = 0 to x = 3."
+    },
+    {
+      "signature": "define function -> calculate derivative -> simplify fraction -> set up integral -> apply symmetry -> evaluate inverse trigonometric integral -> multiply",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.17. Find the circumference of a circle of radius R using arc length."
+    },
+    {
+      "signature": "set up integral -> apply power rule -> evaluate definite integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.18. A spring obeys Hooke's law: F (x) = kx, where k is the spring constant. Find the work done to stretch the spring from its natural length x = 0 to x = L."
+    },
+    {
+      "signature": "set up integral -> apply power rule -> evaluate boundaries -> arithmetic simplification",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.19. If a spring has spring constant k = 100 N/m,  nd the work to stretch it from 0.1 m to 0.3 m."
+    },
+    {
+      "signature": "solve algebraic equation -> set up integral -> apply power rule -> evaluate boundaries -> arithmetic simplification",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.20. A force of 10 N stretches a spring 0.2 m from its natural length. Find the work to stretch it 0.5 m."
+    },
+    {
+      "signature": "equate expressions -> solve for variable -> substitute value -> set up integral -> apply power rule -> evaluate boundaries -> arithmetic simplification -> set up integral -> apply power rule -> evaluate boundaries -> arithmetic simplification",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.21. If demand is D(q) = 50 − 0.5q and supply is S(q) = 10 + 2q,  nd equilibrium and surpluses."
+    },
+    {
+      "signature": "equate expressions -> solve for variable -> substitute value -> set up integral -> apply power rule -> evaluate boundaries -> arithmetic simplification",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.22. If D(q) = 100 − 2q and S(q) = 20 + 3q,  nd equilibrium and consumer surplus."
+    },
+    {
+      "signature": "compute derivative -> simplify expression -> set up integral -> cancel terms -> evaluate integral -> evaluate boundaries",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.23. Find the surface area of a sphere of radius R."
+    },
+    {
+      "signature": "calculate derivative -> simplify radical expression -> set up integral -> evaluate integral",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.23. Find the surface area of a sphere of radius R."
+    },
+    {
+      "signature": "calculate derivative -> simplify radical -> set up integral -> substitute value -> calculate differential -> change limits of integration -> substitute trigonometric expressions -> apply trigonometric identity -> distribute terms -> apply reduction formula -> apply reduction formula -> combine like terms -> evaluate at limits -> arithmetic simplification -> multiply by constant",
+      "memberCount": 1,
+      "canonicalStem": "Example 6.24. Find the surface area obtained by rotating y = x2 from x = 0 to x = 1 about the x-axis."
+    },
+    {
+      "signature": "calculate cardinality product",
+      "memberCount": 1,
+      "canonicalStem": "Example 2: For the two sets A and B given above, we have that \\(n(A) = 3\\) and \\(n(B) = 2\\). So"
+    },
+    {
+      "signature": "compute cartesian product -> define subset",
+      "memberCount": 1,
+      "canonicalStem": "Example 4: Let \\(A = \\{a, b\\}\\), \\(B = \\{c, d\\}\\). Find some relations from A to B."
+    },
+    {
+      "signature": "evaluate function -> verify mapping -> define sets -> compare sets",
+      "memberCount": 1,
+      "canonicalStem": "Example: Let \\(A = \\{1, 2, 3, 4, 5\\}\\), \\(B = \\{4, 7, 10, 13, 16, 19, 22\\}\\) and \\(f: A \\to B\\) is defined by \\(f(x) = 3x+1\\)\n(a) find \\(f(1), f(2), f(3), f(4)\\) and \\(f(5)\\)\n(b) Show that f is a function from A to B\n(c) Identify domain, co-domain and range of f.\n(d) Verify whether the range is equal to codomain."
+    },
+    {
+      "signature": "extract domain and range -> extract codomain -> compare range and codomain",
+      "memberCount": 1,
+      "canonicalStem": "Example 5: Let \\(A = \\{1, 2, 3, 4, 5\\}\\), \\(B = \\{6, 7, 8\\}\\). If \\(f: A \\to B\\) is such that \\(f(1) = 6, f(2) = 7, f(3) = 7, f(4) = 8, f(5) = 7\\). Then we say that f is an onto function with the domain"
+    },
+    {
+      "signature": "set denominator to zero -> solve trigonometric equation -> exclude values from domain",
+      "memberCount": 1,
+      "canonicalStem": "What is the domain of \\(f(x) = \\frac{1}{1-2\\cos x}\\)?"
+    },
+    {
+      "signature": "identify domain -> identify domain -> intersect sets",
+      "memberCount": 1,
+      "canonicalStem": "Example, the domain of \\(f(x) = \\sqrt{x}\\) is \\(A = [0, \\infty)\\) and the domain of \\(g(x) = \\sqrt{2-x}\\) is \\(B = (-\\infty, 2]\\), so the domain of \\(f(x)+g(x) = \\sqrt{x} + \\sqrt{2-x}\\) is \\(A \\cap B = [0, 2]\\)."
+    },
+    {
+      "signature": "substitute function -> simplify expression -> substitute function -> simplify expression -> substitute function -> simplify expression -> substitute function -> distribute constant -> combine like terms",
+      "memberCount": 1,
+      "canonicalStem": "Example: suppose \\(f, g, h: \\mathbb{R} \\to \\mathbb{R}\\) are defined by \\(f(x) = 4x+3\\), \\(g(x) = x^2-2\\), \\(h(x) = e^x\\). Find (i) \\(g \\circ h\\) (ii) \\(f \\circ h\\) (iii) \\(h \\circ g\\) (iv) \\(f \\circ f\\)"
+    }
+  ]
+}

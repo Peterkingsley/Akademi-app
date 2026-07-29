@@ -7,13 +7,16 @@ import { Screen } from "../../components/layout/Screen";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { AuthProgressDots } from "../../components/auth/AuthProgressDots";
+import { GoogleSignInButton } from "../../components/auth/GoogleSignInButton";
 import api from "../../services/api";
+import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
 export const RegisterScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { signInWithGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
   const {
     university,
     faculty,
@@ -139,6 +142,20 @@ export const RegisterScreen: React.FC = () => {
           </View>
         </View>
 
+        {googleError ? (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{googleError}</Text>
+          </View>
+        ) : null}
+
+        <GoogleSignInButton onPress={signInWithGoogle} loading={googleLoading} label="Sign up with Google" />
+
+        <View style={styles.dividerRow}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>or continue with email</Text>
+          <View style={styles.divider} />
+        </View>
+
         <View style={styles.profileSummaryCard}>
           <View style={styles.summaryIcon}>
             <BookOpen size={18} color={colors.primary} />
@@ -234,7 +251,7 @@ export const RegisterScreen: React.FC = () => {
             label="Create Account"
             onPress={handleRegister}
             loading={loading}
-            disabled={loading}
+            disabled={loading || googleLoading}
             style={styles.createButton}
             icon={<ArrowRight size={18} color="#FFFFFF" />}
           />
@@ -333,6 +350,21 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: 20,
     paddingLeft: 18,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#1D1D1D",
+  },
+  dividerText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   profileSummaryCard: {
     backgroundColor: "#101412",

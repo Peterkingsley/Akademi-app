@@ -7,14 +7,17 @@ import { Screen } from "../../components/layout/Screen";
 import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { GoogleSignInButton } from "../../components/auth/GoogleSignInButton";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useGoogleAuth } from "../../hooks/useGoogleAuth";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const { signInWithGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -83,9 +86,9 @@ export const LoginScreen: React.FC = () => {
         </View>
 
         <View style={styles.formPanel}>
-          {error ? (
+          {error || googleError ? (
             <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.errorText}>{error || googleError}</Text>
             </View>
           ) : null}
 
@@ -122,10 +125,18 @@ export const LoginScreen: React.FC = () => {
             label="Sign In"
             onPress={handleLogin}
             loading={loading}
-            disabled={loading}
+            disabled={loading || googleLoading}
             style={styles.signInButton}
             icon={<ArrowRight size={18} color="#FFFFFF" />}
           />
+
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <GoogleSignInButton onPress={signInWithGoogle} loading={googleLoading} />
 
           <View style={styles.dividerRow}>
             <View style={styles.divider} />

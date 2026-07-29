@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { Search, BookOpen, CheckCircle2, Send } from "lucide-react-native";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -27,6 +27,8 @@ interface University {
 
 export const UniversityPickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const pendingAuth = route.params?.pendingAuth;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [universities, setUniversities] = useState<University[]>([]);
@@ -91,7 +93,8 @@ export const UniversityPickerScreen: React.FC = () => {
     if (selectedUni) {
       navigation.navigate("DepartmentPicker", {
         universityId: selectedUni.id,
-        universityName: selectedUni.name
+        universityName: selectedUni.name,
+        pendingAuth,
       });
     }
   };

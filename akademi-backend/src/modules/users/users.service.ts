@@ -351,6 +351,9 @@ export class UsersService {
           department: departmentName,
           level,
           courses: uniqueCourseInputs.map((course) => course.code),
+          // Completing the academic profile is what "onboarding" means —
+          // clears the flag set for Google accounts auto-created without one.
+          needs_onboarding: false,
         },
       });
 

@@ -1,0 +1,758 @@
+{
+  "note": "FROZEN at generation time — no later additions. Built from the 444 v3 canonical labels reconstructed in docs/mth102-labels-v3.json.",
+  "generatedAt": "2026-07-26T23:03:58.549Z",
+  "entryCount": 50,
+  "discriminatingCount": 25,
+  "genericCount": 25,
+  "recoveredDuringMerge": 23,
+  "unmappedRawLabels": [],
+  "entries": [
+    {
+      "name": "apply L'Hôpital's rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply L'Hôpital's rule"
+      ]
+    },
+    {
+      "name": "apply chain rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply chain rule",
+        "differentiate inner function"
+      ]
+    },
+    {
+      "name": "apply integration by parts",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply integration by parts",
+        "apply integration by parts formula",
+        "assign variables for integration by parts"
+      ]
+    },
+    {
+      "name": "apply u-substitution",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply u-substitution rule",
+        "perform u-substitution",
+        "change limits of integration",
+        "change lower bound",
+        "change upper bound"
+      ]
+    },
+    {
+      "name": "apply power rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply power rule",
+        "evaluate power rule"
+      ]
+    },
+    {
+      "name": "apply quotient rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply quotient rule"
+      ]
+    },
+    {
+      "name": "apply product rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply product rule"
+      ]
+    },
+    {
+      "name": "apply implicit differentiation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply implicit differentiation"
+      ]
+    },
+    {
+      "name": "apply trigonometric identity",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply trigonometric identity",
+        "apply double angle identity",
+        "apply power-reduction identity",
+        "apply quadrant identity",
+        "convert trigonometric functions"
+      ]
+    },
+    {
+      "name": "apply fundamental theorem of calculus",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply fundamental theorem of calculus"
+      ]
+    },
+    {
+      "name": "apply signum definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply signum definition",
+        "evaluate signum factors"
+      ]
+    },
+    {
+      "name": "apply absolute value definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply absolute value",
+        "apply absolute value definition",
+        "define absolute value",
+        "remove absolute value"
+      ]
+    },
+    {
+      "name": "apply floor definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply floor definition",
+        "evaluate floor",
+        "convert floor to inequality"
+      ]
+    },
+    {
+      "name": "apply ceiling definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply ceiling definition",
+        "evaluate ceiling",
+        "construct ceiling expression",
+        "convert ceiling to inequality",
+        "interpret ceiling inequality"
+      ]
+    },
+    {
+      "name": "apply squeeze theorem",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply squeeze theorem"
+      ]
+    },
+    {
+      "name": "apply intermediate value theorem",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply intermediate value theorem"
+      ]
+    },
+    {
+      "name": "apply quadratic formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply quadratic formula"
+      ]
+    },
+    {
+      "name": "complete the square",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "complete the square"
+      ]
+    },
+    {
+      "name": "perform polynomial division",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "perform polynomial division"
+      ]
+    },
+    {
+      "name": "compute cartesian product",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "compute cartesian product",
+        "calculate cardinality product"
+      ]
+    },
+    {
+      "name": "apply injective/surjective definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply injective definition",
+        "apply surjective definition",
+        "conclude bijection",
+        "verify bijective property"
+      ]
+    },
+    {
+      "name": "simplify expression",
+      "classification": "GENERIC",
+      "aliases": [
+        "algebraic simplification",
+        "rewrite expression",
+        "rewrite as fractional exponent",
+        "rewrite as limit",
+        "rewrite as power",
+        "rewrite base",
+        "rewrite exponent",
+        "rewrite fraction",
+        "rewrite integrand",
+        "rewrite tangent as quotient",
+        "rewrite trigonometric function",
+        "rewrite using negative exponent",
+        "rewrite with negative exponent",
+        "rewrite with positive exponent",
+        "rewrite with radical",
+        "simplify",
+        "simplify arithmetic",
+        "simplify coefficient",
+        "simplify coefficients",
+        "simplify constant",
+        "simplify equation",
+        "simplify expression",
+        "simplify fraction",
+        "simplify numerator",
+        "simplify product",
+        "simplify quotient",
+        "simplify exponent",
+        "simplify exponents",
+        "simplify integrand",
+        "simplify radical",
+        "simplify radical expression",
+        "simplify trigonometric expression",
+        "expand binomial",
+        "expand numerator",
+        "expand polynomial",
+        "expand trigonometric identity",
+        "distribute constant",
+        "distribute division",
+        "distribute integral",
+        "distribute negative",
+        "distribute negative sign",
+        "distribute p",
+        "distribute term",
+        "distribute terms",
+        "distribute variable",
+        "combine like terms",
+        "combine terms",
+        "cancel common factors",
+        "cancel terms",
+        "factor expression",
+        "factor common term",
+        "identify common factor",
+        "factor constant",
+        "factor variable",
+        "factor polynomial",
+        "factor quadratic",
+        "factor numerator",
+        "factor denominator",
+        "factor derivative",
+        "factor exponential",
+        "factor x from radical",
+        "factor x squared from radical",
+        "find common denominator"
+      ]
+    },
+    {
+      "name": "arithmetic evaluation",
+      "classification": "GENERIC",
+      "aliases": [
+        "add",
+        "add constants",
+        "add inequalities",
+        "add integral to both sides",
+        "add results",
+        "add terms",
+        "subtract",
+        "subtract constant",
+        "subtract constants",
+        "subtract equations",
+        "subtract fractions",
+        "subtract functions",
+        "subtract polynomials",
+        "subtract terms",
+        "multiply",
+        "multiply arguments",
+        "multiply by coefficient",
+        "multiply by common denominator",
+        "multiply by conjugate",
+        "multiply by constant",
+        "multiply by reciprocal",
+        "multiply constants",
+        "multiply equation",
+        "multiply fractions",
+        "multiply inequality by x squared",
+        "multiply results",
+        "perform multiplication",
+        "divide",
+        "divide by coefficient",
+        "divide by constant",
+        "divide by highest power",
+        "divide by variable",
+        "divide by x",
+        "divide by x3",
+        "divide by x4",
+        "divide constants",
+        "divide numerator and denominator by x",
+        "arithmetic evaluation",
+        "arithmetic simplification",
+        "calculate sum",
+        "calculate quotient",
+        "calculate reciprocal",
+        "calculate negative reciprocal",
+        "perform addition and subtraction",
+        "perform subtraction",
+        "sum terms"
+      ]
+    },
+    {
+      "name": "substitute value",
+      "classification": "GENERIC",
+      "aliases": [
+        "substitute absolute value definition",
+        "substitute back",
+        "substitute constant",
+        "substitute constants",
+        "substitute delta",
+        "substitute expression",
+        "substitute function",
+        "substitute identity",
+        "substitute initial condition",
+        "substitute known integral result",
+        "substitute negative value",
+        "substitute point",
+        "substitute point coordinates",
+        "substitute positive value",
+        "substitute trigonometric expressions",
+        "substitute trigonometric function",
+        "substitute trigonometric values",
+        "substitute u",
+        "substitute value",
+        "substitute values",
+        "substitute variable",
+        "substitute x-value",
+        "substitute y for f(x)",
+        "evaluate absolute value",
+        "evaluate at endpoints",
+        "evaluate at limits",
+        "evaluate at point",
+        "evaluate boundaries",
+        "evaluate boundary condition",
+        "evaluate function at negative value",
+        "evaluate function at positive value",
+        "evaluate expression",
+        "evaluate function",
+        "evaluate terms",
+        "evaluate constant",
+        "evaluate constant function",
+        "evaluate function monotonicity",
+        "evaluate relation condition"
+      ]
+    },
+    {
+      "name": "solve equation",
+      "classification": "GENERIC",
+      "aliases": [
+        "solve algebraic equation",
+        "solve equation",
+        "solve for constant",
+        "solve for constants",
+        "solve for variable",
+        "solve for x",
+        "solve for derivative",
+        "solve for preimage",
+        "solve for q",
+        "solve inequality",
+        "solve linear equation",
+        "solve linear equations",
+        "solve system of equations",
+        "solve trigonometric equation",
+        "isolate derivative",
+        "isolate differential",
+        "isolate exponential",
+        "isolate sine",
+        "isolate term",
+        "isolate variable",
+        "rearrange equation",
+        "rearrange terms",
+        "reorder terms",
+        "set equation",
+        "set equation to constant",
+        "set equation to zero",
+        "set to zero",
+        "set x to zero",
+        "equate angular frequency",
+        "equate arguments",
+        "equate coefficients",
+        "equate derivative to slope",
+        "equate derivatives",
+        "equate exponents",
+        "equate expression",
+        "equate expressions",
+        "equate functions",
+        "equate normal slope formula"
+      ]
+    },
+    {
+      "name": "evaluate limit",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply limit",
+        "apply limit definition",
+        "apply limit laws",
+        "evaluate limit",
+        "evaluate limits",
+        "evaluate individual limits",
+        "evaluate one-sided limits",
+        "evaluate left-hand limit",
+        "evaluate right-hand limit",
+        "evaluate limit of numerator",
+        "evaluate limit of denominator",
+        "evaluate standard limit",
+        "conclude limit"
+      ]
+    },
+    {
+      "name": "calculate derivative",
+      "classification": "GENERIC",
+      "aliases": [
+        "calculate derivative",
+        "calculate derivatives",
+        "compute derivative",
+        "compute second derivative",
+        "evaluate derivative",
+        "differentiate numerator",
+        "differentiate denominator",
+        "differentiate polynomial",
+        "collect derivative terms",
+        "identify derivative"
+      ]
+    },
+    {
+      "name": "evaluate integral",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply integral formula",
+        "apply integration",
+        "evaluate integral",
+        "evaluate definite integral",
+        "integrate",
+        "integrate cosine",
+        "integrate exponential",
+        "integrate expression",
+        "integrate function",
+        "integrate reciprocal",
+        "integrate sine",
+        "set up integral",
+        "set up sum of integrals",
+        "split integral",
+        "split integral at discontinuity"
+      ]
+    },
+    {
+      "name": "define domain and range",
+      "classification": "GENERIC",
+      "aliases": [
+        "define domain",
+        "determine domain",
+        "determine polynomial domain",
+        "define range",
+        "determine range",
+        "conclude domain",
+        "check domain constraints",
+        "exclude values from domain",
+        "identify domain",
+        "identify domain restrictions",
+        "extract domain and range",
+        "verify real domain"
+      ]
+    },
+    {
+      "name": "identify asymptotes",
+      "classification": "GENERIC",
+      "aliases": [
+        "identify asymptotes",
+        "identify vertical asymptote",
+        "assign horizontal asymptote"
+      ]
+    },
+    {
+      "name": "evaluate trigonometric functions",
+      "classification": "GENERIC",
+      "aliases": [
+        "evaluate trigonometric functions",
+        "evaluate sine",
+        "apply trigonometric rule",
+        "apply trigonometric derivative rule",
+        "apply trigonometric integration",
+        "identify trigonometric antiderivative",
+        "apply inverse sine",
+        "apply inverse trigonometric function",
+        "evaluate inverse trigonometric integral"
+      ]
+    },
+    {
+      "name": "evaluate logarithm",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply natural logarithm",
+        "apply log properties",
+        "apply logarithm property",
+        "apply logarithmic identity",
+        "calculate logarithm",
+        "evaluate logarithm",
+        "apply logarithmic integration rule",
+        "apply logarithmic rule",
+        "apply natural log integral",
+        "identify logarithmic antiderivative",
+        "apply natural log derivative"
+      ]
+    },
+    {
+      "name": "evaluate exponential",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply exponential derivative",
+        "apply exponential rule",
+        "evaluate exponential",
+        "evaluate exponents",
+        "evaluate power",
+        "evaluate square",
+        "express as common base",
+        "convert to exponential form"
+      ]
+    },
+    {
+      "name": "analyze inequality",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply inequality",
+        "apply inequality property",
+        "evaluate inequality",
+        "interpret inequality",
+        "verify inequality",
+        "state inequality properties",
+        "set inequality",
+        "define inequality bounds"
+      ]
+    },
+    {
+      "name": "set conditions",
+      "classification": "GENERIC",
+      "aliases": [
+        "set denominator to zero",
+        "set denominator unequal to zero",
+        "set derivative to zero",
+        "set numerator to zero",
+        "set radicand non-negative",
+        "set argument positive",
+        "set constant",
+        "set output equality",
+        "set partial fraction decomposition"
+      ]
+    },
+    {
+      "name": "assign variables",
+      "classification": "GENERIC",
+      "aliases": [
+        "assign variables",
+        "assign functions",
+        "assign delta",
+        "define exponential function",
+        "define function",
+        "define height function",
+        "define linear function",
+        "define piecewise function",
+        "define population function",
+        "define profit function",
+        "define revenue function",
+        "define sets",
+        "define subset",
+        "define substitution variables",
+        "define shell variables",
+        "define endpoint markers",
+        "define interval mapping",
+        "construct function",
+        "construct linear equation",
+        "swap variables"
+      ]
+    },
+    {
+      "name": "identify features",
+      "classification": "GENERIC",
+      "aliases": [
+        "identify factors",
+        "identify degree",
+        "identify leading coefficient",
+        "identify leading coefficients",
+        "identify intercept",
+        "identify vertex formula",
+        "calculate vertex",
+        "identify hole",
+        "identify discontinuity",
+        "identify undefined point",
+        "identify slope",
+        "calculate slope",
+        "identify symmetry",
+        "apply symmetry",
+        "identify reference angle",
+        "identify peak amplitude",
+        "identify radii",
+        "identify segment intervals",
+        "identify range constraint",
+        "identify indeterminate form",
+        "calculate values",
+        "classify result",
+        "interpret result",
+        "conclude bijection",
+        "verify mapping"
+      ]
+    },
+    {
+      "name": "miscellaneous operations",
+      "classification": "GENERIC",
+      "aliases": [
+        "apply constant multiple rule",
+        "apply cube root",
+        "apply identity property",
+        "apply linearity property",
+        "apply point-slope form",
+        "apply product law",
+        "apply reciprocal rule",
+        "apply reduction formula",
+        "apply reflection",
+        "apply root law",
+        "apply sine range bounds",
+        "apply square property",
+        "apply zero product property",
+        "approximate decimal",
+        "approximate value",
+        "assign horizontal asymptote",
+        "assume equality",
+        "bound sine function",
+        "bound term",
+        "calculate cardinality",
+        "calculate differential",
+        "calculate doubling time",
+        "calculate final times",
+        "calculate square root",
+        "convert to degrees",
+        "convert to interval notation",
+        "convert units",
+        "define cost function",
+        "define rotation",
+        "evaluate half-life",
+        "evaluate identity function",
+        "extract codomain",
+        "generalize pattern",
+        "intersect sets",
+        "invert function",
+        "model piecewise cost",
+        "negate result",
+        "perform u-substitution",
+        "provide counterexample",
+        "round result",
+        "scale range",
+        "select piece",
+        "shift range",
+        "specify endpoint conditions",
+        "split into cases",
+        "square term",
+        "state divergence",
+        "take square root",
+        "test counterexample"
+      ]
+    },
+    {
+      "name": "analyze denominator sign",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "analyze denominator sign"
+      ]
+    },
+    {
+      "name": "analyze function range",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "analyze function range"
+      ]
+    },
+    {
+      "name": "analyze growth behavior",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "analyze growth",
+        "analyze growth behavior"
+      ]
+    },
+    {
+      "name": "apply power rule for integration",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply power rule for integration",
+        "apply reverse power rule"
+      ]
+    },
+    {
+      "name": "calculate ratio",
+      "classification": "GENERIC",
+      "aliases": [
+        "calculate ratio"
+      ]
+    },
+    {
+      "name": "compare values",
+      "classification": "GENERIC",
+      "aliases": [
+        "compare degrees",
+        "compare factors",
+        "compare functions",
+        "compare inputs",
+        "compare limits",
+        "compare magnitude",
+        "compare range and codomain",
+        "compare sets",
+        "compare values"
+      ]
+    },
+    {
+      "name": "evaluate denominator",
+      "classification": "GENERIC",
+      "aliases": [
+        "evaluate denominator"
+      ]
+    },
+    {
+      "name": "evaluate numerator",
+      "classification": "GENERIC",
+      "aliases": [
+        "evaluate numerator"
+      ]
+    },
+    {
+      "name": "express as interval",
+      "classification": "GENERIC",
+      "aliases": [
+        "express as interval"
+      ]
+    },
+    {
+      "name": "extract roots",
+      "classification": "GENERIC",
+      "aliases": [
+        "extract roots"
+      ]
+    },
+    {
+      "name": "identify components",
+      "classification": "GENERIC",
+      "aliases": [
+        "identify components"
+      ]
+    },
+    {
+      "name": "interpret definition",
+      "classification": "GENERIC",
+      "aliases": [
+        "interpret definition",
+        "state definition"
+      ]
+    }
+  ]
+}

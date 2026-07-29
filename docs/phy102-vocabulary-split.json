@@ -1,0 +1,1587 @@
+{
+  "note": "Post-split vocabulary (classification not yet assigned). Run --classify next.",
+  "splitSummary": [
+    {
+      "from": "calculate arithmetic",
+      "intoCount": 14
+    }
+  ],
+  "rawToEntryMapping": {
+    "identify variables": "identify variables",
+    "convert units": "convert units",
+    "state formula": "state formula",
+    "substitute values": "substitute values",
+    "calculate arithmetic": "calculate arithmetic",
+    "interpret sign": "interpret sign",
+    "identify geometry": "identify geometry",
+    "apply superposition principle": "apply superposition principle",
+    "apply Coulomb's law": "apply Coulomb's law",
+    "apply vector addition": "apply vector addition",
+    "calculate magnitude": "calculate magnitude",
+    "apply inverse trigonometric function": "apply inverse trigonometric function",
+    "apply electric field formula": "apply electric field formula",
+    "resolve into components": "resolve into components",
+    "apply flux integral definition": "apply flux integral definition",
+    "decompose integral": "decompose integral",
+    "apply dot product definition": "evaluate dot product",
+    "calculate integral": "calculate integral",
+    "sum flux components": "sum flux components",
+    "simplify result": "simplify expression",
+    "define Gaussian surface": "define Gaussian surface",
+    "evaluate dot product": "evaluate dot product",
+    "apply Gauss's law": "apply Gauss's law",
+    "factor out constant": "factor out constant",
+    "evaluate surface integral": "evaluate surface integral",
+    "substitute area": "substitute values",
+    "isolate variable": "isolate variable",
+    "reference diagram": "reference diagram",
+    "label axis": "label axis",
+    "describe physical relationship": "describe physical relationship",
+    "interpret equation": "interpret equation",
+    "describe physical behavior": "describe physical behavior",
+    "define work": "define work",
+    "substitute force": "substitute values",
+    "integrate expression": "calculate integral",
+    "evaluate definite integral": "calculate integral",
+    "perform variable substitution": "perform variable substitution",
+    "differentiate": "differentiate",
+    "substitute differential": "substitute values",
+    "apply power rule": "apply power rule",
+    "define system potential energy": "define system potential energy",
+    "sum pairwise potential energies": "sum pairwise potential energies",
+    "simplify algebraic expression": "simplify expression",
+    "substitute numerical values": "substitute values into formula",
+    "calculate final result": "calculate arithmetic",
+    "calculate parallel capacitance": "calculate arithmetic",
+    "apply charge equality in series": "apply charge equality in series",
+    "define potential difference variables": "define potential difference variables",
+    "relate potential differences": "relate potential differences",
+    "state source voltage": "state source voltage",
+    "calculate potential differences": "calculate arithmetic",
+    "apply voltage equality in parallel": "apply voltage equality in parallel",
+    "define charge relations": "define charge relations",
+    "simplify algebraic ratios": "simplify expression",
+    "apply charge conservation": "apply charge conservation",
+    "solve for charges": "solve for variable",
+    "summarize charges": "summarize charges",
+    "summarize potential differences": "summarize potential differences",
+    "state resistivity formula": "state resistivity formula",
+    "identify variable meanings": "define variables",
+    "substitute values into formula": "substitute values into formula",
+    "apply series and parallel reduction": "apply series and parallel reduction",
+    "apply Ohm's law": "apply Ohm's law",
+    "apply current conservation": "apply current conservation",
+    "calculate voltage drop": "calculate arithmetic",
+    "apply Kirchhoff's point rule": "apply Kirchhoff's point rule",
+    "apply Kirchhoff's loop rule": "apply Kirchhoff's loop rule",
+    "solve system of linear equations": "solve system of linear equations",
+    "interpret physical significance of sign": "interpret physical significance of sign",
+    "equate potential differences": "equate potential difference",
+    "solve for variable": "solve for variable",
+    "equate potential difference": "equate potential difference",
+    "divide terms": "divide terms",
+    "subtract values": "subtract values",
+    "set up integral": "set up integral",
+    "evaluate integral": "evaluate integral",
+    "simplify expression": "simplify expression",
+    "multiply by number of sides": "multiply by number of sides",
+    "select kinematic equation": "select kinematic equation",
+    "substitute variables": "substitute values into formula",
+    "calculate value": "calculate arithmetic",
+    "apply gas laws": "apply gas laws",
+    "calculate mass from density": "calculate arithmetic",
+    "calculate electric charge": "calculate arithmetic",
+    "calculate electrochemical equivalent": "calculate arithmetic",
+    "apply Faraday's law of electrolysis": "apply Faraday's law of electrolysis",
+    "calculate mass deposited": "calculate arithmetic",
+    "calculate beam current": "calculate arithmetic",
+    "calculate electric power": "calculate arithmetic",
+    "rearrange power formula": "rearrange power formula",
+    "calculate square root": "calculate arithmetic",
+    "calculate total energy": "calculate arithmetic",
+    "calculate total cost": "calculate arithmetic",
+    "apply terminal voltage formula": "apply terminal voltage formula",
+    "solve for current": "solve for current",
+    "apply power formula": "apply power formula",
+    "calculate terms": "evaluate expression",
+    "identify component rates": "identify component rates",
+    "apply Ampere's law": "apply Ampere's law",
+    "calculate net current": "calculate arithmetic",
+    "equate expressions": "equate expressions",
+    "calculate magnetizing field": "calculate magnetizing field",
+    "calculate magnetization": "calculate magnetization",
+    "identify direction": "identify direction",
+    "define variable": "assign variable",
+    "apply Biot-Savart law": "apply Biot-Savart law",
+    "identify constant": "identify constant",
+    "apply tangent galvanometer formula": "apply tangent galvanometer formula",
+    "apply right-hand rule": "apply right-hand rule",
+    "assign sign convention": "assign sign convention",
+    "calculate initial magnetic flux": "calculate initial magnetic flux",
+    "calculate final magnetic flux": "calculate final magnetic flux",
+    "calculate rate of change": "calculate rate of change",
+    "apply Faraday's law": "apply Faraday's law",
+    "define formula": "define formula",
+    "calculate product": "calculate product",
+    "calculate quotient": "calculate quotient",
+    "scale by number of turns": "scale by number of turns",
+    "apply trigonometric projection": "apply trigonometric projection",
+    "define derivative": "calculate rate of change",
+    "apply differentiation": "calculate rate of change",
+    "apply Lenz's law": "apply Lenz's law",
+    "calculate change in flux": "calculate change in flux",
+    "calculate charge": "calculate charge",
+    "substitute and simplify": "substitute and simplify",
+    "calculate time constant": "calculate time constant",
+    "apply exponential growth property": "apply exponential growth property",
+    "evaluate condition": "evaluate condition",
+    "calculate power current": "calculate arithmetic",
+    "identify rms voltage": "identify rms voltage",
+    "calculate peak voltage": "calculate voltage amplitude",
+    "calculate average voltage": "calculate average voltage",
+    "apply capacitive reactance formula": "apply capacitive reactance formula",
+    "apply inductive reactance formula": "apply inductive reactance formula",
+    "apply ohm's law": "apply Ohm's law",
+    "calculate voltage across resistor": "calculate voltage across resistor",
+    "calculate voltage across inductor": "calculate voltage across inductor",
+    "calculate voltage across capacitor": "calculate voltage across capacitor",
+    "calculate net reactive voltage": "calculate net reactive voltage",
+    "calculate total voltage via phasor sum": "calculate total voltage via phasor sum",
+    "calculate total impedance": "calculate impedance",
+    "calculate total voltage via ohm's law": "calculate total voltage",
+    "compare results": "compare results",
+    "calculate phase angle": "calculate phase angle",
+    "construct impedance diagram": "draw diagram",
+    "calculate voltage amplitude": "calculate voltage amplitude",
+    "calculate net voltage": "calculate total voltage",
+    "apply pythagorean theorem": "apply pythagorean theorem",
+    "calculate impedance": "calculate impedance",
+    "draw diagram": "draw diagram",
+    "convert cosine to sine": "convert cosine to sine",
+    "compare phase constants": "compare phase constants",
+    "extract angular frequency": "calculate angular frequency",
+    "calculate frequency": "calculate frequency",
+    "calculate period": "calculate period",
+    "substitute time": "substitute time",
+    "calculate instantaneous voltage": "calculate instantaneous voltage",
+    "calculate angular frequency": "calculate angular frequency",
+    "rearrange resonance formula": "rearrange formula",
+    "calculate capacitance": "calculate capacitance",
+    "evaluate expression": "evaluate expression",
+    "state photoelectric equation": "state photoelectric equation",
+    "arrange formula": "rearrange formula",
+    "define conversion factor": "define conversion factor",
+    "rearrange formula": "rearrange formula",
+    "state energy conservation principle": "state energy conservation principle",
+    "state stopping potential formula": "state stopping potential formula",
+    "identify equation": "identify equation",
+    "apply exponentiation": "calculate exponentiation",
+    "apply logarithm": "apply logarithm",
+    "change base": "change base",
+    "analyze dimensions": "apply dimensional analysis",
+    "count particles": "count particles",
+    "retrieve constant": "retrieve constant",
+    "calculate sum": "calculate sum",
+    "calculate difference": "calculate difference",
+    "apply iteration": "apply iteration",
+    "calculate exponentiation": "calculate exponentiation",
+    "define proportionality": "define proportionality",
+    "apply dimensional analysis": "apply dimensional analysis",
+    "equate exponents": "equate exponents",
+    "solve algebraic system": "solve algebraic system",
+    "substitute exponents": "substitute exponents",
+    "identify kinematic formula": "identify equation",
+    "calculate result": "evaluate expression",
+    "define mechanical energy equation": "define mechanical energy equation",
+    "differentiate with respect to time": "differentiate with respect to time",
+    "identify conversion formula": "identify equation",
+    "identify given parameters": "identify given parameters",
+    "assign variable": "assign variable",
+    "calculate variable": "evaluate expression",
+    "identify work formula": "identify equation"
+  },
+  "entries": [
+    {
+      "name": "substitute values",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "3",
+        "141",
+        "substitute values",
+        "0. substitute values into formula",
+        "substitute area",
+        "substitute force",
+        "substitute differential"
+      ]
+    },
+    {
+      "name": "relate potential differences",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "38",
+        "45",
+        "142",
+        "143",
+        "4. relate potential differences",
+        "5. relate potential differences",
+        "relate potential differences"
+      ]
+    },
+    {
+      "name": "simplify expression",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "19",
+        "86",
+        "115",
+        "simplify result",
+        "0. simplify expression",
+        "simplify expression"
+      ]
+    },
+    {
+      "name": "apply current conservation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "49",
+        "138",
+        "16. apply current conservation",
+        "17. apply current conservation",
+        "18. apply Kirchhoff's point rule",
+        "apply current conservation"
+      ]
+    },
+    {
+      "name": "identify variables",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "0",
+        "37",
+        "136",
+        "137",
+        "identify variables"
+      ]
+    },
+    {
+      "name": "describe physical relationship",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "27",
+        "28",
+        "29",
+        "130",
+        "describe physical relationship"
+      ]
+    },
+    {
+      "name": "define charge relations",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "41",
+        "44",
+        "7. define charge relations",
+        "8. define charge relations",
+        "define charge relations"
+      ]
+    },
+    {
+      "name": "apply Ohm's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "48",
+        "15. apply Ohm's law",
+        "16. apply Ohm's law",
+        "apply Ohm's law",
+        "apply ohm's law"
+      ]
+    },
+    {
+      "name": "solve system of linear equations",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "51",
+        "132",
+        "18. solve system of linear equations",
+        "20. solve system of linear equations",
+        "solve system of linear equations"
+      ]
+    },
+    {
+      "name": "identify constant",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "70",
+        "126",
+        "39. identify constant",
+        "0. identify constant",
+        "identify constant"
+      ]
+    },
+    {
+      "name": "calculate rate of change",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "76",
+        "6. calculate rate of change",
+        "calculate rate of change",
+        "13. apply differentiation",
+        "apply differentiation"
+      ]
+    },
+    {
+      "name": "define variables",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "3. define potential difference variables",
+        "37. define variable",
+        "13. identify variable meanings",
+        "14. identify variable meanings",
+        "identify variable meanings"
+      ]
+    },
+    {
+      "name": "state formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "2",
+        "78",
+        "120",
+        "state formula"
+      ]
+    },
+    {
+      "name": "interpret sign",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "5",
+        "52",
+        "73",
+        "interpret sign"
+      ]
+    },
+    {
+      "name": "identify geometry",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "6",
+        "25",
+        "104",
+        "identify geometry"
+      ]
+    },
+    {
+      "name": "calculate integral",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "17",
+        "57",
+        "calculate integral",
+        "evaluate definite integral"
+      ]
+    },
+    {
+      "name": "isolate variable",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "24",
+        "43",
+        "113",
+        "isolate variable"
+      ]
+    },
+    {
+      "name": "apply charge equality in series",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "36",
+        "2. apply charge equality in series",
+        "3. apply charge equality in series",
+        "apply charge equality in series"
+      ]
+    },
+    {
+      "name": "state source voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "39",
+        "5. state source voltage",
+        "6. state source voltage",
+        "state source voltage"
+      ]
+    },
+    {
+      "name": "apply voltage equality in parallel",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "40",
+        "6. apply voltage equality in parallel",
+        "7. apply voltage equality in parallel",
+        "apply voltage equality in parallel"
+      ]
+    },
+    {
+      "name": "apply charge conservation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "42",
+        "8. apply charge conservation",
+        "9. apply charge conservation",
+        "apply charge conservation"
+      ]
+    },
+    {
+      "name": "state resistivity formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "46",
+        "12. state resistivity formula",
+        "13. state resistivity formula",
+        "state resistivity formula"
+      ]
+    },
+    {
+      "name": "apply series and parallel reduction",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "47",
+        "14. apply series and parallel reduction",
+        "15. apply series and parallel reduction",
+        "apply series and parallel reduction"
+      ]
+    },
+    {
+      "name": "apply Kirchhoff's loop rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "50",
+        "17. apply Kirchhoff's loop rule",
+        "19. apply Kirchhoff's loop rule",
+        "apply Kirchhoff's loop rule"
+      ]
+    },
+    {
+      "name": "equate expressions",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "53",
+        "20. equate potential difference",
+        "33. equate expressions",
+        "equate expressions"
+      ]
+    },
+    {
+      "name": "divide terms",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "54",
+        "21. divide terms",
+        "23. divide terms",
+        "divide terms"
+      ]
+    },
+    {
+      "name": "subtract values",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "55",
+        "22. subtract values",
+        "24. subtract values",
+        "subtract values"
+      ]
+    },
+    {
+      "name": "set up integral",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "56",
+        "23. set up integral",
+        "25. set up integral",
+        "set up integral"
+      ]
+    },
+    {
+      "name": "multiply by number of sides",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "58",
+        "25. multiply by number of sides",
+        "27. multiply by number of sides",
+        "multiply by number of sides"
+      ]
+    },
+    {
+      "name": "select kinematic equation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "59",
+        "26. select kinematic equation",
+        "28. select kinematic equation",
+        "select kinematic equation"
+      ]
+    },
+    {
+      "name": "apply gas laws",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "60",
+        "27. apply gas laws",
+        "29. apply gas laws",
+        "apply gas laws"
+      ]
+    },
+    {
+      "name": "apply Faraday's law of electrolysis",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "61",
+        "28. apply Faraday's law of electrolysis",
+        "30. apply Faraday's law of electrolysis",
+        "apply Faraday's law of electrolysis"
+      ]
+    },
+    {
+      "name": "rearrange power formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "62",
+        "29. rearrange power formula",
+        "32. rearrange power formula",
+        "rearrange power formula"
+      ]
+    },
+    {
+      "name": "apply terminal voltage formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "64",
+        "31. apply terminal voltage formula",
+        "36. apply terminal voltage formula",
+        "apply terminal voltage formula"
+      ]
+    },
+    {
+      "name": "calculate total voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "101",
+        "32. calculate total voltage",
+        "calculate total voltage via ohm's law",
+        "calculate net voltage"
+      ]
+    },
+    {
+      "name": "compare results",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "102",
+        "107",
+        "33. compare results",
+        "compare results"
+      ]
+    },
+    {
+      "name": "calculate angular frequency",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "108",
+        "39. extract angular frequency",
+        "extract angular frequency",
+        "calculate angular frequency"
+      ]
+    },
+    {
+      "name": "solve for variable",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "9. solve for variable",
+        "10. solve for variable",
+        "37. solve for current",
+        "solve for variable"
+      ]
+    },
+    {
+      "name": "evaluate expression",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "evaluate expression",
+        "calculate result",
+        "calculate variable",
+        "calculate terms"
+      ]
+    },
+    {
+      "name": "identify equation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "identify equation",
+        "identify conversion formula",
+        "identify work formula",
+        "identify kinematic formula"
+      ]
+    },
+    {
+      "name": "convert units",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "1",
+        "117",
+        "convert units"
+      ]
+    },
+    {
+      "name": "resolve into components",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "13",
+        "82",
+        "resolve into components"
+      ]
+    },
+    {
+      "name": "differentiate",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "32",
+        "135",
+        "differentiate"
+      ]
+    },
+    {
+      "name": "identify component rates",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "63",
+        "30. identify component rates",
+        "identify component rates"
+      ]
+    },
+    {
+      "name": "apply Ampere's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "65",
+        "32. apply Ampere's law",
+        "apply Ampere's law"
+      ]
+    },
+    {
+      "name": "calculate magnetizing field",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "66",
+        "34. calculate magnetizing field",
+        "calculate magnetizing field"
+      ]
+    },
+    {
+      "name": "calculate magnetization",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "67",
+        "35. calculate magnetization",
+        "calculate magnetization"
+      ]
+    },
+    {
+      "name": "identify direction",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "68",
+        "36. identify direction",
+        "identify direction"
+      ]
+    },
+    {
+      "name": "apply Biot-Savart law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "69",
+        "38. apply Biot-Savart law",
+        "apply Biot-Savart law"
+      ]
+    },
+    {
+      "name": "apply tangent galvanometer formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "71",
+        "1. apply tangent galvanometer formula",
+        "apply tangent galvanometer formula"
+      ]
+    },
+    {
+      "name": "apply right-hand rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "72",
+        "2. apply right-hand rule",
+        "apply right-hand rule"
+      ]
+    },
+    {
+      "name": "calculate initial magnetic flux",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "74",
+        "4. calculate initial magnetic flux",
+        "calculate initial magnetic flux"
+      ]
+    },
+    {
+      "name": "calculate final magnetic flux",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "75",
+        "5. calculate final magnetic flux",
+        "calculate final magnetic flux"
+      ]
+    },
+    {
+      "name": "apply Faraday's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "77",
+        "7. apply Faraday's law",
+        "apply Faraday's law"
+      ]
+    },
+    {
+      "name": "scale by number of turns",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "81",
+        "11. scale by number of turns",
+        "scale by number of turns"
+      ]
+    },
+    {
+      "name": "apply Lenz's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "83",
+        "14. apply Lenz's law",
+        "apply Lenz's law"
+      ]
+    },
+    {
+      "name": "calculate change in flux",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "84",
+        "15. calculate change in flux",
+        "calculate change in flux"
+      ]
+    },
+    {
+      "name": "calculate charge",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "85",
+        "16. calculate charge",
+        "calculate charge"
+      ]
+    },
+    {
+      "name": "calculate time constant",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "87",
+        "18. calculate time constant",
+        "calculate time constant"
+      ]
+    },
+    {
+      "name": "apply exponential growth property",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "88",
+        "19. apply exponential growth property",
+        "apply exponential growth property"
+      ]
+    },
+    {
+      "name": "evaluate condition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "89",
+        "20. evaluate condition",
+        "evaluate condition"
+      ]
+    },
+    {
+      "name": "identify rms voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "90",
+        "21. identify rms voltage",
+        "identify rms voltage"
+      ]
+    },
+    {
+      "name": "calculate voltage amplitude",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "91",
+        "22. calculate voltage amplitude",
+        "calculate voltage amplitude"
+      ]
+    },
+    {
+      "name": "calculate average voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "92",
+        "23. calculate average voltage",
+        "calculate average voltage"
+      ]
+    },
+    {
+      "name": "apply capacitive reactance formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "93",
+        "24. apply capacitive reactance formula",
+        "apply capacitive reactance formula"
+      ]
+    },
+    {
+      "name": "apply inductive reactance formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "94",
+        "25. apply inductive reactance formula",
+        "apply inductive reactance formula"
+      ]
+    },
+    {
+      "name": "calculate voltage across resistor",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "95",
+        "26. calculate voltage across resistor",
+        "calculate voltage across resistor"
+      ]
+    },
+    {
+      "name": "calculate voltage across inductor",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "96",
+        "27. calculate voltage across inductor",
+        "calculate voltage across inductor"
+      ]
+    },
+    {
+      "name": "calculate voltage across capacitor",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "97",
+        "28. calculate voltage across capacitor",
+        "calculate voltage across capacitor"
+      ]
+    },
+    {
+      "name": "calculate net reactive voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "98",
+        "29. calculate net reactive voltage",
+        "calculate net reactive voltage"
+      ]
+    },
+    {
+      "name": "calculate total voltage via phasor sum",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "99",
+        "30. calculate total voltage via phasor sum",
+        "calculate total voltage via phasor sum"
+      ]
+    },
+    {
+      "name": "calculate impedance",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "100",
+        "31. calculate impedance",
+        "calculate impedance"
+      ]
+    },
+    {
+      "name": "calculate phase angle",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "103",
+        "34. calculate phase angle",
+        "calculate phase angle"
+      ]
+    },
+    {
+      "name": "apply pythagorean theorem",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "105",
+        "36. apply pythagorean theorem",
+        "apply pythagorean theorem"
+      ]
+    },
+    {
+      "name": "convert cosine to sine",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "106",
+        "37. convert cosine to sine",
+        "convert cosine to sine"
+      ]
+    },
+    {
+      "name": "summarize charges",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "10. summarize charges",
+        "11. summarize charges",
+        "summarize charges"
+      ]
+    },
+    {
+      "name": "summarize potential differences",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "11. summarize potential differences",
+        "12. summarize potential differences",
+        "summarize potential differences"
+      ]
+    },
+    {
+      "name": "interpret physical significance of sign",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "19. interpret physical significance of sign",
+        "21. interpret physical significance of sign",
+        "interpret physical significance of sign"
+      ]
+    },
+    {
+      "name": "evaluate integral",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "24. evaluate integral",
+        "26. evaluate integral",
+        "evaluate integral"
+      ]
+    },
+    {
+      "name": "apply superposition principle",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "7",
+        "apply superposition principle"
+      ]
+    },
+    {
+      "name": "apply Coulomb's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "8",
+        "apply Coulomb's law"
+      ]
+    },
+    {
+      "name": "apply vector addition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "9",
+        "apply vector addition"
+      ]
+    },
+    {
+      "name": "calculate magnitude",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "10",
+        "calculate magnitude"
+      ]
+    },
+    {
+      "name": "apply inverse trigonometric function",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "11",
+        "apply inverse trigonometric function"
+      ]
+    },
+    {
+      "name": "apply electric field formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "12",
+        "apply electric field formula"
+      ]
+    },
+    {
+      "name": "apply flux integral definition",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "14",
+        "apply flux integral definition"
+      ]
+    },
+    {
+      "name": "decompose integral",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "15",
+        "decompose integral"
+      ]
+    },
+    {
+      "name": "evaluate dot product",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "16",
+        "evaluate dot product"
+      ]
+    },
+    {
+      "name": "sum flux components",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "18",
+        "sum flux components"
+      ]
+    },
+    {
+      "name": "define Gaussian surface",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "20",
+        "define Gaussian surface"
+      ]
+    },
+    {
+      "name": "apply Gauss's law",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "21",
+        "apply Gauss's law"
+      ]
+    },
+    {
+      "name": "factor out constant",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "22",
+        "factor out constant"
+      ]
+    },
+    {
+      "name": "evaluate surface integral",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "23",
+        "evaluate surface integral"
+      ]
+    },
+    {
+      "name": "label axis",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "26",
+        "label axis"
+      ]
+    },
+    {
+      "name": "define work",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "30",
+        "define work"
+      ]
+    },
+    {
+      "name": "perform variable substitution",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "31",
+        "perform variable substitution"
+      ]
+    },
+    {
+      "name": "apply power rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "33",
+        "apply power rule"
+      ]
+    },
+    {
+      "name": "define system potential energy",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "34",
+        "define system potential energy"
+      ]
+    },
+    {
+      "name": "sum pairwise potential energies",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "35",
+        "sum pairwise potential energies"
+      ]
+    },
+    {
+      "name": "calculate frequency",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "109",
+        "calculate frequency"
+      ]
+    },
+    {
+      "name": "calculate period",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "110",
+        "calculate period"
+      ]
+    },
+    {
+      "name": "substitute time",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "111",
+        "substitute time"
+      ]
+    },
+    {
+      "name": "calculate instantaneous voltage",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "112",
+        "calculate instantaneous voltage"
+      ]
+    },
+    {
+      "name": "calculate capacitance",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "114",
+        "calculate capacitance"
+      ]
+    },
+    {
+      "name": "state photoelectric equation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "116",
+        "state photoelectric equation"
+      ]
+    },
+    {
+      "name": "state energy conservation principle",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "118",
+        "state energy conservation principle"
+      ]
+    },
+    {
+      "name": "state stopping potential formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "119",
+        "state stopping potential formula"
+      ]
+    },
+    {
+      "name": "calculate exponentiation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "121",
+        "calculate exponentiation"
+      ]
+    },
+    {
+      "name": "apply logarithm",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "122",
+        "apply logarithm"
+      ]
+    },
+    {
+      "name": "change base",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "123",
+        "change base"
+      ]
+    },
+    {
+      "name": "apply dimensional analysis",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "124",
+        "apply dimensional analysis"
+      ]
+    },
+    {
+      "name": "count particles",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "125",
+        "count particles"
+      ]
+    },
+    {
+      "name": "apply iteration",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "129",
+        "apply iteration"
+      ]
+    },
+    {
+      "name": "equate exponents",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "131",
+        "equate exponents"
+      ]
+    },
+    {
+      "name": "substitute exponents",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "133",
+        "substitute exponents"
+      ]
+    },
+    {
+      "name": "define mechanical energy equation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "134",
+        "define mechanical energy equation"
+      ]
+    },
+    {
+      "name": "solve for current",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "139",
+        "solve for current"
+      ]
+    },
+    {
+      "name": "apply power formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "140",
+        "apply power formula"
+      ]
+    },
+    {
+      "name": "assign sign convention",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "3. assign sign convention",
+        "assign sign convention"
+      ]
+    },
+    {
+      "name": "define formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "8. define formula",
+        "define formula"
+      ]
+    },
+    {
+      "name": "calculate product",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "9. calculate product",
+        "calculate product"
+      ]
+    },
+    {
+      "name": "calculate quotient",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "10. calculate quotient",
+        "calculate quotient"
+      ]
+    },
+    {
+      "name": "apply trigonometric projection",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "12. apply trigonometric projection",
+        "apply trigonometric projection"
+      ]
+    },
+    {
+      "name": "substitute and simplify",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "17. substitute and simplify",
+        "substitute and simplify"
+      ]
+    },
+    {
+      "name": "draw diagram",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "35. draw diagram",
+        "draw diagram"
+      ]
+    },
+    {
+      "name": "compare phase constants",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "38. compare phase constants",
+        "compare phase constants"
+      ]
+    },
+    {
+      "name": "assign variable",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "assign variable",
+        "define variable"
+      ]
+    },
+    {
+      "name": "substitute values into formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "1. substitute values into formula",
+        "substitute values into formula"
+      ]
+    },
+    {
+      "name": "define potential difference variables",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "4. define potential difference variables",
+        "define potential difference variables"
+      ]
+    },
+    {
+      "name": "equate potential difference",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "22. equate potential difference",
+        "equate potential difference"
+      ]
+    },
+    {
+      "name": "reference diagram",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "reference diagram"
+      ]
+    },
+    {
+      "name": "interpret equation",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "interpret equation"
+      ]
+    },
+    {
+      "name": "describe physical behavior",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "describe physical behavior"
+      ]
+    },
+    {
+      "name": "rearrange formula",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "rearrange formula"
+      ]
+    },
+    {
+      "name": "define conversion factor",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "define conversion factor"
+      ]
+    },
+    {
+      "name": "retrieve constant",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "retrieve constant"
+      ]
+    },
+    {
+      "name": "calculate sum",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate sum"
+      ]
+    },
+    {
+      "name": "calculate difference",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate difference"
+      ]
+    },
+    {
+      "name": "define proportionality",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "define proportionality"
+      ]
+    },
+    {
+      "name": "solve algebraic system",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "solve algebraic system"
+      ]
+    },
+    {
+      "name": "differentiate with respect to time",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "differentiate with respect to time"
+      ]
+    },
+    {
+      "name": "identify given parameters",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "identify given parameters"
+      ]
+    },
+    {
+      "name": "apply Kirchhoff's point rule",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "apply Kirchhoff's point rule"
+      ]
+    },
+    {
+      "name": "calculate generic value",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "4",
+        "79",
+        "80",
+        "127",
+        "128",
+        "calculate arithmetic",
+        "1. calculate value",
+        "2. calculate value",
+        "calculate value",
+        "calculate final result"
+      ]
+    },
+    {
+      "name": "calculate terms",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "39. calculate terms"
+      ]
+    },
+    {
+      "name": "calculate parallel capacitance",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate parallel capacitance"
+      ]
+    },
+    {
+      "name": "calculate potential difference",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate potential differences",
+        "calculate voltage drop"
+      ]
+    },
+    {
+      "name": "calculate mass from density",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate mass from density"
+      ]
+    },
+    {
+      "name": "calculate electric charge",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate electric charge"
+      ]
+    },
+    {
+      "name": "calculate electrochemical equivalent",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate electrochemical equivalent"
+      ]
+    },
+    {
+      "name": "calculate mass deposited",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate mass deposited"
+      ]
+    },
+    {
+      "name": "calculate beam current",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate beam current"
+      ]
+    },
+    {
+      "name": "calculate square root",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "33. calculate square root",
+        "calculate square root"
+      ]
+    },
+    {
+      "name": "calculate total energy",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "34. calculate total energy",
+        "calculate total energy"
+      ]
+    },
+    {
+      "name": "calculate total cost",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "35. calculate total cost",
+        "calculate total cost"
+      ]
+    },
+    {
+      "name": "calculate net current",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "calculate net current"
+      ]
+    },
+    {
+      "name": "calculate electric power",
+      "classification": "DISCRIMINATING",
+      "aliases": [
+        "31. calculate electric power",
+        "38. apply power formula",
+        "calculate electric power",
+        "calculate power current"
+      ]
+    }
+  ]
+}

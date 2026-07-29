@@ -1,5 +1,16 @@
 import { NavigatorScreenParams } from "@react-navigation/native";
 
+// Carried through the onboarding picker chain when a Google account was just
+// created (or an existing account still needs its academic profile) so the
+// tokens issued by /auth/google can be persisted once the picker flow
+// finishes, instead of authenticating before onboarding is complete.
+export type PendingAuth = {
+  user: Record<string, any>;
+  accessToken: string;
+  refreshToken: string;
+  adminAccessToken?: string | null;
+};
+
 export type AuthStackParamList = {
   Onboarding: undefined;
   Register: {
@@ -18,8 +29,8 @@ export type AuthStackParamList = {
       semester: number;
     }>;
   };
-  UniversityPicker: undefined;
-  DepartmentPicker: { universityId: string; universityName: string };
+  UniversityPicker: { pendingAuth?: PendingAuth } | undefined;
+  DepartmentPicker: { universityId: string; universityName: string; pendingAuth?: PendingAuth };
   CoursePicker: {
     universityId: string;
     departmentId: string;
@@ -28,6 +39,7 @@ export type AuthStackParamList = {
     department: string;
     level: string;
     selectedCourses?: string[];
+    pendingAuth?: PendingAuth;
   };
   EmailVerification: { email?: string };
   SetupComplete: {

@@ -1,0 +1,920 @@
+{
+  "note": "PHY102 worked examples, extracted verbatim from PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS + GENERAL PHYSICS I  (2). PHY 101 MATERIAL excluded (cross-listed under PHY 102 and PHY 108). isHeldOut examples were set aside BEFORE any vocabulary/labeling work and must never be used to build the vocabulary or archetypes.",
+  "excludedTitle": "PHY 101 MATERIAL",
+  "sourceTitles": [
+    "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS",
+    "GENERAL PHYSICS I  (2)"
+  ],
+  "seed": 20260727,
+  "examples": [
+    {
+      "exampleId": "phy0",
+      "problemText": "A conductor possesses a positive charge of 3.2x 10-19 C. How many electron does it have in excess or deficit (e = 1.60 x 10-19C)",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk2",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy1",
+      "problemText": "A charge q1, = 5.0μc is placed 30cm to the west of another charge q2=12μc. What is the force exerted by the positive charge on the negative charge?",
+      "solutionSteps": [
+        "q1 = + 5.0μc q2 = -12μc",
+        "30cm",
+        "Coulomb’s law gives force on negative charge due to the positive charge as follows:",
+        "F = 1__ q1 q2\n4πεo r2",
+        "F = (9 x 109 N m2 C-2) (5 x 10-6C) (-12 x 10-6C)\n(0.30m)2",
+        "= -6 N",
+        "The minus sign shows that the force is in the negative x-direction that is towards west. Therefore, it is a force of attraction."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk2",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy2",
+      "problemText": "In figure 3., q1 = 1.0μc, q2.0μc and q3 = 4.0μc. Find the electrostatic force on q1 to the two other charges. You should express your result as a magnitude and direction.",
+      "solutionSteps": [
+        "The three charges are located at the corners of a right angle triangle. The problem can be solved using the superposition triangle. The problem can be solved using the superposition principle.",
+        "The force on q1 due to the charge q2 is given by\nF12 = 1 q1 q2\n4πεo r2\n= (9 x 10 9 Nm2 C-2 ) (-1 x 10-6 C) (2x 10-6C)\n(0.10m)2\n= 1.8N (attractive) in the +ve x-direction",
+        "Similarly, the force on q1 due to q2 is\nF13 = (9 x9 Nm2 C-2) (-1 x 10-6C) (4x 10-6C)\n(0.20m)3\n= 0.90N (attractive) in the +ve x-direction",
+        "According to the superposition principle, the resultant force F1 acting on q, is the vector sum of the forces due to q2 and q3. The magnitude of F1 is\n√(0.90)2 + (1.8)2 2.01N",
+        "and it make an angle θ = tan -1 (1.8/0.9) = tan -12 = 63.5° with the positive x-axis."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk3",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy3",
+      "problemText": "An electric field is set up by two point charges q1 and q2 such that q1 = -q2 = 12 x 10-9 C and separated by a distance of 0.1m as shown in figure 3.3. Find the electric field at the points A and B.",
+      "solutionSteps": [
+        "(i) At point A1 the electric field E1 due to q1 is\nE1 = (9x109 Nm2 C-2) 12 x 10-9 C\n(0.06)2\n= (9 x 109 Nm2 C-2) x 12 x 10-9C\n36 x 10-4 m2\n= 3 x 104 NC-1 in the +ve x-direction",
+        "At A , the electric field E2, due to q2 is\nE 2 = (9 x 109) x (-12 x 10 -9 C)\n(0.04)2\n= 9 x 109 Nm2 C-2 x 12 x 10-9C\n4 x 10-4m2\n= 6.75 x 104 NC-1 in the +ve x-direction",
+        "Therefore, the net electric field, E1 at point A is given by\nEA = E1 + E2\n= (3 + 6.75) x 104 NC-1\n= 9.75 x 104 NC-1",
+        "At point B, the electric field E, due to q, is\nE1 = (9x109 Nm2C -2) 12 x 10-9C\n(0.1m)2\n= 1.08 x 104 NC-1 in the direction shown in Fx, 3.",
+        "Similarly the field E2 due to q2 is\nE2 = (9x109 Nm2 C-2)2 (-122 x 10-9C)\n(0.1m)2\n= -1.08x 104 NC-1\n(The minus sign shows that the electric field points diagonally\ndownward to the right)",
+        "Now we have to add the two forces vertically. If we resolve E1 and E2 into components along the x-axis and y-axis, it is clear from Fig. 3.3 that the y – components of vectors E1 and E2 cancel out and those along x-axis, i.e. BO add. You will observe that the angel between either vector and the x-direction is 600 because the triangle formed by B1 q1 and –q2 is an equilateral triangle. The direction of the resultant field is, therefore, along BO and its magnitude is given by\nEB = (1.08 x 104 cos 600 + 1.8 x 104 cos 600)\n= 1.08 x 104 NC-1"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk3",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy4",
+      "problemText": "Figure 3.2 shows a closed surface S in the form of a cylinder of radius R situated in a uniform electric field F, the axis of the cylinder being parallel to the field. What is the flux φ of the electric field through this closed surface?",
+      "solutionSteps": [
+        "We can write the total electric flux through the surface S as the sum of three terms, an integral over the surface, S1 i.e the left cylinder cap. S2, the cylinder surface, and S3, the right cap. Thus from Eq. 3.2, we have Φ = ∫E. ds S Φ = ∫ E. ds + ∫ E .ds + ∫ E. ds S1 S2 S3",
+        "For the left cap, angle θ for all points is 18000, E is constant, and all the vectors ds are parallel. Therefore, ∫ E . ds = ∫ E (cos 1800) ds = -E∫ds = - πER2 Since the area of the cap is πR2.",
+        "Similarly, for the right hand cap ∫ E. ds = + π ER2 Since the angle θ = 0 for all points on the cap.",
+        "Finally, for the surface S2. ∫ E.ds = 0 S2 Since the angle θ = 900 for all points on the cylindrical surface.",
+        "We can now sum up the total flux through the cylindrical surface S as Φ = - πER2 + 0 + πER2 = 0",
+        "Therefore, the total outward flux of the electric field through the closed surface of figure 3.2 is zero."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk4",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy5",
+      "problemText": "Example 1. Use Gauss’s law to derive the expression for the electric field of a point charge.",
+      "solutionSteps": [
+        "Draw a concentric spherical Guass’s surface of radius r. we know from symmetry that E points radially outward.",
+        "If we divide the Gaussian surface into differential areas ds, then both E and ds will be at right angles to the surface, the angle θ between them being zero. Thus the quantity E.ds becomes simply Eds and Gauss’s law becomes εo φ E .ds = Eo φ Eds = q",
+        "Since E has the same magnitude for all points on the Gaussian surface , we can write εo φ E . ds = εo φ Eds = εo φds = q",
+        "However, the integral in equation 3.8 is simply the area of the spherical surface, i.e 4πr2",
+        "εo E (4πr2) = q",
+        "Or E = q/4πεor2"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk5",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy6",
+      "problemText": "Illustrate with a sketch the variation of the electric fields both inside and outside a spherical charge distribution.",
+      "solutionSteps": [
+        "fig . 3.7",
+        "E",
+        "R 0 R P",
+        "The electric field inside the distribution increases generally with distance from the centre (E α r). On the other hand, outside the charge distribution, the electric field falls off as 1/r2 figure 3.7 is a sketch of the fields inside and outside the sphere."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk6",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy7",
+      "problemText": "How does the electric field due to a charged wire or cylinder depend on its radius?",
+      "solutionSteps": [
+        "Equations 3.15 and 3.16 show that electric field due to a charged wire or cylinder does not depend upon its radius.",
+        "In effect, the field behaves as if the charge on the wire or cylinder were concentrated in a line along its axis."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk6",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy8",
+      "problemText": "We wish to find the potential at point A in the field of an isolated point charge +Q situated at point 0, such that 0 A = r as shown in fig. 3.2.\n\nLet us imagine a very small point charge +Qo is moved by an external agent from C distance x from A, through a very small distance δx to B without affecting the field due to +Q.\n\nAssuming the force F on Qo due to the field remains constant over, δx, the work δW by the external agent over δx against the force of the field is",
+      "solutionSteps": [
+        "δW = F (-δx) ……………………………….3.1",
+        "Applying coulomb’s law. F = Q Qo • 1 / 4πεo x2",
+        "δW = Q Qo • (-δx) / 4πεo x2",
+        "The total work done, W in bringing Qo from infinite Qo from infinity to A is W = -Q Qo ∫r∞ dx / 4πεo x2 = - Q Qo -1/x r∞ / 4πεo",
+        "= Q Qo / 4πε ϒ …………………………………3.2"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk7",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy9",
+      "problemText": "Are you able to do the integration ∫ao x dx ?\nr2 + x2",
+      "solutionSteps": [
+        "Answer: Let x2 + r2 = y",
+        "On differentiation, we have 2xdx = dy since r is constant",
+        "∫ao x dx ∫a2+r2 r2+x2 r2 ½y-1/2dy",
+        "= ∫y1/2 ∫a2+r2 r",
+        "= a2+r2 - r"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk10",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy10",
+      "problemText": "Example 1\nThree charges are arranged as shown in figure 3.6. What is their electrostatic\npotential energy? Assume q = 1.0x10-5C, and d = 0.1m\n+2q\nd d\nd\n+q -4q",
+      "solutionSteps": [
+        "The total potential energy of the system is the algebraic sum of the potential energies of all pairs of charges.",
+        "Potential Energy = 1 (+q) (-4q) + (+q) (+2q) + (-4q) (+2q) / 4πεo d d d",
+        "= 1 -10q2 / 4πεo d",
+        "= - ( 9.0 x 109 Nm2 C-2 ) (10) x (1.0 x 10-5C)2 / 0.1m",
+        "= -90J"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk11",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy11",
+      "problemText": "Calculate the area of the plates of a 1F parallel plate capacitor in\nvacuum if the separation of the plates is 1mm. Comment on your\nanswer regarding the farad as a unit of capacitance.",
+      "solutionSteps": [
+        "C = εoA/l",
+        "A = Cl = 1F x 10-3m / εo 8.85 x 10-12C2N-1m-2",
+        "= 1.13 x 108m2",
+        "This corresponds to a square with side 10.6 x 103m= 10.6km. You can now appreciate that the farad is such a large unit of capacitance and it is necessary to have sub-multiples of it as discussed earlier."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk12",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy12",
+      "problemText": "In the circuit of figure 3.4, C1 = 2 μf, C2 = C3 = 0.5μf and E is a 6V\nbattery. For each capacitor, calculate\n(a) The charge on it, and\n(b) The potential difference (p.d) across it.",
+      "solutionSteps": [
+        "The combined capacitance of the combination C2 and C3 is given by C4 = C2 + C3 = 0.5μF + 0.5μf = 1μf",
+        "Let us now redraw the circuit as in figure 3.4 (b) in which, C1 and C4 are in series. Their charges Q1 and Q4 will be equal, hence: Q1 = Q4 = V1 C1 = V4 C4",
+        "Where V1 and V4 are the p.d.s across C1 and C4 respectively.",
+        "Therefore V1 = C4 = 1 / V4 C1 2",
+        "But V1 and V4 = 6",
+        "∴V1 = 2V, and V4 = 4V",
+        "The p.d. across the combined capacitance C4 equals that across each of C2 and C3. Hence V2 = V3 = V4 = 4V",
+        "Now Q2 = C2 V2 and Q3 = C3 V3",
+        "∴ Q2 = C2 = 0.5 (since V2 = V3) / Q3 C3 0.5 = 1",
+        "But Q2 + Q3 = Q4 = 4 x 10-6 C",
+        "Q2 = Q3 = 2 x 10-6C = 2μc",
+        "Therefore, Q1 = 4μc Q2 = Q3 = 2μc",
+        "V1 = 2V V2 = V3 = 4V"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk12",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy13",
+      "problemText": "A parallel capacitor consists of two square plates each of side\n25cm, 3.0mm apart. If a p.d. of 200v is applied, calculate the\ncharge on the plates with\n(i) Air; and\n(ii) Paper of relative permittivity 2.5, filling the space between\nthem (Eo = 8.9 x10 -12 Fm-1 )",
+      "solutionSteps": [
+        "Area of each plate = (2 .5 x 10-1)2 = 6.25 x 10 -2 m2",
+        "Plate separation = 3.0 x 10-3m",
+        "(i) The capacitance of the capacitor with air filling the space between the plates is given by C = εo A / l",
+        "C = (8.9 x 10 -12 Fm -1) ( 6.25 x 10 -2 m2) / 3.0 x 10 -3m",
+        "= 1.85 x 10 -10 F = 18.5 nF",
+        "The charge on one plate is Q = CV = (1.85 x 10 -10 F) (200 V)",
+        "∴Q = 3.70 x 10-8C",
+        "(ii) The capacitance of the capacitor with paper of relative permittivity 2.5 filling the space between the plates is given by C = Er εo A / l",
+        "where Er is the relative permittivity of the paper Therefore, the charge on one plate is increased by the factor Er on the introduction of the paper between the plates.",
+        "Q = 2.5 x 3.7 x 10 -8C",
+        "Q = 9.25 x 10-8C"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk13",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy14",
+      "problemText": "The resistance of 80.0cm of constantan wire, whose diameter of\ncross-section is 0.457mm, is 2.39Ω. Find the resistivity of\nconstantan.",
+      "solutionSteps": [
+        "From equation 3.11, the resistivity of constantan is given by\nρ = AR / l",
+        "with the symbols having their usual meanings",
+        "Now, l = 0.80m, A = π x 0.457 2 x 10 -6 m2 / 2",
+        "ρ = 2.39 x π x 0.22852 x 10-6 / 0.80",
+        "= 4.90 x 10 -7Ω m"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk15",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy15",
+      "problemText": "The resistance of a copper coil at 20°C is 300l. Calculate the\nresistance of the coil at 60°C if the temperature coefficient of\nresistance and for copper is 4.0 x 10-3°C-1.",
+      "solutionSteps": [
+        "The variation of resistance with temperature is similar to that of resistivity. Therefore, we use equation like 3.14.",
+        "RT = Ro [ 1 + α ( T – To ) ]",
+        "When using this equation where accuracy is importance the reference temperature To should be 00C and Ro, the resistance at 00C.",
+        "We have R20 = Ro ( 1 + 20 α )",
+        "And R6o = Ro (1 + 60 α )",
+        "Dividing R6o = 1 + 60 α / R20 1 + 20 α",
+        "R6o = 30 ( 1 + 60 x 4.0 x 10 -3 ) / ( 1 + 20 x 4.0 x 10 -3)",
+        "= 34.5Ω"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk15",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy16",
+      "problemText": "Compute the equivalent resistance of the network in figure 3.2, and find the current in each resistor.\nE = 18V, r = 0\n(a)\n6Ω\n1A\na 4Ω c b\n3A\n3Ω\n2A\n18V 18V\n(b) (c) 6Ω\n4Ω 2Ω a b\na c b 3A\n3A 3A\nFigure 3.2",
+      "solutionSteps": [
+        "Figure 3.2 shows the successive steps on the reduction to a single equivalent resistance. The 6Ω and 3Ω resistors in part (a) are equivalent to the single 2Ω resistor in part (b) and the series combination of this with the 4Ω resistor results in the single equivalent 6Ω resistor in part (c).",
+        "In the simple series circuit of part C, the current is 3A.",
+        "Hence the currnt in the 4Ω and 2Ω resistors in part (b) is 3A",
+        "The p.d Vab is therefore 6V.",
+        "Since it msut be 6v in part (a) as well, the currents in the 6Ω and 3Ω resistor in part (a) are 1A and 2A, respectively."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk17",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy17",
+      "problemText": "Example 1\nE11r1\nc d\nR1\nI1\nE21r1\na b\nI2 R2\nR3\nf e\nI3\nFig 3.4\nIn the figure 3.4, let magnitudes and directions of the e.m.f.s and the\nmagnitudes of the resistances be given. We wish to solve for the\ncurrents in each branch of the network.",
+      "solutionSteps": [
+        "The network is prepared for solution by Kirchhoff’s rules as follows. Assign a direction and a letter to each unknown current.",
+        "The assumed directions are purely arbitrary.",
+        "Note that the currents in sources 1 and resistor 1 are the same, and require only a single letter 11. The same is true for source 2 and resistor 2; the current in both is represented by I2.",
+        "There are only two branch points, a a"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk17",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy18",
+      "problemText": "Calculate the currents in the network shown in fig. 3.5, assuming that the cell has a negligible internal resistance.",
+      "solutionSteps": [
+        "Kirchhoff’s point rule has been applied in the Figure by inserting the currents, I1, I2, I3, etc.",
+        "Applying the loop rule to ABDA: 12I1 + 1I3 - 1I3 = 0",
+        "Applying the loop rule to BCDB: 1 3 (I1 – I3) -2 ( I2 + I3 ) – 1I3 = 0",
+        "Applying the loop rule to FABCF: 1 2I1 + 3 (I1 – I3) = 2",
+        "Solving the equations, I1 = 16/43 A , I2 = 30/43 A and I3 = - 2/43 A",
+        "Since I3 is negative it is clear that the arrow was marked in figures 3.5 in the wrong direction. Such an error is always automatically corrected by a minus sign in the solution."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk18",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy19",
+      "problemText": "Let us consider a moving – coil meter which has a resistance (due largely to the coil of 1000Ω and which gives a full –scale deflection (f.s.d) when 100μ passes through it. If we wish to convert it to an ammeter reading 0-1A, this can be done by connecting a resistor of every low value parallel with it.",
+      "solutionSteps": [
+        "p.d. across meter = p.d. across shunt",
+        "Applying Ohm’s law to both meter and shunt: 0.0001 x 1000 = 0.9999 x S (from V = IR)",
+        "∴S = 0.0001 x 1000 / 0.9999 = 0.1Ω"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk19",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy20",
+      "problemText": "To convert the same moving-coil meter of resistance 1000Ω and full-scale deflection 100μA to a voltmeter reading 0-1V,a resistor of high value must be connected in series with the meter.",
+      "solutionSteps": [
+        "To obtain the value M of the multiplier, we apply the Ohm’s law when there is a f.s.d. of 0.0001A. Hence the p.d. across multiplier and meter in series = 0.0001 ( m + 1000)",
+        "But the meter is to give an f.s.d. when the p.d across it and the multiplier in series is 1V. Therefore, 0.0001 (M + 1000) = 1",
+        "M + 1000 = 1 / 0.0001 = 10000",
+        "and m = 9000Ω"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk19",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy21",
+      "problemText": "Find the magnetic flux density, B, at the centre of a square coil, of side 2a, carrying a current I as shown in fig. 3.13",
+      "solutionSteps": [
+        "The value of B due to one side of the coil = ∫π/4 μIcoswdw (see eq. 3.9) -π/4 4πa",
+        "= μI [sin α ] π/4 4πa -π/4",
+        "= 2μI 4π a",
+        "∴Magnetic flax density, B, due to the foursides = 2 μI πa"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk22",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy22",
+      "problemText": "Example 1\nSuppose the electric field shown in fig. 3.1 is of strength 2.0 NC -1.\nAn electron is released from rest in this field. How far and in what\ndirection does it move in 1.0μs?",
+      "solutionSteps": [
+        "You know how to solve problems involving constant acceleration from your PHY 101 where you used equations. V = u + at, S = ut + ½ at2, V2 = u2 + 2as",
+        "In this case, let us assume that distance is measured along the vertical direction, then Y = 0 + ½ at2",
+        "With the acceleration given by Eq. 3.2, have Y = qE / M = (- 1.6 x 10 -19 C) ( 2.0 NC -1 ) ( 1.0 x 10 -6S)2 / 2 x (9.1 x 10 -31 kg)",
+        "= -0.18m",
+        "The minus sign indicates that motion is downward, opposite to the field direction. This is expected because an electron carries a negative charge."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk23",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy23",
+      "problemText": "1. An electron is moving horizontally to the right at a speed or\n4.0 x106ms-1. It enters a region of length 20cm in which there is an\nelectric field of 1.0x103NC-1 pointing downward as shown in fig. 3.7.\nAnswer the following questions.\nA B\n20cm\nFig. 3.7\n(i) How long does it spend travelling from A to B?\n(ii) By how much and in what direction is the electron deflected,\nwhen it leaves the electric field? Describe the motion of the\nparticle in the electric field and draw a rough sketch of the\npath.\n(iii) What is the magnitude of the vertical component of the\nvelocity of the electron, when it leaves the electric field?\n(iv) What is the speed of the electron when it leaves the electric\nfield?\n(v) Through what angle has the electron been deflected when it\nleaves the electric field?\n(vi) Describe and draw the rough sketch of its subsequent motion.",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk25",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy24",
+      "problemText": "2. The pole faces of a cyclotron magnet are 120cm in diameter; the field\nbetween the pole faces is 0.80T. The cyclotron is used to accelerate\nprotons. Calculate the kinetic energy in eV, and the speed of a proton\nas it emerges from the cyclotron. Determine the frequency of the\nalternating voltage that must be applied to the dees of this accelerator\n(1eV = 1.6 x 10-19 J); (mass of the proton = 1.67 x 10-27kg).",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk25",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy25",
+      "problemText": "Example 1\nIn an experiment analyzing an aqueous solution of CUS04 between\nCU electrodes, 0.477g of CU are deposited on the cathode when a\ncurrent of 0.80A flows for 30 minutes\nCalculate:\n(a) The electrochemical equivalent of CU\n(b) Its atomic weight (CU is divalent under these condition",
+      "solutionSteps": [
+        "(a) When 0.80A flows for 30 minutes, the amount of coulombs passing is\n0.80 x 30 x 60 = 1440",
+        "Now, m = ZIt = Z x 1440 = 0.477",
+        "∴ Z = 0.477\n1440\n= 3.31 x10-4g C-1",
+        "(b) Z = A x 1 = A (see eq. 3. 3)\n2 F 2 x 96500",
+        "and A = 63.8"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk26",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy26",
+      "problemText": "Example 2\nA current of 0.8 A is passed for 30 minutes through a water voltmeter,\nconsisting of platinum electrodes dipping into dilute sulphuric acid,\nand it is found that 178.0cm3 of hydrogen at a pressure of 75.0cm of\nmercury at 288k are liberated. Calculate the electrochemical\nequivalent of hydrogen, given that its density at s.t.p. is\n8.99 x 10-2kgm-3.\nIf a copper voltmeter, consisting of copper plates dipping into a\nsolution of copper sulphate, had been connected in series with the\nwater voltmeter, calculate the mass of copper deposited on the\ncathode, given that the equivalent weights of hydrogen and copper are\n1 and 31.8 respectively.",
+      "solutionSteps": [
+        "Volume of hydrogen at s.t.p. = 178 x 75 x 273__\n76 273 + 15\n= 166.5cm3",
+        "mass of hydrogen = 166.5 x 8.99x 10 -2 10 -6\n= 1.50 x 10 -5kg",
+        "Charge of electricity passed = 0.800 x 30 x 60\n= 1440C",
+        "Electrochemical equivalent of hydrogen = 1.50 x 10 -5\n1440\n= 1.04 x 10 -8 kg C -1",
+        "mass of copper deposited = 31.8\nmass of hydrogen liberated 1",
+        "∴mass of copper deposited = 31.8 x 50 x 10-5 = 4.77 x 10 -4kg."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk26",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy27",
+      "problemText": "In an electrostatic accelerator, protons emerge with neglegible kinetic energy from an ion source maintianed at a potential of 2.0x106V. These protons are accelerated through a vacuum toward an electrode at zero potential. The proton beam emerging from the accelerator contains 1013 protons per second. What is the power supplied to the protons by the electric field?.",
+      "solutionSteps": [
+        "Since the charge on each proton is 1.60x10-19C,. the beam current is I = 1.60 x 10-19 x 10 13 A = 1.60 x 10-6A",
+        "The power supplied by the electric field to the proton beam is p = Vab I = (2.00 x 10 6 V) ( 1.60 x 10 -6 A) = 3.2 W."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk29",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy28",
+      "problemText": "A wire – wound resistor with a resistance of 250 ohm will overheat if the power dissipated exceeds 10W. What is the maximum constant voltage V that can be applied across the terminals of this resistor?",
+      "solutionSteps": [
+        "The maximum power is 10W, therefore the maximum voltage is given by V2 = PR (see Eq. 3.3)",
+        "V = 10 x 250",
+        "= 50 volts"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk29",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy29",
+      "problemText": "An electric refrigerator requires 200W and operates 8 hours per day. What is the cost of the energy to operate it for 30 days at 6 naira per unit?",
+      "solutionSteps": [
+        "200 W x 8.0 hr/day x 30 days = 48000 watt-hr x __1kw – hr_ 1000 watt-hr",
+        "= 48 kw-hr",
+        "∴ 48 kw-hr x N6.00/kw-hr = N288.00"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk29",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy30",
+      "problemText": "By means of a battery charger, a potential difference of 7.0 V is applied to the termianls of a storage battery whose e.m.f is 6.0 V and whose internal resistace is 0.5 ohm.\n(a) Wat is the charging current?\n(b) At what rate is energy being converted into chemical energy, and at what rate is heat produced?",
+      "solutionSteps": [
+        "(a) On charging, the terminal voltage is V = E + I r",
+        "7.0 = 6.0 + 0.50I",
+        "and I = 2.0 A, the charging current",
+        "(b) P = EI + I2 r",
+        "P = ( 6.0 ) (2.0 ) + (2.0)2 (0.50)",
+        "= 12 watts + 2 watts",
+        "The rate of converting electrical energy into stored chemical energy is 12W and the rate of heating is 2W."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk29",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy31",
+      "problemText": "A coffee percolator is rated at 800 W.\n(a) How many calories of heat does it generate in 100s ?\n(b) What time would be required for this percolator to heat 1 litre of\nwater from 200C to 1000C ? Neglect the heat loss to the percolator and\nits surroundings.\n(c) If, in fact, 450s were required, what was the efficiency of device?",
+      "solutionSteps": [
+        "(a) P = 800 W = 800 Js -1 x cal / 4.18 J = 191 cal s -1",
+        "Therefore the heat generated is given by H = 191 cal s-1 x 100s = 19, 100 cal",
+        "(b) The quantity of heat require to heat the water is Q = 1.00 cal / gm-C° x 1000gm x 80°C = 80,000 cal",
+        "∴ 191 cal / sec x t = 80000 cal",
+        "t = 419s = 6.97min",
+        "(c) Efficiency = 191 cal/sec x 419sec x 100% / 191 cal/sec x 450sec = 91%"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk30",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy32",
+      "problemText": "Example 1\nA toroid with an iron core is formed by winding N turns of wire uniformly on\na thin uniform iron ring with a circumference of 2πR (figure 3.3). The iron is\ninitially unmagnetized (M=0). A current I is established in the wire and the\nmagnetic field B within the iron is measured. Find the magnetic intensity H\nand the magnetization M within the iron core of this toroid if N= 500 turns,\n2πR = 0.400m, I = 800mA, and B = 1.58T",
+      "solutionSteps": [
+        "The symmetry of the current distribution in the wi"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk31",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy33",
+      "problemText": "a thin uniform iron ring with a circumference of 2πR (figure 3.3). The iron is initially unmagnetized (M=0). A current I is established in the wire and the magnetic field B within the iron is measured. Find the magnetic intensity H and the magnetization M within the iron core of this toroid if N= 500 turns, 2πR = 0.400m, I = 800mA, and B = 1.58T",
+      "solutionSteps": [
+        "Selecting a circular flux line within the core as the path of integration, gives ∫c Hs ds = H ∫c ds = H (2πR)",
+        "Since each turn of the coil carries a free current I through the path of integration, the net free current If passing the path C is given by If = NI",
+        "Ampere’s line integral law for H gives H (2πR) = NI",
+        "Therefore, H = NI = 500 x 800 x 10-3A = 103 Am-1 / 2πR 0.400m",
+        "Since M = 1/μo B–H, and the direction of B and H are the same, the magnitude of the magnetization is M = B - H / μo = 1.58 T - 1000 Am-1 / 4π x 10 -7 T.m/A = 1.26 x 106 Am-1",
+        "M is in the direction of B."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk32",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy34",
+      "problemText": "4. A toroid with 1500 turns is wound on an iron ring 360mm2 in cross-sectional area, of 0.75m mean circumference and of 1500 relative permeability. If the windings carry 0.24A, find\n(a) The magnetizing field H\n(b) The magnetic induction B\n(c) The magnetic flux\n(d) The magnetomotive force\n(μo = 4 π x 10-7 Hm-1)",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk34",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy35",
+      "problemText": "Example\nA tangent galvanometer has a coil of 2 turn of mean radius 7.5cm, which is set with its plane in the magnetic meridian. A current is passed through the coil and produces a deflection of a magnet, pivoted at the centre of the coil, of 450. Calculate the current if the",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk35",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy36",
+      "problemText": "A tangent galvanometer has a coil of 2 turn of mean radius 7.5cm, which is set with its plane in the magnetic meridian. A current is passed through the coil and produces a deflection of a magnet, pivoted at the centre of the coil, of 450. Calculate the current if the horizontal component of the earth’s flux density is 1.8 x 10-5 Wb m-2.",
+      "solutionSteps": [
+        "Let I = the current in the coil",
+        "The magnetic flax density at the centre of coil is given by B = μo NI / 2a = ____2 I μo__ / 2 x 7.5 x 10-2",
+        "Magnetic flux density due the earth = 1.8 x 10 -5",
+        "Using eqn. 3.6 B = BH tan θ",
+        "∴ ___ 2 I μo___ / 2 x 7.5 x 10-2 = 1.8 x 10 -5 tan 450",
+        "I = 1.07 A"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk36",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy37",
+      "problemText": "A single turn circular coil is placed at the location of path C in figure 3.1. The coil encloses an area of 0.40m2. The average value of the magnetic field within the coil increses at a uniform rate from 0.10 T to 0.30T in 5.0 x 10-2s. Find the line integral of E about the path C.",
+      "solutionSteps": [
+        "Taking conunterclockwise direction as the positive direction for the path C, and using the right hand rule, we find that the direction of n in figure 3.1 is out of the page.",
+        "BN and the magnetic flux φ enclosed by C are consequently negative.",
+        "Initially φ = 0.10T x 0.40m2 = -4.0 x 10-2 Wb",
+        "and finally, φ = -0.30T x 0.40m2 = -12.0 x 10-2 Wb",
+        "therefore, ∂φ / ∂t = - 8.0 x 10 -2 Wb / 5 .0 x 10-2 s = - 1.6 wb/s",
+        "Faraday’s law gives ∫c Es ds = -∂φ / ∂t = 1.6 V"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk37",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy38",
+      "problemText": "Example: suppose a single –turn coil of cross-sectional area 5.0 cm2 is at right angles to a flux density of 2.0 x 10-2T, which is then reduced steadly to zero in 10s.",
+      "solutionSteps": [
+        "The flux-linkage change d (N φ) = (number of turns) x (change in B) x (area of coil)",
+        "= ( 1) x (2.0 x 10-2) x (5.0 x 10 -4 m2)",
+        "= 1.0 x 10 -5 Wb",
+        "The change occurs in time dt = 10s, hence the e.m.f , E induced in the coil is given by E = d (N φ ) / dt = 1.0 x 10 -5 W b / 10 s",
+        "= 1.0 x 10-6 V",
+        "If the coil had 5000 turns, the flux linkage would be 5000 times as great (i.e Nd φ = 5.0 x 10 -2 Wb ), hence E = 5000 x 10-6 = 5.0 x 10 -3 V",
+        "If the normal to the plane of this coil made an angle of 600 (instead of 00) with the field then N dφ = 5.0 x 10-2 cos 60° = 2.5 x 10-2 Wb",
+        "and E = 2.5 x 10 -3 V"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk37",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy39",
+      "problemText": "In figure 3.6, parallel conducting tracks ab and cd are joined at one end by a conductor ac and are located in a constant uniform magnetic field perpendicular to the plane of the tracks. A conducting bar ef moves at a constant speed v. Find the e.m.f. induced in the circuit eface.",
+      "solutionSteps": [
+        "The flux enclosed by the circuit is φ = B l x",
+        "The speed of the moving conductor is V = dx/dt",
+        "As a result of this motion the enclosed flux changes at the rate dφ/dt = BlV",
+        "From Farady’s flux rule, the magnitude of the e.m.f is E = BlV",
+        "Since the upward flux through the circuit is inceasing, Lenz’s law implies that the induced e.m.f is clockwise looking down on the circuit."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk38",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy40",
+      "problemText": "1. A coil of 500 turns and area 10cm2 is placed with its plane perpendicular to a magnetic field of 2 x 10-3 T. If the field be uniformly reduced to zero in 10-2s, what will be the e.m.f induced in the coil? If the resistance of the coil is 50 ohm, calculate the values of the current and the charge induced in the coil.",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk39",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy41",
+      "problemText": "2. Find the magnitude of the induced e.m.f. in a 200-turn coil with cross-sectional area of 0.16m2 if the magnetic field through the coil changes from 0.10T to 0.50T at a auniform rate over a period of 0.02s.",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk39",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy42",
+      "problemText": "(b) A straight wire of length 50cm and resistance 10ohm moves sideways with velocity of 15ms-1 at right angles to a uniform magnetic field of flux density 2.0 x 10-3T. What current would flow if it ends were connected by leads of negligible resistance?",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk39",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy43",
+      "problemText": "Find the mutual inductance M of a large circular coil with N1 turns of radius R1 and a very small concentric coil with N2 turns of radius R2 (see fig. 3.2).",
+      "solutionSteps": [
+        "The flux φ2 through the small coil produced by a current I1 in the large coil can be calculated easily, since φ2 = B1 πR22 where B1 is the field produced by I1 at the centre of the first coil.",
+        "Now B1 = μoN I1 / 2R1",
+        "Therefore, M = N2 φ2 = π μo N1 N2 R22 / I1 2R1"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk40",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy44",
+      "problemText": "Example If R = 100 ohms and L = 10 henrys",
+      "solutionSteps": [
+        "L = 10 = 0.1s / R 100",
+        "and the current increases to about 63% of its value in 0.1s.",
+        "On the other hand, if L = 0.01 henry",
+        "L = 0.01 = 10-4s / R 100",
+        "and only 10-4s is required for the current to increase to 63% of its final value."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk41",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy45",
+      "problemText": "A 100W lamp is used on a domestic a.c. supply at 220 volt.\nWhat is\n(i) The effective value of the current consumed by the lamp?\n(ii) The r.m.s value of the voltage\n(iii) The peak value of the voltage\n(iv) The average value of the voltage.",
+      "solutionSteps": [
+        "(i) Ieff = watt = 100 = 0.45A\nvolt 220",
+        "(ii) r.m.s or effective voltage = 220 volt",
+        "(iii) The peak value of voltage = 2 x effective value\n= 2 x 220\nVo = 311 volt",
+        "(iv) Average value of voltage = 2Vo = 2 x 311 = 198 volt\nπ π"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk42",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy46",
+      "problemText": "(i) Find the magnitude Zc of the impedance of a 1.00-mf\ncapacitor at f = 60Hz.",
+      "solutionSteps": [
+        "(i) Using equation 3.11, at f = 60Hz",
+        "1 = 2.65 x 103 ohm.\n2π (6oHz) (1.00 x 10-6 F)"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk46",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy47",
+      "problemText": "(ii) A 60 – Hz alternating voltage with an amplitude of 4.00 V is\napplied across a 1.00 – mH inductor. Find the current\namplitude.",
+      "solutionSteps": [
+        "(ii) From Eq. 3.10, at f = 60 Hz",
+        "ZL = wL = 2π (60Hz) (1.00 x 10-3H) = 0.377 ohm",
+        "Therefore, the current amplitude is given by",
+        "Io = Vo = 4.00V = 10.6A\nZL 0.377Ω"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk46",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy48",
+      "problemText": "Consider the circuit in Fig. 3.11\n(a) From the amplitudes of the voltages across individual circuit\nelements, determine the amplitude Vo of the voltage across the\nentire part of the circuit.\n(b) Calculate the impendace Z of this external circuit and use this\nto dertermine Vo.\n(c) Determine the phase difference between the a.c. voltage and\nthe current in the circuit\n(d) Draw the impedance diagram for the R – L – C circuit\nelement.",
+      "solutionSteps": [
+        "VoR = IoZR = 5.0 x 8 = 40.0V, and the phase angle θR = 0",
+        "VoL = Io ZL = 5.0 x 6.0 = 30.0V, and the phase angle θL = + 900",
+        "Voc = Io Zc = 5.0 x 10.0 = 50.0 V and the phase angle θc = -900",
+        "Because of the 1800 phase difference between the voltage across the inductor and the voltage across the capacitor, the amplitude of the voltage across these two component is given by\nVoLc = Voc – VoL = (50.0 – 30.0 )V = 20.0V",
+        "Since Voc is greater than VoL, the phasor of magnitude VoLc points downward on a phasor diagram. Now, evaluating the phasor sum of the phasors of magnitude VoLc and VoR, we have\nVo = 40.02 + 20.02 = 44.7V",
+        "(b) Z = R2 + ( XL + Xc)2\n= 82 + (6 – 10)2\n= 8.94 Ω",
+        "Using Vo = Io Z, we obtain\nVo = (5.0A) (8.94 Ω) = 44.7V",
+        "In agreement with the result of part (a)",
+        "(c) From the phasor diagram, we see that\ntan θ = -20 = - 0.500 and θ = -26.60\n40",
+        "(d) The impedance diagram is shown in Fig. 3.12"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk47",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy49",
+      "problemText": "The instantaneous voltage V and current I are given in SI units by\nV = -155cos (377t - π/2)\nI = 2.0sin 377t\nFind the phase difference between the voltage and the current.",
+      "solutionSteps": [
+        "Perhaps the simplest method is to locate the phasor representing V and I at some particular instant. For example, at the time t such that 377t = π/2, V = - 155cos (π/2 - π/2) = 155 volts and I = 2.0A.",
+        "The phasor diagram at this instant is shown in Fig. 3.3.",
+        "The angle between the voltage phasor and the current phasor, which is the phase difference θ, is seen to be 1800 or π rad.",
+        "Another method (Analytical): To find the phase difference analytically, we first write V and I in the same standard form with a positve constant multiplying a cosine function of time.",
+        "Using cos (α + π) = -cos α, we can write the voltage function as V = 155 cos (377t - π/2 + π).",
+        "Using cos (α - π/2) = sin α, we can rewrite the current function as I = 2.0cos (377t . π/2).",
+        "Then the phase difference is θ = (377t - π/2 + π) – ( 377t - π/2).",
+        "= π."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk48",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy50",
+      "problemText": "(i) Find the magnitude Zc of the impedance of a 1.00-mf\ncapacitor at f = 60Hz.\n(ii) A 60 – Hz alternating voltage with an amplitude of 4.00 V is\napplied across a 1.00 – mH inductor. Find the current\namplitude.",
+      "solutionSteps": [
+        "(i) Using equation 3.11, at f = 60Hz 1 = 2.65 x 103 ohm. 2π (6oHz) (1.00 x 10-6 F)",
+        "(ii) From Eq. 3.10, at f = 60 Hz ZL = wL = 2π (60Hz) (1.00 x 10-3H) = 0.377 ohm",
+        "Therefore, the current amplitude is given by Io = Vo = 4.00V = 10.6A ZL 0.377Ω"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk49",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy51",
+      "problemText": "Consider the circuit in Fig. 3.11\n(a) From the amplitudes of the voltages across individual circuit\nelements, determine the amplitude Vo of the voltage across the\nentire part of the circuit.\n(b) Calculate the impendace Z of this external circuit and use this\nto dertermine Vo.\n(c) Determine the phase difference between the a.c. voltage and\nthe current in the circuit\n(d) Draw the impedance diagram for the R – L – C circuit\nelement.",
+      "solutionSteps": [
+        "VoR = IoZR = 5.0 x 8 = 40.0V, and the phase angle θR = 0",
+        "VoL = Io ZL = 5.0 x 6.0 = 30.0V, and the phase angle θL = + 900",
+        "Voc = Io Zc = 5.0 x 10.0 = 50.0 V and the phase angle θc = -900",
+        "Because of the 1800 phase difference between the voltage across the inductor and the voltage across the capacitor, the amplitude of the voltage across these two component is given by VoLc = Voc – VoL = (50.0 – 30.0 )V = 20.0V",
+        "Since Voc is greater than VoL, the phasor of magnitude VoLc points downward on a phasor diagram. Now, evaluating the phasor sum of the phasors of magnitude VoLc and VoR, we have Vo = 40.02 + 20.02 = 44.7V",
+        "(b) Z = R2 + ( XL + Xc)2 = 82 + (6 – 10)2 = 8.94 Ω",
+        "Using Vo = Io Z, we obtain Vo = (5.0A) (8.94 Ω) = 44.7V",
+        "In agreement with the result of part (a)",
+        "(c) From the phasor diagram, we see that tan θ = -20 = - 0.500 and θ = -26.60 40",
+        "(d) The impedance diagram is shown in Fig. 3.12"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk49",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy52",
+      "problemText": "(1a) Find the phase difference between the voltage V and the current I given in SI units by\nV = 10 sin20t\nI = 0.30 cos 20t",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk50",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy53",
+      "problemText": "(b) The instantaneous current 1 across a 200-ohm resistor is given in SI unit by I = 10 cos377t\n(i) Find the frequency and the period\n(ii) Find the voltage across the resistor when t = 1 second",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk50",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy54",
+      "problemText": "(2a) In an R-L series circuit, the voltage across the resistor has an amplitude of 50V and the voltage across the inductor has an amplitude of 120V. Find the amplitude of the voltage across the R-L series combination. What is the phase difference between this voltage and the current?",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk50",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy55",
+      "problemText": "(2b) What is the capacitance of the capacitor required in series with a 40-mH inductance coil to provide a circuit which resonates at a frequency of 60Hz?",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk50",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy56",
+      "problemText": "(3) A 60 – Hz alternating voltage of 110V effective value is applied to a series circuit having an inducatance L of 1.00H, a capacitance C of 2.00mf, and a resistance R of 400Ω. Calculate the:\n(a) Inductive reatance\n(b) Capacitive reactance\n(c) Total impedance\n(d) Effective current in the circuit\n(e) Power factor of the circuit.",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk50",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy57",
+      "problemText": "Quanta of wavelenght 6000 A0 strike the surface of a metal whose\nwork function is 1.0 eV. What is the maximum kinetic energy that a\nphotoelectron can have?",
+      "solutionSteps": [
+        "The energy of quanta at 6000Ao is given by\nE = hf = hc/λ = (6.6 x 10-34 J.s) (3.0 x 108 ms -1)\n6.0 x 10 -7m",
+        "= 3.3 x 10-19 J",
+        "From Eq. 3.2, the maximum kinetic energy of the photoelectrons is\n½ mV2 max = E - φ",
+        "= 3.3 x 10-19 J - ( 1.0 eV0 ( 1.6 x 10 -19 joule /eV)",
+        "= 3.3 x 10-19 J – 1.6 x 10 -19 J",
+        "= 1.7 x 10-19 J"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk52",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy58",
+      "problemText": "If a photoemissive surface has a threshold wavelenght of 0.65mm,\ncalculate\n(i) Its work function in electronvolts, and\n(ii) The maximum speed of the electrons emitted by violet light of\nwavelenght 0.40mm.\n(Speed of light, C = 3.0 x 108 ms-1, h = 6.6 x 10 -34 Js,\ne = 1.6 x 10 -19 C and mass of electron m = 9.1 x 10 -31 kg).",
+      "solutionSteps": [
+        "(i) λo = 0.65 mm = 6.5 x 10-7 m",
+        "f = c/λo\n= 3.0 x 108 ms -1\n6.5 x 10 -7 m",
+        "= 4.6 x 10 14 Hz",
+        "(ii) We have φ = hfo\n= ( 6.6 x 10 -34 j.S ) ( 4.6 x 10 14 s -1)",
+        "But 1 eV = 1.6 x 10 -19 J\nφ = 6.6 x 4.6 x 10 -20 eV\n1.6 x 10 -19",
+        "= 1.9 eV",
+        "(iii) For violet light λ = 0.40 mm = 4.0 x 10 -7 m\nf = c/λ\n= 3.0 x 10 -8 ms -1\n4.0 x 10 -7 m",
+        "= 7.5 x 10 14 Hz",
+        "From the photoelectric equation ½ MV2max = hf - φ",
+        "½ MV2max = ( 6.6 x 10 -34 x 7.5 x 10 14 – 1.9 x\n1.6 x 10 -19) J",
+        "= 1.9 x 10 -19 J",
+        "∴ Vmax = 2 x 1.9 x 10 -19 ms -1\n9.1 x 10 -31",
+        "= 6.5 x 105 Ms-1"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk53",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy59",
+      "problemText": "Light having a wavelenght of 5000Ao falls on a material having a\nphotoelectric work function of 1.90eV.\nFind (a) The energy of the photon in eV.\n(b) The kinetic energy of the most photoelectron in eV and in\njoule, and\n(c) The stopping potential",
+      "solutionSteps": [
+        "(a) From Eq. 3.1, the energy of the photon is given by\nE = hf joules\n= hf eV\nec\nSince C = fλ, where λ is the wavelenght of the photon\nE hc\necλ",
+        "= (6.63 x 10 -34 J.s) ( 3 x 108 ms -1)\n(1. 60 x 10 -19 J) (5 x 103 x 10-8m)",
+        "= 2.47eV",
+        "(b) The law of conservation of energy gives\nMaximum kinetic energy = photon energy – work function",
+        "Or Ek = 2.47eV – 1.90eV = 0.57eV",
+        "Also Ek = 0.57eV x 1.6 x 10-19 J = 9.11 x 10-20 J\n1eV",
+        "(c) The stopping potential is given by\nVs = 0.57eV\n1 electronic charge",
+        "= 0.57 volt"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk53",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy60",
+      "problemText": "3. Write down Einstein’s equation for photoelectric emission. Explain the meanings of the terms in the equation and discuss their significance.\nWhen the incident light is monochromatic and of wavelenght 600 nm, the kinetic energy of the faster electrons is 2.56 x 10 -20 J. For light of wavelenght 400nm, it is 1.92 x 10-19 J. Use this information to estimate the value of Planck’s constant, h and the work function, φ of the metal.\n(Take the velocity of light to be 3 x 108 ms -1)",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk54",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy61",
+      "problemText": "The work function of cesium surface is 2.0eV:\n(a) find the maximum kinetic energy of the ejected electrons\nwhen the surface is illuminated by violet light with λ = 4.13\nx 103Ao (h = 6.63 x 10 -34 Js).\n(b) what is the threshold wavelenght (the largest λ ) for the\nphotoelectric effect to occur with this metal?",
+      "solutionSteps": [],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk54",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy62",
+      "problemText": "Example\nFind the energy of the photons in a beam whose wavelength is:\n(a) 6.2 x 103 A0 ( orange light)\n(b) 4.13 x 103 A0 ( violet light)",
+      "solutionSteps": [
+        "(a) A photon beam of arange light has an energy which is, from Eq. 3.7\nE = 12.4 x 103 A0. eV = 2.0 eV\n6.2 x 10 3A0",
+        "(b) A photon of the beam of violet light has an energy\nE = 12.4 x 103 A0 eV = 3.0 eV\n4.13 x 10 3 A0"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk55",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy63",
+      "problemText": "Monochromatic X-rays (λ = 1A0) are reduced to 1/3 of their original intensity in passing through a gold foil (Z = 79) of 3mm thickness. Calculate the absorption coefficient for the X-rays. What are the dimensions of the absorption coefficient?",
+      "solutionSteps": [
+        "We use the relation I = Ioe –mx ( Eq. 3.18)",
+        "That is I/Io = e-mx",
+        "Here I/Io = 1/3 and x = 3mm = 0.3 cm",
+        "∴ 1/3 = e –mx 0.3",
+        "3 = e 0.3m",
+        "log 3 = 0.3m, whence m = loge3 / 0.3",
+        "That is m = log103 / 0.3log10e = 2.3026 x 0.4771 / 3.0",
+        "= 2 3.7 cm-1",
+        "The demensions of the absorption coefficient are those of the reciprocal length, that is Mo L-1 T0."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk57",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy64",
+      "problemText": "Find the binding energy per nucleous of 1H3, given that the mass is 3.016049\namu.",
+      "solutionSteps": [
+        "1H3 consists of 1 proton and (3-1) = 2 neutrons.",
+        "Mass of 1 proton = 1.007825amu",
+        "and mass of 2 neutrons = 2x 1.008665 = 2.017330 amu",
+        "Total mass of 1 proton and 2 neutrons = 1.007825 +2.017330\n= 3.025155amu",
+        "Mass difference, ∆M = 3.025155 – 3.016049 = 0.007106 amu",
+        "Hence binding energy of the nucleus (1H3), E6 = 0.007106 x 931MeV\n= 6.615656MeV",
+        "Binding Energy of 1H3 per nucleon, Eo/A = 6.615656\n3\n= 2.20522MeV"
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk59",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy65",
+      "problemText": "If 8 x 1010 atoms of radon are separated from radium, how many disintegrations will occur in 11.46 days ? ( Half-life radon = 3.82 days).",
+      "solutionSteps": [
+        "First, notce that 11.46 days is three times the half-life of radon.",
+        "We could solve the problem as follows: during the first 3.82 days, half of the radon atoms will decay, leaving 4 x 1010; during the second 3.82 days, half of these will decay, leaving 2 x 1010 and during the final 3.82 days, half of these will decay, leaving 1 x 1010.",
+        "Thus 7 x 1010 disintegrations would occur in 11.46 days.",
+        "Alternatively, Using the formular fo radioactive decay (Eq. 3.1), we have N = 8 x 1010 e - ( 0.693/3.82 days) (11.46 days)",
+        "= 8 x 1010e -2.079",
+        "= 8 x1010 x 0.125",
+        "= 1 x 1010",
+        "Hence the number of disintegrations is 7 x 1010."
+      ],
+      "sourceChunk": "PHY 102 ELECTRIC, MAGNETISM AND MODERN PHYSICS__chunk60",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy66",
+      "problemText": "The period P of a simple pendulum is the time for one complete swing. How does P depend on the mass m of the bob, the length l of the string, and the acceleration due to gravity g?",
+      "solutionSteps": [
+        "Let us express the period P in terms of the other quantities as follows: P = kmx ly g z",
+        "K is a constant, x, y, z are to be determined. Let us insert the dimensions of each quantity: T = M x L y L z T -2z = M x L y+z T -2z",
+        "and equate the powers of each dimension on either side of the equation. Thus, T: 1 = -2z, M: 0 = x, L: 0 = y + z",
+        "x = 0, z = -½, y = -z, y = +½",
+        "Thus, k P = l/g"
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk1",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy67",
+      "problemText": "What is the acceleration of a car that moves from rest to 90km/h in 15s?",
+      "solutionSteps": [
+        "a av = (v - v0) / (t2 - t1) = Δv / Δt",
+        "a av = 25 / 15 = 1.6ms -2"
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk1",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy68",
+      "problemText": "Two rail cars A and B with masses mA = 1.2 x 104 kg and mB = 8 x 10 3 kg can\nroll freely on a horizontal track. A locomotive of mass 105 kg exerts a force F o on A\nthat produces an acceleration of 2ms -2 . Find (a) F o and (b) the force exerted on A by B.",
+      "solutionSteps": [
+        "Rail Car A a m F F F A AB o x = − = ∑ 1",
+        "Rail Car B a m F F B BA x = = ∑ 2",
+        "From equation 2, we have F BA = 8 x 10 3 x 2",
+        "= 1.6 x 104 N",
+        "Since from Third law FAB = F BA",
+        "Equation 1 becomes N x F\nx x x F\no\no\n4\n4 4\n10 0 . 4\n2 10 2 . 1 10 6 . 1\n=\n= −"
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk2",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy69",
+      "problemText": "A 5kg block is on a horizontal surface for which 2 . 0 = s \nμ and 1 . 0 = k \nμ . It is\npulled by a 10N force directed at 55 o above the horizontal. Find the force of friction\non the block given that (a) it is at rest and (b) it is moving",
+      "solutionSteps": [
+        "a. N = mg – Fsin 55o",
+        "= 5 x10 – 10x 0.819",
+        "N = 41.8N",
+        "N F s s \nμ =",
+        "= 0.2 x 41.8",
+        "s F = 8.36N",
+        "The horizontal component of the applied force is 10cos55 o = 5.74N",
+        "s F > 5.74N",
+        "So, the force of static friction required to keep the block at rest is just 5.74N",
+        "(b) N F k k \nμ =",
+        "= 0.1 x 41.8",
+        "k F = 4."
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk2",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy70",
+      "problemText": "A pump raises water from a well of depth 20m at a rate of 10kgs-1 and\ndischarges it at 6ms -1 . What is the power of the motor?",
+      "solutionSteps": [
+        "Total Work = 2\n2\n1 mv mgh +",
+        "( ) 2\n2\n1 mv mgh\ndt\nd\ndt\ndW\nP + = =",
+        "( )\n( )\nW P\nP\nv\ngh\ndt\ndm\nP\n2180\n18 200 10\n2\n2\n=\n+ =\n+ ="
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk3",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy71",
+      "problemText": "1. If a house thermostat is set to , what is the temperature in Celsius scale?",
+      "solutionSteps": [
+        "Solution:",
+        "Therefore,"
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk3",
+      "isHeldOut": false
+    },
+    {
+      "exampleId": "phy72",
+      "problemText": "2. At what temperature are the Fahrenheit and Celsius scales equal?",
+      "solutionSteps": [
+        "Solution:",
+        "When they are equal,",
+        "Therefore,",
+        "Hence,",
+        "i.e."
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk3",
+      "isHeldOut": true
+    },
+    {
+      "exampleId": "phy73",
+      "problemText": "An ideal gas with a volume of 0.05m^3 expands at a constant pressure of 2.0 x 10^5 Pa to triple its volume. Calculate the work done by the gas,",
+      "solutionSteps": [
+        "Given that",
+        "V_1 = 0.05m^3",
+        "P = 2.0 x 10^5 Pa",
+        "V_2 = 3V_1 = 0.15m^3",
+        "Work done W = P(V_2 - V_1)",
+        "W = 2.0 x 10^5(0.15 - 0.05)",
+        "W = 2.0 x 10^5(0.10)",
+        "W = 2.0 x 10^4 J"
+      ],
+      "sourceChunk": "GENERAL PHYSICS I  (2)__chunk4",
+      "isHeldOut": false
+    }
+  ]
+}

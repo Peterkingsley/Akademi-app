@@ -10,6 +10,7 @@ export interface AuthResponse {
   refreshToken: string;
   adminAccessToken?: string | null;
   user: Partial<User> & { admin_role?: string | null };
+  needsOnboarding?: boolean;
 }
 
 export interface RegisterRequest {

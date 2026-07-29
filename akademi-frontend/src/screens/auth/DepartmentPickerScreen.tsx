@@ -28,7 +28,7 @@ const LEVELS = ["100L", "200L", "300L", "400L", "500L", "PG"];
 export const DepartmentPickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { universityId, universityName } = route.params || {};
+  const { universityId, universityName, pendingAuth } = route.params || {};
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [faculties, setFaculties] = useState<string[]>([]);
@@ -87,6 +87,7 @@ export const DepartmentPickerScreen: React.FC = () => {
         faculty: selectedDept.faculty,
         department: selectedDept.name,
         level: selectedLevel,
+        pendingAuth,
       });
     }
   };

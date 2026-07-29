@@ -3,3 +3,5 @@ dist
 .env
 coverage
 *.log
+gcp-service-account.json
+*service-account*.json

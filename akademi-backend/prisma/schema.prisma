@@ -224,6 +224,7 @@ model User {
   faculty                       String
   department                    String
   level                         Int
+  needs_onboarding              Boolean      @default(false)
   profile_photo_url             String?
   auth_provider                 AuthProvider @default(EMAIL)
   is_verified                   Boolean      @default(false)
@@ -1843,6 +1844,9 @@ model Archetype {
   // How many source examples shared this exact signature (v6 archetype-layer pipeline).
   // Not part of the original A7 design — added for modelTopicKnowledge.job.ts's archetype pass.
   memberCount     Int      @default(1)
+  // [{problemText, solutionSteps}] for every member example — ItemModel synthesis diffs these to
+  // find what varies (incidental slots). Null on archetypes written before this field existed.
+  memberExamples  Json?
 
   radicals        ArchetypeRadical[]
   itemModels      ItemModel[]

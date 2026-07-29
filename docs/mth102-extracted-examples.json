@@ -1,0 +1,3383 @@
+[
+  {
+    "exampleId": "ex0",
+    "problemText": "Example 1.2. Let A = {1, 2, 3} and B = {x, y}. Then A × B = {(1, x), (1, y), (2, x), (2, y), (3, x), (3, y)}. The cardinality is |A| · |B| = 3 × 2 = 6.",
+    "solutionSteps": [
+      "A × B = {(1, x), (1, y), (2, x), (2, y), (3, x), (3, y)}",
+      "The cardinality is |A| · |B| = 3 × 2 = 6."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex1",
+    "problemText": "Example 1.4. Let A = {1, 2, 3, 4}, B = {2, 4, 6, 8}. De ne R = {(a, b) ∈ A × B | b = 2a}. Then R = {(1, 2), (2, 4), (3, 6), (4, 8)}.",
+    "solutionSteps": [
+      "R = {(1, 2), (2, 4), (3, 6), (4, 8)}"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex2",
+    "problemText": "Example 1.7. f (x) = 3x − 2 is injective because 3x1 − 2 = 3x2 − 2 implies x1 = x2.",
+    "solutionSteps": [
+      "3x1 − 2 = 3x2 − 2",
+      "implies x1 = x2"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex3",
+    "problemText": "Example 1.8. f (x) = x2 is NOT injective because f (2) = f (−2) = 4 but 2̸ = −2.",
+    "solutionSteps": [
+      "f (2) = 4",
+      "f (−2) = 4",
+      "2̸ = −2"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex4",
+    "problemText": "Example 1.10. f (x) = 3x − 2 is surjective because for any y, x = (y + 2)/3 works.",
+    "solutionSteps": [
+      "for any y, x = (y + 2)/3 works"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex5",
+    "problemText": "Example 1.11. f (x) = x2 is NOT surjective onto R because negative numbers have no preimage.",
+    "solutionSteps": [
+      "negative numbers have no preimage"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex6",
+    "problemText": "Example 1.13. f (x) = 3x − 2 is bijective. f (x) = x3 is also bijective.",
+    "solutionSteps": [
+      "f (x) = 3x − 2 is bijective",
+      "f (x) = x3 is also bijective"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex7",
+    "problemText": "Example 1.14. Determine if f : R → R, f (x) = 2x + 3 is injective, surjective, or bijective.",
+    "solutionSteps": [
+      "Injectivity: Suppose 2x1 + 3 = 2x2 + 3. Subtract 3: 2x1 = 2x2. Divide by 2: x1 = x2. So injective.",
+      "Surjectivity: For any y ∈ R, solve y = 2x + 3 to get x = (y − 3)/2, which is real. So surjective.",
+      "Since both conditions hold, f is bijective."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex8",
+    "problemText": "Example 1.15. Determine if f : Z → Z, f (n) = n2 is injective.",
+    "solutionSteps": [
+      "No, because f (2) = 4 and f (−2) = 4 but 2̸ = −2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex9",
+    "problemText": "Example 1.16. Determine if f : R → [0, ∞), f (x) = x2 is surjective.",
+    "solutionSteps": [
+      "Yes, because for any y ≥ 0, take x = √y and we get f (x) = y."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex10",
+    "problemText": "Example 1.18. Let f (x) = 5. Find f (0), f (10), and f (−3).",
+    "solutionSteps": [
+      "Since the output is always 5 regardless of input, f (0) = 5, f (10) = 5, and f (−3) = 5."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex11",
+    "problemText": "Example 1.19. A taxi company charges a  at fee of $3 per ride regardless of distance. Write the cost function and state its domain and range.",
+    "solutionSteps": [
+      "C(d) = 3 where d is distance in miles.",
+      "Domain: d ≥ 0.",
+      "Range: {3}."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex12",
+    "problemText": "Example 1.21. For f (x) = x, compute f (5), f (−2), and f (0).",
+    "solutionSteps": [
+      "f (5) = 5",
+      "f (−2) = −2",
+      "f (0) = 0"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex13",
+    "problemText": "Example 1.22. Show that the identity function is bijective.",
+    "solutionSteps": [
+      "Injective: If f (x1) = f (x2), then x1 = x2 directly.",
+      "Surjective: For any y ∈ R, choose x = y. Then f (x) = y.",
+      "Thus it is bijective."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex14",
+    "problemText": "Example 1.24. Verify the triangle inequality for a = 5 and b = −3.",
+    "solutionSteps": [
+      "Left side: |a + b| = |5 + (−3)| = |2| = 2",
+      "Right side: |a| + |b| = |5| + | − 3| = 5 + 3 = 8",
+      "Check: 2 ≤ 8, so the inequality holds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex15",
+    "problemText": "Example 1.25. Verify the reverse triangle inequality for a = 7 and b = 2.",
+    "solutionSteps": [
+      "Left side: ||a| − |b|| = |7 − 2| = 5",
+      "Right side: |a − b| = |7 − 2| = 5",
+      "Check: 5 ≤ 5, so equality holds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex16",
+    "problemText": "Example 1.26. Solve the equation |x − 3| = 5 using the properties of absolute value.",
+    "solutionSteps": [
+      "The equation |x − 3| = 5 means the distance from x to 3 is 5.",
+      "So x − 3 = 5 or x − 3 = −5.",
+      "Thus x = 8 or x = −2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex17",
+    "problemText": "Example 1.27. Solve the inequality |2x + 1| < 7.",
+    "solutionSteps": [
+      "|2x + 1| < 7 means −7 < 2x + 1 < 7.",
+      "Subtract 1: −8 < 2x < 6.",
+      "Divide by 2: −4 < x < 3.",
+      "The solution set is (−4, 3)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex18",
+    "problemText": "Example 1.28. Prove the triangle inequality: |a + b| ≤ |a| + |b|.",
+    "solutionSteps": [
+      "For any real numbers a and b, note that −|a| ≤ a ≤ |a| and −|b| ≤ b ≤ |b|.",
+      "Adding these inequalities: −(|a| + |b|) ≤ a + b ≤ |a| + |b|.",
+      "By de nition of absolute value, this means |a + b| ≤ |a| + |b|."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk1"
+  },
+  {
+    "exampleId": "ex19",
+    "problemText": "olve the inequality |2x + 1| < 7.",
+    "solutionSteps": [
+      "|2x + 1| < 7 means −7 < 2x + 1 < 7.",
+      "Subtract 1: −8 < 2x < 6.",
+      "Divide by 2: −4 < x < 3.",
+      "The solution set is (−4, 3)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex20",
+    "problemText": "Example 1.28. Prove the triangle inequality: |a + b| ≤ |a| + |b|.",
+    "solutionSteps": [
+      "For any real numbers a and b, note that −|a| ≤ a ≤ |a| and −|b| ≤ b ≤ |b|.",
+      "Adding these inequalities: −(|a| + |b|) ≤ a + b ≤ |a| + |b|.",
+      "By de nition of absolute value, this means |a + b| ≤ |a| + |b|."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex21",
+    "problemText": "Example 1.30. Evaluate sgn(10), sgn(−5), and sgn(0).",
+    "solutionSteps": [
+      "sgn(10) = 1 because 10 > 0",
+      "sgn(−5) = −1 because −5 < 0",
+      "sgn(0) = 0 by de nition"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex22",
+    "problemText": "Example 1.31. Express f (x) = |x| using the signum function.",
+    "solutionSteps": [
+      "For x̸ = 0, |x| = x · sgn(x). This works because:",
+      "If x > 0, then sgn(x) = 1 so x · 1 = x = |x|",
+      "If x < 0, then sgn(x) = −1 so x · (−1) = −x = |x|",
+      "At x = 0, both sides are 0, so the formula |x| = x · sgn(x) holds for all real x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex23",
+    "problemText": "Example 1.32. Verify the multiplicativity property: sgn(xy) = sgn(x) · sgn(y) for x = 2 and y = −3.",
+    "solutionSteps": [
+      "Left side: sgn(2 · (−3)) = sgn(−6) = −1",
+      "Right side: sgn(2) · sgn(−3) = (1) · (−1) = −1",
+      "Both sides equal -1, so the property holds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex24",
+    "problemText": "Example 1.33. Simplify the expression sgn(x2) for x̸ = 0.",
+    "solutionSteps": [
+      "Since x2 > 0 for any nonzero real x, we have sgn(x2) = 1 for all x̸ = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex25",
+    "problemText": "Example 1.35. Evaluate ⌊3.7⌋, ⌊−2.3⌋, and ⌊5⌋.",
+    "solutionSteps": [
+      "⌊3.7⌋ = 3 because 3 is the greatest integer ≤ 3.7",
+      "⌊−2.3⌋ = −3 because -3 is the greatest integer ≤ −2.3 (note: -2 > -2.3, so -2 is not ≤ −2.3)",
+      "⌊5⌋ = 5 because 5 is an integer"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex26",
+    "problemText": "Example 1.36. Solve ⌊x⌋ = 4.",
+    "solutionSteps": [
+      "⌊x⌋ = 4 means 4 ≤ x < 5. So the solution set is [4, 5)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex27",
+    "problemText": "Example 1.37. Graph f (x) = ⌊x⌋ for −3 ≤ x ≤ 3.",
+    "solutionSteps": [
+      "The graph consists of horizontal line segments at each integer n from x = n to x = n + 1 (including the left endpoint, excluding the right). At integer points, there is a closed dot at (n, n) and an open dot at (n + 1, n)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex28",
+    "problemText": "Example 1.39. Evaluate ⌈3.2⌉, ⌈−2.7⌉, and ⌈5⌉.",
+    "solutionSteps": [
+      "⌈3.2⌉ = 4 because 4 is the smallest integer ≥ 3.2",
+      "⌈−2.7⌉ = −2 because −2 is the smallest integer ≥ −2.7 (note: −2 > −2.7)",
+      "⌈5⌉ = 5 because 5 is an integer"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex29",
+    "problemText": "Example 1.40. Solve the equation ⌈x⌉ = 3.",
+    "solutionSteps": [
+      "⌈x⌉ = 3 means that 3 is the smallest integer greater than or equal to x. This implies that x must be greater than 2 and less than or equal to 3. In interval notation: 2 < x ≤ 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex30",
+    "problemText": "Example 1.41. Solve the inequality ⌈x⌉ ≤ 2.",
+    "solutionSteps": [
+      "⌈x⌉ ≤ 2 means that the smallest integer greater than or equal to x is at most 2. This occurs when x ≤ 2. Since the ceiling function rounds up, x can be at most 2. More precisely, x ≤ 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex31",
+    "problemText": "Example 1.42. Graph f (x) = ⌈x⌉ for −3 ≤ x ≤ 3.",
+    "solutionSteps": [
+      "The graph consists of horizontal line segments at each integer value. For each integer n, the function equals n for x in the interval (n − 1, n]. At the left endpoint of each segment, there is an open circle (excluded), and at the right endpoint, a closed circle (included)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex32",
+    "problemText": "Example 1.43. Find ⌈π⌉ and ⌈−π⌉.",
+    "solutionSteps": [
+      "π ≈ 3.14159, so the smallest integer ≥ 3.14159 is 4. Thus ⌈π⌉ = 4.",
+      "−π ≈ −3.14159, so the smallest integer ≥ −3.14159 is −3. Thus ⌈−π⌉ = −3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex33",
+    "problemText": "Example 1.44. Verify the relationship ⌈x⌉ = −⌊−x⌋ for x = 2.3 and x = −1.5.",
+    "solutionSteps": [
+      "For x = 2.3: ⌈2.3⌉ = 3. −⌊−2.3⌋ = −⌊−3⌋ = −(−3) = 3. Veri ed.",
+      "For x = −1.5: ⌈−1.5⌉ = −1. −⌊1.5⌋ = −(1) = −1. Veri ed."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex34",
+    "problemText": "Example 1.45. A parking garage charges $5 for the rst hour or any part of an hour, and $3 for each additional hour or part thereof. Write the cost function C(t) for parking time t hours (where t > 0).",
+    "solutionSteps": [
+      "For the rst hour or part thereof, the cost is $5. For additional time, each partial hour is rounded up to the next whole hour. The number of additional hours is ⌈t − 1⌉ if t > 1, and 0 if t ≤ 1. More compactly:",
+      "C(t) = 5 + 3⌈t − 1⌉ for t > 0.",
+      "Alternatively, using the ceiling function: C(t) = 3⌈t⌉ + 2 for t > 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex35",
+    "problemText": "Example 1.46. A courier company charges $8 for the rst kilogram or fraction thereof, and $4 for each additional kilogram or fraction thereof. Find the cost to ship a package weighing w kilograms, where w > 0.",
+    "solutionSteps": [
+      "C(w) = 8 + 4⌈w − 1⌉ for w > 0.",
+      "Or equivalently, C(w) = 4⌈w⌉ + 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex36",
+    "problemText": "Example 1.47. Solve the inequality ⌈x⌉ > 2.",
+    "solutionSteps": [
+      "⌈x⌉ > 2 means that the smallest integer greater than or equal to x is at least 3. This occurs when x > 2. If x = 2, then ⌈2⌉ = 2, which is not greater than 2. So the solution is x > 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk2"
+  },
+  {
+    "exampleId": "ex37",
+    "problemText": "Example 1.49. Identify the degree and leading coe cient of P (x) = 4x5 − 3x2 + 2x − 7.",
+    "solutionSteps": [
+      "The highest power is x5, so degree = 5, leading coe cient = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex38",
+    "problemText": "Example 1.50. Find the domain and range of f (x) = x2 − 4x + 7.",
+    "solutionSteps": [
+      "Domain is R.",
+      "Complete the square: x2 − 4x + 7 = (x − 2)2 + 3.",
+      "Since (x − 2)2 ≥ 0, the minimum value is 3. So range is [3, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex39",
+    "problemText": "Example 1.51. Find the zeros (roots) of f (x) = x2 − 5x + 6.",
+    "solutionSteps": [
+      "Factor: x2 − 5x + 6 = (x − 2)(x − 3) = 0.",
+      "So the zeros are x = 2 and x = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex40",
+    "problemText": "Example 1.52. Describe the end behavior of f (x) = −2x3 + 4x2 − 1.",
+    "solutionSteps": [
+      "Since the degree is odd (3) and the leading coe cient is negative (-2), as x → ∞, f (x) → −∞; as x → −∞, f (x) → ∞."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex41",
+    "problemText": "Example 1.54. Find the domain of f (x) = x+2 x2−9 .",
+    "solutionSteps": [
+      "The denominator is zero when x2−9 = 0.",
+      "Factoring gives (x−3)(x+3) = 0, so x = 3 or x = −3.",
+      "These values are excluded from the domain. Therefore, the domain is all real numbers except x = 3 and x = −3. In interval notation: (−∞, −3) ∪ (−3, 3) ∪ (3, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex42",
+    "problemText": "Example 1.55. Find the domain of f (x) = 2x+1 x2+4 .",
+    "solutionSteps": [
+      "The denominator is x2 + 4. Since x2 ≥ 0 for all real x, we have x2 + 4 ≥ 4 > 0.",
+      "The denominator is never zero. Therefore, the domain is all real numbers: R = (−∞, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex43",
+    "problemText": "Example 1.56. Find the vertical asymptotes of f (x) = x x2−4 .",
+    "solutionSteps": [
+      "Factor the denominator: x2 − 4 = (x − 2)(x + 2). The denominator is zero at x = 2 and x = −2.",
+      "Check if these factors cancel with the numerator. The numerator is x, which does not contain the factors (x − 2) or (x + 2). Therefore, neither factor cancels.",
+      "Vertical asymptotes occur at x = 2 and x = −2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex44",
+    "problemText": "Example 1.57. Find the vertical asymptotes of f (x) = x2−4 x−2 .",
+    "solutionSteps": [
+      "Factor the numerator: x2 − 4 = (x − 2)(x + 2). Then f (x) = (x − 2)(x + 2) x − 2 = x + 2 for x̸ = 2.",
+      "The factor (x − 2) cancels completely. Therefore, there is no vertical asymptote at x = 2. Instead, there is a hole at x = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex45",
+    "problemText": "Example 1.58. Find the horizontal asymptote of f (x) = 3x2+2 x2−1 .",
+    "solutionSteps": [
+      "The degree of the numerator is 2 (highest power x2). The degree of the denominator is also 2. When degrees are equal, the horizontal asymptote is the ratio of the leading coe cients.",
+      "The leading coe cient of the numerator is 3, and the leading coe cient of the denominator is 1.",
+      "Therefore, the horizontal asymptote is y = 3 1 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex46",
+    "problemText": "Example 1.59. Find the horizontal asymptote of f (x) = 5x+2 x3−1 .",
+    "solutionSteps": [
+      "The degree of the numerator is 1, and the degree of the denominator is 3.",
+      "Since deg(P ) < deg(Q), the horizontal asymptote is y = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex47",
+    "problemText": "Example 1.60. Find the horizontal asymptote of f (x) = 2x3−4x+1 x2+3 .",
+    "solutionSteps": [
+      "The degree of the numerator is 3, and the degree of the denominator is 2.",
+      "Since deg(P ) > deg(Q), there is no horizontal asymptote. For large |x|, the function behaves like 2x, so there is an oblique (slant) asymptote. To nd it, perform polynomial division: 2x3 ÷ x2 = 2x, and the slant asymptote is y = 2x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex48",
+    "problemText": "Example 1.61. Identify any holes in the graph of f (x) = x2−4 x−2 .",
+    "solutionSteps": [
+      "Factor the numerator: x2 − 4 = (x − 2)(x + 2). Then f (x) = (x − 2)(x + 2) x − 2 = x + 2 for x̸ = 2.",
+      "The factor (x − 2) cancels, so there is a hole at x = 2.",
+      "To nd the y-coordinate of the hole, substitute x = 2 into the simpli ed expression x + 2: 2 + 2 = 4. So the hole is at the point (2, 4)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex49",
+    "problemText": "Example 1.62. Identify any holes in the graph of f (x) = x2−3x+2 x2−1 .",
+    "solutionSteps": [
+      "Factor both numerator and denominator: Numerator: x2 − 3x + 2 = (x − 1)(x − 2), Denominator: x2 − 1 = (x − 1)(x + 1).",
+      "Then f (x) = (x − 1)(x − 2) (x − 1)(x + 1) = x − 2 x + 1 for x̸ = 1.",
+      "The common factor (x − 1) cancels, so there is a hole at x = 1.",
+      "Substitute x = 1 into the simpli ed expression x−2 x+1 : 1−2 1+1 = −1 2 = −1 2 . So the hole is at (1, −1 2 )."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex50",
+    "problemText": "Example 1.63. Find the x-intercepts and y-intercept of f (x) = x2−4 x2−1 .",
+    "solutionSteps": [
+      "x-intercepts: Set P (x) = 0: x2 − 4 = 0 gives x = 2 or x = −2. Check that these do not make the denominator zero: 22 − 1 = 3̸ = 0 and (−2)2 − 1 = 3̸ = 0. So x-intercepts are at (−2, 0) and (2, 0).",
+      "y-intercept: Set x = 0: f (0) = 02−4 02−1 = −4 −1 = 4. So the y-intercept is at (0, 4)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex51",
+    "problemText": "Example 1.64. Find the x-intercepts and y-intercept of f (x) = x−3 (x+1)(x−2) .",
+    "solutionSteps": [
+      "x-intercepts: Set numerator x − 3 = 0 gives x = 3. Check denominator at x = 3: (3 + 1)(3 − 2) = 4 · 1 = 4̸ = 0. So x-intercept is at (3, 0).",
+      "y-intercept: Set x = 0: f (0) = 0−3 (0+1)(0−2) = −3 (1)(−2) = −3 −2 = 3 2 . So the y-intercept is at (0, 3 2 )."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex52",
+    "problemText": "Example 1.65. Find all asymptotes of f (x) = 2x2+3x−2 x2−x−6 .",
+    "solutionSteps": [
+      "Factor: Numerator: 2x2 + 3x − 2 = (2x − 1)(x + 2). Denominator: x2 − x − 6 = (x − 3)(x + 2).",
+      "Simplify: f (x) = (2x−1)(x+2) (x−3)(x+2) = 2x−1 x−3 for x̸ = −2.",
+      "Hole: The factor (x + 2) cancels, so there is a hole at x = −2. Substitute into simpli ed: 2(−2)−1 −2−3 = −4−1 −5 = −5 −5 = 1. Hole at (−2, 1).",
+      "Vertical asymptote: Set denominator of simpli ed form to zero: x − 3 = 0 gives x = 3. So vertical asymptote at x = 3.",
+      "Horizontal asymptote: Degrees are equal (both 1 after simpli cation), leading coe cients: numerator 2, denominator 1. Horizontal asymptote y = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex53",
+    "problemText": "Example 1.66. Sketch the graph of f (x) = 1 x−2 by identifying its asymptotes and intercepts.",
+    "solutionSteps": [
+      "Domain: All real numbers except x = 2.",
+      "Vertical asymptote: x = 2 (denominator zero, no cancellation).",
+      "Horizontal asymptote: Degree of numerator (0) < degree of denominator (1), so y = 0.",
+      "x-intercept: Numerator is 1, never zero. No x-intercept.",
+      "y-intercept: f (0) = 1 0−2 = −1 2 . So y-intercept at (0, −1 2 ).",
+      "Behavior near asymptotes: As x → 2+, x − 2 → 0+, so f (x) → +∞. As x → 2−, x − 2 → 0−, so f (x) → −∞. As x → ±∞, f (x) → 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk3"
+  },
+  {
+    "exampleId": "ex54",
+    "problemText": "Example 1.67. Find the domain, vertical asymptotes, and horizontal asymptote of\nf (x) = x2−9\nx2+4x+3 .",
+    "solutionSteps": [
+      "Factor: Numerator: x2 − 9 = (x − 3)(x + 3). Denominator: x2 + 4x + 3 =\n(x + 1)(x + 3).",
+      "Simplify: f (x) = (x−3)(x+3)\n(x+1)(x+3) = x−3\nx+1 for x̸ = −3.",
+      "Hole: Cancellation of (x + 3) gives a hole at x = −3. Substitute into simpli ed:\n−3−3\n−3+1 = −6\n−2 = 3. Hole at (−3, 3).",
+      "Domain: All real numbers except x = −3 and x = −1. Domain: R \\ {−3, −1}.",
+      "Vertical asymptote: From simpli ed form, denominator zero at x = −1. So\nvertical asymptote at x = −1.",
+      "Horizontal asymptote: After simpli cation, degrees are equal (both 1). Leading\ncoe cients: numerator 1, denominator 1. Horizontal asymptote y = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex55",
+    "problemText": "Example 1.68. A rational function has vertical asymptotes at x = 2 and x = −3,\na horizontal asymptote at y = 0, and passes through the point (0, 1). Find a possible\nequation.",
+    "solutionSteps": [
+      "Vertical asymptotes at x = 2 and x = −3 suggest denominator factors (x−2)(x+3).",
+      "Horizontal asymptote at y = 0 means the degree of numerator is less than degree of\ndenominator. So numerator is a constant, say k.",
+      "Then f (x) = k\n(x−2)(x+3) .",
+      "Passes through (0, 1): f (0) = k\n(0−2)(0+3) = k\n(−2)(3) = k\n−6 = 1.",
+      "Solve: k\n−6 = 1 gives k = −6.",
+      "Therefore, f (x) = −6\n(x−2)(x+3) or equivalently f (x) = − 6\n(x−2)(x+3) ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex56",
+    "problemText": "Example 1.69. A company's average cost per unit when producing x units is given by\nC(x) = 5000+30x\nx . Find the horizontal asymptote and interpret its meaning.",
+    "solutionSteps": [
+      "Write C(x) = 5000\nx + 30.",
+      "As x → ∞, 5000\nx → 0, so C(x) → 30.",
+      "The horizontal asymptote is y = 30.",
+      "Interpretation: As production increases inde nitely, the average cost approaches\n$30 per unit, which is the variable cost per unit."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex57",
+    "problemText": "Example 1.71. Evaluate 23, 1\n2\n 4, and e0.",
+    "solutionSteps": [
+      "23 = 8; 1\n2\n 4 = 1\n16 ; e0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex58",
+    "problemText": "Example 1.72. Graph f (x) = 2x and g(x) = 1\n2\n x on the same axes.",
+    "solutionSteps": [
+      "f (x) = 2x increases from 0 to ∞ as x increases. g(x) = 1\n2\n x = 2−x is the\nre ection of 2x across the y-axis. Both pass through (0, 1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex59",
+    "problemText": "Example 1.73. Solve the equation 2x = 8.",
+    "solutionSteps": [
+      "Write 8 as a power of 2: 8 = 23. So 2x = 23 implies x = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex60",
+    "problemText": "Example 1.74. A population of bacteria doubles every hour. If the initial population is\n100, write the population as a function of time t (in hours).",
+    "solutionSteps": [
+      "P (t) = 100 · 2t. Domain: t ≥ 0, Range: [100, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex61",
+    "problemText": "Example 1.76. Evaluate log2 8, log3 1\n9 , and ln e5.",
+    "solutionSteps": [
+      "log2 8 = 3 because 23 = 8",
+      "log3 1\n9 = log3 3−2 = −2",
+      "ln e5 = 5"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex62",
+    "problemText": "Example 1.77. Expand ln\n x2y\nz3\n .",
+    "solutionSteps": [
+      "ln\n x2y\nz3\n \n= ln(x2) + ln y − ln(z3) = 2 ln x + ln y − 3 ln z."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex63",
+    "problemText": "Example 1.78. Solve log2(x + 1) = 4.",
+    "solutionSteps": [
+      "Rewrite in exponential form: x + 1 = 24 = 16. So x = 15. Check:\nlog2(15 + 1) = log2 16 = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex64",
+    "problemText": "Example 1.79. Solve ln x + ln(x − 2) = ln 8.",
+    "solutionSteps": [
+      "Use product property: ln[x(x − 2)] = ln 8. So x(x − 2) = 8. Then x2 −\n2x − 8 = 0 gives (x − 4)(x + 2) = 0. So x = 4 or x = −2. Since domain requires x > 0\nand x − 2 > 0 (i.e., x > 2), only x = 4 is valid."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex65",
+    "problemText": "Example 1.81. Evaluate sin π\n6 , cos π\n3 , and tan π\n4 .",
+    "solutionSteps": [
+      "sin π\n6 = 1\n2 ; cos π\n3 = 1\n2 ; tan π\n4 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex66",
+    "problemText": "Example 1.82. Solve sin x = 1\n2 for 0 ≤ x < 2π.",
+    "solutionSteps": [
+      "sin x = 1\n2 at x = π\n6 and x = π − π\n6 = 5π\n6 . Both are in [0, 2π)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex67",
+    "problemText": "Example 1.83. Find the domain of f (x) = tan x.",
+    "solutionSteps": [
+      "tan x = sin x\ncos x is unde ned when cos x = 0. cos x = 0 at x = π\n2 + kπ for\nintegers k. So domain is all real numbers except π\n2 + kπ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex68",
+    "problemText": "Example 1.84. A Ferris wheel of radius 10 meters rotates once every 60 seconds. The\nheight of a passenger above the ground is given by h(t) = 15 + 10 sin πt\n30 − π\n2\n . Find the\nmaximum and minimum heights.",
+    "solutionSteps": [
+      "Sine ranges from -1 to 1, so 10 sin(· · · ) ranges from -10 to 10. Thus height\nranges from 15 − 10 = 5 meters to 15 + 10 = 25 meters."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex69",
+    "problemText": "Example 1.85. Find the domain and range of f (x) = √x − 3.",
+    "solutionSteps": [
+      "The expression under the square root must be non-negative: x − 3 ≥ 0 so\nx ≥ 3. Domain is [3, ∞). As x increases from 3 to ∞, √x − 3 increases from 0 to ∞.\nSo range is [0, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex70",
+    "problemText": "Example 1.86. Find the domain of f (x) = 1\nx2−4 .",
+    "solutionSteps": [
+      "Denominator cannot be zero: x2 − 4̸ = 0 so x̸ = 2 and x̸ = −2. Domain\nis R \\ {−2, 2}."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex71",
+    "problemText": "Example 1.87. Find the domain of f (x) = ln(x2 − 9).",
+    "solutionSteps": [
+      "The logarithm argument must be positive: x2 − 9 > 0 so x2 > 9. Thus\nx > 3 or x < −3. Domain is (−∞, −3) ∪ (3, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex72",
+    "problemText": "Example 1.88. Determine if f (x) = x3 is injective.",
+    "solutionSteps": [
+      "Suppose x3\n1 = x3\n2. Taking cube roots gives x1 = x2. So injective."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex73",
+    "problemText": "Example 1.89. Determine if f (x) = x2 is surjective onto R.",
+    "solutionSteps": [
+      "No, because negative numbers like −1 have no preimage (no real x gives\nx2 = −1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex74",
+    "problemText": "Example 1.90. Determine if f (x) = ex is surjective onto R.",
+    "solutionSteps": [
+      "No, because ex > 0 for all x, so negative numbers have no preimage. The\nrange is (0, ∞), not all of R."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex75",
+    "problemText": "Example 1.91. Find the inverse of f (x) = 2x + 3.",
+    "solutionSteps": [
+      "Let y = 2x + 3. Solve for x: y − 3 = 2x so x = y−3\n2 . Thus f −1(x) = x−3\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex76",
+    "problemText": "Example 1.92. For f (x) = x2 with domain [0, ∞),  nd the inverse.",
+    "solutionSteps": [
+      "y = x2 gives x = √y (positive root since domain is non-negative). So\nf −1(x) = √x with domain [0, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk4"
+  },
+  {
+    "exampleId": "ex77",
+    "problemText": "Example 1.91. Find the inverse of f (x) = 2x + 3.",
+    "solutionSteps": [
+      "Let y = 2x + 3. Solve for x: y − 3 = 2x so x = y−3\n2 . Thus f −1(x) = x−3\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex78",
+    "problemText": "Example 1.92. For f (x) = x2 with domain [0, ∞),  nd the inverse.",
+    "solutionSteps": [
+      "y = x2 gives x = √y (positive root since domain is non-negative). So\nf −1(x) = √x with domain [0, ∞)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex79",
+    "problemText": "Example 1.93. A manufacturing company has  xed costs of $10,000 per month and\nvariable costs of $25 per unit produced. Write the cost function and  nd the total cost for\nproducing 200 units, 500 units, and 1000 units.",
+    "solutionSteps": [
+      "The cost function is C(q) = 10000 + 25q, where q is the number of units\nproduced.",
+      "For q = 200: C(200) = 10000 + 25(200) = 10000 + 5000 = 15000. So the total cost\nis $15,000.",
+      "For q = 500: C(500) = 10000 + 25(500) = 10000 + 12500 = 22500. So the total\ncost is $22,500.",
+      "For q = 1000: C(1000) = 10000 + 25(1000) = 10000 + 25000 = 35000. So the total\ncost is $35,000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex80",
+    "problemText": "Example 1.94. A bakery has  xed costs of $2,000 per week. The variable cost to bake\na loaf of bread is $1.50. If the bakery produces q loaves in a week,  nd: (a) The cost\nfunction. (b) The cost to produce 500 loaves. (c) The cost to produce 1000 loaves. (d)\nHow many loaves must be produced for the total cost to be $5,000?",
+    "solutionSteps": [
+      "(a) The cost function is C(q) = 2000 + 1.50q, where q is the number of loaves.",
+      "(b) For q = 500: C(500) = 2000 + 1.50(500) = 2000 + 750 = 2750. The total cost is\n$2,750.",
+      "(c) For q = 1000: C(1000) = 2000 + 1.50(1000) = 2000 + 1500 = 3500. The total cost\nis $3,500.",
+      "(d) Set C(q) = 5000: 2000 + 1.50q = 5000. Subtract 2000: 1.50q = 3000. Divide by\n1.50: q = 3000 ÷ 1.50 = 2000. So 2000 loaves must be produced."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex81",
+    "problemText": "Example 1.95. A car rental company charges a  at fee of $50 per day plus $0.20 per\nmile driven. Write the cost function and  nd the cost for a 3-day rental with 150 miles\ndriven.",
+    "solutionSteps": [
+      "Let m be the number of miles driven. The cost function is C(m) = 50d +\n0.20m, where d is the number of days. For a 3-day rental: C(m) = 50(3) + 0.20m =\n150 + 0.20m. For m = 150 miles: C(150) = 150 + 0.20(150) = 150 + 30 = 180. The total\ncost is $180."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex82",
+    "problemText": "Example 1.96. A utility company charges a  xed monthly connection fee of $15 plus\n$0.12 per kilowatt-hour (kWh) of electricity used. Find: (a) The cost function. (b) The\ncost for using 400 kWh. (c) The cost for using 800 kWh. (d) How many kWh were used\nif the bill is $75?",
+    "solutionSteps": [
+      "(a) Let x be the number of kWh used. The cost function is C(x) = 15 + 0.12x.",
+      "(b) C(400) = 15 + 0.12(400) = 15 + 48 = 63. The bill is $63.",
+      "(c) C(800) = 15 + 0.12(800) = 15 + 96 = 111. The bill is $111.",
+      "(d) Set C(x) = 75: 15 + 0.12x = 75. Subtract 15: 0.12x = 60. Divide by 0.12:\nx = 60 ÷ 0.12 = 500. So 500 kWh were used."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex83",
+    "problemText": "Example 1.97. A company manufactures widgets. The cost function is C(q) = 8000 +\n40q and each widget sells for $80. Find: (a) The revenue function. (b) The pro t\nfunction. (c) The break-even point. (d) The pro t when 300 widgets are sold.",
+    "solutionSteps": [
+      "(a) Revenue is price times quantity: R(q) = 80q.",
+      "(b) Pro t is revenue minus cost: π(q) = R(q) − C(q) = 80q − (8000 + 40q) = 80q −\n8000 − 40q = 40q − 8000.",
+      "(c) Break-even when pro t is zero: 40q − 8000 = 0. Add 8000: 40q = 8000. Divide by\n40: q = 200. So 200 widgets must be sold to break even.",
+      "(d) For q = 300: π(300) = 40(300)−8000 = 12000−8000 = 4000. The pro t is $4,000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex84",
+    "problemText": "Example 1.98. A co ee shop sells cups of co ee for $3.50 each. The daily cost function\nis C(q) = 100 + 1.50q, where q is the number of cups sold. Find: (a) The revenue\nfunction. (b) The pro t function. (c) The break-even point. (d) The pro t or loss if 80\ncups are sold.",
+    "solutionSteps": [
+      "(a) R(q) = 3.50q.",
+      "(b) π(q) = R(q) − C(q) = 3.50q − (100 + 1.50q) = 3.50q − 100 − 1.50q = 2.00q − 100.",
+      "(c) Set π(q) = 0: 2.00q − 100 = 0. Add 100: 2.00q = 100. Divide by 2: q = 50. So 50\ncups must be sold to break even.",
+      "(d) For q = 80: π(80) = 2.00(80) − 100 = 160 − 100 = 60. The pro t is $60."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex85",
+    "problemText": "Example 1.99. A book publisher has  xed costs of $50,000 for a new book. The variable\ncost per book is $8, and the book sells for $20. Find: (a) The cost, revenue, and pro t\nfunctions. (b) The break-even point. (c) The pro t if 10,000 books are sold. (d) How\nmany books must be sold to make a pro t of $30,000?",
+    "solutionSteps": [
+      "(a) Cost: C(q) = 50000+8q. Revenue: R(q) = 20q. Pro t: π(q) = 20q−(50000+8q) =\n12q − 50000.",
+      "(b) Break-even: 12q − 50000 = 0. Add 50000: 12q = 50000. Divide by 12: q =\n50000 ÷ 12 ≈ 4166.67. Since we cannot sell a fraction of a book, the publisher must\nsell at least 4167 books to break even.",
+      "(c) For q = 10000: π(10000) = 12(10000) − 50000 = 120000 − 50000 = 70000. The\npro t is $70,000.",
+      "(d) Set π(q) = 30000: 12q − 50000 = 30000. Add 50000: 12q = 80000. Divide by 12:\nq = 80000 ÷ 12 ≈ 6666.67. So 6667 books must be sold."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex86",
+    "problemText": "Example 1.100. A toy company produces a game. The cost to produce q games is\nC(q) = 2500 + 15q. The company sells each game for $25. Find: (a) The pro t function.\n(b) The break-even point. (c) The pro t when 400 games are sold. (d) How many games\nmust be sold to achieve a pro t of $5,000?",
+    "solutionSteps": [
+      "(a) R(q) = 25q, so π(q) = 25q − (2500 + 15q) = 10q − 2500.",
+      "(b) 10q − 2500 = 0 gives 10q = 2500, so q = 250. Break-even at 250 games.",
+      "(c) π(400) = 10(400) − 2500 = 4000 − 2500 = 1500. Pro t is $1,500.",
+      "(d) Set 10q − 2500 = 5000. Add 2500: 10q = 7500. Divide by 10: q = 750. So 750\ngames must be sold."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex87",
+    "problemText": "Example 1.101. A ball is thrown upward from ground level (h0 = 0) with an initial\nvelocity of 20 m/s. Use g = 9.8 m/s2. Find: (a) The height function. (b) The time at\nwhich the ball reaches its maximum height. (c) The maximum height reached. (d) The\ntime when the ball hits the ground.",
+    "solutionSteps": [
+      "(a) h(t) = 0 + 20t − 1\n2 (9.8)t2 = 20t − 4.9t2.",
+      "(b) For a quadratic at2 + bt +"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk5"
+  },
+  {
+    "exampleId": "ex88",
+    "problemText": "Example 1.101. A ball is thrown upward from ground level (h0 = 0) with an initial\nvelocity of 20 m/s. Use g = 9.8 m/s2. Find: (a) The height function. (b) The time at\nwhich the ball reaches its maximum height. (c) The maximum height reached. (d) The\ntime when the ball hits the ground.",
+    "solutionSteps": [
+      "(a) h(t) = 0 + 20t − 1 2 (9.8)t2 = 20t − 4.9t2.",
+      "(b) For a quadratic at2 + bt + c, the vertex occurs at t = − b 2a . Here a = −4.9, b = 20. So t = − 20 2(−4.9) = − 20 −9.8 = 20 9.8 ≈ 2.04 seconds.",
+      "(c) h(2.04) = 20(2.04) − 4.9(2.04)2 = 40.8 − 4.9(4.1616) = 40.8 − 20.39 ≈ 20.41 meters.",
+      "(d) The ball hits the ground when h(t) = 0. Solve 20t−4.9t2 = 0. Factor: t(20−4.9t) = 0. So t = 0 (launch) or 20−4.9t = 0 gives 4.9t = 20, so t = 20÷4.9 ≈ 4.08 seconds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex89",
+    "problemText": "Example 1.102. A rock is thrown upward from a cli  that is 50 meters high, with an\ninitial velocity of 15 m/s. Find: (a) The height function. (b) The maximum height\nreached above ground. (c) The time when the rock reaches its maximum height. (d) The\ntime when the rock hits the ground below the cli .",
+    "solutionSteps": [
+      "(a) h(t) = 50 + 15t − 4.9t2.",
+      "(b) Vertex at t = − b 2a = − 15 2(−4.9) = − 15 −9.8 = 15 9.8 ≈ 1.53 seconds.",
+      "(c) h(1.53) = 50 + 15(1.53) − 4.9(1.53)2 = 50 + 22.95 − 4.9(2.3409) = 72.95 − 11.47 ≈ 61.48 meters.",
+      "(d) The rock hits the ground when h(t) = 0. Solve 50 + 15t − 4.9t2 = 0. Multiply by −1: 4.9t2 − 15t − 50 = 0. Use quadratic formula: t = 15± √(−15)2−4(4.9)(−50) 2(4.9) = 15±√225+980 9.8 = 15±√1205 9.8 . √1205 ≈ 34.71. So t = 15+34.71 9.8 = 49.71 9.8 ≈ 5.07 seconds (the negative root gives a negative time, which we discard). So the rock hits the ground at about 5.07 seconds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex90",
+    "problemText": "Example 1.103. An arrow is shot straight upward from a height of 2 meters with an\ninitial velocity of 30 m/s. Find: (a) The height function. (b) The time to reach maximum\nheight. (c) The maximum height. (d) The total time the arrow is in the air.",
+    "solutionSteps": [
+      "(a) h(t) = 2 + 30t − 4.9t2.",
+      "(b) Vertex at t = − 30 2(−4.9) = − 30 −9.8 = 30 9.8 ≈ 3.06 seconds.",
+      "(c) h(3.06) = 2 + 30(3.06) − 4.9(3.06)2 = 2 + 91.8 − 4.9(9.3636) = 93.8 − 45.88 ≈ 47.92 meters.",
+      "(d) Solve 2+30t−4.9t2 = 0. Multiply by −1: 4.9t2 −30t−2 = 0. t = 30±√900−4(4.9)(−2) 9.8 = 30±√900+39.2 9.8 = 30±√939.2 9.8 . √939.2 ≈ 30.65. So t = 30+30.65 9.8 = 60.65 9.8 ≈ 6.19 seconds. (The negative root gives a negative time, discarded.)"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex91",
+    "problemText": "Example 1.104. A water balloon is launched upward from a platform 10 meters high\nwith an initial velocity of 12 m/s. Find: (a) The height function. (b) The time when the\nballoon reaches its peak. (c) The peak height. (d) When does the balloon pass the height\nof 15 meters on the way up and on the way down?",
+    "solutionSteps": [
+      "(a) h(t) = 10 + 12t − 4.9t2.",
+      "(b) Vertex at t = − 12 2(−4.9) = − 12 −9.8 = 12 9.8 ≈ 1.22 seconds.",
+      "(c) h(1.22) = 10+12(1.22)−4.9(1.22)2 = 10+14.64−4.9(1.4884) = 24.64−7.29 ≈ 17.35 meters.",
+      "(d) Solve 10 + 12t − 4.9t2 = 15. Rearrange: −4.9t2 + 12t + 10 − 15 = 0 gives −4.9t2 + 12t − 5 = 0. Multiply by −1: 4.9t2 − 12t + 5 = 0. Use quadratic formula: t = 12±√144−4(4.9)(5) 9.8 = 12±√144−98 9.8 = 12±√46 9.8 . √46 ≈ 6.78. So t = 12−6.78 9.8 = 5.22 9.8 ≈ 0.53 seconds (on the way up) and t = 12+6.78 9.8 = 18.78 9.8 ≈ 1.92 seconds (on the way down)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex92",
+    "problemText": "Example 1.105. A bacterial culture starts with 100 bacteria and grows at a rate of\nk = 0.3 per hour. Find: (a) The population function. (b) The population after 5 hours.\n(c) The doubling time. (d) The time when the population reaches 10,000.",
+    "solutionSteps": [
+      "(a) P (t) = 100e0.3t.",
+      "(b) P (5) = 100e0.3×5 = 100e1.5. Since e1.5 ≈ 4.4817, P (5) ≈ 100 × 4.4817 = 448.17 bacteria.",
+      "(c) Doubling time td = ln 2 0.3 ≈ 0.6931 0.3 ≈ 2.31 hours.",
+      "(d) Set 100e0.3t = 10000. Divide by 100: e0.3t = 100. Take natural log: 0.3t = ln 100 ≈ 4.6052. So t = 4.6052 0.3 ≈ 15.35 hours."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex93",
+    "problemText": "Example 1.106. A population of 500 rabbits grows exponentially. After 3 years, the\npopulation is 800. Find: (a) The growth rate k. (b) The population function. (c) The\npopulation after 6 years. (d) The doubling time.",
+    "solutionSteps": [
+      "(a) P (3) = 500e3k = 800. Divide by 500: e3k = 800 500 = 1.6. Take natural log: 3k = ln 1.6 ≈ 0.4700. So k ≈ 0.4700 ÷ 3 ≈ 0.1567 per year.",
+      "(b) P (t) = 500e0.1567t.",
+      "(c) P (6) = 500e0.1567×6 = 500e0.9402 ≈ 500 × 2.560 = 1280 rabbits.",
+      "(d) td = ln 2 0.1567 ≈ 0.6931 0.1567 ≈ 4.42 years."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex94",
+    "problemText": "Example 1.107. A certain strain of bacteria doubles every 45 minutes. Find: (a) The\ngrowth rate k (in hours). (b) The population function if initial population is 200. (c) The\npopulation after 3 hours. (d) The time to reach 10,000 bacteria.",
+    "solutionSteps": [
+      "(a) Doubling time td = 0.75 hours (since 45 minutes = 0.75 hours). From td = ln 2 k , we have k = ln 2 0.75 ≈ 0.6931 0.75 ≈ 0.924 per hour.",
+      "(b) P (t) = 200e0.924t.",
+      "(c) P (3) = 200e0.924×3 = 200e2.772 ≈ 200 × 16.00 = 3200 bacteria.",
+      "(d) Set 200e0.924t = 10000. Divide by 200: e0.924t = 50. Take natural log: 0.924t = ln 50 ≈ 3.912. So t ≈ 3.912 ÷ 0.924 ≈ 4.23 hours."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex95",
+    "problemText": "Example 1.108. A mold culture starts with 50 spores and grows to 200 spores in 2 hours.\nFind: (a) The growth rate k. (b) The population function. (c) The population after 5\nhours. (d) The time to reach 5000 spores.",
+    "solutionSteps": [
+      "(a) P (2) = 50e2k = 200. Divide by 50: e2k = 4. Take natural log: 2k = ln 4 = ln(22) = 2 ln 2 ≈ 1.3863. So k ≈ 0.69315 per hour.",
+      "(b) P (t) = 50e0.69315t.",
+      "(c) P (5) = 50e0.69315×5 = 50e3.46575 ≈ 50 × 32.00 = 1600 spores.",
+      "(d) Set 50e0.69315t = 5000. Divide by 50: e0.69315t = 100. Take natural log: 0.69315t = ln 100 ≈ 4.6052. So t ≈ 4.6052 ÷ 0.69315 ≈ 6.64 hours."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex96",
+    "problemText": "Example 1.109. A sample of radioactive material has a half-life of 100 years. Initial\namount is 500 grams. Find: (a) The decay constant λ. (b) The decay function. (c) The\namount remaining after 200 years. (d) The time when only 50 grams remain.",
+    "solutionSteps": [
+      "(a) t1/2 = ln 2 λ = 100. So λ = ln 2 100 ≈ 0.6931 100 = 0.006931 per year.",
+      "(b) N (t) = 500e−0.006931t.",
+      "(c) N (200) = 500e−0.006931×200 = 500e−1.3862 ≈ 500 × 0.25 = 125 grams. (Note that 200 years is two half-lives, so we expect 500 × 1 2 × 1 2 = 125 grams.)",
+      "(d) Set 500e−0.006931t = 50. Divide by 500: e−0.006931t = 0.1. Take natural log: −0.006931t = ln 0.1 ≈ −2.302585. So t = 2.302585 0.006931 ≈ 332.2 years."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk6"
+  },
+  {
+    "exampleId": "ex97",
+    "problemText": "Example 1.110. Carbon-14 has a half-life of 5730 years. A fossil contains 25% of its\noriginal Carbon-14. Find the age of the fossil.",
+    "solutionSteps": [
+      "ˆ First  nd λ: t1/2 = ln 2 λ = 5730, so λ = ln 2 5730 ≈ 0.6931 5730 ≈ 0.000121 per year.",
+      "ˆ We have N (t) = N0e−λt. Given N (t) = 0.25N0 (25% remaining), we have 0.25N0 = N0e−λt. Divide by N0: 0.25 = e−λt.",
+      "ˆ Take natural log: ln 0.25 = −λt. Since ln 0.25 = ln(1/4) = − ln 4 ≈ −1.3863.",
+      "ˆ So −1.3863 = −λt, giving t = 1.3863 λ ≈ 1.3863 0.000121 ≈ 11457 years.",
+      "ˆ Alternatively, note that 25% means two half-lives (50% after one half-life, 25% after two half-lives). So t = 2 × 5730 = 11460 years."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex98",
+    "problemText": "Example 1.111. A radioactive isotope has a decay constant λ = 0.02 per year. Initial\namount is 1000 grams. Find: (a) The half-life. (b) The amount after 50 years. (c) The\ntime when 100 grams remain. (d) The time when 1 gram remains.",
+    "solutionSteps": [
+      "(a) t1/2 = ln 2 λ ≈ 0.6931 0.02 ≈ 34.66 years.",
+      "(b) N (50) = 1000e−0.02×50 = 1000e−1 ≈ 1000 × 0.3679 = 367.9 grams.",
+      "(c) Set 1000e−0.02t = 100. Divide by 1000: e−0.02t = 0.1. Take natural log: −0.02t = ln 0.1 ≈ −2.3026. So t = 2.3026 0.02 ≈ 115.13 years.",
+      "(d) Set 1000e−0.02t = 1. Divide by 1000: e−0.02t = 0.001. Take natural log: −0.02t = ln 0.001 ≈ −6.9078. So t = 6.9078 0.02 ≈ 345.39 years."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex99",
+    "problemText": "Example 1.112. A sample originally contains 200 mg of a radioactive substance. After\n80 years, only 50 mg remains. Find: (a) The decay constant λ. (b) The half-life. (c)\nThe amount after 120 years. (d) The time when 10 mg remains.",
+    "solutionSteps": [
+      "(a) N (80) = 200e−λ×80 = 50. Divide by 200: e−80λ = 0.25. Take natural log: −80λ = ln 0.25 ≈ −1.3863. So λ = 1.3863 80 ≈ 0.01733 per year.",
+      "(b) t1/2 = ln 2 λ ≈ 0.6931 0.01733 ≈ 40.0 years. (Indeed, 80 years is two half-lives: 200 → 100 → 50.)",
+      "(c) N (120) = 200e−0.01733×120 = 200e−2.0796 ≈ 200 × 0.125 = 25 mg. (120 years is three half-lives.)",
+      "(d) Set 200e−0.01733t = 10. Divide by 200: e−0.01733t = 0.05. Take natural log: −0.01733t = ln 0.05 ≈ −2.9957. So t = 2.9957 0.01733 ≈ 172.9 years."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex100",
+    "problemText": "Example 1.113. A standard US household outlet supplies 120 V RMS (root mean square)\nat 60 Hz. The peak voltage is V0 = 120√2 ≈ 169.7 V. Find: (a) The voltage function.\n(b) The voltage at t = 0.005 seconds. (c) The period. (d) The frequency in radians per\nsecond (ω).",
+    "solutionSteps": [
+      "(a) V (t) = 169.7 sin(2π × 60 × t) = 169.7 sin(120πt).",
+      "(b) At t = 0.005 s: V (0.005) = 169.7 sin(120π×0.005) = 169.7 sin(0.6π) = 169.7 sin(108◦). sin(108◦) = sin(72◦) ≈ 0.9511. So V ≈ 169.7 × 0.9511 ≈ 161.4 V.",
+      "(c) T = 1 f = 1 60 ≈ 0.01667 seconds.",
+      "(d) ω = 2πf = 2π(60) = 120π ≈ 377 radians per second."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex101",
+    "problemText": "Example 1.114. In a European country, AC voltage has frequency 50 Hz and peak voltage\n325 V. Find: (a) The voltage function. (b) The voltage at t = 0.01 seconds. (c) The\nperiod. (d) The time when the voltage  rst reaches 300 V.",
+    "solutionSteps": [
+      "(a) V (t) = 325 sin(2π × 50 × t) = 325 sin(100πt).",
+      "(b) At t = 0.01 s: V (0.01) = 325 sin(100π × 0.01) = 325 sin(π) = 325 × 0 = 0 V.",
+      "(c) T = 1 50 = 0.02 seconds.",
+      "(d) Set 325 sin(100πt) = 300. Then sin(100πt) = 300 325 ≈ 0.9231. So 100πt = arcsin(0.9231) ≈ 1.176 radians (since sin−1(0.9231) ≈ 67.4◦ ≈ 1.176 rad). Thus t = 1.176 100π ≈ 1.176 314.16 ≈ 0.00374 seconds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex102",
+    "problemText": "Example 1.115. Given V (t) = 100 sin(200πt),  nd: (a) The peak voltage. (b) The\nfrequency f . (c) The period. (d) The voltage at t = 0.0025 seconds.",
+    "solutionSteps": [
+      "(a) Peak voltage V0 = 100 V.",
+      "(b) ω = 200π = 2πf , so f = 200π 2π = 100 Hz.",
+      "(c) T = 1 f = 1 100 = 0.01 seconds.",
+      "(d) V (0.0025) = 100 sin(200π × 0.0025) = 100 sin(0.5π) = 100 sin(90◦) = 100 × 1 = 100 V."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex103",
+    "problemText": "Example 1.116. An AC voltage is given by V (t) = 150 sin(60πt). Find: (a) The fre-\nquency and period. (b) The voltage at t = 0.00833 seconds. (c) The  rst two times when\nV (t) = 75 V. (d) The root mean square voltage (RMS = V0/√2).",
+    "solutionSteps": [
+      "(a) ω = 60π = 2πf , so f = 30 Hz. T = 1 30 ≈ 0.0333 seconds.",
+      "(b) V (0.00833) = 150 sin(60π × 0.00833). Since 60 × 0.00833 = 0.5, we have V = 150 sin(0.5π) = 150 × 1 = 150 V.",
+      "(c) Set 150 sin(60πt) = 75. Then sin(60πt) = 0.5. So 60πt = π 6 or 60πt = 5π 6 . Thus t = 1 6×60 = 1 360 ≈ 0.00278 seconds, and t = 5 6×60 = 5 360 ≈ 0.01389 seconds.",
+      "(d) VRMS = 150 √2 ≈ 150 1.4142 ≈ 106.1 V."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex104",
+    "problemText": "Example 1.117. A drug is administered orally. The absorption rate is ka = 2 per hour\nand the elimination rate is ke = 0.5 per hour. C0 = 10 mg/L. Find: (a) The concentration\nfunction. (b) The concentration at t = 1 hour. (c) The concentration at t = 2 hours. (d)\nWhat happens to the concentration as t becomes very large?",
+    "solutionSteps": [
+      "(a) C(t) = 10(e−0.5t − e−2t).",
+      "(b) C(1) = 10(e−0.5 − e−2) ≈ 10(0.6065 − 0.1353) = 10(0.4712) = 4.712 mg/L.",
+      "(c) C(2) = 10(e−1 − e−4) ≈ 10(0.3679 − 0.0183) = 10(0.3496) = 3.496 mg/L.",
+      "(d) As t → ∞, both e−0.5t and e−2t approach 0, so C(t) → 0. The drug is eventually eliminated from the body."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex105",
+    "problemText": "Example 1.118. For a certain drug, ka = 1.5 per hour, ke = 0.3 per hour, and the peak\nconcentration occurs at t = ln(ka/ke) ka−ke = ln(1.5/0.3) 1.2 = ln 5 1.2 ≈ 1.6094 1.2 ≈ 1.34 hours. If C0 = 8\nmg/L,  nd: (a) The concentration function. (b) The concentration at peak time. (c) The\nconcentration at t = 3 hours.",
+    "solutionSteps": [
+      "(a) C(t) = 8(e−0.3t − e−1.5t).",
+      "(b) At t = 1.34: C(1.34) = 8(e−0.402 − e−2.01) ≈ 8(0.669 − 0.134) = 8(0.535) = 4.28 mg/L.",
+      "(c) C(3) = 8(e−0.9 − e−4.5) ≈ 8(0.4066 − 0.0111) = 8(0.3955) = 3.164 mg/L."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex106",
+    "problemText": "Example 1.119. A patient takes a medication. The concentration function is C(t) =\n5(e−0.2t − e−1.0t). Find: (a) The concentration at t = 2 hours. (b) The concentration at\nt = 5 hours. (c) The time when concentration is maximum (given by tmax = ln(ka/ke) ka−ke ).\n(d) The maximum concentration.",
+    "solutionSteps": [
+      "(a) C(2) = 5(e−0.4 − e−2) ≈ 5(0.6703 − 0.1353) = 5(0.535) = 2.675 mg/L.",
+      "(b) C(5) = 5(e−1 − e−5) ≈ 5(0.3679 − 0.0067) = 5(0.3612) = 1.806 mg/L.",
+      "(c) ka = 1.0, ke = 0.2. Then tmax = ln(1.0/0.2) 1.0−0.2 = ln 5 0.8 ≈ 1.6094 0.8 ≈ 2.012 hours.",
+      "(d) C(2.012) = 5(e−0.2×2.012 − e−1.0×2.012) = 5(e−0.4024 − e−2.012) ≈ 5(0.6688 − 0.1336) = 5(0.5352) = 2.676 mg/L."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex107",
+    "problemText": "Example 1.120. For a drug with ka = 2.5 per hour, ke = 0.4 per hour, and C0 = 12\nmg/L,  nd: (a) The concentration function. (b) The concentration at t = 0.5 hours. (c)\nThe concentration at t = 4 hours. (d) The peak time and peak concentration.",
+    "solutionSteps": [
+      "(a) C(t) = 12(e−0.4t − e−2.5t).",
+      "(b) C(0.5) = 12(e−0.2 − e−1.25) ≈ 12(0.8187 − 0.2865) = 12(0.5322) = 6.386 mg/L.",
+      "(c) C(4) = 12(e−1.6 − e−10) ≈ 12(0.2019 − 0.000045) = 12(0.201855) ≈ 2.422 mg/L.",
+      "(d) tmax = ln(2.5/0.4) 2.5−0.4 = ln(6.25) 2.1 ≈ 1.8326 2.1 ≈ 0.873 hours. C(0.873) = 12(e−0.3492 − e−2.1825) ≈ 12(0"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk7"
+  },
+  {
+    "exampleId": "ex108",
+    "problemText": "hour, and C0 = 12\nmg/L,  nd: (a) The concentration function. (b) The concentration at t = 0.5 hours. (c)\nThe concentration at t = 4 hours. (d) The peak time and peak concentration.",
+    "solutionSteps": [
+      "(a) C(t) = 12(e−0.4t − e−2.5t).",
+      "(b) C(0.5) = 12(e−0.2 − e−1.25) ≈ 12(0.8187 − 0.2865) = 12(0.5322) = 6.386 mg/L.",
+      "(c) C(4) = 12(e−1.6 − e−10) ≈ 12(0.2019 − 0.000045) = 12(0.201855) ≈ 2.422 mg/L.",
+      "(d) tmax = ln(2.5/0.4)\n2.5−0.4 = ln(6.25)\n2.1 ≈ 1.8326\n2.1 ≈ 0.873 hours. C(0.873) = 12(e−0.3492 −\ne−2.1825) ≈ 12(0.705 − 0.1128) = 12(0.5922) = 7.106 mg/L."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex109",
+    "problemText": "Example 2.2. Use the epsilon-delta de nition to prove that limx→2(3x + 1) = 7.",
+    "solutionSteps": [
+      "We need to show that for any ε > 0, we can  nd δ > 0 such that if\n0 < |x − 2| < δ, then |(3x + 1) − 7| < ε.",
+      "Compute |(3x + 1) − 7| = |3x − 6| = 3|x − 2|.",
+      "We want 3|x − 2| < ε, which is equivalent to |x − 2| < ε\n3 .",
+      "Choose δ = ε\n3 .",
+      "Then whenever |x − 2| < δ, we have |(3x + 1) − 7| = 3|x − 2| < 3 · ε\n3 = ε.",
+      "This completes the proof."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex110",
+    "problemText": "Example 2.3. Prove that limx→1(2x + 3) = 5 using the epsilon-delta de nition.",
+    "solutionSteps": [
+      "We want for any ε > 0 to  nd δ > 0 such that 0 < |x − 1| < δ implies\n|(2x + 3) − 5| < ε.",
+      "Compute |(2x + 3) − 5| = |2x − 2| = 2|x − 1|.",
+      "We need 2|x − 1| < ε, so |x − 1| < ε\n2 .",
+      "Choose δ = ε\n2 .",
+      "Then whenever |x − 1| < δ, we have |(2x + 3) − 5| = 2|x − 1| < 2 · ε\n2 = ε.",
+      "Thus the limit is proved."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex111",
+    "problemText": "Example 2.4. Prove that limx→3 x2 = 9 using the epsilon-delta de nition.",
+    "solutionSteps": [
+      "We need |x2 − 9| < ε whenever 0 < |x − 3| < δ.",
+      "Factor: |x2 − 9| = |x − 3||x + 3|.",
+      "We need to bound |x + 3|. If we require |x − 3| < 1, then 2 < x < 4, so 5 < x + 3 < 7,\nmeaning |x + 3| < 7.",
+      "Choose δ = min 1, ε\n7\n .",
+      "Then if |x − 3| < δ, we have |x2 − 9| = |x − 3||x + 3| < δ · 7 ≤ ε\n7 · 7 = ε.",
+      "This proves the limit."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex112",
+    "problemText": "Example 2.5. Prove that limx→4\n√x = 2 using the epsilon-delta de nition.",
+    "solutionSteps": [
+      "We need |√x − 2| < ε whenever 0 < |x − 4| < δ.",
+      "Multiply by the conjugate: |√x − 2| = |x−4|\n √x+2 .",
+      "Since √x ≥ 0, √x + 2 ≥ 2. Therefore |√x − 2| ≤ |x−4|\n2 .",
+      "We want |x−4|\n2 < ε, so |x − 4| < 2ε.",
+      "Choose δ = 2ε.",
+      "Then whenever |x − 4| < δ, we have |√x − 2| ≤ |x−4|\n2 < 2ε\n2 = ε.",
+      "This completes the proof."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex113",
+    "problemText": "Example 2.7. Find limx→2(3x + 1).",
+    "solutionSteps": [
+      "As x gets closer and closer to 2, the expression 3x + 1 gets closer and\ncloser to 3(2) + 1 = 7. So limx→2(3x + 1) = 7."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex114",
+    "problemText": "Example 2.8. Find limx→2 x2−4\nx−2 .",
+    "solutionSteps": [
+      "For x̸ = 2, we can simplify:\nx2 − 4\nx − 2 = (x − 2)(x + 2)\nx − 2 = x + 2.",
+      "As x approaches 2, x + 2 approaches 2 + 2 = 4. Therefore, limx→2 x2−4\nx−2 = 4. Notice that\nthe original function is not de ned at x = 2, but the limit still exists."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex115",
+    "problemText": "Example 2.9. Find limx→3 x2−9\nx−3 .",
+    "solutionSteps": [
+      "Factor the numerator: x2 − 9 = (x − 3)(x + 3). For x̸ = 3,\n(x − 3)(x + 3)\nx − 3 = x + 3.",
+      "As x approaches 3, x + 3 approaches 6. So the limit is 6."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex116",
+    "problemText": "Example 2.10. Find limx→1 x2+2x−3\nx−1 .",
+    "solutionSteps": [
+      "Factor the numerator: x2 + 2x − 3 = (x − 1)(x + 3). For x̸ = 1,\n(x − 1)(x + 3)\nx − 1 = x + 3.",
+      "As x approaches 1, x + 3 approaches 4. So the limit is 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex117",
+    "problemText": "Example 2.12. Consider f (x) =\n(\nx2, x < 1\n2x − 1, x ≥ 1. Find limx→1 f (x).",
+    "solutionSteps": [
+      "For the left-hand limit, we use the rule x2 because x < 1:\nlim\nx→1− x2 = 12 = 1.",
+      "For the right-hand limit, we use the rule 2x − 1 because x ≥ 1:\nlim\nx→1+(2x − 1) = 2(1) − 1 = 1.",
+      "Since both one-sided limits equal 1, the two-sided limit exists and limx→1 f (x) = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex118",
+    "problemText": "Example 2.13. Find limx→0 |x|\nx .",
+    "solutionSteps": [
+      "For x > 0, |x| = x, so |x|\nx = 1. Thus limx→0+ |x|\nx = 1.",
+      "For x < 0, |x| = −x, so |x|\nx = −x\nx = −1. Thus limx→0− |x|\nx = −1.",
+      "Since the left and right limits are di erent, the two-sided limit does not exist."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex119",
+    "problemText": "Example 2.14. For f (x) =\n(\n3, x ≤ 2\nx + 1, x > 2 ,  nd limx→2 f (x).",
+    "solutionSteps": [
+      "Left-hand limit: as x → 2−, f (x) = 3, so limx→2− f (x) = 3.",
+      "Right-hand limit: as x → 2+, f (x) = x + 1, so limx→2+ f (x) = 2 + 1 = 3.",
+      "Both equal 3, so limx→2 f (x) = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex120",
+    "problemText": "Example 2.15. Find limx→0 1\nx2 using one-sided limits.",
+    "solutionSteps": [
+      "As x → 0 from either side, x2 is positive and approaches 0. So 1\nx2 becomes\nvery large positive. Both one-sided limits go to +∞. So limx→0 1\nx2 = +∞."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex121",
+    "problemText": "Example 2.17. Find limx→2(x2 − 3x + 5).",
+    "solutionSteps": [
+      "Using limit laws:\nlim\nx→2 x2 = 22 = 4, lim\nx→2 3x = 3(2) = 6, lim\nx→2 5 = 5.",
+      "So limx→2(x2 − 3x + 5) = 4 − 6 + 5 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex122",
+    "problemText": "Example 2.18. Find limx→1 x2+2\nx−1 if it exists.",
+    "solutionSteps": [
+      "The quotient law requires that the limit of the denominator is not zero.\nHere limx→1(x − 1) = 0, so we cannot directly apply the quotient law.",
+      "As x → 1, the numerator approaches 1 + 2 = 3, and the denominator approaches\n0. Therefore, the fraction grows without bound. The limit does not exist (it is in nite).",
+      "Speci cally,\nlim\nx→1+\nx2 + 2\nx − 1 = +∞, lim\nx→1−\nx2 + 2\nx − 1 = −∞."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex123",
+    "problemText": "Example 2.19. Find limx→4\n√x · (x + 2).",
+    "solutionSteps": [
+      "lim\nx→4\n√x = √4 = 2, lim\nx→4(x + 2) = 6.",
+      "By the product law, the limit is 2 × 6 = 12."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex124",
+    "problemText": "Example 2.20. Find limx→27 3\n√x.",
+    "solutionSteps": [
+      "By the root law,\nlim\nx→27\n3\n√x = 3\n√27 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk8"
+  },
+  {
+    "exampleId": "ex125",
+    "problemText": "Find limx→4\n√x · (x + 2).",
+    "solutionSteps": [
+      "lim\nx→4\n√x = √4 = 2, lim\nx→4(x + 2) = 6.",
+      "By the product law, the limit is 2 × 6 = 12."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex126",
+    "problemText": "Example 2.20. Find limx→27 3\n√x.",
+    "solutionSteps": [
+      "By the root law,\nlim\nx→27\n3\n√x = 3\n√27 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex127",
+    "problemText": "Example 2.21. Find limx→0 sin 3x\nx .",
+    "solutionSteps": [
+      "Rewrite sin 3x\nx = 3 · sin 3x\n3x . Let u = 3x. As x → 0, u → 0. Then\nlim\nx→0\nsin 3x\nx = 3 · lim\nu→0\nsin u\nu = 3 · 1 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex128",
+    "problemText": "Example 2.22. Find limx→0 tan x\nx .",
+    "solutionSteps": [
+      "tan x\nx = sin x\nx · 1\ncos x . Then\nlim\nx→0\ntan x\nx =\n \nlim\nx→0\nsin x\nx\n \n·\n \nlim\nx→0\n1\ncos x\n \n= 1 · 1\n1 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex129",
+    "problemText": "Example 2.23. Find limx→0 1−cos x\nx2 .",
+    "solutionSteps": [
+      "Use the identity 1 − cos x = 2 sin2 x\n2\n . Then\n1 − cos x\nx2 = 2 sin2(x/2)\nx2 = 2 sin2(x/2)\n4(x/2)2 = 1\n2 ·\n sin(x/2)\nx/2\n 2\n.",
+      "As x → 0, x/2 → 0, so sin(x/2)\nx/2 → 1. Thus the limit is 1\n2 · 12 = 1\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex130",
+    "problemText": "Example 2.24. Find limx→0 e2x−1\nx .",
+    "solutionSteps": [
+      "e2x−1\nx = 2 · e2x−1\n2x . Let u = 2x. As x → 0, u → 0. Then\nlim\nx→0\ne2x − 1\nx = 2 · lim\nu→0\neu − 1\nu = 2 · 1 = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex131",
+    "problemText": "Example 2.26. Find lim\nx→∞\n3x2 + 2x + 1\n5x2 − 4x + 7.",
+    "solutionSteps": [
+      "Divide numerator and denominator by x2 (the highest power):\nlim\nx→∞\n3x2 + 2x + 1\n5x2 − 4x + 7 = lim\nx→∞\n3 + 2\nx + 1\nx2\n5 − 4\nx + 7\nx2\n= 3 + 0 + 0\n5 − 0 + 0 = 3\n5."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex132",
+    "problemText": "Example 2.27. Find lim\nx→∞\n4x3 − 2x\nx3 + 5x2 + 1.",
+    "solutionSteps": [
+      "Divide numerator and denominator by x3:\nlim\nx→∞\n4x3 − 2x\nx3 + 5x2 + 1 = lim\nx→∞\n4 − 2\nx2\n1 + 5\nx + 1\nx3\n= 4 − 0\n1 + 0 + 0 = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex133",
+    "problemText": "Example 2.28. Find lim\nx→∞\n2x2 + 1\n5x3 − 3x.",
+    "solutionSteps": [
+      "Divide numerator and denominator by x3:\nlim\nx→∞\n2x2 + 1\n5x3 − 3x = lim\nx→∞\n2\nx + 1\nx3\n5 − 3\nx2\n= 0 + 0\n5 − 0 = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex134",
+    "problemText": "Example 2.29. Find lim\nx→∞\nx5 − 2x3\n3x2 + 4 .",
+    "solutionSteps": [
+      "Divide numerator and denominator by x2:\nlim\nx→∞\nx5 − 2x3\n3x2 + 4 = lim\nx→∞\nx3 − 2\nx\n3 + 4\nx2\n.",
+      "As x → ∞, x3 → ∞, so the limit is ∞. More formally, the degree of numerator (5) is\ngreater than degree of denominator (2), so the limit is in nite."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex135",
+    "problemText": "Example 2.30. Find lim\nx→∞\n√4x2 + 1\nx .",
+    "solutionSteps": [
+      "For x > 0, √4x2 + 1 = x\nq\n4 + 1\nx2 . Then\n√4x2 + 1\nx =\nx\nq\n4 + 1\nx2\nx =\nr\n4 + 1\nx2 .",
+      "As x → ∞, 1\nx2 → 0, so the limit is √4 = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex136",
+    "problemText": "Example 2.31. Find lim\nx→∞(√x2 + 3x − x).",
+    "solutionSteps": [
+      "Multiply by the conjugate:\n√x2 + 3x − x = (x2 + 3x) − x2\n√x2 + 3x + x = 3x\n√x2 + 3x + x.",
+      "Divide numerator and denominator by x:\n= 3\nq\n1 + 3\nx + 1\n.",
+      "As x → ∞, 3\nx → 0, so √1 + 0 = 1. Thus the limit is 3\n1+1 = 3\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex137",
+    "problemText": "Example 2.32. Find lim\nx→−∞\n√4x2 + 1\nx .",
+    "solutionSteps": [
+      "For negative x, √4x2 + 1 = |x|\nq\n4 + 1\nx2 = −x\nq\n4 + 1\nx2 because |x| = −x\nwhen x < 0. Then √4x2 + 1\nx =\n−x\nq\n4 + 1\nx2\nx = −\nr\n4 + 1\nx2 .",
+      "As x → −∞, 1\nx2 → 0, so the limit is −√4 = −2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex138",
+    "problemText": "Example 2.33. Find lim\nx→∞\n√9x2 + 2x\n2x + 1 .",
+    "solutionSteps": [
+      "For x > 0, √9x2 + 2x = x\nq\n9 + 2\nx . Then\n√9x2 + 2x\n2x + 1 =\nx\nq\n9 + 2\nx\n2x + 1 =\nq\n9 + 2\nx\n2 + 1\nx\n.",
+      "As x → ∞, 2\nx → 0 and 1\nx → 0, so the limit is √9\n2 = 3\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex139",
+    "problemText": "Example 2.35. Find lim\nx→0 x2 sin\n  1\nx\n  .",
+    "solutionSteps": [
+      "We know that −1 ≤ sin 1\nx\n  ≤ 1 for all x̸ = 0. Multiply by x2 ≥ 0:\n−x2 ≤ x2 sin\n  1\nx\n  ≤ x2.",
+      "As x → 0, both −x2 and x2 approach 0. By the Squeeze Theorem,\nlim\nx→0 x2 sin\n  1\nx\n  = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex140",
+    "problemText": "Example 2.36. Find lim\nx→0 x cos\n  1\nx2\n  .",
+    "solutionSteps": [
+      "Since −1 ≤ cos 1\nx2\n  ≤ 1, we have\n−|x| ≤ x cos\n  1\nx2\n  ≤ |x|.",
+      "As x → 0, both −|x| and |x| approach 0. Therefore, the limit is 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex141",
+    "problemText": "Example 2.37 (Business: Average Cost as Production Increases). A company's total\ncost function is C(x) = 5000 + 30x where x is the number of units produced. The average\ncost function is A(x) = C(x)\nx = 5000\nx + 30. Find limx→∞ A(x) and interpret the result.",
+    "solutionSteps": [
+      "Compute\nlim\nx→∞\n 5000\nx + 30\n\n= 0 + 30 = 30.",
+      "As x → ∞, 5000\nx → 0. So limx→∞ A(x) = 30.",
+      "This means that as production becomes very large, the average cost approaches $30\nper unit, which is the variable cost per unit. The  xed costs become negligible when spread\nover many units."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex142",
+    "problemText": "Example 2.38 (Business: Marginal Cost as Limit of Average Rate of Change). The\nmarginal cost is de ned as M C(x) = limh→0 C(x+h)−C(x)\nh . For a cost function C(x) =\n1000 + 20x + 0.1x2,  nd the marginal cost at x = 100.",
+    "solutionSteps": [
+      "First compute C(100 + h) − C(100):",
+      "C(100 + h) = 1000 + 20(100 + h) + 0.1(100 + h)2\n= 1000 + 2000 + 20h + 0.1(10000 + 200h + h2)\n= 3000 + 20h + 1000 + 20h + 0.1h2\n= 4000 + 40h + 0.1h2.",
+      "C(100) = 1000 + 2000 + 0.1(10000) = 3000 + 1000 = 4000.",
+      "So C(100 + h) − C(100) = 40h + 0.1h2. Then\nC(100 + h) − C(100)\nh = 40 + 0.1h.",
+      "Taking the limit as h → 0:\nM C(100) = lim\nh→0(40 + 0.1h) = 40.",
+      "The marginal cost at 100 units is $40."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex143",
+    "problemText": "Example 2.39 (Accounting: Present Value with Continuous Compounding). The present\nvalue of a future payment P received after t years with continuous compounding at annual\ninterest rate r is P V = P e−rt. As the time until payment approaches 0, what happens to\nthe present value?",
+    "solutionSteps": [
+      "lim\nt→0 P e−rt = P e0 = P.",
+      "This means that as the payment time approaches immediately, the present value ap-\nproaches the actual payment amount. This makes sense because there is no discounting\nwhen payment is received right away."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex144",
+    "problemText": "Example 2.40 (Business: Revenue from Very Small Price Change). A company's revenue\nfunction is R(p) = 1000p − 50p2 where p is the price per unit. The average rate of change\nof revenue as price changes from p = 10 to p = 10 + h is R(10+h)−R(10)\nh . Find the limit as\nh → 0.",
+    "solutionSteps": [
+      "Compute R(10) = 1000(10) − 50(100) = 10000 − 5000 = 5000.",
+      "Compute R(10+h) = 1000(10+h)−50(10+h)2 = 10000+1000h−50(100+20h+h2) =\n10000 + 1000h − 5000 − 1000h − 50h2 = 5000 − 50h2.",
+      "Then R(10 + h) − R(10) = (5000 − 50h2) − 5000 = −50h2.",
+      "So R(10 + h) − R(10)\nh = −50h.",
+      "As h → 0, this approaches 0. This represents the instantaneous rate of change of\nrevenue at p = 10, which is the derivative R′(10)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex145",
+    "problemText": "Example 2.41. Find lim\nx→0\nsin2 x\nx2 .",
+    "solutionSteps": [
+      "sin2 x\nx2 =\n sin x\nx\n 2\n.",
+      "As x → 0, sin x\nx → 1, so the limit is 12 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex146",
+    "problemText": "Example 2.42. Find lim\nx→2\nx2 − 4\nx2 − 3x + 2.",
+    "solutionSteps": [
+      "Factor numerator and denominator:\nx2 − 4 = (x − 2)(x + 2), x2 − 3x + 2 = (x − 2)(x − 1).",
+      "For x̸ = 2,\n(x − 2)(x + 2)\n(x − 2)(x − 1) = x + 2\nx − 1.",
+      "Then\nlim\nx→2\nx + 2\nx − 1 = 2 + 2\n2 − 1 = 4\n1 = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex147",
+    "problemText": "Example 2.43. Find lim\nx→0\n√1 + x − 1\nx .",
+    "solutionSteps": [
+      "Multiply by the conjugate:\n√1 + x − 1\nx ·\n√1 + x + 1\n√1 + x + 1 = (1 + x) − 1\nx(√1 + x + 1) = x\nx(√1 + x + 1) = 1\n√1 + x + 1.",
+      "As x → 0, this approaches 1 √1+1 = 1\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk9"
+  },
+  {
+    "exampleId": "ex148",
+    "problemText": "Find lim x→0 √1 + x − 1 x .",
+    "solutionSteps": [
+      "Multiply by the conjugate: √1 + x − 1 x · √1 + x + 1 √1 + x + 1 = (1 + x) − 1 x(√1 + x + 1) = x x(√1 + x + 1) = 1 √1 + x + 1.",
+      "As x → 0, this approaches 1 √1+1 = 1 2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex149",
+    "problemText": "Find lim x→∞ 3x2 + 2x + 1 x2 − 1 .",
+    "solutionSteps": [
+      "Divide numerator and denominator by x2: 3 + 2 x + 1 x2 1 − 1 x2 .",
+      "As x → ∞, 2 x → 0, 1 x2 → 0, so the limit is 3 1 = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex150",
+    "problemText": "Find lim x→∞ 5x3 − 2x + 1 2x3 + x2 − 4 .",
+    "solutionSteps": [
+      "Divide by x3: 5 − 2 x2 + 1 x3 2 + 1 x − 4 x3 .",
+      "As x → ∞, the fractions vanish, giving 5 2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex151",
+    "problemText": "Find lim x→−∞ 2x3 − 5x + 1 x3 + 4x2 − 3 .",
+    "solutionSteps": [
+      "Divide by x3: 2 − 5 x2 + 1 x3 1 + 4 x − 3 x3 .",
+      "As x → −∞, the fractions vanish, so the limit is 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex152",
+    "problemText": "Find lim x→∞ 4x3 − 2x 5x4 + 3 .",
+    "solutionSteps": [
+      "Divide by x4: 4 x − 2 x3 5 + 3 x4 .",
+      "As x → ∞, 4 x → 0 and all other fractions vanish, so the limit is 0 5 = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex153",
+    "problemText": "Find lim x→∞ x2 + 1 x + 1 .",
+    "solutionSteps": [
+      "Divide by x: x + 1 x 1 + 1 x .",
+      "As x → ∞, x → ∞, so the limit is ∞."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex154",
+    "problemText": "A manufacturing company has a cost function C(x) = 100x0.8 + 5000 for producing x units. Find the average cost function and its limit as production increases inde nitely.",
+    "solutionSteps": [
+      "Average cost is A(x) = C(x) x = 100x−0.2 + 5000 x = 100 x0.2 + 5000 x .",
+      "As x → ∞, 100 x0.2 → 0 and 5000 x → 0.",
+      "Therefore, lim x→∞ A(x) = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex155",
+    "problemText": "An investment of $1000 earns interest at an annual rate of 5% compounded n times per year. The amount after t years is An(t) = 1000 1 + 0.05 n nt. As n → ∞, we get continuous compounding: A(t) = limn→∞ An(t) = 1000e0.05t. Find the amount after 10 years with continuous compounding.",
+    "solutionSteps": [
+      "lim n→∞ 1000 ( 1 + 0.05 n ) 10n = 1000e0.05×10 = 1000e0.5 ≈ 1000 × 1.64872 = 1648.72."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex156",
+    "problemText": "A company's revenue function is R(q) = 500q − 2q2. Use the limit de nition of the derivative to  nd the marginal revenue at q = 50.",
+    "solutionSteps": [
+      "The marginal revenue at q = 50 is limh→0 R(50+h)−R(50) h .",
+      "Compute R(50) = 500(50) − 2(2500) = 25000 − 5000 = 20000.",
+      "Compute R(50 + h) = 500(50 + h) − 2(50 + h)2 = 25000 + 500h − 2(2500 + 100h + h2) = 25000 + 500h − 5000 − 200h − 2h2 = 20000 + 300h − 2h2.",
+      "Then R(50 + h) − R(50) = 300h − 2h2.",
+      "So R(50+h)−R(50) h = 300 − 2h.",
+      "As h → 0, this approaches 300. Thus the marginal revenue at q = 50 is $300."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex157",
+    "problemText": "A piece of equipment is purchased for $50,000 and its value after t years is given by V (t) = 50000e−0.1t. As the equipment ages inde nitely, what value does it approach?",
+    "solutionSteps": [
+      "lim t→∞ 50000e−0.1t = 50000 × 0 = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex158",
+    "problemText": "Is f (x) = ( x2, x̸ = 2 5, x = 2 continuous at x = 2?",
+    "solutionSteps": [
+      "f (2) = 5.",
+      "limx→2 f (x) = limx→2 x2 = 4.",
+      "Since the limit (4) is not equal to f (2) = 5, the function is not continuous at x = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex159",
+    "problemText": "Is f (x) = x2 + 3x − 2 continuous at x = 1?",
+    "solutionSteps": [
+      "f (1) = 1 + 3 − 2 = 2.",
+      "limx→1(x2 + 3x − 2) = 1 + 3 − 2 = 2.",
+      "Since the limit equals the function value, f is continuous at x = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex160",
+    "problemText": "Is f (x) = 1 x−3 continuous at x = 3?",
+    "solutionSteps": [
+      "The function is not de ned at x = 3 because the denominator becomes zero.",
+      "Therefore, it is not continuous at x = 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex161",
+    "problemText": "Where is f (x) = x2−4 x−2 discontinuous?",
+    "solutionSteps": [
+      "The function simpli es to x + 2 for x̸ = 2, but it is unde ned at x = 2.",
+      "Therefore, it is discontinuous at x = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex162",
+    "problemText": "Show that the equation x3 − 2x − 5 = 0 has a root between 2 and 3.",
+    "solutionSteps": [
+      "Let f (x) = x3 − 2x − 5.",
+      "f (2) = 8 − 4 − 5 = −1, f (3) = 27 − 6 − 5 = 16.",
+      "Since f is continuous (polynomial) and −1 < 0 < 16, by the IVT there exists some c in (2, 3) such that f (c) = 0. Thus the equation has a root between 2 and 3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex163",
+    "problemText": "Show that f (x) = cos x − x has a root in (0, 1).",
+    "solutionSteps": [
+      "f (0) = cos 0 − 0 = 1, f (1) = cos 1 − 1 ≈ 0.5403 − 1 = −0.4597.",
+      "Since f is continuous (sum of continuous functions) and f (0) > 0 while f (1) < 0, by the IVT there exists some c in (0, 1) with f (c) = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex164",
+    "problemText": "A company's pro t function is π(q) = −0.01q2 + 10q − 500 for q ≥ 0. Show that there is a production level between 50 and 100 units where pro t is exactly $200.",
+    "solutionSteps": [
+      "Evaluate π(50) = −0.01(2500) + 10(50) − 500 = −25 + 500 − 500 = −25,",
+      "π(100) = −0.01(10000) + 10(100) − 500 = −100 + 1000 − 500 = 400.",
+      "Since π is continuous (polynomial) and −25 < 200 < 400, by the IVT there exists some c in (50, 100) such that π(c) = 200."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex165",
+    "problemText": "A company's revenue function is R(q) = 80q and cost function is C(q) = 5000 + 30q. Show that there is a break-even point between 0 and 200 units.",
+    "solutionSteps": [
+      "The pro t function is π(q) = R(q) − C(q) = 80q − 5000 − 30q = 50q − 5000.",
+      "Then π(0) = −5000, π(200) = 50(200) − 5000 = 10000 − 5000 = 5000.",
+      "Since −5000 < 0 < 5000 and π is continuous, by the IVT there exists a c in (0, 200) such that π(c) = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex166",
+    "problemText": "Find f ′(2) for f (x) = x2.",
+    "solutionSteps": [
+      "f ′(2) = lim h→0 (2 + h)2 − 4 h = lim h→0 4 + 4h + h2 − 4 h = lim h→0 4h + h2 h = lim h→0(4 + h) = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex167",
+    "problemText": "Find f ′(x) for f (x) = √x.",
+    "solutionSteps": [
+      "f ′(x) = lim h→0 √x + h − √x h = lim h→0 (√x + h − √x)(√x + h + √x) h(√x + h + √x) = lim h→0 (x + h) − x h(√x + h + √x) = lim h→0 h h(√x + h + √x) = lim h→0 1 √x + h + √x = 1 2√x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex168",
+    "problemText": "Find f ′(3) for f (x) = 2x2 − 3x + 1 using the limit de nition.",
+    "solutionSteps": [
+      "f ′(3) = lim h→0 f (3 + h) − f (3) h = lim h→0 [2(3 + h)2 − 3(3 + h) + 1] − [2(9) − 9 + 1] h",
+      "= lim h→0 [2(9 + 6h + h2) − 9 − 3h + 1] − [18 − 9 + 1] h",
+      "= lim h→0 [18 + 12h + 2h2 − 9 − 3h + 1] − [10] h",
+      "= lim h→0 (10 + 9h + 2h2) − 10 h = lim h→0 9h + 2h2 h = lim h→0(9 + 2h) = 9."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk10"
+  },
+  {
+    "exampleId": "ex169",
+    "problemText": "Find f ′(x) for f (x) = √x.",
+    "solutionSteps": [
+      "lim h→0 (√x + h − √x)(√x + h + √x) h(√x + h + √x) = lim h→0 (x + h) − x h(√x + h + √x) = lim h→0 h h(√x + h + √x) = lim h→0 1 √x + h + √x = 1 2√x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex170",
+    "problemText": "Find f ′(3) for f (x) = 2x2 − 3x + 1 using the limit de nition.",
+    "solutionSteps": [
+      "f ′(3) = lim h→0 f (3 + h) − f (3) h = lim h→0 [2(3 + h)2 − 3(3 + h) + 1] − [2(9) − 9 + 1] h",
+      "= lim h→0 [2(9 + 6h + h2) − 9 − 3h + 1] − [18 − 9 + 1] h",
+      "= lim h→0 [18 + 12h + 2h2 − 9 − 3h + 1] − [10] h",
+      "= lim h→0 (10 + 9h + 2h2) − 10 h = lim h→0 9h + 2h2 h = lim h→0(9 + 2h) = 9."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex171",
+    "problemText": "Find f ′(x) for f (x) = 1 x using the limit de nition.",
+    "solutionSteps": [
+      "f ′(x) = lim h→0 1 x+h − 1 x h = lim h→0 x−(x+h) x(x+h) h = lim h→0 −h h · x(x + h) = lim h→0 −1 x(x + h) = − 1 x2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex172",
+    "problemText": "Find f ′(x) for f (x) = x3 using the limit de nition.",
+    "solutionSteps": [
+      "f ′(x) = lim h→0 (x + h)3 − x3 h = lim h→0 x3 + 3x2h + 3xh2 + h3 − x3 h = lim h→0 3x2h + 3xh2 + h3 h = lim h→0(3x2 + 3xh + h2) = 3x2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex173",
+    "problemText": "Find the equations of the tangent and normal lines to f (x) = x2 at x = 3.",
+    "solutionSteps": [
+      "f (3) = 9. f ′(x) = 2x, so f ′(3) = 6.",
+      "Tangent line: y − 9 = 6(x − 3) which simpli es to y = 6x − 9.",
+      "Normal line: slope is −1 6 . Equation: y − 9 = −1 6 (x − 3) which simpli es to y = −1 6 x + 1 2 + 9 = −1 6 x + 19 2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex174",
+    "problemText": "Find the equation of the tangent line to f (x) = √x at x = 4.",
+    "solutionSteps": [
+      "f (4) = 2. f ′(x) = 1 2√x , so f ′(4) = 1 2√4 = 1 4 .",
+      "Tangent line: y − 2 = 1 4 (x − 4) which simpli es to y = 1 4 x + 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex175",
+    "problemText": "Find the equation of the normal line to f (x) = x3 − 2x at x = 1.",
+    "solutionSteps": [
+      "f (1) = 1 − 2 = −1. f ′(x) = 3x2 − 2, so f ′(1) = 3 − 2 = 1.",
+      "Tangent slope is 1, so normal slope is −1.",
+      "Normal line: y − (−1) = −1(x − 1) which simpli es to y + 1 = −x + 1, so y = −x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex176",
+    "problemText": "Find the point on f (x) = x2 where the tangent line is parallel to the line y = 4x − 3.",
+    "solutionSteps": [
+      "The slope of the given line is 4. We need f ′(x) = 4.",
+      "Since f ′(x) = 2x, set 2x = 4 giving x = 2.",
+      "The point is (2, 4)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex177",
+    "problemText": "Find the point on f (x) = x3 where the normal line is parallel to the line y = −1 3 x + 2.",
+    "solutionSteps": [
+      "The slope of the given line is −1 3 .",
+      "Since the normal line has slope − 1 f ′(x) , we set − 1 f ′(x) = −1 3 which gives f ′(x) = 3.",
+      "f ′(x) = 3x2 = 3 gives x2 = 1, so x = ±1.",
+      "The points are (1, 1) and (−1, −1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex178",
+    "problemText": "Find f ′(x) for f (x) = 3x5 − 2x3 + 4x − 7.",
+    "solutionSteps": [
+      "f ′(x) = 3 · 5x4 − 2 · 3x2 + 4 · 1 − 0 = 15x4 − 6x2 + 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex179",
+    "problemText": "Find d dx (4x6 − 2x4 + 5x2 − 8).",
+    "solutionSteps": [
+      "d dx(4x6 − 2x4 + 5x2 − 8) = 4 · 6x5 − 2 · 4x3 + 5 · 2x − 0 = 24x5 − 8x3 + 10x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex180",
+    "problemText": "Find d dx ( 1 x3 ) using the power rule.",
+    "solutionSteps": [
+      "1 x3 = x−3, so d dx x−3 = −3x−4 = − 3 x4 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex181",
+    "problemText": "Find d dx (√x) using the power rule.",
+    "solutionSteps": [
+      "√x = x1/2, so d dx x1/2 = 1 2 x−1/2 = 1 2√x ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex182",
+    "problemText": "Find d dx (x−2).",
+    "solutionSteps": [
+      "d dx x−2 = −2x−3 = − 2 x3 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex183",
+    "problemText": "Find y′ for y = x2 sin x.",
+    "solutionSteps": [
+      "Let f (x) = x2 and g(x) = sin x. Then f ′(x) = 2x and g′(x) = cos x.",
+      "y′ = (2x)(sin x) + (x2)(cos x) = 2x sin x + x2 cos x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex184",
+    "problemText": "Find y′ for y = ex cos x.",
+    "solutionSteps": [
+      "Let f (x) = ex and g(x) = cos x. Then f ′(x) = ex and g′(x) = − sin x.",
+      "y′ = (ex)(cos x) + (ex)(− sin x) = ex(cos x − sin x)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex185",
+    "problemText": "Find y′ for y = (2x + 1)(3x2 − 4).",
+    "solutionSteps": [
+      "Let f (x) = 2x + 1 and g(x) = 3x2 − 4. Then f ′(x) = 2 and g′(x) = 6x.",
+      "y′ = (2)(3x2 − 4) + (2x + 1)(6x) = 6x2 − 8 + 12x2 + 6x = 18x2 + 6x − 8."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex186",
+    "problemText": "Find y′ for y = x ln x.",
+    "solutionSteps": [
+      "Let f (x) = x and g(x) = ln x. Then f ′(x) = 1 and g′(x) = 1 x .",
+      "y′ = (1)(ln x) + (x)( 1 x ) = ln x + 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex187",
+    "problemText": "Find y′ for y = x2ex.",
+    "solutionSteps": [
+      "Let f (x) = x2 and g(x) = ex. Then f ′(x) = 2x and g′(x) = ex.",
+      "y′ = (2x)(ex) + (x2)(ex) = ex(2x + x2) = xex(x + 2)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex188",
+    "problemText": "Find y′ for y = x2+1 x−2 .",
+    "solutionSteps": [
+      "Let f (x) = x2 + 1 and g(x) = x − 2. Then f ′(x) = 2x and g′(x) = 1.",
+      "y′ = (2x)(x − 2) − (x2 + 1)(1) (x − 2)2 = 2x2 − 4x − x2 − 1 (x − 2)2 = x2 − 4x − 1 (x − 2)2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex189",
+    "problemText": "Find y′ for y = sin x x .",
+    "solutionSteps": [
+      "Let f (x) = sin x and g(x) = x. Then f ′(x) = cos x and g′(x) = 1.",
+      "y′ = (cos x)(x) − (sin x)(1) x2 = x cos x − sin x x2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex190",
+    "problemText": "Find y′ for y = ex x2+1 .",
+    "solutionSteps": [
+      "Let f (x) = ex and g(x) = x2 + 1. Then f ′(x) = ex and g′(x) = 2x.",
+      "y′ = (ex)(x2 + 1) − (ex)(2x) (x2 + 1)2 = ex(x2 + 1 − 2x) (x2 + 1)2 = ex(x − 1)2 (x2 + 1)2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex191",
+    "problemText": "Find y′ for y = ln x x .",
+    "solutionSteps": [
+      "Let f (x) = ln x and g(x) = x. Then f ′(x) = 1 x and g′(x) = 1.",
+      "y′ = ( 1 x )(x) − (ln x)(1) x2 = 1 − ln x x2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex192",
+    "problemText": "Find y′ for y = x2 ex .",
+    "solutionSteps": [
+      "Let f (x) = x2 and g(x) = ex. Then f ′(x) = 2x and g′(x) = ex.",
+      "y′ = (2x)(ex) − (x2)(ex) (ex)2 = ex(2x − x2) e2x = 2x − x2 ex ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex193",
+    "problemText": "Find y′ for y = (3x2 + 1)5.",
+    "solutionSteps": [
+      "Let u = 3x2 + 1. Then y = u5 and dy dx = 5u4 · du dx = 5(3x2 + 1)4 · (6x) = 30x(3x2 + 1)4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex194",
+    "problemText": "Find y′ for y = sin(2x).",
+    "solutionSteps": [
+      "Let u = 2x. Then y = sin u and dy dx = cos u · 2 = 2 cos(2x)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex195",
+    "problemText": "Find y′ for y = ex2 .",
+    "solutionSteps": [
+      "Let u = x2. Then y = eu and dy dx = eu · 2x = 2xex2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex196",
+    "problemText": "Find y′ for y = ln(x2 + 1).",
+    "solutionSteps": [
+      "Let u = x2 + 1. Then y = ln u and dy dx = 1 u · 2x = 2x x2 + 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex197",
+    "problemText": "Find y′ for y = cos2 x.",
+    "solutionSteps": [
+      "Write y = (cos x)2. Let u = cos x. Then y = u2 and dy dx = 2u · (− sin x) = −2 cos x sin x = − sin(2x)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex198",
+    "problemText": "Find y′ for y = e2x sin(3x).",
+    "solutionSteps": [
+      "Using product rule and chain rule:",
+      "y′ = (2e2x) sin(3x) + e2x(3 cos(3x)) = e2x(2 sin 3x + 3 cos 3x)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex199",
+    "problemText": "Find y′ for y = ln(sin x).",
+    "solutionSteps": [
+      "Using chain rule:",
+      "y′ = 1 sin x · cos x = cot x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex200",
+    "problemText": "Find y′ for y = tan(ex).",
+    "solutionSteps": [
+      "Using chain rule:",
+      "y′ = sec2(ex) · ex = ex sec2(ex)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex201",
+    "problemText": "Find y′ for y = esin x.",
+    "solutionSteps": [
+      "Using chain rule:",
+      "y′ = esin x · cos x = cos x · esin x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex202",
+    "problemText": "Find y′ for y = √ln x.",
+    "solutionSteps": [
+      "Write y = (ln x)1/2. Using chain rule:",
+      "y′ = 1 2(ln x)−1/2 · 1 x = 1 2x√ln x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex203",
+    "problemText": "Find limx→0 sin x x using L'Hôpital's Rule.",
+    "solutionSteps": [
+      "Both numerator and denominator approach 0. Di erentiate numerator and denominator:",
+      "lim x→0 sin x x = lim x→0 cos x 1 = cos 0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex204",
+    "problemText": "Find limx→0 ex−1 x .",
+    "solutionSteps": [
+      "This is 0 0 form. Apply L'Hôpital:",
+      "lim x→0 ex − 1 x = lim x→0 ex 1 = e0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex205",
+    "problemText": "Find limx→∞ ln x x .",
+    "solutionSteps": [
+      "This is ∞ ∞ form.",
+      "lim x→∞ ln x x = lim x→∞ 1/x 1 = lim x→∞ 1 x = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk11"
+  },
+  {
+    "exampleId": "ex206",
+    "problemText": "Example 3.38. Find limx→0 sin x\nx using L'Hôpital's Rule.",
+    "solutionSteps": [
+      "Both numerator and denominator approach 0.",
+      "Di erentiate numerator and denominator:",
+      "lim\nx→0\nsin x\nx = lim\nx→0\ncos x\n1 = cos 0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex207",
+    "problemText": "Example 3.39. Find limx→0 ex−1\nx .",
+    "solutionSteps": [
+      "This is 0\n0 form.",
+      "Apply L'Hôpital:",
+      "lim\nx→0\nex − 1\nx = lim\nx→0\nex\n1 = e0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex208",
+    "problemText": "Example 3.40. Find limx→∞ ln x\nx .",
+    "solutionSteps": [
+      "This is ∞\n∞ form.",
+      "lim\nx→∞\nln x\nx = lim\nx→∞\n1/x\n1 = lim\nx→∞\n1\nx = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex209",
+    "problemText": "Example 3.41. Find limx→0 1−cos x\nx2 .",
+    "solutionSteps": [
+      "This is 0\n0 form.",
+      "Apply L'Hôpital once: limx→0 sin x\n2x .",
+      "Still 0\n0 .",
+      "Apply again:\nlimx→0 cos x\n2 = 1\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex210",
+    "problemText": "Example 3.42. Find limx→0+ x ln x.",
+    "solutionSteps": [
+      "Rewrite as ln x\n1/x which is −∞\n∞ form as x → 0+.",
+      "lim\nx→0+\nln x\n1/x = lim\nx→0+\n1/x\n−1/x2 = lim\nx→0+\n1/x\n−1/x2 = lim\nx→0+ (−x) = 0.",
+      "Thus limx→0+ x ln x = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex211",
+    "problemText": "Example 3.43. Find dy\ndx for x2 + y2 = 25.",
+    "solutionSteps": [
+      "Di erentiate both sides with respect to x:",
+      "2x + 2y dy\ndx = 0 ⇒ 2y dy\ndx = −2x ⇒ dy\ndx = −x\ny ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex212",
+    "problemText": "Example 3.44. Find dy\ndx for x3 + y3 = 6xy.",
+    "solutionSteps": [
+      "Di erentiate both sides:\n3x2 + 3y2 dy\ndx = 6y + 6x dy\ndx.",
+      "Collect terms with dy\ndx :\n3y2 dy\ndx − 6x dy\ndx = 6y − 3x2 ⇒ dy\ndx(3y2 − 6x) = 6y − 3x2.",
+      "Thus dy\ndx = 6y−3x2\n3y2−6x = 2y−x2\ny2−2x ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex213",
+    "problemText": "Example 3.45. Find dy\ndx for exy = x2 + y2.",
+    "solutionSteps": [
+      "Di erentiate both sides. For the left side, use chain rule: d\ndx exy = exy ·\nd\ndx (xy) = exy y + x dy\ndx\n .",
+      "For the right side: d\ndx (x2 + y2) = 2x + 2y dy\ndx .",
+      "Thus:\nexy\n \ny + x dy\ndx\n \n= 2x + 2y dy\ndx.",
+      "Expand: yexy + xexy dy\ndx = 2x + 2y dy\ndx .",
+      "Collect terms: xexy dy\ndx − 2y dy\ndx = 2x − yexy.",
+      "Factor: dy\ndx (xexy − 2y) = 2x − yexy.",
+      "Therefore, dy\ndx = 2x−yexy\nxexy −2y ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex214",
+    "problemText": "Example 3.46. Find dy\ndx for ln(xy) = x + y.",
+    "solutionSteps": [
+      "ln(xy) = ln x + ln y. Di erentiate:\n1\nx + 1\ny\ndy\ndx = 1 + dy\ndx.",
+      "Move terms: 1\ny\ndy\ndx − dy\ndx = 1 − 1\nx .",
+      "Factor: dy\ndx\n  1\ny − 1\n \n= x−1\nx .",
+      "Thus dy\ndx = x−1\nx\n1−y\ny\n= x−1\nx · y\n1−y = y(x−1)\nx(1−y) ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex215",
+    "problemText": "Example 3.47. Find the slope of the tangent line to x2 + xy + y2 = 7 at the point (2, 1).",
+    "solutionSteps": [
+      "Di erentiate implicitly:\n2x + y + x dy\ndx + 2y dy\ndx = 0.",
+      "Solve for dy\ndx : dy\ndx (x + 2y) = −2x − y, so dy\ndx = −2x+y\nx+2y .",
+      "At (2, 1): dy\ndx = −4+1\n2+2 = −5\n4 . The slope is −5\n4 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex216",
+    "problemText": "Example 3.48. For f (x) = x4 − 3x2,  nd f ′(x) and f ′′(x).",
+    "solutionSteps": [
+      "f ′(x) = 4x3 − 6x, f ′′(x) = 12x2 − 6."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex217",
+    "problemText": "Example 3.49. For f (x) = sin x,  nd the  rst four derivatives.",
+    "solutionSteps": [
+      "f ′(x) = cos x, f ′′(x) = − sin x, f ′′′(x) = − cos x, f (4)(x) = sin x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex218",
+    "problemText": "Example 3.50. For f (x) = e2x,  nd f ′′(x) and f ′′′(x).",
+    "solutionSteps": [
+      "f ′(x) = 2e2x, f ′′(x) = 4e2x, f ′′′(x) = 8e2x.",
+      "In general, f (n)(x) = 2ne2x."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex219",
+    "problemText": "Example 3.51. For f (x) = ln x,  nd f ′′(x) and f ′′′(x).",
+    "solutionSteps": [
+      "f ′(x) = 1\nx = x−1, f ′′(x) = −x−2 = − 1\nx2 , f ′′′(x) = 2x−3 = 2\nx3 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex220",
+    "problemText": "Example 3.52. For f (x) = x5 − 2x3 + 4x,  nd f ′′(x) and evaluate f ′′(2).",
+    "solutionSteps": [
+      "f ′(x) = 5x4 − 6x2 + 4, f ′′(x) = 20x3 − 12x.",
+      "f ′′(2) = 20(8) − 12(2) = 160 − 24 = 136."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex221",
+    "problemText": "Example 3.53. A ball is thrown upward with position s(t) = −4.9t2 + 20t + 1. Find the\nvelocity and acceleration at t = 2 seconds.",
+    "solutionSteps": [
+      "v(t) = s′(t) = −9.8t + 20, a(t) = v′(t) = −9.8.",
+      "At t = 2: v(2) = −19.6 + 20 = 0.4 m/s, a(2) = −9.8 m/s2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex222",
+    "problemText": "Example 3.54. A particle moves along a line with position s(t) = t3 − 6t2 + 9t + 2. Find\nwhen the particle is at rest.",
+    "solutionSteps": [
+      "At rest when v(t) = s′(t) = 0.",
+      "s′(t) = 3t2 − 12t + 9 = 3(t2 − 4t + 3) = 3(t − 1)(t − 3) = 0.",
+      "So t = 1 and t = 3 seconds."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex223",
+    "problemText": "Example 3.55. For the particle in the previous example,  nd the acceleration at t = 2.",
+    "solutionSteps": [
+      "v(t) = 3t2 − 12t + 9, so a(t) = v′(t) = 6t − 12.",
+      "At t = 2, a(2) = 12 − 12 = 0\nm/s2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex224",
+    "problemText": "Example 3.56. A falling object has position s(t) = 100 − 4.9t2. Find the velocity when\nit hits the ground.",
+    "solutionSteps": [
+      "Hits ground when s(t) = 0: 100 − 4.9t2 = 0 gives t2 = 100\n4.9 ≈ 20.408, so\nt ≈ 4.52 seconds.",
+      "v(t) = s′(t) = −9.8t.",
+      "At t = 4.52, v ≈ −44.3 m/s (negative indicates\ndownward)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex225",
+    "problemText": "Example 3.57. A company's cost function is C(q) = 1000 + 20q + 0.1q2. Find the\nmarginal cost at q = 100.",
+    "solutionSteps": [
+      "C′(q) = 20 + 0.2q, C′(100) = 20 + 20 = 40.",
+      "Marginal cost is $40 per unit."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex226",
+    "problemText": "Example 3.58. For C(q) = 5000 + 30q + 0.05q2,  nd the marginal cost function and\nevaluate at q = 200.",
+    "solutionSteps": [
+      "C′(q) = 30 + 0.1q, C′(200) = 30 + 20 = 50."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex227",
+    "problemText": "Example 3.59. A company  nds that the marginal cost is M C(q) = 50 − 0.2q. If  xed\ncosts are $2000,  nd the total cost function.",
+    "solutionSteps": [
+      "C(q) = R M C(q)dq = R (50 − 0.2q)dq = 50q − 0.1q2 + K.",
+      "Fixed cost\nC(0) = 2000 gives K = 2000.",
+      "So C(q) = 2000 + 50q − 0.1q2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex228",
+    "problemText": "Example 3.60. If C(q) = 10000 + 40q + 0.02q2,  nd the marginal cost at q = 500 and\nexplain its meaning.",
+    "solutionSteps": [
+      "C′(q) = 40 + 0.04q, C′(500) = 40 + 20 = 60.",
+      "Producing the 501st unit will\ncost approximately $60."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex229",
+    "problemText": "Example 3.61. For C(q) = 8000 + 25q + 0.5√q,  nd C′(100).",
+    "solutionSteps": [
+      "C′(q) = 25 + 0.5\n2√q = 25 + 0.25 √q .",
+      "C′(100) = 25 + 0.25\n10 = 25 + 0.025 = 25.025."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex230",
+    "problemText": "Example 3.62. A company's revenue is R(q) = 50q − 0.1q2. Find the marginal revenue\nat q = 200.",
+    "solutionSteps": [
+      "R′(q) = 50 − 0.2q, R′(200) = 50 − 40 = 10.",
+      "Marginal revenue is $10."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex231",
+    "problemText": "Example 3.63. If demand is p = 100 − 0.5q,  nd the marginal revenue function.",
+    "solutionSteps": [
+      "Revenue R(q) = p · q = (100 − 0.5q)q = 100q − 0.5q2.",
+      "R′(q) = 100 − q."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex232",
+    "problemText": "Example 3.64. For R(q) = 200q − 0.2q2,  nd the quantity that makes marginal revenue\nzero.",
+    "solutionSteps": [
+      "R′(q) = 200 − 0.4q = 0 gives q = 500.",
+      "This is the revenue-maximizing\nquantity."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex233",
+    "problemText": "Example 3.65. A company sells its product at a constant price of $75. Find the marginal\nrevenue.",
+    "solutionSteps": [
+      "R(q) = 75q, so R′(q) = 75.",
+      "Marginal revenue equals price (constant)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex234",
+    "problemText": "Example 3.66. If marginal revenue is M R(q) = 80 − 0.4q and  xed costs are $5000,\n nd the revenue function.",
+    "solutionSteps": [
+      "R(q) = R M R(q)dq = R (80 − 0.4q)dq = 80q − 0.2q2 + C.",
+      "Since revenue is\nzero when q = 0, C = 0.",
+      "So R(q) = 80q − 0.2q2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex235",
+    "problemText": "Example 3.67. Given R(q) = 100q − 0.5q2 and C(q) = 5000 + 20q + 0.1q2,  nd the\npro t-maximizing quantity.",
+    "solutionSteps": [
+      "π(q) = 100q − 0.5q2 − 5000 − 20q − 0.1q2 = 80q − 0.6q2 − 5000.",
+      "π′(q) =\n80 − 1.2q = 0 gives q = 80\n1.2 = 66.67.",
+      "π′′(q) = −1.2 < 0, so maximum.",
+      "Optimal quantity\nis about 67 units."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex236",
+    "problemText": "Example 3.68. For R(q) = 120q and C(q) = 3000 + 40q + 0.2q2,  nd the pro t-\nmaximizing quantity and maximum pro t.",
+    "solutionSteps": [
+      "π(q) = 120q−3000−40q−0.2q2 = 80q−0.2q2 −3000.",
+      "π′(q) = 80−0.4q = 0\ngives q = 200.",
+      "π(200) = 80(200) − 0.2(40000) − 3000 = 16000 − 8000 − 3000 = 5000.",
+      "Maximum pro t is $5000 at 200 units."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex237",
+    "problemText": "Example 3.69. A company's pro t function is π(q) = 400q − 2q2 − 10000. Find the\nquantity that maximizes pro t.",
+    "solutionSteps": [
+      "π′(q) = 400 − 4q = 0 gives q = 100.",
+      "π′′(q) = −4 < 0, so maximum.",
+      "π(100) = 40000 − 20000 − 10000 = 10000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex238",
+    "problemText": "Example 3.70. If π(q) = −0.01q2 + 10q − 500,  nd the maximum pro t.",
+    "solutionSteps": [
+      "π′(q) = −0.02q + 10 = 0 gives q = 500.",
+      "π(500) = −0.01(250000) + 5000 −\n500 = −2500 + 5000 − 500 = 2000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex239",
+    "problemText": "Example 3.71. A  rm has R(q) = 80q and C(q) = 2000 + 30q + 0.05q2. Find the\nbreak-even points and the pro t-maximizing quantity.",
+    "solutionSteps": [
+      "Pro t: π(q) = 80"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk12"
+  },
+  {
+    "exampleId": "ex240",
+    "problemText": "Example 3.69. A company's pro t function is π(q) = 400q − 2q2 − 10000. Find the\nquantity that maximizes pro t.",
+    "solutionSteps": [
+      "π′(q) = 400 − 4q = 0 gives q = 100.",
+      "π′′(q) = −4 < 0, so maximum.",
+      "π(100) = 40000 − 20000 − 10000 = 10000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex241",
+    "problemText": "Example 3.70. If π(q) = −0.01q2 + 10q − 500,  nd the maximum pro t.",
+    "solutionSteps": [
+      "π′(q) = −0.02q + 10 = 0 gives q = 500.",
+      "π(500) = −0.01(250000) + 5000 −\n500 = −2500 + 5000 − 500 = 2000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex242",
+    "problemText": "Example 3.71. A  rm has R(q) = 80q and C(q) = 2000 + 30q + 0.05q2. Find the\nbreak-even points and the pro t-maximizing quantity.",
+    "solutionSteps": [
+      "Pro t: π(q) = 80q − 2000 − 30q − 0.05q2 = 50q − 0.05q2 − 2000.",
+      "π′(q) =\n50 − 0.1q = 0 gives q = 500.",
+      "Break-even when π(q) = 0: 50q − 0.05q2 − 2000 = 0.",
+      "Multiply by 20: 1000q − q2 − 40000 = 0 or q2 − 1000q + 40000 = 0.",
+      "Quadratic formula:\nq = 1000±√1000000−160000\n2 = 1000±√840000\n2 = 1000±916.5\n2 .",
+      "So q ≈ 41.75 and q ≈ 958.25."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex243",
+    "problemText": "Example 3.72. A car's value is V (t) = 25000e−0.15t. Find the depreciation rate at t = 3\nyears.",
+    "solutionSteps": [
+      "V ′(t) = 25000(−0.15)e−0.15t = −3750e−0.15t.",
+      "At t = 3: V ′(3) = −3750e−0.45 ≈ −3750 × 0.6376 = −2391 dollars per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex244",
+    "problemText": "Example 3.73. Equipment depreciates linearly from $50,000 to $5,000 over 10 years.\nFind the depreciation function and rate.",
+    "solutionSteps": [
+      "Linear: V (t) = 50000 − 4500t (since total depreciation $45,000 over 10\nyears is $4,500 per year).",
+      "Depreciation rate: V ′(t) = −4500 dollars per year (constant)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex245",
+    "problemText": "Example 3.74. A machine's value is V (t) = 20000(0.8)t. Find the rate of depreciation\nat t = 2.",
+    "solutionSteps": [
+      "Rewrite V (t) = 20000et ln 0.8.",
+      "V ′(t) = 20000 ln(0.8) · (0.8)t.",
+      "ln(0.8) ≈\n−0.2231.",
+      "V ′(2) = 20000(−0.2231)(0.64) ≈ −2856 dollars per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex246",
+    "problemText": "Example 3.75. A building depreciates using the declining balance method: V (t) =\n100000(0.85)t. Find the depreciation rate at t = 5.",
+    "solutionSteps": [
+      "V ′(t) = 100000 ln(0.85)·(0.85)t.",
+      "ln(0.85) ≈ −0.1625.",
+      "V ′(5) = 100000(−0.1625)(0.855).",
+      "0.855 ≈ 0.4437, so V ′(5) ≈ −100000 × 0.1625 × 0.4437 ≈ −7210 dollars per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex247",
+    "problemText": "Example 3.76. A company uses sum-of-years-digits depreciation for a $60,000 asset\nwith 5-year life. The depreciation in year t is D(t) = 2(5−t+1)\n5·6 × 60000. Find the rate of\nchange of book value at t = 2.",
+    "solutionSteps": [
+      "Book value V (t) = 60000 − Pt\ni=1 D(i).",
+      "Since depreciation is discrete,\nthe instantaneous rate is not de ned, but the average rate from year 2 to 3 is D(3) =\n2(5−3+1)\n30 × 60000 = 2(3)\n30 × 60000 = 6\n30 × 60000 = 12000 per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex248",
+    "problemText": "Example 3.77. A bacteria population grows as P (t) = 500e0.3t. Find the growth rate at\nt = 5 hours.",
+    "solutionSteps": [
+      "P ′(t) = 500 · 0.3e0.3t = 150e0.3t.",
+      "At t = 5: P ′(5) = 150e1.5 ≈ 150 × 4.4817 = 672.26 bacteria per hour."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex249",
+    "problemText": "Example 3.78. A population of deer is modeled by P (t) = 10000\n1+9e−0.2t . Find the growth\nrate at t = 10 years.",
+    "solutionSteps": [
+      "Using quotient or chain rule: P ′(t) = 10000·9e−0.2t·0.2\n(1+9e−0.2t)2 = 18000e−0.2t\n(1+9e−0.2t)2 .",
+      "At\nt = 10: e−2 ≈ 0.1353, denominator 1 + 9(0.1353) = 1 + 1.2177 = 2.2177, square = 4.918.",
+      "Numerator 18000 × 0.1353 = 2435.4.",
+      "So P ′(10) ≈ 495.5 deer per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex250",
+    "problemText": "Example 3.79. A culture of yeast grows according to P (t) = 2000 + 100t2. Find the\ninstantaneous growth rate at t = 4 hours.",
+    "solutionSteps": [
+      "P ′(t) = 200t, so P ′(4) = 800 cells per hour."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex251",
+    "problemText": "Example 3.80. The population of a city is P (t) = 250000e0.02t. Find the growth rate at\nt = 10 years.",
+    "solutionSteps": [
+      "P ′(t) = 250000(0.02)e0.02t = 5000e0.02t.",
+      "At t = 10: e0.2 ≈ 1.2214, so\nP ′(10) ≈ 6107 people per year."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex252",
+    "problemText": "Example 3.81. A  sh population follows logistic growth: P (t) = 10000\n1+4e−0.1t . Find the\nmaximum growth rate.",
+    "solutionSteps": [
+      "Maximum growth occurs at half the carrying capacity, P = 5000.",
+      "Solve\n5000 = 10000\n1+4e−0.1t gives 1 + 4e−0.1t = 2, so 4e−0.1t = 1, e−0.1t = 0.25, t = 10 ln 4 ≈ 13.86.",
+      "Maximum growth rate = P ′(13.86).",
+      "Using formula from earlier, P ′(t) = 10000·4e−0.1t·0.1\n(1+4e−0.1t)2 .",
+      "At this t, 4e−0.1t = 1, so denominator = (1 + 1)2 = 4, numerator = 4000 × 1 = 4000, so\nP ′ = 1000."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex253",
+    "problemText": "Example 3.82. For demand function D(p) = 100 − 2p,  nd the elasticity at p = 30.",
+    "solutionSteps": [
+      "D′(p) = −2.",
+      "Then\nE(30) = − 30\n100 − 60(−2) = −30\n40(−2) = 60\n40 = 1.5.",
+      "Since E > 1, demand is elastic at p = 30."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex254",
+    "problemText": "Example 3.83. For D(p) = 200 − 5p,  nd the elasticity at p = 20.",
+    "solutionSteps": [
+      "D′(p) = −5.",
+      "D(20) = 200 − 100 = 100.",
+      "E(20) = − 20\n100 (−5) = 100\n100 = 1.",
+      "Unit elastic."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex255",
+    "problemText": "Example 3.84. For D(p) = 500e−0.1p,  nd the elasticity.",
+    "solutionSteps": [
+      "D′(p) = 500(−0.1)e−0.1p = −50e−0.1p.",
+      "Then\nE(p) = − p\n500e−0.1p (−50e−0.1p) = 50p\n500 = 0.1p.",
+      "So elasticity increases linearly with price."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex256",
+    "problemText": "Example 3.85. For D(p) = 1000\np ,  nd the elasticity.",
+    "solutionSteps": [
+      "D(p) = 1000p−1, D′(p) = −1000p−2.",
+      "Then\nE(p) = − p\n1000/p · (−1000p−2) = − p2\n1000 · (−1000p−2) = 1.",
+      "This demand is always unit elastic."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex257",
+    "problemText": "Example 3.86. A product has demand D(p) = 300 − 3p. Find the price that maximizes\nrevenue.",
+    "solutionSteps": [
+      "Revenue R(p) = pD(p) = 300p − 3p2.",
+      "R′(p) = 300 − 6p = 0 gives\np = 50.",
+      "Check elasticity at p = 50: D(50) = 300 − 150 = 150, D′(p) = −3, so\nE(50) = − 50\n150 (−3) = 150\n150 = 1.",
+      "Maximum revenue occurs at unit elasticity."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex258",
+    "problemText": "Example 3.87. For s(t) = t3 − 6t2 + 9t,  nd velocity and acceleration at t = 2.",
+    "solutionSteps": [
+      "v(t) = s′(t) = 3t2 −12t+9, a(t) = v′(t) = 6t−12.",
+      "v(2) = 12−24+9 = −3,\na(2) = 12 − 12 = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex259",
+    "problemText": "Example 3.88. If x(t) = e−t sin t,  nd x′′(t).",
+    "solutionSteps": [
+      "x′(t) = −e−t sin t + e−t cos t = e−t(cos t − sin t).",
+      "x′′(t) = −e−t(cos t −\nsin t) + e−t(− sin t − cos t) = e−t[− cos t + sin t − sin t − cos t] = −2e−t cos t."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex260",
+    "problemText": "Example 3.89. A company's pro t function is π(q) = 1000q − 2q2 − 5000. Find the\nsecond derivative and interpret its sign.",
+    "solutionSteps": [
+      "π′(q) = 1000 − 4q, π′′(q) = −4.",
+      "Since π′′(q) < 0, the pro t function is\nconcave down, con rming that the critical point is a maximum."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex261",
+    "problemText": "Example 3.90. For a cost function C(q) = 1000+20q +0.05q2,  nd C′′(q) and interpret.",
+    "solutionSteps": [
+      "C′(q) = 20 + 0.1q, C′′(q) = 0.1 > 0.",
+      "The cost function is convex, meaning\nmarginal cost increases with quantity (diminishing returns)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex262",
+    "problemText": "Example 3.91. The position of a particle is s(t) = t4 − 4t3 + 6t2. Find when the\nacceleration is zero.",
+    "solutionSteps": [
+      "v(t) = 4t3 − 12t2 + 12t, a(t) = 12t2 − 24t + 12 = 12(t2 − 2t + 1) = 12(t − 1)2.",
+      "Acceleration is zero only at t = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex263",
+    "problemText": "Example 4.2. Find R x3 dx.",
+    "solutionSteps": [
+      "Since d\ndx\n x4\n4\n \n= x3, we have R x3 dx = x4\n4 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex264",
+    "problemText": "Example 4.3. Find R 1\nx dx.",
+    "solutionSteps": [
+      "Since d\ndx ln |x| = 1\nx for x̸ = 0, we have R 1\nx dx = ln |x| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex265",
+    "problemText": "Example 4.4. Find R ex dx.",
+    "solutionSteps": [
+      "Since d\ndx ex = ex, we have R ex dx = ex + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex266",
+    "problemText": "Example 4.5. Find R cos x dx.",
+    "solutionSteps": [
+      "Since d\ndx sin x = cos x, we have R cos x dx = sin x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex267",
+    "problemText": "Example 4.6. Find R sec2 x dx.",
+    "solutionSteps": [
+      "Since d\ndx tan x = sec2 x, we have R sec2 x dx = tan x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk13"
+  },
+  {
+    "exampleId": "ex268",
+    "problemText": "4.5. Find R cos x dx.",
+    "solutionSteps": [
+      "Since d dx sin x = cos x, we have R cos x dx = sin x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex269",
+    "problemText": "Example 4.6. Find R sec2 x dx.",
+    "solutionSteps": [
+      "Since d dx tan x = sec2 x, we have R sec2 x dx = tan x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex270",
+    "problemText": "Example 4.7. Find R (3x2 − 2 sin x + ex) dx.",
+    "solutionSteps": [
+      "Z 3x2 dx = 3 · x3 3 = x3",
+      "Z −2 sin x dx = 2 cos x",
+      "Z ex dx = ex",
+      "Thus R (3x2 − 2 sin x + ex)dx = x3 + 2 cos x + ex + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex271",
+    "problemText": "Example 4.8. Find R (4x3 + 5 cos x − 1 x ) dx.",
+    "solutionSteps": [
+      "Z 4x3 dx = 4 · x4 4 = x4",
+      "Z 5 cos x dx = 5 sin x",
+      "Z − 1 x dx = − ln |x|",
+      "Thus R (4x3 + 5 cos x − 1 x )dx = x4 + 5 sin x − ln |x| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex272",
+    "problemText": "Example 4.9. Find R (6x5 − 3 sec2 x + 2x) dx.",
+    "solutionSteps": [
+      "Z 6x5 dx = 6 · x6 6 = x6",
+      "Z −3 sec2 x dx = −3 tan x",
+      "Z 2x dx = 2x ln 2",
+      "Thus R (6x5 − 3 sec2 x + 2x)dx = x6 − 3 tan x + 2x ln 2 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex273",
+    "problemText": "Example 4.10. Find R 2 x + 3 sin x − 4ex dx.",
+    "solutionSteps": [
+      "Z 2 x dx = 2 ln |x|",
+      "Z 3 sin x dx = −3 cos x",
+      "Z −4ex dx = −4ex",
+      "Thus R 2 x + 3 sin x − 4ex dx = 2 ln |x| − 3 cos x − 4ex + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex274",
+    "problemText": "Example 4.11. Find R √x + 1 √x dx.",
+    "solutionSteps": [
+      "Z √x dx = Z x1/2dx = x3/2 3/2 = 2 3x3/2",
+      "Z 1 √xdx = Z x−1/2dx = x1/2 1/2 = 2√x",
+      "Thus R √x + 1 √x dx = 2 3 x3/2 + 2√x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex275",
+    "problemText": "Example 4.12. Find R 2xex2 dx.",
+    "solutionSteps": [
+      "Let u = x2. Then du = 2x dx.",
+      "The integral becomes R eu du = eu + C = ex2 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex276",
+    "problemText": "Example 4.13. Find R sin(ln x) x dx.",
+    "solutionSteps": [
+      "Let u = ln x. Then du = dx x .",
+      "The integral becomes R sin u du = − cos u + C = − cos(ln x) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex277",
+    "problemText": "Example 4.14. Find R x√x2 + 1 dx.",
+    "solutionSteps": [
+      "Let u = x2 + 1. Then du = 2x dx, so x dx = du 2 .",
+      "The integral becomes R √u · du 2 = 1 2 R u1/2du = 1 2 · u3/2 3/2 = 1 3 u3/2 + C = 1 3 (x2 + 1)3/2 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex278",
+    "problemText": "Example 4.15. Find R x x2+1 dx.",
+    "solutionSteps": [
+      "Let u = x2 + 1. Then du = 2x dx, so x dx = du 2 .",
+      "The integral becomesR 1 u · du 2 = 1 2 ln |u| + C = 1 2 ln(x2 + 1) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex279",
+    "problemText": "Example 4.16. Find R cos(3x) dx.",
+    "solutionSteps": [
+      "Let u = 3x. Then du = 3 dx, so dx = du 3 .",
+      "The integral becomes R cos u · du 3 = 1 3 sin u + C = 1 3 sin(3x) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex280",
+    "problemText": "Example 4.17. Find R xex dx.",
+    "solutionSteps": [
+      "Let u = x and dv = exdx. Then du = dx and v = ex.",
+      "Then Z xex dx = xex − Z ex dx = xex − ex + C = ex(x − 1) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex281",
+    "problemText": "Example 4.18. Find R ln x dx.",
+    "solutionSteps": [
+      "Let u = ln x and dv = dx. Then du = 1 x dx and v = x.",
+      "Then Z ln x dx = x ln x − Z x · 1 xdx = x ln x − Z dx = x ln x − x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex282",
+    "problemText": "Example 4.19. Find R x2ex dx.",
+    "solutionSteps": [
+      "Let u = x2 and dv = exdx. Then du = 2x dx and v = ex.",
+      "Then Z x2ex dx = x2ex − Z 2xex dx = x2ex − 2 Z xex dx.",
+      "From the previous example, R xex dx = ex(x − 1) + C. So Z x2ex dx = x2ex − 2ex(x − 1) + C = ex(x2 − 2x + 2) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex283",
+    "problemText": "Example 4.20. Find R x cos x dx.",
+    "solutionSteps": [
+      "Let u = x and dv = cos x dx. Then du = dx and v = sin x.",
+      "Then Z x cos x dx = x sin x − Z sin x dx = x sin x + cos x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex284",
+    "problemText": "Example 4.21. Find R ex sin x dx.",
+    "solutionSteps": [
+      "Let u = ex and dv = sin x dx. Then du = exdx and v = − cos x.",
+      "Then Z ex sin x dx = −ex cos x + Z ex cos x dx.",
+      "Now integrate R ex cos x dx by parts: let u = ex, dv = cos x dx, so du = exdx, v = sin x.",
+      "Then Z ex cos x dx = ex sin x − Z ex sin x dx.",
+      "Substitute back: Z ex sin x dx = −ex cos x + ex sin x − Z ex sin x dx.",
+      "Add R ex sin x dx to both sides: 2 Z ex sin x dx = ex(sin x − cos x) ⇒ Z ex sin x dx = ex 2 (sin x − cos x) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex285",
+    "problemText": "Example 4.22. Find R 1 x2−4 dx.",
+    "solutionSteps": [
+      "Factor denominator: x2 − 4 = (x − 2)(x + 2). Write 1 (x − 2)(x + 2) = A x − 2 + B x + 2.",
+      "Multiply both sides by (x − 2)(x + 2): 1 = A(x + 2) + B(x − 2). Expand: 1 = Ax + 2A + Bx − 2B = (A + B)x + (2A − 2B). Equate coe cients: A + B = 0 and 2A − 2B = 1.",
+      "From B = −A, substitute: 2A − 2(−A) = 4A = 1 gives A = 1 4 , B = −1 4 .",
+      "Thus Z dx x2 − 4 = 1 4 Z dx x − 2 − 1 4 Z dx x + 2 = 1 4 ln |x − 2| − 1 4 ln |x + 2| + C = 1 4 ln x − 2 x + 2 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex286",
+    "problemText": "Example 4.23. Find R x+2 x2+3x+2 dx.",
+    "solutionSteps": [
+      "Factor denominator: x2 + 3x + 2 = (x + 1)(x + 2). Then x + 2 (x + 1)(x + 2) = 1 x + 1 for x̸ = −2.",
+      "Thus R x+2 x2+3x+2 dx = R 1 x+1 dx = ln |x + 1| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex287",
+    "problemText": "Example 4.24. Find R 2x+3 x2+3x+2 dx.",
+    "solutionSteps": [
+      "Note that the derivative of the denominator is 2x + 3. Let u = x2 + 3x + 2, then du = (2x + 3)dx.",
+      "Thus Z 2x + 3 x2 + 3x + 2 dx = Z du u = ln |u| + C = ln |x2 + 3x + 2| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex288",
+    "problemText": "Example 4.25. Find R 3x+5 (x+1)(x+2) dx.",
+    "solutionSteps": [
+      "Write 3x+5 (x+1)(x+2) = A x+1 + B x+2 . Then 3x + 5 = A(x + 2) + B(x + 1) = (A + B)x + (2A + B).",
+      "Equating coe cients: A + B = 3 and 2A + B = 5. Subtract rst from second: (2A + B) − (A + B) = 5 − 3 gives A = 2. Then B = 1.",
+      "Thus Z 3x + 5 (x + 1)(x + 2)dx = Z 2 x + 1dx + Z 1 x + 2dx = 2 ln |x + 1| + ln |x + 2| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex289",
+    "problemText": "Example 4.26. Find R 2x2+3x+4 x3+x2−2x dx.",
+    "solutionSteps": [
+      "Factor denominator: x3 + x2 − 2x = x(x2 + x − 2) = x(x + 2)(x − 1). Write 2x2 + 3x + 4 x(x + 2)(x − 1) = A x + B x + 2 + C x − 1.",
+      "Then 2x2 + 3x + 4 = A(x + 2)(x − 1) + Bx(x − 1) + Cx(x + 2).",
+      "Expand: A(x2 +x−2)+B(x2 −x)+C(x2 +2x) = (A+B +C)x2 +(A−B +2C)x+(−2A).",
+      "Equate coe cients: A + B + C = 2, A − B + 2C = 3, −2A = 4 ⇒ A = −2.",
+      "Substitute A = −2: −2+B +C = 2 gives B +C = 4. −2−B +2C = 3 gives −B +2C = 5.",
+      "Add to B + C = 4: 3C = 9 gives C = 3, then B = 1.",
+      "Thus Z 2x2 + 3x + 4 x(x + 2)(x − 1)dx = −2 Z dx x + Z dx x + 2+3 Z dx x − 1 = −2 ln |x|+ln |x+2|+3 ln |x−1|+C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex290",
+    "problemText": "Example 4.27. Find R sin2 x dx.",
+    "solutionSteps": [
+      "Use the identity sin2 x = 1−cos 2x 2 .",
+      "Z sin2 x dx = Z 1 − cos 2x 2 dx = 1 2 Z dx−1 2 Z cos 2x dx = x 2 −1 2·sin 2x 2 +C = x 2 −sin 2x 4 +C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex291",
+    "problemText": "Example 4.28. Find R cos2 x dx.",
+    "solutionSteps": [
+      "Use the identity cos2 x = 1+cos 2x 2 .",
+      "Z cos2 x dx = Z 1 + cos 2x 2 dx = 1 2 Z dx+1 2 Z cos 2x dx = x 2 +1 2·sin 2x 2 +C = x 2 +sin 2x 4 +C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex292",
+    "problemText": "Example 4.29. Find R sin3 x dx.",
+    "solutionSteps": [
+      "Write sin3 x = sin x(1 − cos2 x). Let u = cos x, du = − sin x dx.",
+      "Z sin3 x dx = Z sin x(1−cos2 x)dx = − Z (1−u2)du = − ( u − u3 3 ) +C = − cos x+cos3 x 3 +C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex293",
+    "problemText": "Example 4.30. Find R sin2 x cos3 x dx.",
+    "solutionSteps": [
+      "Write cos3 x = cos x(1 − sin2 x). Let u = sin x, du = cos x dx.",
+      "Z sin2 x cos3 x dx = Z sin2 x cos x(1−sin2 x)dx = Z u2(1−u2)du = Z (u2−u4)du = u3 3 −u5 5 +C = sin3 x 3 − sin5 x 5 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex294",
+    "problemText": "Example 4.31. Find R sin4 x dx.",
+    "solutionSteps": [
+      "Use sin2 x = 1−cos 2x 2 . Then sin4 x = (sin2 x)2 = 1−cos 2x 2 2 = 1−2 cos 2x+cos2 2x 4 .",
+      "Now cos2 2x = 1+cos 4x 2 . So sin4 x = 1 4 ( 1 − 2 cos 2x + 1 + cos 4x 2 ) = 1 4 ( 3 2 − 2 cos 2x + cos 4x 2 ) = 3 8−1 2 cos 2x+1 8 cos 4x.",
+      "Thus Z sin4 x dx = Z ( 3 8 − 1 2 cos 2x + 1 8 cos 4x ) dx = 3 8x − 1 2 · sin 2x 2 + 1 8 · sin 4x 4 + C = 3 8x − 1 4 sin 2x + 1 32 sin 4x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk14"
+  },
+  {
+    "exampleId": "ex295",
+    "problemText": "Example 4.32. Find R tan x dx.",
+    "solutionSteps": [
+      "R tan x dx = R sin x cos x dx. Let u = cos x, du = − sin x dx.",
+      "Then Z tan x dx = − Z du u = − ln |u| + C = − ln | cos x| + C = ln | sec x| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex296",
+    "problemText": "Example 4.33. Find R sec x dx.",
+    "solutionSteps": [
+      "Multiply numerator and denominator by sec x + tan x:",
+      "Z sec x dx = Z sec x · sec x + tan x sec x + tan xdx = Z sec2 x + sec x tan x sec x + tan x dx.",
+      "Let u = sec x + tan x, then du = (sec x tan x + sec2 x)dx.",
+      "Thus Z sec x dx = Z du u = ln |u| + C = ln | sec x + tan x| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex297",
+    "problemText": "Example 4.34. Find R tan2 x dx.",
+    "solutionSteps": [
+      "Use the identity tan2 x = sec2 x − 1.",
+      "Z tan2 x dx = Z (sec2 x − 1)dx = tan x − x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex298",
+    "problemText": "Example 4.35. Find R sec3 x dx.",
+    "solutionSteps": [
+      "Use integration by parts: let u = sec x, dv = sec2 x dx. Then du = sec x tan x dx, v = tan x.",
+      "Z sec3 x dx = sec x tan x − Z sec x tan2 x dx = sec x tan x − Z sec x(sec2 x − 1)dx.",
+      "Thus Z sec3 x dx = sec x tan x − Z sec3 x dx + Z sec x dx.",
+      "Add R sec3 x dx to both sides: 2 Z sec3 x dx = sec x tan x + Z sec x dx = sec x tan x + ln | sec x + tan x| + C.",
+      "Therefore, Z sec3 x dx = 1 2 sec x tan x + 1 2 ln | sec x + tan x| + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex299",
+    "problemText": "Example 4.36. Find R tan3 x sec3 x dx.",
+    "solutionSteps": [
+      "Write tan3 x sec3 x = tan2 x sec2 x·sec x tan x = (sec2 x−1) sec2 x·sec x tan x.",
+      "Let u = sec x, du = sec x tan x dx.",
+      "Then Z tan3 x sec3 x dx = Z (u2 −1)u2 du = Z (u4 −u2)du = u5 5 − u3 3 +C = sec5 x 5 − sec3 x 3 +C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex300",
+    "problemText": "Example 4.37. Find R √1 − x2 dx.",
+    "solutionSteps": [
+      "Let x = sin θ, dx = cos θ dθ. Then √1 − x2 = p1 − sin2 θ = cos θ.",
+      "The integral becomes Z cos θ · cos θ dθ = Z cos2 θ dθ = Z 1 + cos 2θ 2 dθ = 1 2θ + 1 4 sin 2θ + C.",
+      "Since sin 2θ = 2 sin θ cos θ = 2x√1 − x2 and θ = arcsin x, we have Z √1 − x2 dx = 1 2 arcsin x + 1 2x√1 − x2 + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex301",
+    "problemText": "Example 4.38. Find R 1 √4−x2 dx.",
+    "solutionSteps": [
+      "Let x = 2 sin θ, dx = 2 cos θ dθ. Then √4 − x2 = p4 − 4 sin2 θ = 2 cos θ.",
+      "The integral becomes Z 2 cos θ dθ 2 cos θ = Z dθ = θ + C = arcsin ( x 2 ) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex302",
+    "problemText": "Example 4.39. Find R 1 x2√4−x2 dx.",
+    "solutionSteps": [
+      "Let x = 2 sin θ, dx = 2 cos θ dθ, √4 − x2 = 2 cos θ.",
+      "Then Z dx x2√4 − x2 = Z 2 cos θ dθ (4 sin2 θ)(2 cos θ) = Z dθ 4 sin2 θ = 1 4 Z csc2 θ dθ = −1 4 cot θ + C.",
+      "Since cot θ = cos θ sin θ = √4−x2/2 x/2 = √4−x2 x , we get Z dx x2√4 − x2 = − √4 − x2 4x + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex303",
+    "problemText": "Example 4.40. Find R 1 x2+9 dx.",
+    "solutionSteps": [
+      "Let x = 3 tan θ, dx = 3 sec2 θ dθ. Then x2 + 9 = 9 tan2 θ + 9 = 9 sec2 θ.",
+      "The integral becomes Z 3 sec2 θ dθ 9 sec2 θ = Z dθ 3 = 1 3θ + C = 1 3 arctan ( x 3 ) + C."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex304",
+    "problemText": "Example 4.41. Find R √x2 − 4 dx.",
+    "solutionSteps": [
+      "Let x = 2 sec θ, dx = 2 sec θ tan θ dθ. Then √x2 − 4 = √4 sec2 θ − 4 = 2 tan θ.",
+      "The integral becomes Z 2 tan θ·2 sec θ tan θ dθ = 4 Z sec θ tan2 θ dθ = 4 Z sec θ(sec2 θ−1)dθ = 4 Z sec3 θ dθ−4 Z sec θ dθ.",
+      "From the previous example, R sec3 θ dθ = 1 2 sec θ tan θ + 1 2 ln | sec θ + tan θ| + C, and R sec θ dθ = ln | sec θ + tan θ| + C.",
+      "So Z √x2 − 4 dx = 4 ( 1 2 sec θ tan θ + 1 2 ln | sec θ + tan θ| ) − 4 ln | sec θ + tan θ| + C = 2 sec θ tan θ − 2 ln | sec θ + tan θ| + C.",
+      "Now sec θ = x 2 , tan θ = √x2−4 2 .",
+      "So Z √x2 − 4 dx = 2·x 2 · √x2 − 4 2 −2 ln x 2 + √x2 − 4 2 +C = x√x2 − 4 2 −2 ln x + √x2 − 4 +C′."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex305",
+    "problemText": "Example 5.4. Compute R 2 0 x3 dx.",
+    "solutionSteps": [
+      "An antiderivative is F (x) = x4 4 .",
+      "Then Z 2 0 x3 dx = [ x4 4 ] 2 0 = 16 4 − 0 = 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex306",
+    "problemText": "Example 5.5. Compute R π 0 sin x dx.",
+    "solutionSteps": [
+      "An antiderivative is F (x) = − cos x.",
+      "Then Z π 0 sin x dx = [− cos x]π 0 = (− cos π) − (− cos 0) = (−(−1)) − (−1) = 1 + 1 = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex307",
+    "problemText": "Example 5.6. Compute R 4 1 1 x dx.",
+    "solutionSteps": [
+      "An antiderivative is F (x) = ln |x|.",
+      "Then Z 4 1 1 x dx = [ln x]4 1 = ln 4 − ln 1 = ln 4."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex308",
+    "problemText": "Example 5.7. Compute R 1 0 e2x dx.",
+    "solutionSteps": [
+      "An antiderivative is F (x) = 1 2 e2x.",
+      "Then Z 1 0 e2x dx = [ 1 2e2x] 1 0 = 1 2e2 − 1 2e0 = 1 2(e2 − 1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex309",
+    "problemText": "Example 5.8. Compute R π/2 0 cos x dx.",
+    "solutionSteps": [
+      "An antiderivative is F (x) = sin x.",
+      "Then Z π/2 0 cos x dx = [sin x]π/2 0 = sin(π/2) − sin 0 = 1 − 0 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex310",
+    "problemText": "Example 5.9. Use properties to evaluate R 2 0 (3x2 − 2x + 1)dx.",
+    "solutionSteps": [
+      "Z 2 0 3x2dx = 3 [ x3 3 ] 2 0 = [x3]2 0 = 8",
+      "Z 2 0 2x dx = [x2]2 0 = 4",
+      "Z 2 0 1 dx = [x]2 0 = 2",
+      "Thus R 2 0 (3x2 − 2x + 1)dx = 8 − 4 + 2 = 6."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex311",
+    "problemText": "Example 5.10. If R 2 0 f (x)dx = 5 and R 2 0 g(x)dx = 3, nd R 2 0 (4f (x) − 2g(x))dx.",
+    "solutionSteps": [
+      "Z 2 0 (4f (x) − 2g(x))dx = 4 Z 2 0 f (x)dx − 2 Z 2 0 g(x)dx = 4(5) − 2(3) = 20 − 6 = 14."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex312",
+    "problemText": "Example 5.11. Compute R 1 0 xex2 dx.",
+    "solutionSteps": [
+      "Let u = x2, then du = 2x dx, so x dx = du 2 .",
+      "When x = 0, u = 0; when x = 1, u = 1.",
+      "Then Z 1 0 xex2 dx = 1 2 Z 1 0 eu du = 1 2[eu]1 0 = 1 2(e − 1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex313",
+    "problemText": "Example 5.12. Compute R π/2 0 sin x cos x dx.",
+    "solutionSteps": [
+      "Let u = sin x, then du = cos x dx.",
+      "When x = 0, u = 0; when x = π/2, u = 1.",
+      "Then Z π/2 0 sin x cos x dx = Z 1 0 u du = [ u2 2 ] 1 0 = 1 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex314",
+    "problemText": "Example 5.13. Compute R 1 0 x x2+1 dx.",
+    "solutionSteps": [
+      "Let u = x2 + 1, then du = 2x dx, so x dx = du 2 .",
+      "When x = 0, u = 1; when x = 1, u = 2.",
+      "Then Z 1 0 x x2 + 1 dx = 1 2 Z 2 1 du u = 1 2[ln u]2 1 = 1 2 ln 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex315",
+    "problemText": "Example 5.14. Compute R π 0 sin2 x cos x dx.",
+    "solutionSteps": [
+      "Let u = sin x, then du = cos x dx.",
+      "When x = 0, u = 0; when x = π, u = 0.",
+      "Then Z π 0 sin2 x cos x dx = Z 0 0 u2 du = 0."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex316",
+    "problemText": "Example 5.15. Compute R 2 0 dx √4−x2 .",
+    "solutionSteps": [
+      "Let x = 2 sin θ, dx = 2 cos θ dθ.",
+      "When x = 0, θ = 0; when x = 2, θ = π/2.",
+      "Then Z 2 0 dx √4 − x2 = Z π/2 0 2 cos θ dθ 2 cos θ = Z π/2 0 dθ = [θ]π/2 0 = π 2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex317",
+    "problemText": "Example 5.16. Compute R ∞ 1 1 x2 dx.",
+    "solutionSteps": [
+      "Z ∞ 1 1 x2 dx = lim b→∞ Z b 1 x−2dx = lim b→∞ [ − 1 x ] b 1 = lim b→∞ ( −1 b + 1 ) = 1.",
+      "The integral converges to 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex318",
+    "problemText": "Example 5.17. Compute R ∞ 0 e−x dx.",
+    "solutionSteps": [
+      "Z ∞ 0 e−x dx = lim b→∞ Z b 0 e−xdx = lim b→∞ [−e−x] b 0 = lim b→∞(−e−b + 1) = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex319",
+    "problemText": "Example 5.18. Compute R ∞ 1 1 x dx.",
+    "solutionSteps": [
+      "Z ∞ 1 1 x dx = lim b→∞ Z b 1 1 xdx = lim b→∞[ln x]b 1 = lim b→∞ ln b = ∞.",
+      "The integral diverges."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex320",
+    "problemText": "Example 5.19. Compute R 1 0 1 √x dx.",
+    "solutionSteps": [
+      "The integrand has a discontinuity at x = 0.",
+      "Z 1 0 1 √x dx = lim a→0+ Z 1 a x−1/2dx = lim a→0+ [2√x] 1 a = lim a→0+(2 − 2√a) = 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex321",
+    "problemText": "Example 5.20. Compute R 2 0 1 (x−1)2 dx. (This integral has a discontinuity at x = 1.)",
+    "solutionSteps": [
+      "Split at the discontinuity: Z 2 0 dx (x − 1)2 = lim a→1− Z a 0 dx (x − 1)2 + lim b→1+ Z 2 b dx (x − 1)2 .",
+      "For the rst part: R dx (x−1)2 = − 1 x−1 .",
+      "Then lim a→1− [ − 1 x − 1 ] a 0 = lim a→1− ( − 1 a − 1 + 1 −1 ) = lim a→1− ( − 1 a − 1 − 1 ) = +∞.",
+      "Since one part diverges, the integral diverges."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk15"
+  },
+  {
+    "exampleId": "ex322",
+    "problemText": "Example 6.1. Find the area between y = x2 and y = x from x = 0 to x = 1.",
+    "solutionSteps": [
+      "On [0, 1], x ≥ x2.",
+      "A = \nZ 1\n0\n(x − x2) dx = \n x2\n2 − x3\n3\n 1\n0\n= 1\n2 − 1\n3 = 1\n6."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex323",
+    "problemText": "Example 6.2. Find the area between y = sin x and y = cos x from x = 0 to x = π/2.",
+    "solutionSteps": [
+      "The curves intersect when sin x = cos x at x = π/4.",
+      "On [0, π/4], cos x ≥ sin x; on [π/4, π/2], sin x ≥ cos x.",
+      "A = \nZ π/4\n0\n(cos x − sin x)dx + \nZ π/2\nπ/4\n(sin x − cos x)dx.",
+      "Z π/4\n0\n(cos x − sin x)dx = [sin x + cos x]π/4\n0 = \n√2\n2 +\n√2\n2\n! − (0 + 1) = √2 − 1.",
+      "Z π/2\nπ/4\n(sin x − cos x)dx = [− cos x − sin x]π/2\nπ/4 = (0 − 1) − −\n√2\n2 −\n√2\n2\n! = −1 + √2.",
+      "Thus A = (√2 − 1) + (√2 − 1) = 2√2 − 2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex324",
+    "problemText": "Example 6.3. Find the area enclosed by y = x2 and y = 2x − x2.",
+    "solutionSteps": [
+      "Find intersections: x2 = 2x − x2 gives 2x2 − 2x = 0, so 2x(x − 1) = 0, x = 0 and x = 1.",
+      "On [0, 1], 2x − x2 ≥ x2.",
+      "A = \nZ 1\n0\n[(2x − x2) − x2]dx = \nZ 1\n0\n(2x − 2x2)dx = \n x2 − 2x3\n3\n 1\n0\n= 1 − 2\n3 = 1\n3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex325",
+    "problemText": "Example 6.4. Find the area between y = x3 and y = x from x = −1 to x = 1.",
+    "solutionSteps": [
+      "On [−1, 0], x3 ≤ x; on [0, 1], x3 ≤ x also (since x3 ≤ x for 0 ≤ x ≤ 1).",
+      "A = \nZ 1\n−1\n(x−x3)dx = \n x2\n2 − x4\n4\n 1\n−1\n= \n 1\n2 − 1\n4\n − \n 1\n2 − 1\n4\n = 1\n4−1\n4 = 0? Need absolute value.",
+      "Since x − x3 is odd, the integral from −1 to 1 is zero. We need the absolute area: A = 2 R 1\n0 (x − x3)dx = 2\nhx2\n2 − x4\n4\ni1\n0 = 2 1\n2 − 1\n4  = 2 · 1\n4 = 1\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex326",
+    "problemText": "Example 6.5. Find the area bounded by y = ln x, y = 0, x = 1, and x = e.",
+    "solutionSteps": [
+      "On [1, e], ln x ≥ 0.",
+      "A = \nZ e\n1\nln x dx = [x ln x − x]e\n1 = (e ln e − e) − (1 ln 1 − 1) = (e · 1 − e) − (0 − 1) = 0 + 1 = 1."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex327",
+    "problemText": "Example 6.6. Find the volume of the solid obtained by rotating y = √x from x = 0 to x = 4 about the x-axis.",
+    "solutionSteps": [
+      "V = π \nZ 4\n0\n(√x)2dx = π \nZ 4\n0\nx dx = π \n x2\n2\n 4\n0\n= π · 16\n2 = 8π."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex328",
+    "problemText": "Example 6.7. Find the volume of a sphere of radius R.",
+    "solutionSteps": [
+      "Rotate y = √R2 − x2 from −R to R about the x-axis.",
+      "V = π \nZ R\n−R\n(R2 − x2)dx = π \n R2x − x3\n3\n R\n−R\n= π \n R3 − R3\n3\n − \n −R3 + R3\n3\n  = π \n 2R3\n3 + 2R3\n3\n  = 4\n3πR3."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex329",
+    "problemText": "Example 6.8. Find the volume of the solid obtained by rotating y = sin x from x = 0 to x = π about the x-axis.",
+    "solutionSteps": [
+      "V = π \nZ π\n0\nsin2 x dx = π \nZ π\n0\n1 − cos 2x\n2 dx = π\n2 \n x − sin 2x\n2\n π\n0\n= π\n2 (π − 0) = π2\n2 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex330",
+    "problemText": "Example 6.9. Find the volume obtained by rotating the region between y = x2 and y = x from x = 0 to x = 1 about the x-axis.",
+    "solutionSteps": [
+      "Outer radius = x, inner radius = x2.",
+      "V = π \nZ 1\n0\n(x2 − x4)dx = π \n x3\n3 − x5\n5\n 1\n0\n= π \n 1\n3 − 1\n5\n  = 2π\n15 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex331",
+    "problemText": "Example 6.10. Find the volume of the solid obtained by rotating the region bounded by y = x2 and y = 2x about the x-axis.",
+    "solutionSteps": [
+      "Intersections: x2 = 2x gives x(x − 2) = 0, so x = 0 and x = 2.",
+      "On [0, 2], 2x ≥ x2. Outer radius = 2x, inner radius = x2.",
+      "V = π \nZ 2\n0\n(4x2 − x4)dx = π \n 4x3\n3 − x5\n5\n 2\n0\n= π \n 32\n3 − 32\n5\n  = π \n 160 − 96\n15\n  = 64π\n15 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex332",
+    "problemText": "Example 6.11. Find the volume obtained by rotating the region between y = √x and y = x2 about the x-axis.",
+    "solutionSteps": [
+      "Intersections: √x = x2 gives x = x4, so x(1 − x3) = 0, x = 0 and x = 1.",
+      "On [0, 1], √x ≥ x2. Outer radius = √x, inner radius = x2.",
+      "V = π \nZ 1\n0\n(x − x4)dx = π \n x2\n2 − x5\n5\n 1\n0\n= π \n 1\n2 − 1\n5\n  = 3π\n10 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex333",
+    "problemText": "Example 6.12. Find the volume obtained by rotating the region under y = x2 from x = 0 to x = 2 about the y-axis.",
+    "solutionSteps": [
+      "V = 2π \nZ 2\n0\nx · x2 dx = 2π \nZ 2\n0\nx3 dx = 2π \n x4\n4\n 2\n0\n= 2π · 16\n4 = 8π."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex334",
+    "problemText": "Example 6.13. Find the volume obtained by rotating the region between y = x2 and y = x from x = 0 to x = 1 about the y-axis.",
+    "solutionSteps": [
+      "Using shells: radius = x, height = x − x2.",
+      "V = 2π \nZ 1\n0\nx(x−x2)dx = 2π \nZ 1\n0\n(x2−x3)dx = 2π \n x3\n3 − x4\n4\n 1\n0\n= 2π \n 1\n3 − 1\n4\n  = 2π· 1\n12 = π\n6 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex335",
+    "problemText": "Example 6.14. Find the volume obtained by rotating the region under y = sin x from x = 0 to x = π about the y-axis.",
+    "solutionSteps": [
+      "V = 2π \nZ π\n0\nx sin x dx.",
+      "Using integration by parts: let u = x, dv = sin x dx, du = dx, v = − cos x.",
+      "Integral x sin x dx = −x cos x + Integral cos x dx = −x cos x + sin x.",
+      "V = 2π [−x cos x + sin x]π\n0 = 2π [(−π cos π + sin π) − (0 + 0)] = 2π(−π(−1)+0) = 2π(π) = 2π2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex336",
+    "problemText": "Example 6.15. Find the length of y = x3/2 from x = 0 to x = 4.",
+    "solutionSteps": [
+      "f ′(x) = 3/2 √x, so 1 + [f ′(x)]2 = 1 + 9/4 x.",
+      "L = \nZ 4\n0\n\n√1 + 9/4x dx.",
+      "Let u = 1 + 9/4 x, then du = 9/4 dx, dx = 4/9 du. When x = 0, u = 1; when x = 4, u = 1 + 9 = 10.",
+      "L = \nZ 10\n1\n√u · 4/9du = 4/9 \nZ 10\n1\nu1/2du = 4/9 \n 2/3u3/2\n 10\n1\n= 8/27\n103/2 − 1  = 8/27(10√10 − 1)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex337",
+    "problemText": "Example 6.16. Find the length of y = 2/3 x3/2 from x = 0 to x = 3.",
+    "solutionSteps": [
+      "f ′(x) = √x, so 1 + [f ′(x)]2 = 1 + x.",
+      "L = \nZ 3\n0\n√1 + x dx = \n 2/3(1 + x)3/2\n 3\n0\n= 2/3(43/2 − 1) = 2/3(8 − 1) = 14/3 ."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex338",
+    "problemText": "Example 6.17. Find the circumference of a circle of radius R using arc length.",
+    "solutionSteps": [
+      "The upper half of the circle is y = √R2 − x2 from x = −R to x = R.",
+      "Then f ′(x) = − x / √R2−x2 , so 1 + (f ′)2 = 1 + x2 / (R2−x2) = R2 / (R2−x2). Thus √1 + (f ′)2 = R / √R2−x2.",
+      "Half circumference: L/2 = \nZ R\n−R\nR / √R2 − x2 dx = 2 \nZ R\n0\nR / √R2 − x2 dx = 2R [arcsin(x/R)]R\n0 = 2R · π/2 = πR.",
+      "Thus full circumference L = 2πR."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex339",
+    "problemText": "Example 6.18. A spring obeys Hooke's law: F (x) = kx, where k is the spring constant. Find the work done to stretch the spring from its natural length x = 0 to x = L.",
+    "solutionSteps": [
+      "W = \nZ L\n0\nkx dx = \n kx2/2\n L\n0\n= 1/2kL2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex340",
+    "problemText": "Example 6.19. If a spring has spring constant k = 100 N/m,  nd the work to stretch it from 0.1 m to 0.3 m.",
+    "solutionSteps": [
+      "W = \nZ 0.3\n0.1\n100x dx = 100 \n x2/2\n 0.3\n0.1\n= 50(0.09 − 0.01) = 50(0.08) = 4 Joules."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex341",
+    "problemText": "Example 6.20. A force of 10 N stretches a spring 0.2 m from its natural length. Find the work to stretch it 0.5 m.",
+    "solutionSteps": [
+      "From Hooke's law, F = kx, so 10 = k(0.2) gives k = 50 N/m.",
+      "W = \nZ 0.5\n0\n50x dx = 50 \n x2/2\n 0.5\n0\n= 25(0.25) = 6.25 Joules."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex342",
+    "problemText": "Example 6.21. If demand is D(q) = 50 − 0.5q and supply is S(q) = 10 + 2q,  nd equilibrium and surpluses.",
+    "solutionSteps": [
+      "Set 50 − 0.5q = 10 + 2q gives 40 = 2.5q, so qe = 16, pe = 50 − 8 = 42.",
+      "Consumer surplus: \nZ 16\n0\n(50 − 0.5q)dq = [50q − 0.25q2]16\n0 = 800 − 64 = 736. Then 736 − 42 · 16 = 736 − 672 = 64.",
+      "Producer surplus: \nZ 16\n0\n(10 + 2q)dq = [10q + q2]16\n0 = 160 + 256 = 416. Then 672 − 416 = 256."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex343",
+    "problemText": "Example 6.22. If D(q) = 100 − 2q and S(q) = 20 + 3q,  nd equilibrium and consumer surplus.",
+    "solutionSteps": [
+      "100 − 2q = 20 + 3q gives 80 = 5q, qe = 16, pe = 100 − 32 = 68.",
+      "Consumer surplus = \nZ 16\n0\n(100 − 2q)dq − 68 · 16 = [100q − q2]16\n0 − 1088 = (1600 − 256) − 1088 = 1344 − 1088 = 256."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex344",
+    "problemText": "Example 6.23. Find the surface area of a sphere of radius R.",
+    "solutionSteps": [
+      "Rotate y = √R2 − x2 from −R to R about the x-axis. f ′(x) = − x / √R2−x2 , so √1 + (f ′)2 = R / √R2−x2.",
+      "S = 2π \nZ R\n−R\n√R2 − x2 · R / √R2 − x2 dx = 2πR \nZ R\n−R\ndx = 2πR(2R) = 4π"
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk16"
+  },
+  {
+    "exampleId": "ex345",
+    "problemText": "Example 6.23. Find the surface area of a sphere of radius R.",
+    "solutionSteps": [
+      "Rotate y = √R2 − x2 from −R to R about the x-axis. f ′(x) = − x / √R2−x2 , so √1 + (f ′)2 = R / √R2−x2.",
+      "S = 2π \nZ R\n−R\n√R2 − x2 · R / √R2 − x2 dx = 2πR \nZ R\n−R\ndx = 2πR(2R) = 4πR2."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk17"
+  },
+  {
+    "exampleId": "ex346",
+    "problemText": "Example 6.24. Find the surface area obtained by rotating y = x2 from x = 0 to x = 1 about the x-axis.",
+    "solutionSteps": [
+      "f ′(x) = 2x, so √1 + [f ′(x)]2 = √1 + 4x2.",
+      "S = 2π \nZ 1\n0\nx2√1 + 4x2 dx.",
+      "Let x = 1/2 tan θ. Then dx = 1/2 sec2 θ dθ. When x = 0, tan θ = 0 so θ = 0. When x = 1, tan θ = 2 so θ = arctan 2.",
+      "Substitute: x2 = 1/4 tan2 θ, √1 + 4x2 = √1 + tan2 θ = sec θ.",
+      "The integral becomes: S = 2π \nZ arctan 2\n0\n (1/4 tan2 θ) (sec θ) (1/2 sec2 θ) dθ = 2π · 1/8 \nZ arctan 2\n0\ntan2 θ sec3 θ dθ = π/4 \nZ arctan 2\n0\ntan2 θ sec3 θ dθ.",
+      "Use the identity tan2 θ = sec2 θ − 1: \nZ tan2 θ sec3 θ dθ = \nZ (sec2 θ − 1) sec3 θ dθ = \nZ sec5 θ dθ − \nZ sec3 θ dθ.",
+      "Use reduction formula: \nZ sec3 θ dθ = 1/2 sec θ tan θ + 1/2 ln | sec θ + tan θ| + C.",
+      "For n = 5: \nZ sec5 θ dθ = 1/4 sec3 θ tan θ + 3/4 \nZ sec3 θ dθ = 1/4 sec3 θ tan θ + 3/8 sec θ tan θ + 3/8 ln | sec θ + tan θ| + C.",
+      "Combine terms: \nZ tan2 θ sec3 θ dθ = 1/4 sec3 θ tan θ − 1/8 sec θ tan θ − 1/8 ln | sec θ + tan θ| + C.",
+      "Evaluate from θ = 0 to θ = arctan 2: At θ = arctan 2, tan θ = 2 and sec θ = √5. At θ = 0, the value is 0.",
+      "Integral = 1/4(√5)3(2) − 1/8(√5)(2) − 1/8 ln |√5 + 2| = 5/2 √5 − 1/4 √5 − 1/8 ln(√5 + 2) = 9/4 √5 − 1/8 ln(√5 + 2).",
+      "Multiply by π/4: S = π/4 (9/4 √5 − 1/8 ln(√5 + 2)) = 9π√5/16 − π/32 ln(2 + √5)."
+    ],
+    "sourceChunk": "MTH 102 CALCULUS LECTURE NOTES__chunk17"
+  },
+  {
+    "exampleId": "ex347",
+    "problemText": "Example 1: Let \\(A = \\{1,2,3\\}\\) and \\(B = \\{4,5\\}\\). Then",
+    "solutionSteps": [
+      "\\(A \\times B = \\{(1,4), (1,5), (2,4), (2,5), (3,4), (3,5)\\}\\)",
+      "\\(B \\times A = \\{(4,1), (4,2), (4,3), (5,1), (5,2), (5,3)\\}\\)"
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex348",
+    "problemText": "Example 2: For the two sets A and B given above, we have that \\(n(A) = 3\\) and \\(n(B) = 2\\). So",
+    "solutionSteps": [
+      "\\(n(A \\times B) = n(A) \\times n(B) = 3 \\times 2 = 6\\)"
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex349",
+    "problemText": "Example 3: If \\(A = \\{a_1, a_2\\}\\). Then",
+    "solutionSteps": [
+      "\\(A \\times A = \\{(a_1, a_1), (a_1, a_2), (a_2, a_1), (a_2, a_2)\\}\\)",
+      "\\(A \\times A \\times A = \\{(a_1, a_1, a_1), (a_1, a_1, a_2), (a_1, a_2, a_1), (a_1, a_2, a_2), (a_2, a_1, a_1), (a_2, a_1, a_2), (a_2, a_2, a_1), (a_2, a_2, a_2)\\}\\)"
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex350",
+    "problemText": "Example 4: Let \\(A = \\{a, b\\}\\), \\(B = \\{c, d\\}\\). Find some relations from A to B.",
+    "solutionSteps": [
+      "Since relation from A to B is a subset of the cartesian product \\(A \\times B = \\{(a,c), (a,d), (b,c), (b,d)\\}\\) Any subset of \\(A \\times B\\) is a relation from \\(A \\to B\\).",
+      "\\(\\therefore \\{(a,c), (a,d), (b,c), (b,d)\\}, \\{(a,c), (a,d)\\}, \\{(a,c), (b,a)\\}, \\{(a,a)\\}\\) are some relations from A to B."
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex351",
+    "problemText": "Example: Let \\(A = \\{1, 2, 3, 4, 5\\}\\), \\(B = \\{4, 7, 10, 13, 16, 19, 22\\}\\) and \\(f: A \\to B\\) is defined by \\(f(x) = 3x+1\\)\n(a) find \\(f(1), f(2), f(3), f(4)\\) and \\(f(5)\\)\n(b) Show that f is a function from A to B\n(c) Identify domain, co-domain and range of f.\n(d) Verify whether the range is equal to codomain.",
+    "solutionSteps": [],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex352",
+    "problemText": "Example 5: Let \\(A = \\{1, 2, 3, 4, 5\\}\\), \\(B = \\{6, 7, 8\\}\\). If \\(f: A \\to B\\) is such that \\(f(1) = 6, f(2) = 7, f(3) = 7, f(4) = 8, f(5) = 7\\). Then we say that f is an onto function with the domain",
+    "solutionSteps": [
+      "\\(A = \\{1, 2, 3, 4, 5\\}\\) and the range \\(f(A) = \\{6, 7, 8\\}\\).",
+      "The codomain \\(B = \\{6, 7, 8\\}\\).",
+      "We can see that \\(f(A) = B\\)."
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1__chunk0"
+  },
+  {
+    "exampleId": "ex353",
+    "problemText": "What is the domain of \\(f(x) = \\frac{1}{1-2\\cos x}\\)?",
+    "solutionSteps": [
+      "This function is defined for all values of \\(x\\) except for those that make the denominator 0.",
+      "But \\(1-2\\cos x = 0 \\iff \\cos x = \\frac{1}{2} \\iff x = \\frac{\\pi}{3} + 2n\\pi\\) or \\(x = \\frac{5\\pi}{3} + 2n\\pi\\), where \\(n\\) is any integer (because the cosine function has period \\(2\\pi\\)).",
+      "So the domain of \\(f\\) is the set of all real numbers except for the ones noted above."
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1 CONT.__chunk0"
+  },
+  {
+    "exampleId": "ex354",
+    "problemText": "Example, the domain of \\(f(x) = \\sqrt{x}\\) is \\(A = [0, \\infty)\\) and the domain of \\(g(x) = \\sqrt{2-x}\\) is \\(B = (-\\infty, 2]\\), so the domain of \\(f(x)+g(x) = \\sqrt{x} + \\sqrt{2-x}\\) is \\(A \\cap B = [0, 2]\\).",
+    "solutionSteps": [
+      "the domain of \\(f(x) = \\sqrt{x}\\) is \\(A = [0, \\infty)\\)",
+      "the domain of \\(g(x) = \\sqrt{2-x}\\) is \\(B = (-\\infty, 2]\\)",
+      "the domain of \\(f(x)+g(x) = \\sqrt{x} + \\sqrt{2-x}\\) is \\(A \\cap B = [0, 2]\\)"
+    ],
+    "sourceChunk": "MTH 102 LECTURE 1 CONT.__chunk0"
+  },
+  {
+    "exampleId": "ex355",
+    "problemText": "Example: suppose \\(f, g, h: \\mathbb{R} \\to \\mathbb{R}\\) are defined by \\(f(x) = 4x+3\\), \\(g(x) = x^2-2\\), \\(h(x) = e^x\\). Find (i) \\(g \\circ h\\) (ii) \\(f \\circ h\\) (iii) \\(h \\circ g\\) (iv) \\(f \\circ f\\)",
+    "solutionSteps": [],
+    "sourceChunk": "MTH 102 LECTURE 1 CONT.__chunk0"
+  }
+]

@@ -16,6 +16,7 @@ interface User {
   avatar_url?: string | null;
   is_verified?: boolean;
   onboarding_complete?: boolean;
+  needs_onboarding?: boolean;
   admin_role?: string | null;
 }
 

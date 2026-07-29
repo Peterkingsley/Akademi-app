@@ -40,7 +40,7 @@ const normalizeCode = (value: string) => value.trim().toUpperCase().replace(/\s+
 export const CoursePickerScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { universityId, departmentId, university, faculty, department, level } = route.params || {};
+  const { universityId, departmentId, university, faculty, department, level, pendingAuth } = route.params || {};
   const levelNumber = parseInt(String(level || "").replace(/[^0-9]/g, ""), 10) || 100;
 
   const [semester, setSemester] = useState(1);
@@ -51,6 +51,7 @@ export const CoursePickerScreen: React.FC = () => {
   const [suggestions, setSuggestions] = useState<CourseSuggestion[]>([]);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -115,6 +116,45 @@ export const CoursePickerScreen: React.FC = () => {
 
   const canContinue = selectedCourses.length > 0 && !!semesterStart.trim() && !!semesterEnd.trim();
 
+  // For a Google account (pendingAuth present), the user already exists and is
+  // already holding valid tokens — there's no /auth/register step. Instead we
+  // PATCH the academic profile directly (using the not-yet-persisted token)
+  // and hand off to SetupComplete, which is what actually calls setAuth().
+  const completeGoogleOnboarding = async (
+    courses: Array<{ code: string; name?: string; level: number; semester: number; semester_start: string; semester_end: string }>,
+  ) => {
+    if (!pendingAuth) return;
+
+    setCompleting(true);
+    setError(null);
+    try {
+      await api.patch(
+        "/users/me/academic-profile",
+        { university, faculty, department, level: levelNumber, courses },
+        { headers: { Authorization: `Bearer ${pendingAuth.accessToken}` } },
+      );
+
+      navigation.navigate("SetupComplete", {
+        user: {
+          ...pendingAuth.user,
+          university,
+          faculty,
+          department,
+          level: levelNumber,
+          courses: courses.map((course) => course.code),
+          needs_onboarding: false,
+        },
+        accessToken: pendingAuth.accessToken,
+        refreshToken: pendingAuth.refreshToken,
+        adminAccessToken: pendingAuth.adminAccessToken,
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Couldn't save your academic profile. Please try again.");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const handleDone = () => {
     if (!canContinue) {
       const hasCourses = selectedCourses.length > 0;
@@ -128,6 +168,20 @@ export const CoursePickerScreen: React.FC = () => {
       } else {
         setError("Add your semester start and end dates to continue.");
       }
+      return;
+    }
+
+    if (pendingAuth) {
+      completeGoogleOnboarding(
+        selectedCourses.map((course) => ({
+          code: course.code,
+          name: course.name || undefined,
+          level: course.level,
+          semester: course.semester,
+          semester_start: semesterStart.trim(),
+          semester_end: semesterEnd.trim(),
+        })),
+      );
       return;
     }
 
@@ -153,6 +207,11 @@ export const CoursePickerScreen: React.FC = () => {
     // Course codes and semester dates aren't required to create an account —
     // a student may not have them on hand right now. They can add this later
     // from their profile, so we just carry the school details forward.
+    if (pendingAuth) {
+      completeGoogleOnboarding([]);
+      return;
+    }
+
     navigation.navigate("Register", {
       university,
       faculty,
@@ -345,9 +404,9 @@ export const CoursePickerScreen: React.FC = () => {
             <View style={styles.countPill}>
               <Text style={styles.countText}>{selectedCourses.length} ADDED</Text>
             </View>
-            <Button label="Continue" onPress={handleDone} disabled={loading} style={styles.doneButton} />
+            <Button label="Continue" onPress={handleDone} disabled={loading || completing} loading={completing} style={styles.doneButton} />
           </View>
-          <TouchableOpacity onPress={handleSkip} activeOpacity={0.85} style={styles.skipButton}>
+          <TouchableOpacity onPress={handleSkip} activeOpacity={0.85} style={styles.skipButton} disabled={completing}>
             <Text style={styles.skipButtonText}>Skip for now — I'll add this later</Text>
           </TouchableOpacity>
         </View>
