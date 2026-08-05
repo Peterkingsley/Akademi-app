@@ -151,7 +151,18 @@ export class AuthService {
 
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
-      throw new Error('Email already registered');
+      if (existingUser.is_verified) {
+        throw new Error('Email already registered');
+      }
+
+      // If the user signed up previously but did not complete OTP verification,
+      // remove the incomplete unverified record so they can sign up freshly.
+      await prisma.$transaction([
+        prisma.studentCourse.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.learningProfile.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.refreshToken.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.user.delete({ where: { id: existingUser.id } }),
+      ]);
     }
 
     let passwordHash = null;

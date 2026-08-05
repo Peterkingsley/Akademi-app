@@ -157,4 +157,20 @@ describe('Auth Module', () => {
     });
     expect(tokenRecord?.is_active).toBe(false);
   });
+
+  it('should allow an unverified user to register again', async () => {
+    if (!process.env.DATABASE_URL) return;
+    await request(app).post('/auth/register').send(registerData);
+    
+    // Registering again with same email before verification should succeed
+    const res = await request(app).post('/auth/register').send({
+      ...registerData,
+      name: 'Updated Unverified User',
+    });
+    expect(res.status).toBe(201);
+
+    const user = await prisma.user.findUnique({ where: { email: registerData.email } });
+    expect(user?.name).toBe('Updated Unverified User');
+    expect(user?.is_verified).toBe(false);
+  });
 });
