@@ -636,7 +636,6 @@ export const HomeScreen: React.FC = () => {
             <QuickActionTile
               key={action.id}
               action={action}
-              isTourTarget={isTourVisible && activeTourStep?.id === action.id}
               onPress={() => openQuickAction(action)}
             />
           ))}
