@@ -16,8 +16,6 @@ import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import { useAuthStore } from "../../store/useAuthStore";
 
-const HOME_TOUR_PENDING_KEY = "home_tour_pending";
-
 const CoursePill = ({ course, delay }: { course: string; delay: number }) => {
   const opacity = useSharedValue(0);
 
@@ -67,7 +65,6 @@ export const SetupCompleteScreen: React.FC = () => {
 
   const handleGoHome = async () => {
     if (authPayload.user && authPayload.accessToken && authPayload.refreshToken) {
-      await AsyncStorage.setItem(HOME_TOUR_PENDING_KEY, "true");
       setAuth(authPayload.user, authPayload.accessToken, authPayload.refreshToken, authPayload.adminAccessToken);
     } else {
       navigation.navigate("Login");
