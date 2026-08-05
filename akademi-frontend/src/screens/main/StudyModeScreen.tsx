@@ -1256,14 +1256,14 @@ const styles = StyleSheet.create({
   },
   pdfViewerShell: {
     overflow: "hidden",
-    borderRadius: 0,
+    borderRadius: 8,
     borderWidth: 0,
-    backgroundColor: "#0F1115",
+    backgroundColor: "#FFFFFF",
     marginBottom: 0,
   },
   pdfViewer: {
     width: "100%",
-    backgroundColor: "#0F1115",
+    backgroundColor: "#FFFFFF",
   },
   pdfStatus: {
     alignItems: "center",

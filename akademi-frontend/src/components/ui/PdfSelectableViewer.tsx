@@ -56,8 +56,8 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       html, body {
         margin: 0;
         padding: 0;
-        background: #0b0b0b;
-        color: #ffffff;
+        background: #ffffff;
+        color: #111827;
         font-family: Inter, Arial, sans-serif;
       }
       #status {
@@ -65,22 +65,24 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #a1a1aa;
+        color: #71717a;
         font-size: 15px;
+        background: #ffffff;
       }
       #viewer {
         padding: 0;
+        background: #ffffff;
       }
       .page-shell {
         width: 100%;
-        margin: 0 0 16px 0;
-        background: #171717;
+        margin: 0 0 8px 0;
+        background: #ffffff;
       }
       .page {
         position: relative;
         margin: 0 auto;
         background: white;
-        box-shadow: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       }
       .canvasWrapper, .textLayer {
         position: absolute;
@@ -515,7 +517,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     width: "100%",
-    backgroundColor: "#0B0B0B",
+    backgroundColor: "#FFFFFF",
   },
   errorBadge: {
     paddingHorizontal: 16,
