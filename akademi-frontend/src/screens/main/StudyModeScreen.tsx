@@ -820,10 +820,6 @@ export const StudyModeScreen: React.FC = () => {
             </View>
           ) : material ? (
             <View style={styles.documentFlow}>
-              <Text style={[styles.documentTitle, typography.h1]}>{material.title}</Text>
-              <Text style={styles.documentMeta}>
-                {[courseCode, material.university, `${material.level}L`].filter(Boolean).join(" / ")}
-              </Text>
               {showOriginalPdf ? (
                 <View style={styles.pdfViewerShell}>
                   {pdfLoading ? (
