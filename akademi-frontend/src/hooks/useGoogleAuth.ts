@@ -1,23 +1,38 @@
 import { useState } from "react";
 import { Platform } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
 
 import api from "../services/api";
 import { useAuthStore } from "../store/useAuthStore";
 
 const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
-if (!webClientId && __DEV__) {
-  console.warn("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set — Google sign-in will fail.");
-}
+let googleSigninModule: typeof import("@react-native-google-signin/google-signin") | null = null;
+let isConfigured = false;
 
-GoogleSignin.configure({ webClientId });
+const getGoogleSigninModule = () => {
+  if (googleSigninModule) return googleSigninModule;
+  try {
+    googleSigninModule = require("@react-native-google-signin/google-signin");
+    return googleSigninModule;
+  } catch (err) {
+    console.warn("Failed to load @react-native-google-signin/google-signin module:", err);
+    return null;
+  }
+};
+
+const ensureGoogleSigninConfigured = () => {
+  if (isConfigured) return;
+  if (!webClientId && __DEV__) {
+    console.warn("EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set — Google sign-in will fail.");
+  }
+  const mod = getGoogleSigninModule();
+  if (!mod || !mod.GoogleSignin) {
+    throw new Error("RNGoogleSignin TurboModule missing");
+  }
+  mod.GoogleSignin.configure({ webClientId });
+  isConfigured = true;
+};
 
 export const useGoogleAuth = () => {
   const navigation = useNavigation<any>();
@@ -29,6 +44,14 @@ export const useGoogleAuth = () => {
     setError(null);
     setLoading(true);
     try {
+      const mod = getGoogleSigninModule();
+      if (!mod || !mod.GoogleSignin) {
+        throw new Error("RNGoogleSignin TurboModule missing");
+      }
+      ensureGoogleSigninConfigured();
+
+      const { GoogleSignin, isSuccessResponse } = mod;
+
       if (Platform.OS === "android") {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       }
@@ -69,12 +92,25 @@ export const useGoogleAuth = () => {
       setAuth(user, accessToken, refreshToken, adminAccessToken);
     } catch (err: any) {
       console.error("Google Sign-In Error Details:", err);
-      if (isErrorWithCode(err)) {
-        if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      const mod = googleSigninModule;
+      const isErrorWithCodeFn = mod?.isErrorWithCode;
+      const statusCodesObj = mod?.statusCodes;
+
+      if (
+        err?.message?.includes("RNGoogleSignin") ||
+        err?.message?.includes("TurboModuleRegistry") ||
+        err?.message?.includes("could not be found") ||
+        err?.message?.includes("missing")
+      ) {
+        setError(
+          "Google Sign-In requires a native development build (npx expo run:android) and is not supported in standard Expo Go."
+        );
+      } else if (isErrorWithCodeFn && isErrorWithCodeFn(err)) {
+        if (statusCodesObj && err.code === statusCodesObj.PLAY_SERVICES_NOT_AVAILABLE) {
           setError("Google Play Services isn't available on this device.");
-        } else if (err.code === statusCodes.IN_PROGRESS) {
+        } else if (statusCodesObj && err.code === statusCodesObj.IN_PROGRESS) {
           // Already mid-flow from a previous tap — stay quiet.
-        } else if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        } else if (statusCodesObj && err.code === statusCodesObj.SIGN_IN_CANCELLED) {
           // User closed the Google account picker sheet.
         } else {
           setError(`Google sign-in error (${err.code}): ${err.message || 'Check Web Client ID and SHA-1 in Google Cloud'}`);

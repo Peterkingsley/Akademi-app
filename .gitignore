@@ -6,6 +6,8 @@ dist/
 build/
 .expo/
 .turbo/
+android/
+ios/
 
 # Environment
 .env

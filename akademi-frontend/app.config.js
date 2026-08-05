@@ -20,6 +20,7 @@ const plugins = [
   "expo-font",
   "expo-asset",
   "@react-native-community/datetimepicker",
+  "@react-native-google-signin/google-signin",
 ];
 
 // Sentry native upload is temporarily disabled because the Android EAS build
