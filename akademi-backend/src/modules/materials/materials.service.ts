@@ -873,6 +873,14 @@ export class MaterialsService {
       throw new Error("This is an Akademi-generated textbook — it doesn't have a downloadable file, open it to read it instead");
     }
 
+    if (material.file_ref.startsWith('http://') || material.file_ref.startsWith('https://')) {
+      return material.file_ref;
+    }
+
+    if (!config.r2AccountId || config.r2AccountId.includes('your_r2_account_id') || config.r2AccountId === 'placeholder-account-id') {
+      throw new Error('Cloudflare R2 storage credentials (R2_ACCOUNT_ID) are not configured in backend .env.');
+    }
+
     const command = new GetObjectCommand({
       Bucket: config.r2BucketName,
       Key: material.file_ref,

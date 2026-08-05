@@ -493,7 +493,14 @@ export const StudyModeScreen: React.FC = () => {
             encoding: FileSystem.EncodingType.Base64,
           });
         } else {
-          const { url } = await materialService.getMaterialDownloadUrl(material.id);
+          let url: string;
+          if (material.file_ref?.startsWith("http://") || material.file_ref?.startsWith("https://")) {
+            url = material.file_ref;
+          } else {
+            const downloadInfo = await materialService.getMaterialDownloadUrl(material.id);
+            url = downloadInfo.url;
+          }
+
           if (cancelled) return;
 
           if (material.file_type === "PDF") {
@@ -516,10 +523,10 @@ export const StudyModeScreen: React.FC = () => {
         if (cancelled) return;
         setPdfData(base64Data);
         setDocumentUrl(resolvedDocumentUrl);
-      } catch (error) {
-        console.error("Failed to load original document:", error);
+      } catch (error: any) {
+        console.warn("Could not load original document:", error?.message || error);
         if (cancelled) return;
-        setPdfLoadError("We couldn't open the original file right now.");
+        setPdfLoadError("Original document preview is unavailable (R2 storage unconfigured or file unavailable). Use the Reader tab or AI Tutor.");
       } finally {
         if (!cancelled) {
           setPdfLoading(false);
