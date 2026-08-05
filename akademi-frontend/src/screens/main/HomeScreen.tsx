@@ -826,8 +826,12 @@ export const HomeScreen: React.FC = () => {
       </View>
 
       <Modal transparent visible={isTourVisible} animationType="fade" onRequestClose={finishHomeTour}>
-        <View style={styles.tourOverlay} pointerEvents="box-none">
-          <View style={styles.tourScrim} />
+        <View style={styles.tourOverlay}>
+          <TouchableOpacity
+            style={styles.tourScrim}
+            activeOpacity={1}
+            onPress={finishHomeTour}
+          />
           <View style={styles.tourCard}>
             <View style={styles.tourTopRow}>
               <Text style={styles.tourStep}>
@@ -837,8 +841,8 @@ export const HomeScreen: React.FC = () => {
                 <Text style={styles.tourSkipText}>Skip</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.tourTitle}>{activeTourStep.title}</Text>
-            <Text style={styles.tourBody}>{activeTourStep.body}</Text>
+            <Text style={styles.tourTitle}>{activeTourStep?.title || "Welcome to Akademi"}</Text>
+            <Text style={styles.tourBody}>{activeTourStep?.body || ""}</Text>
             <View style={styles.tourDots}>
               {HOME_TOUR_STEPS.map((step, index) => (
                 <View
@@ -1422,11 +1426,17 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   tourCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 32,
     padding: 20,
-    paddingBottom: 30,
+    paddingBottom: 24,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   tourTopRow: {
     alignItems: "center",
