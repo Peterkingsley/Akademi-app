@@ -397,7 +397,7 @@ export class AdminService {
     for (const user of recipients) {
       try {
         await resend.emails.send({
-          from: 'Akademi <noreply@opengigs.pro>',
+          from: 'Akademi <noreply@akademi.study>',
           to: user.email,
           subject,
           html,
@@ -641,7 +641,7 @@ export class AdminService {
     for (const recipient of recipients) {
       try {
         await resend.emails.send({
-          from: 'Akademi <noreply@opengigs.pro>',
+          from: 'Akademi <noreply@akademi.study>',
           to: recipient.email,
           subject,
           html,

@@ -1,5 +1,177 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../config/env';
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+import crypto from 'crypto';
+
+interface ServiceAccountKey {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  client_id: string;
+  auth_uri: string;
+  token_uri: string;
+}
+
+function getGcpServiceAccount(): ServiceAccountKey | null {
+  if (config.gcpServiceAccountJson) {
+    try {
+      return JSON.parse(config.gcpServiceAccountJson);
+    } catch {
+      // Ignore parse error
+    }
+  }
+  const possiblePaths = [
+    path.join(process.cwd(), 'gcp-service-account.json'),
+    path.join(process.cwd(), '..', 'gcp-service-account.json'),
+    path.join(__dirname, '..', '..', '..', 'gcp-service-account.json'),
+  ];
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      try {
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      } catch {
+        // Ignore read error
+      }
+    }
+  }
+  return null;
+}
+
+function base64url(input: string | Buffer): string {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  return buf
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
+
+async function getVertexAccessToken(sa: ServiceAccountKey): Promise<string> {
+  const googleTimeMs = await new Promise<number>((resolve) => {
+    https
+      .get('https://www.google.com', (res) => {
+        const serverDate = res.headers.date;
+        resolve(serverDate ? Date.parse(serverDate) : Date.now());
+      })
+      .on('error', () => resolve(Date.now()));
+  });
+
+  const now = Math.floor(googleTimeMs / 1000);
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = {
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
+    aud: sa.token_uri,
+    exp: now + 3600,
+    iat: now - 10,
+  };
+
+  const encodedHeader = base64url(JSON.stringify(header));
+  const encodedPayload = base64url(JSON.stringify(payload));
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(unsignedToken);
+  const signature = signer.sign(sa.private_key);
+  const encodedSignature = base64url(signature);
+  const jwt = `${unsignedToken}.${encodedSignature}`;
+
+  const postData = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    assertion: jwt,
+  }).toString();
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: 'oauth2.googleapis.com',
+        port: 443,
+        path: '/token',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (data.access_token) {
+              resolve(data.access_token);
+            } else {
+              reject(new Error(data.error_description || 'Failed to acquire access token'));
+            }
+          } catch (e: any) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
+async function callVertexAi(
+  contents: any[],
+  options: { model?: string; location?: string } = {}
+): Promise<string> {
+  const sa = getGcpServiceAccount();
+  if (!sa) {
+    throw new Error('GCP Service Account credentials missing');
+  }
+
+  const token = await getVertexAccessToken(sa);
+  const location = options.location || 'us-central1';
+  const model = options.model || 'gemini-2.5-flash';
+
+  const postData = JSON.stringify({ contents });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: `${location}-aiplatform.googleapis.com`,
+        port: 443,
+        path: `/v1/projects/${sa.project_id}/locations/${location}/publishers/google/models/${model}:generateContent`,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              resolve(text);
+            } else {
+              reject(new Error(data.error?.message || 'Vertex AI returned empty response'));
+            }
+          } catch (e: any) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
 
 export interface AIRequestOptions {
   maxTokens?: number;
@@ -248,6 +420,21 @@ export class AIProvider {
       geminiError = 'Gemini API key is missing or invalid';
     }
 
+    // Try Vertex AI Service Account if Gemini client is unavailable or failed
+    try {
+      const combinedPrompt = systemPrompt
+        ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
+        : prompt;
+      const vertexText = await callVertexAi([
+        { role: 'user', parts: [{ text: combinedPrompt }] },
+      ]);
+      if (vertexText) {
+        return { text: vertexText, model: 'vertex:gemini-2.5-flash' };
+      }
+    } catch (vertexError: any) {
+      console.error('Vertex AI fallback failed:', vertexError);
+    }
+
     console.error('AI provider failed', { geminiError });
     if (lastErrorWasTransient) {
       throw new TransientCapacityError(`AI is temporarily out of capacity: ${geminiError}`);
@@ -317,6 +504,23 @@ export class AIProvider {
         lastErrorWasTransient = true;
         await sleep(350);
       }
+    }
+
+    // Try Vertex AI Service Account if Gemini client is unavailable or failed
+    try {
+      const vertexParts = parts.map((part) => {
+        if ('text' in part) return { text: part.text };
+        return {
+          inlineData: {
+            mimeType: part.inlineData.mimeType,
+            data: part.inlineData.data,
+          },
+        };
+      });
+      const vertexText = await callVertexAi([{ role: 'user', parts: vertexParts }]);
+      if (vertexText) return vertexText;
+    } catch (vertexError: any) {
+      console.error('Vertex AI multimodal fallback failed:', vertexError);
     }
 
     console.error('Gemini multimodal request failed', { lastError });

@@ -248,7 +248,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <noreply@opengigs.pro>',
+          from: 'Akademi <noreply@akademi.study>',
           to: user.email,
           subject: 'Verify your email',
           html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
@@ -501,7 +501,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <onboarding@resend.dev>',
+          from: 'Akademi <noreply@akademi.study>',
           to: user.email,
           subject: 'Reset your password',
           html: `<p>Click <a href="${config.passwordResetUrl}?token=${encodeURIComponent(resetToken)}">here</a> to reset your password.</p>`,
@@ -568,7 +568,7 @@ export class AuthService {
     if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
       try {
         await resend.emails.send({
-          from: 'Akademi <onboarding@resend.dev>',
+          from: 'Akademi <noreply@akademi.study>',
           to: user.email,
           subject: 'Verify your email',
           html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
