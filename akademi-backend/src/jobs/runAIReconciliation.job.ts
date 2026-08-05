@@ -10,14 +10,7 @@ import { notifyContributorsJob } from './notifyContributors.job';
 import { generateQuestionsJob } from './generateQuestions.job';
 import { aiProvider } from '../modules/ai/ai.provider';
 
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: config.r2AccessKey,
-    secretAccessKey: config.r2SecretKey,
-  },
-});
+import { s3Client } from '../shared/storage/r2.client';
 
 export async function runAIReconciliationJob(materialId: string) {
   const material = await prisma.material.findUnique({

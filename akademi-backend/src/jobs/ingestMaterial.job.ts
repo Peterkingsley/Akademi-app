@@ -11,14 +11,7 @@ import { computeMaterialRetryAt } from '../modules/materials/material-processing
 import { createFallbackTeacherBrain, generateMaterialTeacherBrain } from '../modules/materials/teacher-brain.service';
 import { aiProvider } from '../modules/ai/ai.provider';
 
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: config.r2AccessKey,
-    secretAccessKey: config.r2SecretKey,
-  },
-});
+import { s3Client } from '../shared/storage/r2.client';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 

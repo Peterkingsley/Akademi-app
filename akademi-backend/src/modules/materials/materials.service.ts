@@ -14,14 +14,7 @@ import { backfillTeacherBrains, regenerateTeacherBrain } from './teacher-brain.s
 import { stripQuestionAnswers } from '../../shared/utils/sanitize-question';
 import { upsertDepartment, findOrCreateCourse } from '../../shared/utils/department-resolver';
 
-const s3Client = new S3Client({
-  region: 'auto',
-  endpoint: `https://${config.r2AccountId}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: config.r2AccessKey,
-    secretAccessKey: config.r2SecretKey,
-  },
-});
+import { s3Client } from '../../shared/storage/r2.client';
 
 export class MaterialsService {
   private async getAdminRoleByEmail(email?: string | null) {
