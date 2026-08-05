@@ -792,7 +792,7 @@ export const StudyModeScreen: React.FC = () => {
               : [styles.studyCard, styles.glassCard, { minHeight: pageSurfaceMinHeight }]
           }
         >
-          {(!material || (!showOriginalPdf && !showOriginalDoc)) && (
+          {!material && (
             <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
           )}
           {!material && (
