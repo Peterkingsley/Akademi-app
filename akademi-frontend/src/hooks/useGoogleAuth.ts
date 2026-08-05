@@ -68,18 +68,21 @@ export const useGoogleAuth = () => {
 
       setAuth(user, accessToken, refreshToken, adminAccessToken);
     } catch (err: any) {
+      console.error("Google Sign-In Error Details:", err);
       if (isErrorWithCode(err)) {
         if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
           setError("Google Play Services isn't available on this device.");
         } else if (err.code === statusCodes.IN_PROGRESS) {
           // Already mid-flow from a previous tap — stay quiet.
+        } else if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+          // User closed the Google account picker sheet.
         } else {
-          setError("Google sign-in failed. Please try again.");
+          setError(`Google sign-in error (${err.code}): ${err.message || 'Check Web Client ID and SHA-1 in Google Cloud'}`);
         }
       } else if (!err.response) {
         setError("Check your internet connection and try again.");
       } else {
-        setError(err.response?.data?.message || "Google sign-in failed. Please try again.");
+        setError(err.response?.data?.message || err.message || "Google sign-in failed. Please try again.");
       }
     } finally {
       setLoading(false);
