@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: akademi-backend
+    env: node
+    rootDir: akademi-backend
+    buildCommand: ./render-build.sh
+    startCommand: npm run start
+    envVars:
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: ENABLE_REDIS
+        value: "true"
+      - key: EXPO_PUBLIC_SENTRY_DSN
+        value: "https://e47e7ca462a75480c738cd48c57056f1@o4511591595180032.ingest.us.sentry.io/4511591708819456"
+      - key: EXPO_PUBLIC_SENTRY_ENVIRONMENT
+        value: "production"
+      - key: EXPO_PUBLIC_SENTRY_RELEASE
+        value: "akademi-frontend@1.0.0+2544b49"
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: "production"
+      - key: PORT
+        value: "3000"
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        value: "bf0c08bae967813bd07e0d1482124840"
+      - key: R2_BUCKET_NAME
+        value: "akademi-files"
+      - key: R2_PUBLIC_URL
+        value: "https://pub-0bf5d3669a4c4b4fb19f64d29792d640.r2.dev"
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: RENDER_REDEPLOY_TRIGGER_BY_JULES
+        value: "2026-05-30T02:30:00Z"
+      - key: RENDER_REDEPLOY_TRIGGER_BY_JULES_FINAL
+        value: "2026-05-30T02:40:00Z"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        value: "https://99b3595514b304e7d2c6d63d5b02e9d7@o4511591595180032.ingest.us.sentry.io/4511591606517760"
+      - key: SENTRY_ENVIRONMENT
+        value: "production"
+      - key: SENTRY_PROJECT
+        value: "akademi-backend"
+      - key: SENTRY_RELEASE
+        value: "akademi-backend@1.0.0+2544b49"
+      - key: TYPESENSE_API_KEY
+        sync: false
+      - key: TYPESENSE_HOST
+        value: "jzr53iqotkx0l7hdp-1.a1.typesense.net"
+      - key: TYPESENSE_PORT
+        value: "443"
+      - key: TYPESENSE_PROTOCOL
+        value: "https"
+      - key: UNLOCK_ALL_FEATURES
+        value: "true"
