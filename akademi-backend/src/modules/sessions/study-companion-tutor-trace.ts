@@ -240,6 +240,26 @@ export async function enforceTutorMessageQuality(
     : args.content;
   const qualityArgs = { ...args, content: identitySafeContent };
 
+  // Clarifications have a different contract from checkpoint questions. The
+  // generic checkpoint validator is allowed to replace invalid content with a
+  // deterministic teach-back prompt, which would erase a valid direct answer.
+  // Course identity has already been sanitized above, so preserve the model's
+  // direct response and let the unchanged phase wait for the student.
+  if (args.responseIntent === 'direct_answer' && identitySafeContent.trim()) {
+    if (args.qualityTrace) {
+      args.qualityTrace.issues = [];
+      args.qualityTrace.regenerated = false;
+      args.qualityTrace.fallbackUsed = false;
+      args.qualityTrace.correctionApplied = false;
+    }
+    console.log('direct_answer_quality_contract_applied', {
+      phase: args.phase,
+      prompt: args.contextMeta?.prompt,
+      sectionTitle: args.section.title,
+    });
+    return normalizeText(identitySafeContent);
+  }
+
   console.log('tutor_quality_check_started', {
     phase: args.phase,
     turnType: args.turnType,
