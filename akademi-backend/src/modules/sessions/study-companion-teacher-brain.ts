@@ -56,6 +56,17 @@ export function isIntroLikeSection(section: RoadmapSection) {
     'course outline',
     'table of contents',
     'contents',
+    'what you will learn',
+    'learning objective',
+    'course objective',
+    'course aim',
+    'course description',
+    'course outline',
+    'syllabus',
+    'acknowledgement',
+    'copyright',
+    'references',
+    'bibliography',
   ].some((keyword) => title.includes(keyword));
 }
 

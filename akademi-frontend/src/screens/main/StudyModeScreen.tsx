@@ -323,6 +323,8 @@ export const StudyModeScreen: React.FC = () => {
   const [pdfLoadError, setPdfLoadError] = useState<string | null>(null);
   const [hasReachedMaterialEnd, setHasReachedMaterialEnd] = useState(false);
   const [hasAutoOpenedTutor, setHasAutoOpenedTutor] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollTop, setScrollTop] = useState(0);
   const skeletonOpacity = useRef(new Animated.Value(0)).current;
   const extractionProgress = useRef(new Animated.Value(0)).current;
   const courseCode = material?.course_code || "General";
@@ -341,7 +343,6 @@ export const StudyModeScreen: React.FC = () => {
   const embeddedImageHeight = hasImagePage
     ? Math.max(280, Math.floor(windowHeight * 0.32))
     : 220;
-  const pdfViewerHeight = Math.max(windowHeight * 0.74, 560);
   const isPdfMaterial = material?.file_type === "PDF" && !material?.is_akademi_generated;
   const isDocMaterial = material?.file_type === "DOC" && !material?.is_akademi_generated;
   const showOriginalPdf = Boolean(material) && isPdfMaterial;
@@ -646,6 +647,7 @@ export const StudyModeScreen: React.FC = () => {
 
   const handleDocumentScroll = (event: any) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    setScrollTop(contentOffset.y);
     const reachedEnd = contentOffset.y + layoutMeasurement.height >= contentSize.height - 48;
     setHasReachedMaterialEnd(reachedEnd);
   };
@@ -730,13 +732,16 @@ export const StudyModeScreen: React.FC = () => {
   return (
     <Screen style={styles.screen} hideHeader={true}>
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, (showOriginalPdf || showOriginalDoc) && styles.scrollContentPdf]}
-        scrollEnabled={!(showOriginalPdf || showOriginalDoc)}
+        scrollEnabled={true}
+        onScroll={handleDocumentScroll}
+        scrollEventThrottle={16}
       >
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate("MainTabs", { screen: "Library" }))}
             style={styles.headerBtn}
           >
             <X size={22} color={colors.textPrimary} />
@@ -823,25 +828,29 @@ export const StudyModeScreen: React.FC = () => {
               {showOriginalPdf ? (
                 <View style={styles.pdfViewerShell}>
                   {pdfLoading ? (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <ActivityIndicator size="small" color={colors.primary} />
                       <Text style={styles.pdfStatusText}>Opening original PDF...</Text>
                     </View>
                   ) : pdfLoadError ? (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <AlertCircle size={20} color={colors.warning} />
                       <Text style={styles.pdfStatusText}>{pdfLoadError}</Text>
                     </View>
                   ) : pdfData ? (
                     <PdfSelectableViewer
                       pdfBase64={pdfData}
-                      height={pdfViewerHeight}
+                      scrollTop={scrollTop}
+                      viewportHeight={windowHeight}
                       onAskAkademi={handleAskAkademi}
                       onHighlight={handleHighlight}
                       onReachEndChange={setHasReachedMaterialEnd}
+                      onScrollBy={(delta) => {
+                        scrollViewRef.current?.scrollTo({ y: scrollTop + delta, animated: true });
+                      }}
                     />
                   ) : (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <Text style={styles.pdfStatusText}>Original PDF is not ready yet.</Text>
                     </View>
                   )}
@@ -849,12 +858,12 @@ export const StudyModeScreen: React.FC = () => {
               ) : showOriginalDoc ? (
                 <View style={styles.pdfViewerShell}>
                   {pdfLoading ? (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <ActivityIndicator size="small" color={colors.primary} />
                       <Text style={styles.pdfStatusText}>Opening original document...</Text>
                     </View>
                   ) : pdfLoadError ? (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <AlertCircle size={20} color={colors.warning} />
                       <Text style={styles.pdfStatusText}>{pdfLoadError}</Text>
                     </View>
@@ -863,21 +872,21 @@ export const StudyModeScreen: React.FC = () => {
                       source={{
                         uri: `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(documentUrl)}`,
                       }}
-                      style={[styles.pdfViewer, { height: pdfViewerHeight }]}
+                      style={[styles.pdfViewer, { height: Math.max(windowHeight * 0.74, 560) }]}
                       originWhitelist={["*"]}
                       startInLoadingState
                       nestedScrollEnabled
                       onScroll={handleDocumentScroll}
                       scrollEventThrottle={16}
                       renderLoading={() => (
-                        <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                        <View style={styles.pdfStatus}>
                           <ActivityIndicator size="small" color={colors.primary} />
                           <Text style={styles.pdfStatusText}>Opening original document...</Text>
                         </View>
                       )}
                     />
                   ) : (
-                    <View style={[styles.pdfStatus, { height: pdfViewerHeight }]}>
+                    <View style={styles.pdfStatus}>
                       <Text style={styles.pdfStatusText}>Original document is not ready yet.</Text>
                     </View>
                   )}
@@ -1148,6 +1157,7 @@ const styles = StyleSheet.create({
   },
   scrollContentPdf: {
     paddingHorizontal: 0,
+    paddingBottom: 0,
   },
   studyCard: {
     backgroundColor: colors.surface,
@@ -1161,6 +1171,8 @@ const styles = StyleSheet.create({
   },
   documentSurfacePdf: {
     marginBottom: 0,
+    width: "100%",
+    flex: 1,
   },
   glassCard: {
     backgroundColor: "rgba(255,255,255,0.03)",
@@ -1178,6 +1190,9 @@ const styles = StyleSheet.create({
   documentCardPdf: {
     paddingTop: 0,
     paddingBottom: 0,
+    paddingHorizontal: 0,
+    width: "100%",
+    flex: 1,
   },
   diagnosticBanner: {
     backgroundColor: "#2A1606",
@@ -1215,6 +1230,7 @@ const styles = StyleSheet.create({
   },
   documentFlow: {
     gap: 0,
+    width: "100%",
   },
   documentTitle: {
     color: "#D6E4FF",
@@ -1256,10 +1272,12 @@ const styles = StyleSheet.create({
   },
   pdfViewerShell: {
     overflow: "hidden",
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 0,
     backgroundColor: "#FFFFFF",
     marginBottom: 0,
+    width: "100%",
+    flex: 1,
   },
   pdfViewer: {
     width: "100%",
@@ -1270,6 +1288,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 24,
+    minHeight: 240,
+    paddingVertical: 40,
   },
   pdfStatusText: {
     ...typography.body,

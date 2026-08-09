@@ -7,10 +7,11 @@ import {
   ViewStyle,
   TextStyle,
   View,
+  Platform,
+  StyleProp,
 } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { usePressBounce } from "../../hooks/usePressBounce";
 
@@ -25,7 +26,7 @@ interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -38,8 +39,8 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   style,
 }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, controlSize, radius, typeScale } = useTheme();
+  const styles = useMemo(() => createStyles(colors, controlSize, radius), [colors, controlSize, radius]);
   const displayLabel = label || title || "";
   const { animatedStyle, onPressIn, onPressOut } = usePressBounce(0.93);
   const shade = useSharedValue(0);
@@ -52,9 +53,11 @@ export const Button: React.FC<ButtonProps> = ({
     if (!disabled && !loading) {
       onPressIn();
       shade.value = withTiming(0.14, { duration: 80 });
-      Haptics.impactAsync(
-        variant === "primary" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
-      );
+      if (Platform.OS !== "web") {
+        void Haptics.impactAsync(
+          variant === "primary" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light
+        ).catch(() => undefined);
+      }
     }
   };
 
@@ -104,18 +107,19 @@ export const Button: React.FC<ButtonProps> = ({
       ]}
       accessibilityRole="button"
       accessibilityLabel={displayLabel}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
     >
       <Animated.View pointerEvents="none" style={[styles.shade, shadeStyle]} />
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator color={variant === "outline" ? colors.primary : "#FFFFFF"} size="small" />
+          <ActivityIndicator color={variant === "outline" ? colors.brand.foreground : colors.brand.onFill} size="small" />
         ) : (
           <View style={styles.innerContent}>
             {icon && (
               <View style={styles.iconContainer}>{icon}</View>
             )}
             <Text
-              style={[getTextStyle(), typography.body, { fontWeight: "600" }]}
+              style={[getTextStyle(), typeScale.bodyStrong]}
             >
               {displayLabel}
             </Text>
@@ -126,10 +130,14 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
+const createStyles = (
+  colors: typeof import("../../theme/colors").darkPalette,
+  controlSize: typeof import("../../theme/foundations").controlSize,
+  radius: typeof import("../../theme/foundations").radius,
+) => StyleSheet.create({
   base: {
-    height: 56,
-    borderRadius: 24,
+    minHeight: controlSize.buttonMinHeight,
+    borderRadius: radius.md,
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
@@ -137,13 +145,13 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   shade: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000000",
+    backgroundColor: colors.bg.inverse,
   },
   primary: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.brand.fill,
   },
   secondary: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.bg.surfaceRaised,
   },
   ghost: {
     backgroundColor: "transparent",
@@ -151,7 +159,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   outline: {
     backgroundColor: "transparent",
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: colors.brand.border,
   },
   content: {
     flexDirection: "row",
@@ -165,16 +173,13 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     justifyContent: "center",
   },
   text: {
-    color: "#FFFFFF",
-    fontSize: 12,
+    color: colors.brand.onFill,
   },
   ghostText: {
-    color: colors.textPrimary,
-    fontSize: 12,
+    color: colors.fg.primary,
   },
   outlineText: {
-    color: colors.primary,
-    fontSize: 12,
+    color: colors.brand.foreground,
   },
   iconContainer: {
     marginRight: 8,

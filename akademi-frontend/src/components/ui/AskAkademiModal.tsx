@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -209,11 +210,14 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
     return created.id;
   };
 
+  const [startingCompanionMode, setStartingCompanionMode] = useState<string | null>(null);
+
   const handleCompanionStart = async (mode: CompanionStartMode, section?: string) => {
     if (!contextText.trim()) return;
 
     Keyboard.dismiss();
     setLoading(true);
+    setStartingCompanionMode(section ? `specific:${section}` : mode);
     setCompanionStarted(true);
     if (section) setSelectedRoadmapSection(section);
 
@@ -247,6 +251,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       ]);
     } finally {
       setLoading(false);
+      setStartingCompanionMode(null);
     }
   };
 
@@ -380,13 +385,25 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                   </Text>
                   <View style={styles.startActions}>
                     <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("continue")} disabled={loading}>
-                      <Text style={styles.startButtonText}>Continue from last point</Text>
+                      {startingCompanionMode === "continue" ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.startButtonText}>Continue from last point</Text>
+                      )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("beginning")} disabled={loading}>
-                      <Text style={styles.startButtonText}>Start from beginning</Text>
+                      {startingCompanionMode === "beginning" ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.startButtonText}>Start from beginning</Text>
+                      )}
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.startButton} onPress={() => handleCompanionStart("roadmap")} disabled={loading}>
-                      <Text style={styles.startButtonText}>Create study roadmap</Text>
+                      {startingCompanionMode === "roadmap" ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.startButtonText}>Create study roadmap</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                   {roadmap.length > 0 ? (
@@ -402,7 +419,11 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
                           onPress={() => handleCompanionStart("specific", section)}
                           disabled={loading}
                         >
-                          <Text style={styles.roadmapIndex}>{index + 1}</Text>
+                          {startingCompanionMode === `specific:${section}` ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                          ) : (
+                            <Text style={styles.roadmapIndex}>{index + 1}</Text>
+                          )}
                           <Text style={styles.roadmapLabel}>{section}</Text>
                         </TouchableOpacity>
                       ))}

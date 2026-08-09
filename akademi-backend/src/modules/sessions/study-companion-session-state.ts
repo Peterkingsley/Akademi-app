@@ -141,6 +141,49 @@ export function buildRoadmapFromReaderStructure(
     .filter((section) => section.title);
 }
 
+const MAX_STUDENT_ROADMAP_SECTIONS = 48;
+
+function isAdministrativeRoadmapSection(section: RoadmapSection) {
+  const title = String(section.title || '').toLowerCase();
+  return /\b(table of contents|contents|preface|acknowledgement|copyright|bibliography|references|course outline|course aim|course objective|course description|what you will learn|learning objectives?|syllabus)\b/.test(title);
+}
+
+export function compactRoadmapForTeaching(input: RoadmapSection[]) {
+  const teachable = input.filter(
+    (section) => section.content && !isAdministrativeRoadmapSection(section),
+  );
+  if (teachable.length <= MAX_STUDENT_ROADMAP_SECTIONS) return teachable;
+
+  const bucketSize = Math.ceil(
+    teachable.length / MAX_STUDENT_ROADMAP_SECTIONS,
+  );
+  const compacted: RoadmapSection[] = [];
+
+  for (let index = 0; index < teachable.length; index += bucketSize) {
+    const bucket = teachable.slice(index, index + bucketSize);
+    const allMastered = bucket.every(
+      (section) => section.status === StudyRoadmapStatus.MASTERED,
+    );
+    const anyStarted = bucket.some(
+      (section) => section.status !== StudyRoadmapStatus.NOT_STARTED,
+    );
+    compacted.push({
+      key: `lesson-${compacted.length + 1}`,
+      title: bucket[0].title,
+      content: normalizeText(bucket.map((section) => section.content).join('\n\n')),
+      status: allMastered
+        ? StudyRoadmapStatus.MASTERED
+        : anyStarted
+          ? StudyRoadmapStatus.IN_PROGRESS
+          : StudyRoadmapStatus.NOT_STARTED,
+      pageStart: bucket[0].pageStart,
+      pageEnd: bucket[bucket.length - 1].pageEnd,
+    });
+  }
+
+  return compacted;
+}
+
 export function buildProgress(roadmap: RoadmapSection[]) {
   return {
     completedSections: roadmap.filter(
@@ -183,10 +226,10 @@ export async function ensureState(sessionId: string) {
   const fallbackRoadmap = Array.isArray(metadata.roadmap)
     ? metadata.roadmap.map((value) => String(value))
     : [];
-  const roadmap = buildRoadmapFromReaderStructure(
+  const roadmap = compactRoadmapForTeaching(buildRoadmapFromReaderStructure(
     session.material.reader_structure,
     fallbackRoadmap,
-  );
+  ));
   if (!roadmap.length) {
     roadmap.push({
       key: 'section-1',
@@ -210,9 +253,28 @@ export async function ensureState(sessionId: string) {
     orderBy: { updated_at: 'desc' },
   });
 
-  const restoredRoadmap = previousState?.roadmap
+  const previousRoadmap = previousState?.roadmap
     ? safeJsonArray<RoadmapSection>(previousState.roadmap)
+    : [];
+  const restoredRoadmap = previousRoadmap.length
+    ? compactRoadmapForTeaching(previousRoadmap)
     : roadmap;
+  const previousSectionRatio = previousRoadmap.length
+    ? Math.max(0, previousState?.current_section_index || 0) / previousRoadmap.length
+    : 0;
+  const restoredCurrentIndex = Math.min(
+    Math.max(0, Math.floor(previousSectionRatio * restoredRoadmap.length)),
+    Math.max(0, restoredRoadmap.length - 1),
+  );
+  const previousCompletedRatio = previousRoadmap.length
+    ? Math.max(0, (previousState?.last_completed_index || -1) + 1) / previousRoadmap.length
+    : 0;
+  const restoredCompletedIndex = previousCompletedRatio
+    ? Math.min(
+        Math.floor(previousCompletedRatio * restoredRoadmap.length) - 1,
+        restoredRoadmap.length - 1,
+      )
+    : -1;
   const restoredProgress = buildProgress(restoredRoadmap);
   return prisma.studyCompanionState.create({
     data: {
@@ -225,8 +287,8 @@ export async function ensureState(sessionId: string) {
       progress: restoredProgress as unknown as Prisma.InputJsonValue,
       section_context: {} as Prisma.InputJsonValue,
       current_phase: StudyCompanionPhase.MATERIAL_SELECTED,
-      current_section_index: previousState?.current_section_index ?? 0,
-      last_completed_index: previousState?.last_completed_index ?? -1,
+      current_section_index: restoredCurrentIndex,
+      last_completed_index: restoredCompletedIndex,
       last_mastery_score: previousState?.last_mastery_score ?? null,
       refresh_question: previousState?.refresh_question ?? null,
       refresh_answer: previousState?.refresh_answer ?? null,

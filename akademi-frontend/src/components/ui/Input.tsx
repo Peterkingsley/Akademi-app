@@ -47,8 +47,8 @@ export const Input: React.FC<InputProps> = ({
   enableVoiceInput,
   maxLength,
 }) => {
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { colors, controlSize, radius, typeScale } = useTheme();
+  const styles = useMemo(() => createStyles(colors, controlSize, radius), [colors, controlSize, radius]);
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
   const voiceEnabled = enableVoiceInput ?? !secureTextEntry;
@@ -65,7 +65,7 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, style]}>
       {label ? (
-        <Text style={[styles.label, typography.caption, labelStyle]}>{label}</Text>
+        <Text style={[styles.label, typeScale.label, labelStyle]}>{label}</Text>
       ) : null}
       <View
         style={[
@@ -87,6 +87,7 @@ export const Input: React.FC<InputProps> = ({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           maxLength={maxLength}
+          accessibilityLabel={label || placeholder}
         />
         {voiceEnabled && (
           <VoiceInputButton
@@ -100,6 +101,9 @@ export const Input: React.FC<InputProps> = ({
           <TouchableOpacity
             onPress={togglePasswordVisibility}
             style={styles.iconRight}
+            accessibilityRole="button"
+            accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+            accessibilityState={{ expanded: isPasswordVisible }}
           >
             {isPasswordVisible ? (
               <EyeOff size={20} color={colors.textSecondary} />
@@ -110,13 +114,17 @@ export const Input: React.FC<InputProps> = ({
         )}
       </View>
       {!!error && (
-        <Text style={[styles.errorText, typography.caption]}>{error}</Text>
+        <Text style={[styles.errorText, typeScale.caption]} accessibilityLiveRegion="polite">{error}</Text>
       )}
     </View>
   );
 };
 
-const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
+const createStyles = (
+  colors: typeof import("../../theme/colors").darkPalette,
+  controlSize: typeof import("../../theme/foundations").controlSize,
+  radius: typeof import("../../theme/foundations").radius,
+) => StyleSheet.create({
   container: {
     marginBottom: 20,
     width: "100%",
@@ -124,18 +132,16 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   label: {
     color: colors.textSecondary,
     marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    fontSize: 9.75,
+    fontSize: 14,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    height: 52,
+    minHeight: controlSize.inputMinHeight,
     paddingHorizontal: 16,
   },
   inputFocused: {
@@ -147,13 +153,18 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   input: {
     flex: 1,
     color: colors.textPrimary,
-    fontSize: 12,
+    fontSize: 16,
+    lineHeight: 24,
   },
   iconLeft: {
     marginRight: 12,
   },
   iconRight: {
+    alignItems: "center",
+    height: controlSize.minTouch,
+    justifyContent: "center",
     marginLeft: 12,
+    width: controlSize.minTouch,
   },
   voiceButton: {
     marginLeft: 8,

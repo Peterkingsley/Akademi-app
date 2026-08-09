@@ -67,7 +67,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Solve: undefined;
+  Solve: { selectedCourseCode?: string | null } | undefined;
   Library: { course_code?: string } | undefined;
   Profile: undefined;
 };
@@ -105,6 +105,7 @@ export type MainStackParamList = {
     materialTitle: string;
     courseCode: string;
   };
+  SolveCoursePicker: { selectedCourseCode?: string | null } | undefined;
   AssignmentResult: { sessionId: string };
   MultiQuestionSolve: {
     sessionId: string;

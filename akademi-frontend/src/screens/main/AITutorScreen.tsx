@@ -113,7 +113,13 @@ export const AITutorScreen: React.FC = () => {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.8}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
@@ -162,6 +168,8 @@ export const AITutorScreen: React.FC = () => {
                 setSearchQuery("");
               }}
               style={styles.cancelSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Close material search"
             >
               <Text style={styles.cancelSearchText}>Cancel</Text>
             </TouchableOpacity>

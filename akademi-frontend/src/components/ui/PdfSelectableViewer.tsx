@@ -14,17 +14,22 @@ import { Copy, Highlighter, MessageSquare } from "lucide-react-native";
 
 interface PdfSelectableViewerProps {
   pdfBase64: string;
-  height: number;
+  height?: number;
+  scrollTop?: number;
+  viewportHeight?: number;
   onAskAkademi: (selectedText: string) => void;
   onHighlight?: (selectedText: string) => void;
   onReachEndChange?: (reachedEnd: boolean) => void;
+  onScrollBy?: (delta: number) => void;
 }
 
 type WebMessage =
   | { type: "ready" }
   | { type: "error"; value: string }
   | { type: "selection"; value: string }
-  | { type: "endState"; value: boolean };
+  | { type: "endState"; value: boolean }
+  | { type: "contentHeight"; value: number }
+  | { type: "scrollBy"; value: number };
 
 const escapeHtml = (value: string) =>
   value
@@ -37,14 +42,26 @@ const escapeHtml = (value: string) =>
 export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
   pdfBase64,
   height,
+  scrollTop,
+  viewportHeight,
   onAskAkademi,
   onHighlight,
   onReachEndChange,
+  onScrollBy,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (scrollTop !== undefined && viewportHeight !== undefined) {
+      webViewRef.current?.injectJavaScript(
+        `window.onNativeScroll && window.onNativeScroll(${scrollTop}, ${viewportHeight}); true;`
+      );
+    }
+  }, [scrollTop, viewportHeight]);
 
   const html = useMemo(
     () => `<!doctype html>
@@ -59,9 +76,16 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         background: #ffffff;
         color: #111827;
         font-family: Inter, Arial, sans-serif;
+        width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+      }
+      *, *:before, *:after {
+        box-sizing: inherit;
       }
       #status {
-        min-height: 100vh;
+        padding: 40px 0;
+        min-height: 120px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -72,6 +96,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       #viewer {
         padding: 0;
         background: #ffffff;
+        width: 100%;
       }
       .page-shell {
         width: 100%;
@@ -82,7 +107,8 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         position: relative;
         margin: 0 auto;
         background: white;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        box-shadow: none;
+        width: 100% !important;
       }
       .canvasWrapper, .textLayer {
         position: absolute;
@@ -177,6 +203,15 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         window.ReactNativeWebView.postMessage(JSON.stringify(payload));
       }
 
+      function sendContentHeight() {
+        const contentHeight = Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          viewerEl.scrollHeight
+        );
+        post({ type: 'contentHeight', value: contentHeight });
+      }
+
       function updateSelection() {
         const selection = window.getSelection();
         const text = selection ? selection.toString().replace(/\\s{2,}/g, ' ').trim() : '';
@@ -197,12 +232,12 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
 
       function scrollUp() {
         showFloatingNav();
-        window.scrollBy({ top: -window.innerHeight * 0.75, behavior: 'smooth' });
+        post({ type: 'scrollBy', value: -window.innerHeight * 0.75 });
       }
 
       function scrollDown() {
         showFloatingNav();
-        window.scrollBy({ top: window.innerHeight * 0.75, behavior: 'smooth' });
+        post({ type: 'scrollBy', value: window.innerHeight * 0.75 });
       }
 
       let totalPages = 1;
@@ -253,6 +288,37 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
         document.getElementById('page-indicator').textContent = visiblePage + ' / ' + totalPages;
       }
 
+      window.onNativeScroll = function(scrollTop, viewportHeight) {
+        const shells = document.querySelectorAll('.page-shell');
+        let visiblePage = 1;
+        let maxVisible = 0;
+
+        for (let i = 0; i < shells.length; i++) {
+          const rect = shells[i].getBoundingClientRect();
+          const pageTopOnScreen = rect.top - scrollTop;
+          const pageBottomOnScreen = rect.bottom - scrollTop;
+          const overlapTop = Math.max(0, pageTopOnScreen);
+          const overlapBottom = Math.min(viewportHeight, pageBottomOnScreen);
+          const visibleHeight = Math.max(0, overlapBottom - overlapTop);
+          if (visibleHeight > maxVisible) {
+            maxVisible = visibleHeight;
+            visiblePage = i + 1;
+          }
+        }
+        const pageIndicator = document.getElementById('page-indicator');
+        if (pageIndicator) {
+          pageIndicator.textContent = visiblePage + ' / ' + totalPages;
+        }
+
+        const nav = document.getElementById('floating-nav');
+        if (nav && !isDragging) {
+          const maxScroll = Math.max(1, document.body.scrollHeight - viewportHeight);
+          const percent = Math.max(0, Math.min(1, scrollTop / maxScroll));
+          const safeY = (viewportHeight * 0.15) + (percent * (viewportHeight * 0.7));
+          nav.style.top = safeY + 'px';
+        }
+      };
+
       function renderTextLayer(textLayerDiv, textContent, viewport) {
         textLayerDiv.innerHTML = '';
 
@@ -300,8 +366,6 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
             
             const viewport = page.getViewport({ scale });
             
-            // For razor sharp text on mobile, we render the canvas at a high resolution
-            // (scale * devicePixelRatio) and then shrink it with CSS.
             const dpr = Math.max(window.devicePixelRatio || 2, 2);
             const renderViewport = page.getViewport({ scale: scale * dpr });
 
@@ -343,6 +407,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
           }
 
           totalPages = pdf.numPages;
+          sendContentHeight();
           updatePageIndicator();
           updateNavPosition();
           showFloatingNav();
@@ -353,7 +418,7 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
             isDragging = true;
             clearTimeout(scrollTimeout);
             nav.style.opacity = '1';
-            nav.style.transition = 'none'; // instant move during drag
+            nav.style.transition = 'none';
           }, { passive: false });
 
           dragger.addEventListener('touchmove', function(e) {
@@ -400,6 +465,8 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
           showFloatingNav();
         }
       }, { passive: true });
+      window.addEventListener('resize', sendContentHeight);
+
       window.clearNativeSelection = function () {
         const selection = window.getSelection();
         if (selection) selection.removeAllRanges();
@@ -407,7 +474,11 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
       };
 
       renderPdf().then(function () {
-        setTimeout(updateEndState, 60);
+        sendContentHeight();
+        setTimeout(function() {
+          sendContentHeight();
+          updateEndState();
+        }, 100);
       });
     </script>
   </body>
@@ -441,13 +512,16 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
     clearSelection();
   };
 
+  const effectiveHeight = Math.max(measuredHeight || 0, viewportHeight || 0, height || 0, 400);
+
   return (
     <View style={styles.container}>
       <WebView
         ref={webViewRef}
         originWhitelist={["*"]}
         source={{ html }}
-        style={[styles.webview, { height }]}
+        style={[styles.webview, { height: effectiveHeight }]}
+        scrollEnabled={false}
         javaScriptEnabled
         domStorageEnabled
         onMessage={(event) => {
@@ -457,6 +531,19 @@ export const PdfSelectableViewer: React.FC<PdfSelectableViewerProps> = ({
               const nextSelected = String(payload.value || "").trim();
               setSelectedText(nextSelected);
               setMenuVisible(nextSelected.length > 0);
+              return;
+            }
+
+            if (payload.type === "contentHeight") {
+              const h = Number(payload.value);
+              if (h && h > 0) {
+                setMeasuredHeight(h);
+              }
+              return;
+            }
+
+            if (payload.type === "scrollBy") {
+              onScrollBy?.(Number(payload.value));
               return;
             }
 

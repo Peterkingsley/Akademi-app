@@ -164,6 +164,7 @@ export async function buildTeachingPass(
           `The student was just asked: "${truncate(priorInteraction.question, 240)}"`,
           `The student answered: "${truncate(priorInteraction.answer, 240)}"`,
           ...buildFeedbackDoctrineLines({ brief: true }),
+          'Respond to the answer in one short, evidence-based sentence: name the specific idea that is correct or needs repair. Do not use generic praise such as excellent, perfect, brilliant, precisely, or well done. Do not restate the student answer or replay the previous explanation. Move immediately to one genuinely new teaching step.',
         ].join(' ')
       : '',
     pass === 1
@@ -223,6 +224,8 @@ export async function buildTeachingPass(
       : '',
     modeInstructions,
     'Use student memory to adapt explanation. If the student previously struggled with a prerequisite, briefly refresh it. If calculation issues exist, slow down formula substitution. If diagram issues exist, use clearer mental visualization. Be encouraging, not judgmental.',
+    'Scientific precision rule: qualify claims that depend on conditions. Never use always, never, every, or vice versa unless the supplied material and established science make the statement universally true. For electromagnetism, distinguish static charges, moving charges or currents, and changing fields when relevant.',
+    'No repetition rule: each pass must advance the lesson. Do not repeat the course aim, section introduction, previous tutor wording, or the student answer. Refer back in at most one short clause, then add a new definition, mechanism, worked step, comparison, or example.',
     lecturerConstraintPromptContext
       ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.'
       : '',
@@ -1305,7 +1308,7 @@ export async function buildInterruptResponse(
     lecturerConstraintPromptContext
       ? 'Respect lecturer constraints while answering the interruption.'
       : '',
-    'Task: Respond like a live tutor who was interrupted. Briefly acknowledge what the student said, answer or correct it directly, then ask exactly one short checkpoint question. Do not ask multiple questions. Do not continue into the next concept.',
+    'Task: Respond like a live tutor who was interrupted. The student\'s latest direct question or confusion overrides normal section pacing and must be resolved now, even when it asks for a concrete example of the concept currently being discussed. Answer or correct it directly in plain language. State any necessary scientific conditions and do not repeat an unsafe claim from the transcript. Use the session course code exactly; never invent or substitute another course code. Then ask exactly one short checkpoint question that verifies the clarification. Do not ask multiple questions and do not continue into the next concept.',
   ].join('\n\n');
 
   if (teacherBrainContext && contextMeta) {

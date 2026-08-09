@@ -1,23 +1,23 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowRight, BookOpen, LockKeyhole, Mail, Search, ShieldCheck } from "lucide-react-native";
+import { ArrowRight, BookOpen, LockKeyhole, Mail } from "lucide-react-native";
 
 import { Screen } from "../../components/layout/Screen";
 import { BrandWordmark } from "../../components/ui/BrandWordmark";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { GoogleSignInButton } from "../../components/auth/GoogleSignInButton";
 import api from "../../services/api";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useGoogleAuth } from "../../hooks/useGoogleAuth";
-import { colors } from "../../theme/colors";
-import { typography } from "../../theme/typography";
+import { useTheme } from "../../theme/ThemeContext";
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const { signInWithGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
+  const { loading: googleLoading, error: googleError } = useGoogleAuth();
+  const { colors, radius, space, typeScale } = useTheme();
+  const styles = useMemo(() => createStyles(colors, radius, space, typeScale), [colors, radius, space, typeScale]);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,10 @@ export const LoginScreen: React.FC = () => {
       const { user, accessToken, refreshToken, adminAccessToken } = response.data;
       setAuth(user, accessToken, refreshToken, adminAccessToken);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid email or password.");
+      setError(
+        err.response?.data?.message ||
+        (err.request ? "Unable to reach Akademi. Check your connection and try again." : "Sign in failed. Please try again."),
+      );
     } finally {
       setLoading(false);
     }
@@ -54,299 +57,168 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <Screen hideHeader style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <View style={styles.brandBadge}>
+      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={styles.shell}>
+          <View style={styles.topRow}>
             <BrandWordmark style={styles.brandText} />
-          </View>
-          <View style={styles.iconRow}>
-            <View style={styles.utilityIcon}>
-              <Search size={16} color={colors.textPrimary} />
-            </View>
             <TouchableOpacity
-              style={styles.authChip}
+              style={styles.signUpButton}
               onPress={() => navigation.navigate("UniversityPicker")}
-              activeOpacity={0.85}
+              activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Sign up"
+              accessibilityLabel="Create account"
             >
-              <Text style={styles.authChipText}>Sign Up</Text>
+              <Text style={styles.signUpText}>Create account</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <View style={styles.heroPanel}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.headline}>Sign In</Text>
-            <Text style={styles.subtext}>Continue your study sessions, saved materials, and exam prep.</Text>
+          <View style={styles.intro}>
+            <Text style={styles.eyebrow}>WELCOME BACK</Text>
+            <Text style={styles.headline}>Continue learning</Text>
+            <Text style={styles.subtext}>Sign in to return to your study sessions, course materials, and exam prep.</Text>
           </View>
-          <View style={styles.heroOrb}>
-            <ShieldCheck size={28} color={colors.background} />
-          </View>
-        </View>
 
-        <View style={styles.formPanel}>
-          {error || googleError ? (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error || googleError}</Text>
+          <View style={styles.form}>
+            {error || googleError ? (
+              <View style={styles.errorBanner} accessibilityLiveRegion="polite">
+                <Text style={styles.errorText}>{error || googleError}</Text>
+              </View>
+            ) : null}
+
+            <Input
+              label="Email address"
+              placeholder="name@example.com"
+              value={form.email}
+              onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              enableVoiceInput={false}
+              leftIcon={<Mail size={20} color={colors.fg.muted} />}
+            />
+
+            <Input
+              label="Password"
+              placeholder="Enter your password"
+              value={form.password}
+              onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
+              secureTextEntry
+              leftIcon={<LockKeyhole size={20} color={colors.fg.muted} />}
+              style={styles.passwordInput}
+            />
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate("ForgotPassword", { email: form.email })}
+              style={styles.forgotButton}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Reset your password"
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            <Button
+              label="Sign in"
+              onPress={handleLogin}
+              loading={loading}
+              disabled={loading || googleLoading}
+              style={styles.signInButton}
+              icon={<ArrowRight size={20} color={colors.brand.onFill} />}
+            />
+
+            <View style={styles.newUserBlock}>
+              <View style={styles.secondaryIcon}>
+                <BookOpen size={20} color={colors.brand.foreground} />
+              </View>
+              <View style={styles.secondaryCopy}>
+                <Text style={styles.secondaryTitle}>New to Akademi?</Text>
+                <Text style={styles.secondaryText}>Create your profile and add your course codes.</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("UniversityPicker")}
+                style={styles.inlineAction}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Get started"
+              >
+                <Text style={styles.inlineActionText}>Get started</Text>
+              </TouchableOpacity>
             </View>
-          ) : null}
-
-          <Input
-            label="Email"
-            placeholder="name@example.com"
-            value={form.email}
-            onChangeText={(text) => setForm({ ...form, email: text })}
-            keyboardType="email-address"
-            leftIcon={<Mail size={18} color={colors.textMuted} />}
-          />
-
-          <Input
-            label="Password"
-            placeholder="Enter your password"
-            value={form.password}
-            onChangeText={(text) => setForm({ ...form, password: text })}
-            secureTextEntry
-            leftIcon={<LockKeyhole size={18} color={colors.textMuted} />}
-            style={styles.passwordInput}
-          />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("ForgotPassword", { email: form.email })}
-            style={styles.forgotButton}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Forgot password"
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          <Button
-            label="Sign In"
-            onPress={handleLogin}
-            loading={loading}
-            disabled={loading || googleLoading}
-            style={styles.signInButton}
-            icon={<ArrowRight size={18} color="#FFFFFF" />}
-          />
-
-          <View style={styles.dividerRow}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.divider} />
           </View>
-
-          <GoogleSignInButton onPress={signInWithGoogle} loading={googleLoading} />
-
-          <View style={styles.dividerRow}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>New here?</Text>
-            <View style={styles.divider} />
-          </View>
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate("UniversityPicker")}
-            style={styles.secondaryCard}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Create your academic profile"
-          >
-            <View style={styles.secondaryIcon}>
-              <BookOpen size={18} color={colors.primary} />
-            </View>
-            <View style={styles.secondaryCopy}>
-              <Text style={styles.secondaryTitle}>Create your academic profile</Text>
-              <Text style={styles.secondaryText}>Set up your school, department, level, and course codes.</Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </Screen>
   );
 };
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  container: {
+const createStyles = (
+  colors: ReturnType<typeof useTheme>["colors"],
+  radius: ReturnType<typeof useTheme>["radius"],
+  space: ReturnType<typeof useTheme>["space"],
+  typeScale: ReturnType<typeof useTheme>["typeScale"],
+) => StyleSheet.create({
+  screen: { backgroundColor: colors.bg.canvas, flex: 1 },
+  page: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 28,
+    justifyContent: "center",
+    paddingHorizontal: space[5],
+    paddingVertical: space[6],
   },
+  shell: { alignSelf: "center", maxWidth: 520, width: "100%" },
   topRow: {
+    alignItems: "center",
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: space[8],
   },
-  brandBadge: {
+  brandText: { ...typeScale.title, color: colors.fg.primary },
+  signUpButton: {
     alignItems: "center",
-    backgroundColor: "#101412",
+    borderColor: colors.borderRoles.default,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#1D3528",
-    borderRadius: 18,
     justifyContent: "center",
-    minHeight: 42,
-    paddingHorizontal: 16,
+    minHeight: 48,
+    paddingHorizontal: space[4],
   },
-  brandText: {
-    ...typography.h4,
-    color: colors.textPrimary,
-  },
-  iconRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  utilityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  authChip: {
-    minHeight: 40,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#101412",
-    borderWidth: 1,
-    borderColor: "#1D3528",
-  },
-  authChipText: {
-    ...typography.bodySmall,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  heroPanel: {
-    backgroundColor: "#101412",
-    borderWidth: 1,
-    borderColor: "#1D3528",
-    borderRadius: 28,
-    marginBottom: 16,
-    minHeight: 192,
-    overflow: "hidden",
-    paddingHorizontal: 22,
-    paddingVertical: 20,
-    justifyContent: "space-between",
-  },
-  heroCopy: {
-    maxWidth: "72%",
-  },
-  headline: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    fontSize: 34,
-    lineHeight: 38,
-  },
-  subtext: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 19,
-    marginTop: 8,
-  },
-  heroOrb: {
-    position: "absolute",
-    right: -22,
-    bottom: -28,
-    width: 124,
-    height: 124,
-    borderRadius: 62,
-    backgroundColor: "#0A0D0B",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    paddingTop: 26,
-    paddingLeft: 24,
-  },
-  formPanel: {
-    backgroundColor: "#050505",
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "#1F1F1F",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 20,
-  },
+  signUpText: { ...typeScale.label, color: colors.fg.primary },
+  intro: { marginBottom: space[8] },
+  eyebrow: { ...typeScale.caption, color: colors.brand.foreground, fontWeight: "700", letterSpacing: 1.2, marginBottom: space[2] },
+  headline: { ...typeScale.display, color: colors.fg.primary },
+  subtext: { ...typeScale.body, color: colors.fg.secondary, marginTop: space[3], maxWidth: 460 },
+  form: { width: "100%" },
   errorBanner: {
-    backgroundColor: "rgba(239,68,68,0.12)",
-    borderColor: colors.error,
-    borderRadius: 12,
+    backgroundColor: colors.status.error.bg,
+    borderColor: colors.status.error.border,
+    borderRadius: radius.md,
     borderWidth: 1,
-    marginBottom: 14,
-    padding: 12,
+    marginBottom: space[4],
+    padding: space[4],
   },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    lineHeight: 18,
-  },
-  passwordInput: {
-    marginBottom: 8,
-  },
-  forgotButton: {
-    alignSelf: "flex-end",
-    marginBottom: 18,
-  },
-  forgotText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  signInButton: {
-    borderRadius: 999,
-    height: 52,
-  },
-  dividerRow: {
-    flexDirection: "row",
+  errorText: { ...typeScale.secondary, color: colors.status.error.fg },
+  passwordInput: { marginBottom: space[1] },
+  forgotButton: { alignSelf: "flex-end", justifyContent: "center", minHeight: 48, marginBottom: space[3] },
+  forgotText: { ...typeScale.label, color: colors.brand.foreground },
+  signInButton: { minHeight: 56 },
+  newUserBlock: {
     alignItems: "center",
-    gap: 10,
-    marginVertical: 18,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#1D1D1D",
-  },
-  dividerText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  secondaryCard: {
-    backgroundColor: "#101412",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#1D3528",
-    padding: 16,
+    borderTopColor: colors.borderRoles.subtle,
+    borderTopWidth: 1,
     flexDirection: "row",
-    alignItems: "center",
+    marginTop: space[8],
+    paddingTop: space[6],
   },
   secondaryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(34,197,94,0.14)",
     alignItems: "center",
+    backgroundColor: colors.brand.subtle,
+    borderRadius: radius.md,
+    height: 44,
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: space[3],
+    width: 44,
   },
-  secondaryCopy: {
-    flex: 1,
-  },
-  secondaryTitle: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
-  secondaryText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 16,
-  },
+  secondaryCopy: { flex: 1, paddingRight: space[2] },
+  secondaryTitle: { ...typeScale.label, color: colors.fg.primary },
+  secondaryText: { ...typeScale.caption, color: colors.fg.muted, marginTop: space[1] },
+  inlineAction: { justifyContent: "center", minHeight: 48, paddingHorizontal: space[2] },
+  inlineActionText: { ...typeScale.label, color: colors.brand.foreground },
 });

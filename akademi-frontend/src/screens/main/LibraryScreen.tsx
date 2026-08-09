@@ -11,7 +11,7 @@ import BottomSheet, { BottomSheetFlatList, BottomSheetScrollView, BottomSheetVie
 import * as DocumentPicker from "expo-document-picker";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import Animated, { FadeIn, FadeInUp, Layout, ZoomIn } from "react-native-reanimated";
-import { AlertCircle, BookOpen, FileUp, Plus, RefreshCw, Upload, UploadCloud, FileText, X } from "lucide-react-native";
+import { AlertCircle, BookOpen, CheckCircle2, ChevronRight, FileText, FileUp, FolderCheck, Layers, Plus, RefreshCw, Search, Sparkles, Upload, UploadCloud, X } from "lucide-react-native";
 
 const formatFileSize = (bytes?: number) => {
   if (!bytes) return "Unknown size";
@@ -72,6 +72,11 @@ export const LibraryScreen: React.FC = () => {
   const defaultCourseCode = userCourses[0] || "";
   const userLevel = typeof user?.level === "number" ? user.level : 100;
   const hasAcademicProfile = Boolean(user?.university && user?.faculty && user?.department && user?.level);
+
+  const verifiedCount = useMemo(
+    () => materials.filter((m) => m.verification_status === "VERIFIED").length,
+    [materials],
+  );
 
   const fetchMaterials = async () => {
     try {
@@ -163,45 +168,85 @@ export const LibraryScreen: React.FC = () => {
     fetchMaterials();
   };
 
+  const getCourseCodeString = (item: any): string | null => {
+    if (!item) return null;
+    if (typeof item === "string") return item.trim();
+    if (typeof item === "object") {
+      const code = item.code || item.course_code || item.courseCode;
+      if (typeof code === "string") return code.trim();
+    }
+    return null;
+  };
+
+  const normalizeCode = (code: string | null | undefined): string => {
+    if (!code) return "";
+    return code.replace(/[\s\-_]+/g, "").toUpperCase();
+  };
+
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    
-    // Helper to normalize course codes (remove all spaces, uppercase)
-    const normalize = (code: string) => code.replace(/\s+/g, "").toUpperCase();
-    const normalizedSelected = normalize(selectedCourse);
+    const normalizedSelected = normalizeCode(selectedCourse);
 
     return materials.filter((material) => {
-      const courseCode = material.course_code || "General";
-      const matchesCourse = selectedCourse === "All" || normalize(courseCode) === normalizedSelected;
+      const materialCodeStr = getCourseCodeString(material.course_code) || "General";
+      const normalizedMaterialCode = normalizeCode(materialCodeStr);
+
+      const matchesCourse =
+        selectedCourse === "All" ||
+        normalizedMaterialCode === normalizedSelected ||
+        materialCodeStr.toUpperCase() === selectedCourse.trim().toUpperCase();
+
       const matchesSearch =
         !query ||
         material.title.toLowerCase().includes(query) ||
-        courseCode.toLowerCase().includes(query);
+        materialCodeStr.toLowerCase().includes(query);
 
       return matchesCourse && matchesSearch;
     });
   }, [materials, searchQuery, selectedCourse]);
 
   const courses = useMemo(() => {
-    const normalize = (code: string) => code.replace(/\s+/g, "").toUpperCase();
-    
-    // Create a mapping from normalized code -> preferred display code (prefer userCourses)
     const displayMap = new Map<string, string>();
-    userCourses.forEach(c => displayMap.set(normalize(c), c));
-    
+
+    // 1. Extract from userCourses in store
+    if (Array.isArray(userCourses)) {
+      userCourses.forEach((c) => {
+        const str = getCourseCodeString(c);
+        if (str) {
+          const norm = normalizeCode(str);
+          if (norm && !displayMap.has(norm)) {
+            displayMap.set(norm, str.toUpperCase());
+          }
+        }
+      });
+    }
+
+    // 2. Extract from academicProfile student_courses
+    if (academicProfile?.student_courses) {
+      academicProfile.student_courses.forEach((c) => {
+        const str = getCourseCodeString(c);
+        if (str) {
+          const norm = normalizeCode(str);
+          if (norm && !displayMap.has(norm)) {
+            displayMap.set(norm, str.toUpperCase());
+          }
+        }
+      });
+    }
+
+    // 3. Extract from loaded materials
     materials.forEach((material) => {
-      const code = material.course_code;
-      if (code && code !== "General") {
-        const norm = normalize(code);
-        if (!displayMap.has(norm)) {
-          // If it's a completely new course not in user's profile, use the material's format
-          displayMap.set(norm, code);
+      const str = getCourseCodeString(material.course_code);
+      if (str && str.toUpperCase() !== "GENERAL") {
+        const norm = normalizeCode(str);
+        if (norm && !displayMap.has(norm)) {
+          displayMap.set(norm, str.toUpperCase());
         }
       }
     });
-    
+
     return Array.from(displayMap.values()).sort();
-  }, [materials, userCourses]);
+  }, [academicProfile, materials, userCourses]);
 
   // Exam Prep's "Study Now" navigates here with a course_code param scoped to that course.
   // Library is a persistent tab screen (not remounted per navigation), so re-apply the filter
@@ -210,7 +255,7 @@ export const LibraryScreen: React.FC = () => {
     useCallback(() => {
       const courseCode = route.params?.course_code;
       if (courseCode) {
-        setSelectedCourse(courseCode);
+        setSelectedCourse(courseCode.trim().toUpperCase());
       }
     }, [route.params?.course_code]),
   );
@@ -384,21 +429,39 @@ export const LibraryScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.headerTypography}>
-        <Text style={styles.title}>Library</Text>
-        <Text style={styles.subtitle}>
-          {materials.length} verified material{materials.length === 1 ? "" : "s"}
-        </Text>
+      <View style={styles.headerTopRow}>
+        <View style={styles.titleBadgeRow}>
+          <Text style={styles.title}>Library</Text>
+          {user?.department ? (
+            <View style={styles.deptBadge}>
+              <Text style={styles.deptBadgeText} numberOfLines={1}>
+                {user.department} {userLevel ? `• ${userLevel}L` : ""}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.searchBarContainer}>
-        <Input
-          label=""
-          placeholder="Search materials or course code..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={styles.searchInput}
-        />
+        <View style={styles.searchWrapper}>
+          <Input
+            label=""
+            placeholder="Search materials or course code..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            leftIcon={<Search size={18} color={colors.textMuted} />}
+            style={styles.searchInput}
+          />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              style={styles.clearSearchBtn}
+              activeOpacity={0.7}
+            >
+              <X size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       <CourseFilterTabs
@@ -430,8 +493,8 @@ export const LibraryScreen: React.FC = () => {
     if (error) {
       return (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon}>
-            <AlertCircle size={28} color={colors.warning} />
+          <View style={styles.emptyIconError}>
+            <AlertCircle size={30} color={colors.warning} />
           </View>
           <Text style={styles.emptyTitle}>Library unavailable</Text>
           <Text style={styles.emptyText}>{error}</Text>
@@ -443,19 +506,65 @@ export const LibraryScreen: React.FC = () => {
       );
     }
 
+    const isSearchFiltered = searchQuery.trim().length > 0;
+    const isCourseFiltered = selectedCourse !== "All";
+
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIcon}>
-          <BookOpen size={28} color={colors.primary} />
+          <BookOpen size={30} color={colors.primary} />
         </View>
         <Text style={styles.emptyTitle}>
-          {searchQuery || selectedCourse !== "All" ? "No matching materials" : "No verified materials yet"}
+          {isSearchFiltered
+            ? `No matches for "${searchQuery}"`
+            : isCourseFiltered
+              ? `No materials for ${selectedCourse}`
+              : "No verified materials yet"}
         </Text>
         <Text style={styles.emptyText}>
-          {searchQuery || selectedCourse !== "All"
-            ? "Try another course filter or search term."
-            : "Upload a course material to help build your department library. It becomes public after admin approval."}
+          {isSearchFiltered
+            ? `No materials in ${selectedCourse === "All" ? "the library" : selectedCourse} match your search.`
+            : isCourseFiltered
+              ? `Be the first to upload course materials for ${selectedCourse}! Uploads are published after review.`
+              : "Upload a course material to help build your department library. It becomes public after admin approval."}
         </Text>
+
+        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {(isSearchFiltered || isCourseFiltered) && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                setSelectedCourse("All");
+              }}
+              style={styles.resetFilterBtn}
+            >
+              <Text style={styles.resetFilterText}>Reset Filters</Text>
+            </TouchableOpacity>
+          )}
+
+          {isCourseFiltered && (
+            <TouchableOpacity
+              onPress={() => {
+                setUploadCourseCode(selectedCourse.toUpperCase());
+                bottomSheetRef.current?.expand();
+              }}
+              style={styles.uploadPromptBtn}
+            >
+              <UploadCloud size={16} color={colors.background} />
+              <Text style={styles.uploadPromptText}>Upload for {selectedCourse}</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isSearchFiltered && !isCourseFiltered && (
+            <TouchableOpacity
+              onPress={() => bottomSheetRef.current?.expand()}
+              style={styles.uploadPromptBtn}
+            >
+              <UploadCloud size={16} color={colors.background} />
+              <Text style={styles.uploadPromptText}>Upload First Material</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -660,30 +769,126 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   header: {
     paddingTop: 0,
-    marginBottom: 2,
+    marginBottom: 4,
+  },
+  headerTopRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    marginTop: 12,
+    marginBottom: 14,
   },
   headerTypography: {
-    paddingHorizontal: 18,
-    marginBottom: 20,
-    marginTop: 12,
+    flex: 1,
+    marginRight: 12,
+  },
+  titleBadgeRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
   title: {
     ...typography.h1,
     color: colors.textPrimary,
-    fontSize: 28,
+    fontSize: 26,
+  },
+  deptBadge: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.25)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  deptBadgeText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "700",
   },
   subtitle: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12.5,
     marginTop: 4,
+  },
+  myUploadsBtn: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  myUploadsBtnText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  statsGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+    paddingHorizontal: 18,
+  },
+  statCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 9,
+    padding: 10,
+  },
+  statIconCircle: {
+    alignItems: "center",
+    borderRadius: 8,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  statMeta: {
+    flex: 1,
+  },
+  statNumber: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    fontSize: 15,
+    lineHeight: 18,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "500",
   },
   searchBarContainer: {
     paddingHorizontal: 18,
     marginBottom: 16,
   },
+  searchWrapper: {
+    position: "relative",
+  },
   searchInput: {
     marginBottom: 0,
+  },
+  clearSearchBtn: {
+    alignItems: "center",
+    height: 36,
+    justifyContent: "center",
+    position: "absolute",
+    right: 12,
+    top: 6,
+    width: 36,
+    zIndex: 2,
   },
   listContent: {
     paddingBottom: 100,
@@ -721,15 +926,25 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 28,
+    paddingVertical: 36,
   },
   emptyIcon: {
     alignItems: "center",
     backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    height: 58,
+    borderRadius: 999,
+    height: 64,
     justifyContent: "center",
     marginBottom: 18,
-    width: 58,
+    width: 64,
+  },
+  emptyIconError: {
+    alignItems: "center",
+    backgroundColor: "rgba(245,158,11,0.12)",
+    borderRadius: 999,
+    height: 64,
+    justifyContent: "center",
+    marginBottom: 18,
+    width: 64,
   },
   emptyTitle: {
     ...typography.h3,
@@ -748,10 +963,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   retryButton: {
     alignItems: "center",
     backgroundColor: colors.primary,
-    borderRadius: 8,
+    borderRadius: 10,
     flexDirection: "row",
-    marginTop: 16,
-    paddingHorizontal: 16,
+    marginTop: 18,
+    paddingHorizontal: 18,
     paddingVertical: 10,
   },
   retryText: {
@@ -760,6 +975,38 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     fontSize: 12,
     fontWeight: "700",
     marginLeft: 8,
+  },
+  resetFilterBtn: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  resetFilterText: {
+    ...typography.body,
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  uploadPromptBtn: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+  },
+  uploadPromptText: {
+    ...typography.body,
+    color: colors.background,
+    fontSize: 12,
+    fontWeight: "700",
   },
   fab: {
     alignItems: "center",

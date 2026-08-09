@@ -142,19 +142,7 @@ export const RegisterScreen: React.FC = () => {
           </View>
         </View>
 
-        {googleError ? (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{googleError}</Text>
-          </View>
-        ) : null}
-
-        <GoogleSignInButton onPress={signInWithGoogle} loading={googleLoading} label="Sign up with Google" />
-
-        <View style={styles.dividerRow}>
-          <View style={styles.divider} />
-          <Text style={styles.dividerText}>or continue with email</Text>
-          <View style={styles.divider} />
-        </View>
+        {/* Google Sign-In is temporarily paused */}
 
         <View style={styles.profileSummaryCard}>
           <View style={styles.summaryIcon}>

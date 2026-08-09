@@ -54,15 +54,15 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
     const getIconConfig = () => {
       switch (fileType) {
         case "PDF":
-          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: ["#EF4444", "#991B1B"] as const };
+          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: ["#EF4444", "#B91C1C"] as const };
         case "STUDY_DOC":
-          return { icon: <FileStack size={20} color="#FFFFFF" />, bgColors: [colors.primary, "#166534"] as const };
+          return { icon: <FileStack size={20} color="#FFFFFF" />, bgColors: [colors.primary, "#15803D"] as const };
         case "SYSTEM_FILE":
-          return { icon: <Grid size={20} color="#FFFFFF" />, bgColors: ["#38BDF8", "#0284C7"] as const };
+          return { icon: <Grid size={20} color="#FFFFFF" />, bgColors: ["#38BDF8", "#0369A1"] as const };
         case "ETHICS":
-          return { icon: <Book size={20} color="#FFFFFF" />, bgColors: ["#A78BFA", "#6D28D9"] as const };
+          return { icon: <Book size={20} color="#FFFFFF" />, bgColors: ["#C084FC", "#6B21A8"] as const };
         default:
-          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: [colors.textMuted, colors.border] as const };
+          return { icon: <FileText size={20} color="#FFFFFF" />, bgColors: ["#6B7280", "#374151"] as const };
       }
     };
 
@@ -75,8 +75,11 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
         onPress={onPress}
         activeOpacity={0.82}
         style={styles.container}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${courseCode}${isVerified ? ", verified material" : ""}`}
+        accessibilityHint="Open this material"
       >
-        <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFillObject} />
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />
         
         <LinearGradient
           colors={bgColors}
@@ -131,6 +134,8 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
             onPress={onBookmarkPress}
             style={styles.bookmarkBtn}
             activeOpacity={0.65}
+            accessibilityRole="button"
+            accessibilityLabel={isBookmarked ? `Remove ${title} from bookmarks` : `Bookmark ${title}`}
           >
             <Bookmark
               size={20}
@@ -139,7 +144,9 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
             />
           </TouchableOpacity>
         ) : (
-          <ChevronRight size={18} color={colors.textMuted} />
+          <View style={styles.actionArrowCircle}>
+            <ChevronRight size={16} color={colors.textMuted} />
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -149,8 +156,8 @@ export const MaterialCard = React.forwardRef<any, MaterialCardProps>(
 const createStyles = (colors: typeof import("../../theme/colors").darkPalette) => StyleSheet.create({
   container: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(255,255,255,0.09)",
     borderRadius: 16,
     borderWidth: 1,
     flexDirection: "row",
@@ -166,21 +173,22 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     width: 48,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
   },
   content: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
     minWidth: 0,
   },
   title: {
     ...typography.h4,
     color: colors.textPrimary,
-    fontSize: 14,
-    lineHeight: 19,
-    marginBottom: 8,
+    fontSize: 14.5,
+    fontWeight: "600",
+    lineHeight: 20,
+    marginBottom: 7,
   },
   metaRow: {
     alignItems: "center",
@@ -190,42 +198,50 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     marginBottom: 6,
   },
   coursePill: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderColor: "rgba(34,197,94,0.25)",
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   courseText: {
     ...typography.caption,
     color: colors.primary,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "700",
   },
   verifiedBadge: {
     alignItems: "center",
     backgroundColor: "rgba(34,197,94,0.1)",
-    borderRadius: 5,
+    borderColor: "rgba(34,197,94,0.2)",
+    borderRadius: 6,
+    borderWidth: 1,
     flexDirection: "row",
     paddingHorizontal: 7,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   verifiedText: {
     color: colors.primary,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: "800",
+    letterSpacing: 0.5,
   },
   pendingBadge: {
     alignItems: "center",
     backgroundColor: "rgba(245,158,11,0.12)",
-    borderRadius: 5,
+    borderColor: "rgba(245,158,11,0.25)",
+    borderRadius: 6,
+    borderWidth: 1,
     flexDirection: "row",
     paddingHorizontal: 7,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   pendingText: {
     color: colors.warning,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: "800",
+    letterSpacing: 0.5,
   },
   badgeIcon: {
     marginRight: 3,
@@ -234,12 +250,13 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 2,
   },
   footerText: {
     ...typography.caption,
     color: colors.textMuted,
     flex: 1,
-    fontSize: 10,
+    fontSize: 11,
     marginRight: 8,
   },
   ratingContainer: {
@@ -250,10 +267,20 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   ratingText: {
     ...typography.caption,
     color: colors.warning,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
   },
   bookmarkBtn: {
     marginLeft: 8,
-    padding: 4,
+    padding: 6,
+  },
+  actionArrowCircle: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 999,
+    height: 32,
+    justifyContent: "center",
+    marginLeft: 8,
+    width: 32,
   },
 });

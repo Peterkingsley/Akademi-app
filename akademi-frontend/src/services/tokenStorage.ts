@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 const ACCESS_TOKEN_KEY = "akademi.accessToken";
@@ -9,6 +10,11 @@ const LEGACY_REFRESH_TOKEN_KEY = "refreshToken";
 const AUTH_STORAGE_KEY = "auth-storage";
 
 let secureStoreAvailable: Promise<boolean> | null = null;
+
+const getWebSessionStorage = () => {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+  return window.sessionStorage;
+};
 
 const canUseSecureStore = () => {
   if (!secureStoreAvailable) {
@@ -46,6 +52,16 @@ const migrateLegacyToken = async (legacyKey: string, secureKey: string) => {
 };
 
 export const saveTokens = async (accessToken: string, refreshToken: string, adminAccessToken?: string | null) => {
+  const webStorage = getWebSessionStorage();
+  if (webStorage) {
+    webStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    webStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    if (adminAccessToken) webStorage.setItem(ADMIN_ACCESS_TOKEN_KEY, adminAccessToken);
+    else webStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+    await stripTokensFromAuthStorage();
+    return;
+  }
+
   if (!(await canUseSecureStore())) {
     throw new Error("Secure token storage is not available on this device.");
   }
@@ -62,6 +78,9 @@ export const saveTokens = async (accessToken: string, refreshToken: string, admi
 };
 
 export const readAccessToken = async () => {
+  const webStorage = getWebSessionStorage();
+  if (webStorage) return webStorage.getItem(ACCESS_TOKEN_KEY);
+
   if (await canUseSecureStore()) {
     const token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
     if (token) return token;
@@ -71,6 +90,9 @@ export const readAccessToken = async () => {
 };
 
 export const readRefreshToken = async () => {
+  const webStorage = getWebSessionStorage();
+  if (webStorage) return webStorage.getItem(REFRESH_TOKEN_KEY);
+
   if (await canUseSecureStore()) {
     const token = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
     if (token) return token;
@@ -80,6 +102,9 @@ export const readRefreshToken = async () => {
 };
 
 export const readAdminAccessToken = async () => {
+  const webStorage = getWebSessionStorage();
+  if (webStorage) return webStorage.getItem(ADMIN_ACCESS_TOKEN_KEY);
+
   if (await canUseSecureStore()) {
     return SecureStore.getItemAsync(ADMIN_ACCESS_TOKEN_KEY);
   }
@@ -98,6 +123,13 @@ export const readStoredTokens = async () => {
 };
 
 export const clearTokens = async () => {
+  const webStorage = getWebSessionStorage();
+  if (webStorage) {
+    webStorage.removeItem(ACCESS_TOKEN_KEY);
+    webStorage.removeItem(REFRESH_TOKEN_KEY);
+    webStorage.removeItem(ADMIN_ACCESS_TOKEN_KEY);
+  }
+
   if (await canUseSecureStore()) {
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),

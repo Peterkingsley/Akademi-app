@@ -46,6 +46,7 @@ import { CompetitionResultScreen } from "../screens/main/CompetitionResultScreen
 import { TournamentDetailScreen } from "../screens/main/TournamentDetailScreen";
 import { AITutorScreen } from "../screens/main/AITutorScreen";
 import { StudyCompanionScreen } from "../screens/main/StudyCompanionScreen";
+import { SolveCoursePickerScreen } from "../screens/main/SolveCoursePickerScreen";
 
 const Stack = createStackNavigator<MainStackParamList>();
 
@@ -60,6 +61,7 @@ export const MainStack = () => {
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="AITutor" component={AITutorScreen} />
       <Stack.Screen name="StudyCompanion" component={StudyCompanionScreen} />
+      <Stack.Screen name="SolveCoursePicker" component={SolveCoursePickerScreen} />
       <Stack.Screen
         name="AssignmentResult"
         component={AssignmentResultScreen}

@@ -44,7 +44,10 @@ export const CourseFilterTabs: React.FC<CourseFilterTabsProps> = ({
         )}
 
         {["All", ...courses].map((course) => {
-          const isSelected = selectedCourse === course;
+          const normalizeCode = (str: string) => (str || "").replace(/[\s\-_]+/g, "").toUpperCase();
+          const isSelected =
+            selectedCourse === course ||
+            (selectedCourse !== "All" && course !== "All" && normalizeCode(selectedCourse) === normalizeCode(course));
           return (
             <TouchableOpacity
               key={course}

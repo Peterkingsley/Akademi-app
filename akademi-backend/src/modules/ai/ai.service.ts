@@ -1,4 +1,4 @@
-import { ReplyMode } from '@prisma/client';
+import { ReplyMode, VerificationStatus } from '@prisma/client';
 import { config } from '../../config/env';
 import prisma from '../../config/db';
 import { assembleSystemPrompt, buildWhiteboardMathSystemPrompt, buildEssayBlueprintSystemPrompt, graphSystemPrompt, ExplanationDepth, PROMPT_VERSION, QuestionIntent, stripTeacherNotebook } from './ai.prompts';
@@ -21,6 +21,62 @@ const COMMUNITY_STOP_WORDS = new Set([
   'that', 'their', 'them', 'then', 'there', 'these', 'they', 'thing', 'this',
   'topic', 'understand', 'what', 'when', 'where', 'which', 'with', 'would',
 ]);
+
+async function buildCourseMaterialContext(
+  courseCode: string | null,
+  university: string,
+  department: string,
+  question: string,
+): Promise<string> {
+  if (!courseCode) return '';
+
+  const queryTokens = new Set(tokenizeForRelevance(question));
+  let chunks;
+  try {
+    chunks = await prisma.materialEmbedding.findMany({
+      where: {
+        material: {
+          course_code: { equals: courseCode, mode: 'insensitive' },
+          verification_status: VerificationStatus.VERIFIED,
+          unpublished_at: null,
+          OR: [{ university }, { department }, { is_akademi_generated: true }],
+        },
+      },
+      select: {
+        chunk_index: true,
+        chunk_text: true,
+        material: { select: { title: true } },
+      },
+      take: 160,
+    });
+  } catch (error) {
+    console.error('course_material_context_failed', { courseCode, error });
+    return '';
+  }
+
+  const ranked = chunks
+    .map((chunk) => {
+      const chunkTokens = new Set(tokenizeForRelevance(chunk.chunk_text));
+      let score = 0;
+      queryTokens.forEach((token) => {
+        if (chunkTokens.has(token)) score += 1;
+      });
+      return { ...chunk, score };
+    })
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  if (!ranked.length) return '';
+
+  return [
+    `Selected course material context for ${courseCode}:`,
+    ...ranked.map((chunk) =>
+      `[${chunk.material.title}, chunk ${chunk.chunk_index}] ${chunk.chunk_text.slice(0, 700)}`
+    ),
+    'Use these excerpts as the primary reference when relevant. Do not invent claims that are not supported by them; use general academic knowledge only to fill necessary gaps.',
+  ].join('\n\n');
+}
 
 function tokenizeForRelevance(value: unknown): string[] {
   return String(value || '')
@@ -858,6 +914,13 @@ Decide whether this needs a graph or chart, and if so extract the raw data for i
       orderBy: { version: 'desc' },
     });
 
+    const courseMaterialContext = await buildCourseMaterialContext(
+      session.course_code,
+      session.university,
+      session.department,
+      studentMessage,
+    );
+
     // Standalone assignment questions always get STUDY - the deepest teaching depth.
     // The assignment pager has no chat input for follow-ups, and its promise is that a
     // zero-background student can understand the full working from this single reply;
@@ -929,6 +992,8 @@ Important:
     const questionIntent = this.getQuestionIntent(studentMessage);
     const isBoardEligible = this.isBoardEligibleQuestion(studentMessage, session);
     const systemPrompt = [
+      `Student academic context:\nUniversity: ${session.university}\nDepartment: ${session.department}\nSelected course: ${session.course_code || 'GENERAL'}`,
+      courseMaterialContext,
       assembleSystemPrompt(
       disciplineDocument,
       learningProfile,

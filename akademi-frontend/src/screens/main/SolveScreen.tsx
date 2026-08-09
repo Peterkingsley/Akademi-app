@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   Alert,
   ScrollView,
@@ -9,16 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Keyboard,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as DocumentPicker from "expo-document-picker";
-import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import {
   BookOpen,
   Camera,
-  Check,
   ChevronDown,
   FileText,
   Mic,
@@ -30,7 +27,6 @@ import {
 
 import { Screen } from "../../components/layout/Screen";
 import api from "../../services/api";
-import { useAuthStore } from "../../store/useAuthStore";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import { useVoiceComposer } from "../../hooks/useVoiceComposer";
@@ -48,9 +44,7 @@ export const SolveScreen: React.FC = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { photoUri } = route.params || {};
-  const { user } = useAuthStore();
-  const userCourses = (user as any)?.courses || [];
+  const { photoUri, selectedCourseCode } = route.params || {};
 
   const [answerMode, setAnswerMode] = useState<AnswerMode>("DIRECT");
   const [question, setQuestion] = useState("");
@@ -59,29 +53,28 @@ export const SolveScreen: React.FC = () => {
   const [documentLoading, setDocumentLoading] = useState(false);
   const [detectedQuestions, setDetectedQuestions] = useState<DetectedQuestion[] | null>(null);
 
-  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["50%", "75%"], []);
-
   const hasQuestion = question.trim().length > 0;
-  const hasCourse = course !== "Select Course";
-  const courseCode = hasCourse ? course : null;
+  const courseCode = course === "Select Course" ? null : course;
 
-  const courseOptions = [
-    "Select Course",
-    ...Array.from(
-      new Set<string>(
-        userCourses.filter(
-          (item: unknown): item is string => typeof item === "string" && item.trim().length > 0
-        )
-      )
-    ),
-  ];
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: false,
+    });
+  }, [navigation]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (photoUri) {
       setQuestion((prev) => prev || "Photo selected. Add the question details or any extra instruction here.");
     }
   }, [photoUri]);
+
+  React.useEffect(() => {
+    if (typeof selectedCourseCode === "string" && selectedCourseCode.trim()) {
+      setCourse(selectedCourseCode.trim().toUpperCase());
+    } else if (selectedCourseCode === null) {
+      setCourse("Select Course");
+    }
+  }, [selectedCourseCode]);
 
   const {
     isRecording,
@@ -207,17 +200,6 @@ export const SolveScreen: React.FC = () => {
     }
   };
 
-  const handlePresentModalPress = useCallback(() => {
-    console.log("Presenting course modal");
-    Keyboard.dismiss();
-    bottomSheetModalRef.current?.present();
-  }, []);
-
-  const renderBackdrop = useCallback(
-    (props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />,
-    []
-  );
-
   return (
     <Screen hideHeader style={styles.screen}>
       <KeyboardAvoidingView
@@ -225,41 +207,34 @@ export const SolveScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerEyebrow}>Assignment Help</Text>
-            <Text style={styles.headerTitle}>Solve it and learn it</Text>
-          </View>
-          <AnimatedPressable onPress={() => navigation.navigate("Home")} style={styles.closeButton}>
+          <Text style={styles.headerTitle}>Solve it and learn it</Text>
+          <AnimatedPressable
+            onPress={() => navigation.navigate("Home")}
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Close Solve"
+          >
             <X size={22} color={colors.textPrimary} />
           </AnimatedPressable>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.pillContainer}>
-            <AnimatedPressable style={styles.pill} onPress={handlePresentModalPress}>
-              <Text style={styles.pillText} numberOfLines={1}>{hasCourse ? course : "Select Course"}</Text>
-              <ChevronDown size={14} color={colors.textSecondary} />
-            </AnimatedPressable>
+        <View style={styles.courseSelectorRow}>
+          <Text style={styles.courseSelectorLabel}>Course context</Text>
+          <AnimatedPressable
+            style={[styles.coursePill, courseCode && styles.pillActive]}
+            onPress={() => navigation.navigate("SolveCoursePicker", { selectedCourseCode: courseCode })}
+            accessibilityRole="button"
+            accessibilityLabel={courseCode ? `Course context: ${courseCode}` : "Select course context"}
+            accessibilityHint="Opens your course list"
+          >
+            <Text style={[styles.pillText, courseCode && styles.pillTextActive]} numberOfLines={1}>
+              {courseCode || "Select course"}
+            </Text>
+            <ChevronDown size={14} color={courseCode ? colors.primary : colors.textSecondary} />
+          </AnimatedPressable>
+        </View>
 
-            <AnimatedPressable
-              style={[styles.pill, answerMode === "STUDY" && styles.pillActive]}
-              onPress={() => setAnswerMode(answerMode === "DIRECT" ? "STUDY" : "DIRECT")}
-            >
-              {answerMode === "DIRECT" ? (
-                <Zap size={14} color={colors.textSecondary} />
-              ) : (
-                <BookOpen size={14} color={colors.primary} />
-              )}
-              <Text style={[styles.pillText, answerMode === "STUDY" && styles.pillTextActive]}>
-                {answerMode === "DIRECT" ? "Quick Solve" : "Step-by-Step"}
-              </Text>
-            </AnimatedPressable>
-          </View>
-        </ScrollView>
+        <View style={styles.mainWorkspace} />
 
         <View style={[styles.omniboxContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
           {detectedQuestions && detectedQuestions.length > 1 && (
@@ -284,6 +259,7 @@ export const SolveScreen: React.FC = () => {
                 setQuestion(text);
               }}
               textAlignVertical="top"
+              accessibilityLabel="Assignment question"
             />
 
             <View style={styles.omniboxToolbar}>
@@ -292,6 +268,9 @@ export const SolveScreen: React.FC = () => {
                   onPress={handlePhotoPress}
                   style={styles.toolIconWrap}
                   disabled={documentLoading || audioLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Take a photo of a question"
+                  accessibilityState={{ disabled: documentLoading || audioLoading }}
                 >
                   <Camera size={20} color={colors.textSecondary} />
                 </AnimatedPressable>
@@ -300,6 +279,9 @@ export const SolveScreen: React.FC = () => {
                   onPress={handleFilePress}
                   style={styles.toolIconWrap}
                   disabled={documentLoading || audioLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel="Attach a question document"
+                  accessibilityState={{ disabled: documentLoading || audioLoading, busy: documentLoading }}
                 >
                   {documentLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -312,6 +294,9 @@ export const SolveScreen: React.FC = () => {
                   onPress={handleVoicePress}
                   style={[styles.toolIconWrap, isRecording && styles.toolIconRecording]}
                   disabled={documentLoading || audioLoading}
+                  accessibilityRole="button"
+                  accessibilityLabel={isRecording ? "Stop recording question" : "Record question by voice"}
+                  accessibilityState={{ disabled: documentLoading || audioLoading, busy: audioLoading }}
                 >
                   {audioLoading ? (
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -319,12 +304,33 @@ export const SolveScreen: React.FC = () => {
                     <Mic size={20} color={isRecording ? "#EF4444" : colors.textSecondary} />
                   )}
                 </AnimatedPressable>
+
+                <AnimatedPressable
+                  style={[styles.pill, answerMode === "STUDY" && styles.pillActive]}
+                  onPress={() => setAnswerMode(answerMode === "DIRECT" ? "STUDY" : "DIRECT")}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Answer mode: ${answerMode === "DIRECT" ? "Quick Solve" : "Step-by-Step"}`}
+                  accessibilityHint="Switch answer mode"
+                >
+                  {answerMode === "DIRECT" ? (
+                    <Zap size={14} color={colors.textSecondary} />
+                  ) : (
+                    <BookOpen size={14} color={colors.primary} />
+                  )}
+                  <Text style={[styles.pillText, answerMode === "STUDY" && styles.pillTextActive]}>
+                    {answerMode === "DIRECT" ? "Quick Solve" : "Step-by-Step"}
+                  </Text>
+                </AnimatedPressable>
+
               </View>
 
               <AnimatedPressable
                 style={[styles.solveButton, (!hasQuestion || loading) && styles.solveButtonDisabled]}
                 onPress={handleSolve}
                 disabled={!hasQuestion || loading}
+                accessibilityRole="button"
+                accessibilityLabel="Solve question"
+                accessibilityState={{ disabled: !hasQuestion || loading, busy: loading }}
               >
                 {loading ? (
                   <ActivityIndicator color={colors.background} size="small" />
@@ -337,38 +343,6 @@ export const SolveScreen: React.FC = () => {
         </View>
       </KeyboardAvoidingView>
 
-      <BottomSheetModal
-        ref={bottomSheetModalRef}
-        index={0}
-        snapPoints={snapPoints}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: colors.surface }}
-        handleIndicatorStyle={{ backgroundColor: colors.border }}
-      >
-        <View style={styles.sheetContent}>
-          <Text style={styles.sheetTitle}>Select Course Context</Text>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
-            {courseOptions.map((item) => {
-              const selected = item === course;
-              return (
-                <AnimatedPressable
-                  key={item}
-                  style={[styles.sheetItem, selected && styles.sheetItemActive]}
-                  onPress={() => {
-                    setCourse(item);
-                    bottomSheetModalRef.current?.dismiss();
-                  }}
-                >
-                  <Text style={[styles.sheetItemText, selected && styles.sheetItemTextActive]}>
-                    {item === "Select Course" ? "No course context" : item}
-                  </Text>
-                  {selected && <Check size={18} color={colors.primary} />}
-                </AnimatedPressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </BottomSheetModal>
     </Screen>
   );
 };
@@ -380,6 +354,9 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       flex: 1,
     },
     keyboardView: {
+      flex: 1,
+    },
+    mainWorkspace: {
       flex: 1,
     },
     header: {
@@ -428,19 +405,43 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       borderRadius: 20,
       borderWidth: 1,
       flexDirection: "row",
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      maxWidth: "50%",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginLeft: 4,
     },
     pillActive: {
       borderColor: "rgba(34,197,94,0.4)",
       backgroundColor: "rgba(34,197,94,0.1)",
     },
+    coursePill: {
+      alignItems: "center",
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: 4,
+      maxWidth: 180,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    courseSelectorRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingTop: 4,
+    },
+    courseSelectorLabel: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 12,
+    },
     pillText: {
       ...typography.bodySmall,
       color: colors.textPrimary,
-      fontSize: 13,
+      fontSize: 12,
     },
     pillTextActive: {
       color: colors.primary,
@@ -495,8 +496,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       paddingTop: 4,
     },
     omniboxTools: {
+      alignItems: "center",
       flexDirection: "row",
       gap: 4,
+      flex: 1,
     },
     toolIconWrap: {
       alignItems: "center",
@@ -518,38 +521,5 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     solveButtonDisabled: {
       opacity: 0.5,
-    },
-    sheetContent: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    sheetTitle: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      marginBottom: 16,
-      marginTop: 8,
-    },
-    sheetScroll: {
-      paddingBottom: 40,
-    },
-    sheetItem: {
-      alignItems: "center",
-      borderBottomColor: colors.border,
-      borderBottomWidth: 1,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingVertical: 16,
-    },
-    sheetItemActive: {
-      borderBottomColor: "rgba(34,197,94,0.3)",
-    },
-    sheetItemText: {
-      ...typography.body,
-      color: colors.textPrimary,
-      fontSize: 16,
-    },
-    sheetItemTextActive: {
-      color: colors.primary,
-      fontWeight: "600",
     },
   });

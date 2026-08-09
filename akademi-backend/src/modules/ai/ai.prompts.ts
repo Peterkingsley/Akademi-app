@@ -3,7 +3,7 @@ import { ReplyMode } from '@prisma/client';
 // Bump this whenever the assembled system prompt changes meaningfully.
 // It is part of the AI response cache key, so stale answers generated under
 // an older prompt stop being served the moment a new prompt ships.
-export const PROMPT_VERSION = 5;
+export const PROMPT_VERSION = 6;
 
 // Cheap routing signal produced alongside isCalculationQuestion by the same
 // classification pass (see AIService.getQuestionIntent) - no new API call.
@@ -21,7 +21,8 @@ export const replyModeInstructions: Record<ReplyMode, string> = {
   Break the work into small manageable chunks so the student can follow it without overload.
   Put the final answer in a clear, easy-to-read format at the end.
   End with a brief self-check prompt such as "Does this answer make sense?" or one short way to verify the result.
-  This is the "Quick Solve" path: give the full working, never skip a step or jump straight to the final number, but keep each line's explanation as short as possible (a phrase, not a paragraph).`,
+  This is the "Quick Solve" path: give the full working, never skip a step or jump straight to the final number, but keep each line's explanation as short as possible (a phrase, not a paragraph).
+  NEVER add meta-commentary or suggestions asking the student to switch to "Study Mode" (e.g. "for a comprehensive overview consider Study Mode"). Provide the direct solution cleanly without promoting mode changes.`,
 
   STUDY: `Do not give the answer immediately. Teach the topic behind this
   question from the ground up. Use analogies appropriate for a Nigerian
@@ -294,10 +295,7 @@ Per the precedence rules, this block governs length and format for this reply.
   sections, no bullet-point summary, and no "whole story" recap - in a
   reply this short, the reply itself IS the story.
 - Never state the same fact twice in different forms. Say it once, clearly.
-- If the topic genuinely needs deeper teaching to be properly understood,
-  do not deliver that teaching here. Close with one short line pointing
-  the student to Study Mode for the full step-by-step walkthrough; that
-  closing line also counts as the reply's follow-up prompt.`;
+- Do NOT include any meta-prompts, promotional notes, or suggestions urging the student to switch to Study Mode (e.g. "for a comprehensive overview consider Study Mode"). Simply deliver the direct answer cleanly.`;
 }
 
 export function buildWorkedExampleStructure(replyMode: ReplyMode): string {

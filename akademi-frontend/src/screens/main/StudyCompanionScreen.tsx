@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Audio } from "expo-av";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, Mic, Route as RouteIcon, Send, Upload } from "lucide-react-native";
+import { ArrowLeft, Mic, Route as RouteIcon, Send, Upload, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { Screen } from "../../components/layout/Screen";
@@ -36,7 +36,6 @@ import {
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import {
-  estimateSpeechDurationMs,
   prepareAudioRecording,
   requestMicrophonePermission,
   speakAiTextStream,
@@ -78,6 +77,14 @@ const statusColors = {
   NEEDS_REVIEW: "#F59E0B",
   MASTERED: "#22C55E",
 } as const;
+
+const runtimeLabels: Record<TutorRuntimeState, string> = {
+  idle: "Your turn",
+  ai_speaking: "Tutor speaking",
+  recording: "Recording",
+  student_speaking: "Sending answer",
+  thinking: "Tutor thinking",
+};
 
 const roadmapBadgeText: Record<StudyRoadmapSection["status"], string> = {
   NOT_STARTED: "Not started",
@@ -211,6 +218,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [startModalVisible, setStartModalVisible] = useState(false);
+  const [startingMode, setStartingMode] = useState<StartMode | null>(null);
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
@@ -440,35 +448,9 @@ export const StudyCompanionScreen: React.FC = () => {
     const fullContent = message.content || "";
     currentAiSpeechTextRef.current = fullContent;
 
-    // Math-heavy messages render through RichMathText, which is a WebView rebuilt from its
-    // content prop. Streaming displayContent word-by-word forces a full WebView reload every
-    // ~45ms - the page never finishes loading KaTeX, the bubble blinks at its reset height,
-    // and no text ever appears (while TTS keeps speaking independently). For these messages,
-    // show the full content immediately so the WebView mounts exactly once.
-    if (looksMathHeavy(fullContent)) {
-      finalizeAiMessage(message.id, fullContent);
-    }
-
-    const words = fullContent.split(/\s+/).filter(Boolean);
-    if (words.length && !looksMathHeavy(fullContent)) {
-      const durationMs = estimateSpeechDurationMs(fullContent);
-      const stepMs = Math.max(45, Math.floor(durationMs / words.length));
-      let visibleCount = 0;
-      revealTimerRef.current = setInterval(() => {
-        if (playbackTokenRef.current !== token || currentAiMessageIdRef.current !== message.id) {
-          cancelRevealTimer();
-          return;
-        }
-        visibleCount = Math.min(words.length, visibleCount + 1);
-        const displayContent = words.slice(0, visibleCount).join(" ");
-        setMessages((prev) =>
-          prev.map((item) => (item.id === message.id ? { ...item, displayContent } : item)),
-        );
-        if (visibleCount >= words.length) {
-          cancelRevealTimer();
-        }
-      }, stepMs);
-    }
+    // Text is the primary learning path. Voice is optional and must never delay
+    // a student from reading the complete Tutor response.
+    finalizeAiMessage(message.id, fullContent);
 
     beginAutoContinuePrefetch(message);
     const voiceResult = await speakAiTextStream(sessionId, fullContent);
@@ -542,8 +524,10 @@ export const StudyCompanionScreen: React.FC = () => {
   const handleStart = useCallback(async (mode: StartMode, sectionTitle?: string) => {
     if (requestInFlightRef.current) return;
     requestInFlightRef.current = true;
+    setStartingMode(mode);
     setError(null);
     setTutorState("thinking");
+    setStartModalVisible(false);
 
     try {
       const message = await sessionService.sendCompanionTurn(sessionId, {
@@ -551,7 +535,6 @@ export const StudyCompanionScreen: React.FC = () => {
         mode,
         section_title: sectionTitle,
       });
-      setStartModalVisible(false);
       setSpecificSection("");
       await refreshCompanionState();
       await processTutorMessage(message);
@@ -560,6 +543,7 @@ export const StudyCompanionScreen: React.FC = () => {
       setTutorState("idle");
     } finally {
       requestInFlightRef.current = false;
+      setStartingMode(null);
     }
   }, [processTutorMessage, refreshCompanionState, sessionId, setTutorState]);
 
@@ -702,7 +686,13 @@ export const StudyCompanionScreen: React.FC = () => {
         keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton} activeOpacity={0.85}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.iconButton}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Back to AI Tutor materials"
+          >
             <ArrowLeft size={22} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerBody}>
@@ -722,7 +712,7 @@ export const StudyCompanionScreen: React.FC = () => {
         <View style={styles.statusBar}>
           <Text style={styles.statusLabel}>{phaseLabel}</Text>
           {progressLabel ? <Text style={styles.statusValue}>{progressLabel}</Text> : null}
-          <Text style={styles.statusValue}>{runtimeState.replace(/_/g, " ")}</Text>
+          <Text style={styles.statusValue}>{runtimeLabels[runtimeState]}</Text>
         </View>
 
         {whiteboardExperimentsEnabled ? (
@@ -777,11 +767,13 @@ export const StudyCompanionScreen: React.FC = () => {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>Ready to begin</Text>
+              <Text style={styles.emptyTitle}>{runtimeState === "thinking" ? "Preparing your first lesson" : "Ready to begin"}</Text>
               <Text style={styles.emptyText}>
-                Start the live tutor and Akademi will teach in spoken turns, wait for your answers, and keep the mic open.
+                {runtimeState === "thinking"
+                  ? "Akademi is grounding the lesson in your selected material."
+                  : "Start the tutor for short explanations, guided questions, and teach-back checks."}
               </Text>
-              {!startModalVisible ? (
+              {!startModalVisible && runtimeState !== "thinking" ? (
                 <Button
                   title="Start Session"
                   onPress={() => setStartModalVisible(true)}
@@ -819,13 +811,14 @@ export const StudyCompanionScreen: React.FC = () => {
               placeholderTextColor={colors.textMuted}
               multiline
               style={styles.input}
+              accessibilityLabel="Your answer"
             />
             <View style={styles.composerStatusRow}>
               <Text style={styles.composerStatusText}>{micStatusText}</Text>
               <Text style={styles.composerStatusText}>{phaseLabel}</Text>
             </View>
             <View style={styles.composerActions}>
-              <Pressable onPress={handleUploadSolution} style={styles.smallAction}>
+              <Pressable onPress={handleUploadSolution} style={styles.smallAction} accessibilityRole="button" accessibilityLabel="Upload solution image">
                 <Upload size={18} color={colors.textSecondary} />
               </Pressable>
               <Pressable
@@ -834,12 +827,18 @@ export const StudyCompanionScreen: React.FC = () => {
                   styles.smallAction,
                   recording ? styles.smallActionActive : null,
                 ]}
+                accessibilityRole="button"
+                accessibilityLabel={recording ? "Stop recording" : "Record answer"}
               >
                 <Mic size={18} color={recording ? "#08130C" : colors.textSecondary} />
               </Pressable>
               <Pressable
                 onPress={() => void handleSendText()}
                 style={[styles.sendButton, !input.trim() || requestInFlightRef.current ? styles.sendButtonDisabled : null]}
+                disabled={!input.trim() || requestInFlightRef.current}
+                accessibilityRole="button"
+                accessibilityLabel="Send answer"
+                accessibilityState={{ disabled: !input.trim() || requestInFlightRef.current }}
               >
                 <Send size={18} color="#08130C" />
               </Pressable>
@@ -857,6 +856,15 @@ export const StudyCompanionScreen: React.FC = () => {
                     Choose how you want Akademi to begin this study session.
                   </Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => setStartModalVisible(false)}
+                  style={styles.modalCloseButton}
+                  disabled={Boolean(startingMode)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close start options"
+                >
+                  <X size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
               </View>
 
               {/* Interactive Option Cards */}
@@ -864,29 +872,50 @@ export const StudyCompanionScreen: React.FC = () => {
                 {/* Option 1: Start from Beginning */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  style={styles.optionCardPrimary}
+                  style={[styles.optionCardPrimary, Boolean(startingMode) && { opacity: 0.85 }]}
                   onPress={() => handleStart("beginning")}
+                  disabled={Boolean(startingMode)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Start from beginning"
+                  accessibilityState={{ disabled: Boolean(startingMode), busy: startingMode === "beginning" }}
                 >
                   <View style={styles.optionCardHeader}>
                     <Text style={styles.optionTitlePrimary}>Start from beginning</Text>
-                    <View style={styles.optionBadgePrimary}>
-                      <Text style={styles.optionBadgeTextPrimary}>RECOMMENDED</Text>
-                    </View>
+                    {startingMode === "beginning" ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <View style={styles.optionBadgePrimary}>
+                        <Text style={styles.optionBadgeTextPrimary}>RECOMMENDED</Text>
+                      </View>
+                    )}
                   </View>
                   <Text style={styles.optionSubPrimary}>
-                    Begin from section 1 with full Socratic breakdown
+                    {startingMode === "beginning"
+                      ? "Starting AI Tutor session..."
+                      : "Begin from section 1 with full Socratic breakdown"}
                   </Text>
                 </TouchableOpacity>
 
                 {/* Option 2: Continue Progress */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  style={styles.optionCardSecondary}
+                  style={[styles.optionCardSecondary, Boolean(startingMode) && { opacity: 0.85 }]}
                   onPress={() => handleStart("continue")}
+                  disabled={Boolean(startingMode)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue where I stopped"
+                  accessibilityState={{ disabled: Boolean(startingMode), busy: startingMode === "continue" }}
                 >
-                  <Text style={styles.optionTitleSecondary}>Continue where I stopped</Text>
+                  <View style={styles.optionCardHeader}>
+                    <Text style={styles.optionTitleSecondary}>Continue where I stopped</Text>
+                    {startingMode === "continue" && (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    )}
+                  </View>
                   <Text style={styles.optionSubSecondary}>
-                    Pick up right from your last active section
+                    {startingMode === "continue"
+                      ? "Resuming your last active section..."
+                      : "Pick up right from your last active section"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -901,17 +930,26 @@ export const StudyCompanionScreen: React.FC = () => {
                     placeholder="Type section title..."
                     placeholderTextColor={colors.textMuted}
                     style={styles.specificInput}
+                    editable={!startingMode}
+                    accessibilityLabel="Section title"
                   />
                   <TouchableOpacity
                     activeOpacity={0.85}
                     style={[
                       styles.specificGoBtn,
-                      !specificSection.trim() && styles.specificGoBtnDisabled,
+                      (!specificSection.trim() || Boolean(startingMode)) && styles.specificGoBtnDisabled,
                     ]}
                     onPress={() => handleStart("specific", specificSection.trim())}
-                    disabled={!specificSection.trim()}
+                    disabled={!specificSection.trim() || Boolean(startingMode)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Start from specific section"
+                    accessibilityState={{ disabled: !specificSection.trim() || Boolean(startingMode), busy: startingMode === "specific" }}
                   >
-                    <Text style={styles.specificGoText}>Start →</Text>
+                    {startingMode === "specific" ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.specificGoText}>Start →</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1295,6 +1333,14 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     modalHeaderTitleWrap: {
       flex: 1,
+    },
+    modalCloseButton: {
+      alignItems: "center",
+      borderRadius: 12,
+      height: 44,
+      justifyContent: "center",
+      marginLeft: 8,
+      width: 44,
     },
     modalTitle: {
       ...typography.h2,

@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { ArrowLeft, Share2, Book, Send, Sparkles } from "lucide-react-native";
+import { ArrowLeft, Share2, Send, Sparkles } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
@@ -104,8 +104,7 @@ export const AssignmentResultScreen: React.FC = () => {
       setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
       setGraphSpec(firstAiMsg?.metadata?.graph?.payload || null);
       setLoadFailed(false);
-      
-      // Auto scroll to bottom if loading new messages
+
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -139,13 +138,12 @@ export const AssignmentResultScreen: React.FC = () => {
       user_id: "temp",
       role: "STUDENT",
       content,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     try {
       setFollowUp("");
-      // Optimistic update
-      setMessages(prev => [...prev, optimisticMsg]);
+      setMessages((prev) => [...prev, optimisticMsg]);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
 
       await sessionService.sendMessage(sessionId, {
@@ -163,8 +161,7 @@ export const AssignmentResultScreen: React.FC = () => {
           ? "Akademi took too long to respond. Your reply is still here, so try again in a moment."
           : "Please check your connection and try again."
       );
-      // Remove optimistic
-      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
     } finally {
       setSendingFollowUp(false);
     }
@@ -172,8 +169,8 @@ export const AssignmentResultScreen: React.FC = () => {
 
   const handleShare = async () => {
     try {
-      const q = messages.find(m => m.role === "STUDENT")?.content || "";
-      const a = messages.find(m => m.role === "AI")?.content || "";
+      const q = messages.find((m) => m.role === "STUDENT")?.content || "";
+      const a = messages.find((m) => m.role === "AI")?.content || "";
       await Share.share({
         message: `Akademi AI Answer:\n\nQuestion: ${q}\n\nAnswer: ${a}`,
       });
@@ -211,14 +208,14 @@ export const AssignmentResultScreen: React.FC = () => {
 
   return (
     <Screen style={styles.screen} hideHeader>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {/* FROSTED GLASS HEADER */}
-        <BlurView 
-          intensity={80} 
-          tint={isDark ? "dark" : "light"} 
+        <BlurView
+          intensity={80}
+          tint={isDark ? "dark" : "light"}
           style={[styles.headerBlur, { paddingTop: Math.max(insets.top, 16) }]}
         >
           <View style={styles.headerInner}>
@@ -228,6 +225,7 @@ export const AssignmentResultScreen: React.FC = () => {
               </AnimatedPressable>
               <Text style={[styles.headerTitle, typography.h3]}>Result</Text>
             </View>
+
             <View style={styles.headerActions}>
               <AiVoiceToggleButton enabled={aiVoiceEnabled} onPress={toggleAiVoice} />
               <AnimatedPressable onPress={handleShare} style={styles.shareBtn}>
@@ -238,9 +236,9 @@ export const AssignmentResultScreen: React.FC = () => {
         </BlurView>
 
         {/* CHAT STREAM */}
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
-          showsVerticalScrollIndicator={false} 
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 70, paddingBottom: 100 }]}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
@@ -253,10 +251,10 @@ export const AssignmentResultScreen: React.FC = () => {
               <View key={message.id || index.toString()} style={[styles.messageRow, isStudent ? styles.rowStudent : styles.rowAi]}>
                 {!isStudent && (
                   <View style={styles.avatarWrap}>
-                     <Avatar size={32} name="Akademi Synthesis" />
+                    <Avatar size={32} name="Akademi Synthesis" />
                   </View>
                 )}
-                
+
                 <View style={[styles.bubble, isStudent ? styles.bubbleStudent : styles.bubbleAi]}>
                   {isFirstAI && (
                     <View style={styles.aiHeader}>
@@ -291,7 +289,7 @@ export const AssignmentResultScreen: React.FC = () => {
 
                 {/* SMART CHIP FOR STUDY MODE */}
                 {isFirstAI && replyMode !== "STUDY" && (
-                  <AnimatedPressable 
+                  <AnimatedPressable
                     style={styles.studyChip}
                     onPress={() => navigation.navigate("StudyMode", { sessionId })}
                   >
@@ -305,42 +303,41 @@ export const AssignmentResultScreen: React.FC = () => {
         </ScrollView>
 
         {/* FLOATING COMPOSER */}
-        <BlurView 
-          intensity={90} 
-          tint={isDark ? "dark" : "light"} 
+        <BlurView
+          intensity={90}
+          tint={isDark ? "dark" : "light"}
           style={[styles.composerBlur, { paddingBottom: Math.max(insets.bottom, 16) }]}
         >
           <View style={styles.composerInner}>
-             <TextInput
-               value={followUp}
-               onChangeText={setFollowUp}
-               placeholder={isRecording ? "Listening..." : "Ask a follow-up..."}
-               placeholderTextColor={colors.textMuted}
-               style={styles.composerInput}
-               multiline
-             />
-             <View style={styles.composerActions}>
-               <VoiceInputButton
-                 onPress={toggleRecording}
-                 isRecording={isRecording}
-                 isTranscribing={isTranscribing}
-                 style={styles.composerVoiceBtn}
-               />
-               <AnimatedPressable
-                 style={[styles.sendButton, (!followUp.trim() || sendingFollowUp || isTranscribing) && styles.sendButtonDisabled]}
-                 onPress={handleFollowUp}
-                 disabled={!followUp.trim() || sendingFollowUp || isTranscribing}
-               >
-                 {sendingFollowUp ? (
-                   <ActivityIndicator size="small" color="#FFFFFF" />
-                 ) : (
-                   <Send size={16} color="#FFFFFF" />
-                 )}
-               </AnimatedPressable>
-             </View>
+            <TextInput
+              value={followUp}
+              onChangeText={setFollowUp}
+              placeholder={isRecording ? "Listening..." : "Ask a follow-up..."}
+              placeholderTextColor={colors.textMuted}
+              style={styles.composerInput}
+              multiline
+            />
+            <View style={styles.composerActions}>
+              <VoiceInputButton
+                onPress={toggleRecording}
+                isRecording={isRecording}
+                isTranscribing={isTranscribing}
+                style={styles.composerVoiceBtn}
+              />
+              <AnimatedPressable
+                style={[styles.sendButton, (!followUp.trim() || sendingFollowUp || isTranscribing) && styles.sendButtonDisabled]}
+                onPress={handleFollowUp}
+                disabled={!followUp.trim() || sendingFollowUp || isTranscribing}
+              >
+                {sendingFollowUp ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Send size={16} color="#FFFFFF" />
+                )}
+              </AnimatedPressable>
+            </View>
           </View>
         </BlurView>
-
       </KeyboardAvoidingView>
       <AskAkademiModal visible={isAskModalVisible} onClose={() => setIsAskModalVisible(false)} contextText={selectedText} />
     </Screen>
@@ -457,7 +454,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginTop: 12,
-    marginLeft: 44, 
+    marginLeft: 44,
     gap: 6,
   },
   studyChipText: {

@@ -577,7 +577,7 @@ export class StudyCompanionService {
       refreshQuestion
         ? isThrowbackQuestion
           ? `End the opening with this one throwback recall question, framed briefly as a quick check on an earlier idea before continuing: ${refreshQuestion}`
-          : `End the opening with this one prequestion before teaching begins. Make clear a guess is welcome and expected: ${refreshQuestion}`
+          : `End the opening with this one content diagnostic before teaching begins. Make clear a guess is welcome and expected: ${refreshQuestion}`
         : 'This is a fresh section start.',
       `Section content:\n${truncate(section.content, 3500)}`,
       lessonPlan.lessonObjective ? `Follow this lesson objective: ${lessonPlan.lessonObjective}` : '',
@@ -597,11 +597,11 @@ export class StudyCompanionService {
       ...introRefreshPlan.lines,
       lecturerConstraintContext?.promptContext ? 'Respect lecturer constraints. Do not violate required order, required methods, forbidden methods, terminology, unit policy, proof policy, calculation policy, or diagram policy.' : '',
       isFirstEverCompanionSession
-        ? 'This is the student\'s first ever session with you. Before the hook, add one short warm welcome contract in plain talk: you will teach in short bursts, you will ask real questions constantly, wrong answers are fuel not failure, and they will explain things back to you because that is how it sticks for the exam. Keep it to one or two sentences, then continue into the hook.'
+        ? 'This is the student\'s first ever session with you. Add at most one short welcoming sentence. Do not explain the tutoring method yet; begin teaching the selected material immediately.'
         : '',
       refreshQuestion
-        ? 'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences plus the one question already specified above. Name the topic or exam-shaped hook first, then end with exactly that one question and stop right after it. Do not answer the question yourself. Do not ask any other question. Do not dump multiple prerequisites in the intro. Do not ask for permission to begin. Do not say Ready or Let us begin.'
-        : 'Task: Write the opening tutor message and begin the lesson naturally. Keep the opening to 2 to 4 short sentences maximum. Name the topic, state the learning goal, and use at most one light hook or concrete anchor. Do not dump multiple prerequisites in the intro. Do not ask for permission to begin. Do not say Ready or Let us begin. Do not ask the student a question yet.',
+        ? 'Task: Write the opening tutor message and begin the lesson immediately. Keep it to 2 to 4 short sentences plus the one question specified above. State one concrete capability the student will gain, then teach or demonstrate one useful idea from the supplied section before asking the question. The question must test the section content or a prerequisite needed for it; never ask about the purpose of an introduction, course, chapter, lecture note, or academic section. Never praise the course generally. End with exactly the specified question and stop. Do not answer it, ask another question, dump prerequisites, ask permission, or say Ready or Let us begin.'
+        : 'Task: Write the opening tutor message and begin the lesson immediately. Keep it to 2 to 4 short sentences. State one concrete capability the student will gain and teach or demonstrate one useful idea from the supplied section. Anchor the explanation to a formula, definition, worked step, diagram, or real example actually present in the material. Never discuss the purpose of an introduction, course, chapter, lecture note, or academic section, and never praise the course generally. Do not dump prerequisites, ask permission, say Ready or Let us begin, or ask the student a question yet.',
     ].join('\n\n');
     const introQualityTrace: TutorQualityTraceCapture = {
       issues: [],
@@ -939,6 +939,65 @@ export class StudyCompanionService {
 
     if (!trimmed) {
       throw new Error('Please send a response so Akademi can continue the study flow.');
+    }
+
+    const asksDirectQuestion = !isAutoContinue && /\?/.test(trimmed);
+    const expressesConfusion = !isAutoContinue && /\b(i\s+(?:am|'m)\s+confused|i\s+(?:do not|don't)\s+understand|i\s+(?:do not|don't)\s+know|not\s+sure|please\s+explain|was\s+(?:i|that)\s+(?:correct|right|wrong)|you\s+did\s+not\s+(?:answer|explain|correct))\b/i.test(trimmed);
+    const clarificationEligiblePhases = new Set<string>([
+      PASS_1,
+      PASS_2,
+      PASS_3,
+      TEACHBACK_1,
+      TEACHBACK_2,
+      GAP_RETEACH,
+    ]);
+
+    if (
+      !isAutoContinue &&
+      (asksDirectQuestion || expressesConfusion) &&
+      clarificationEligiblePhases.has(state.current_phase)
+    ) {
+      const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const trace = await startTutorTrace(buildTraceSeed(state.current_phase, 'checkpoint_question', 'resolve_student_clarification', true));
+      try {
+        const aiStartedAt = Date.now();
+        const content = await buildInterruptResponse(
+          section,
+          trimmed,
+          teachingDecision,
+          teacherBrainContext,
+          contextMeta,
+          studentMemoryContext.promptContext,
+          lecturerConstraintContext?.promptContext || '',
+          relevantMaterialContext,
+          qualityTrace,
+          sessionTranscriptContext,
+        );
+        trace.aiLatencyMs += Date.now() - aiStartedAt;
+        await persistRoadmap(state.id, roadmap, {
+          current_phase: state.current_phase,
+          pending_prompt: content,
+          section_context: {
+            ...sectionContext,
+            clarificationPending: true,
+            clarificationSource: trimmed,
+          } as Prisma.InputJsonValue,
+        });
+        trace.quality = qualityTrace;
+        await finishTutorTrace(trace, { content, qualityGuardrailUsed: true });
+        return {
+          content,
+          metadata: await buildTurnMetadata(sessionId, 'checkpoint_question', {
+            nextAction: 'evaluate_answer',
+            waitForStudent: true,
+            autoContinue: false,
+            questionCount: Math.max(1, questionCountForContent(content)),
+          }),
+        };
+      } catch (error) {
+        await failTutorTrace(trace, error);
+        throw error;
+      }
     }
 
     if (state.current_phase === PASS_1) {
@@ -1333,22 +1392,35 @@ export class StudyCompanionService {
         },
       });
 
+      const memoryQualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
+      const memoryPrompt = await buildMemoryDumpPrompt(
+        section,
+        teachingDecision,
+        teacherBrainContext,
+        contextMeta,
+        lecturerConstraintContext?.promptContext || '',
+        lessonPlan,
+        memoryQualityTrace,
+        sessionTranscriptContext,
+      );
+      const combinedContent = `${evaluation.evaluation}\n\n${memoryPrompt}`.trim();
       await persistRoadmap(state.id, roadmap, {
         current_phase: MEMORY_DUMP,
-        pending_prompt: evaluation.evaluation,
+        pending_prompt: memoryPrompt,
         section_context: {
-          nextPromptKind: 'memory_dump',
           coveredConcepts: safeStringArray(sectionContext.coveredConcepts),
         } as Prisma.InputJsonValue,
       });
       const response = {
-        content: evaluation.evaluation,
-        metadata: await buildTurnMetadata(sessionId, 'evaluation', {
-          nextAction: 'continue_teaching',
-          questionCount: questionCountForContent(evaluation.evaluation),
+        content: combinedContent,
+        metadata: await buildTurnMetadata(sessionId, 'checkpoint_question', {
+          nextAction: 'evaluate_answer',
+          waitForStudent: true,
+          autoContinue: false,
+          questionCount: Math.max(1, questionCountForContent(memoryPrompt)),
         }),
       };
-      await finishTutorTrace(trace, { content: evaluation.evaluation, qualityGuardrailUsed: false });
+      await finishTutorTrace(trace, { content: combinedContent, qualityGuardrailUsed: true });
       return response;
     }
 
