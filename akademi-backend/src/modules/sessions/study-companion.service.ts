@@ -1104,7 +1104,7 @@ export class StudyCompanionService {
         }
       }
 
-      if (isInterrupt || !isAutoContinue) {
+      if (isInterrupt) {
         const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
         const trace = await startTutorTrace(buildTraceSeed(PASS_1, 'checkpoint_question', 'interrupt_response', true));
         try {
@@ -1112,9 +1112,13 @@ export class StudyCompanionService {
           const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
-            current_phase: TEACHBACK_1,
+            current_phase: state.current_phase,
             pending_prompt: content,
-            section_context: {} as Prisma.InputJsonValue,
+            section_context: {
+              ...sectionContext,
+              clarificationPending: true,
+              clarificationSource: trimmed,
+            } as Prisma.InputJsonValue,
           });
           const response = {
             content,
@@ -1209,7 +1213,7 @@ export class StudyCompanionService {
         }
       }
 
-      if (isInterrupt || !isAutoContinue) {
+      if (isInterrupt) {
         const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
         const trace = await startTutorTrace(buildTraceSeed(PASS_2, 'checkpoint_question', 'interrupt_response', true));
         try {
@@ -1217,9 +1221,13 @@ export class StudyCompanionService {
           const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
-            current_phase: TEACHBACK_1,
+            current_phase: state.current_phase,
             pending_prompt: content,
-            section_context: {} as Prisma.InputJsonValue,
+            section_context: {
+              ...sectionContext,
+              clarificationPending: true,
+              clarificationSource: trimmed,
+            } as Prisma.InputJsonValue,
           });
           const response = {
             content,
@@ -1275,7 +1283,7 @@ export class StudyCompanionService {
     }
 
     if (state.current_phase === PASS_3) {
-      if (isInterrupt || !isAutoContinue) {
+      if (isInterrupt) {
         const qualityTrace: TutorQualityTraceCapture = { issues: [], regenerated: false, fallbackUsed: false, correctionApplied: false };
         const trace = await startTutorTrace(buildTraceSeed(PASS_3, 'checkpoint_question', 'interrupt_response', true));
         try {
@@ -1283,9 +1291,13 @@ export class StudyCompanionService {
           const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, studentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', relevantMaterialContext, qualityTrace, sessionTranscriptContext);
           trace.aiLatencyMs += Date.now() - aiStartedAt;
           await persistRoadmap(state.id, roadmap, {
-            current_phase: TEACHBACK_1,
+            current_phase: state.current_phase,
             pending_prompt: content,
-            section_context: {} as Prisma.InputJsonValue,
+            section_context: {
+              ...sectionContext,
+              clarificationPending: true,
+              clarificationSource: trimmed,
+            } as Prisma.InputJsonValue,
           });
           const response = {
             content,
@@ -1521,7 +1533,7 @@ export class StudyCompanionService {
         };
       }
 
-      if (isInterrupt || !isAutoContinue) {
+      if (isInterrupt) {
         const content = await buildInterruptResponse(section, trimmed, teachingDecision, teacherBrainContext, contextMeta, '', lecturerConstraintContext?.promptContext || '', relevantMaterialContext, undefined, sessionTranscriptContext);
         // Route to wherever this reteach cycle was actually headed (mirrors the resolution at
         // the bottom of this GAP_RETEACH block, ~line 1509) instead of always forcing

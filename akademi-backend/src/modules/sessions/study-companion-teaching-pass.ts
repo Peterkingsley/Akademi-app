@@ -482,6 +482,8 @@ export async function evaluateTeachBack(
   const evaluation = await generateText(
     prompt,
     companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
       sectionTitle: section.title,
       turnIntent: 'evaluate',
     }),
