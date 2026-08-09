@@ -246,7 +246,7 @@ export function buildDeterministicTeachbackPrompt(
     return `Teach-Back 1: Explain ${section.title} in your own words${keyConcepts.length ? ` using these key ideas: ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Do not copy the definition; respond like you understand it.`;
   }
 
-  return `Teach-Back 2: Explain ${section.title} again, this time correcting the missing ideas${keyConcepts.length ? ` around ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Respond clearly in your own words.`;
+  return `Final Teach-Back: Explain ${section.title} again, correcting the missing ideas${keyConcepts.length ? ` around ${truncateList(keyConcepts, 3, 50).join(', ')}` : ''}. Respond clearly in your own words.`;
 }
 
 export function estimateConceptLoad(content: string) {

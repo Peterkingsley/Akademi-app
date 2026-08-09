@@ -224,10 +224,22 @@ export async function enforceTutorMessageQuality(
       materialId: string;
       sectionIndex: number;
       prompt: string;
+      courseCode?: string | null;
+      materialTitle?: string | null;
     };
     qualityTrace?: TutorQualityTraceCapture;
   },
 ) {
+  const selectedCourseCode = String(args.contextMeta?.courseCode || '').trim();
+  const selectedCourseMatch = selectedCourseCode.match(/^([A-Za-z]+)\s*(\d{3})$/);
+  const identitySafeContent = selectedCourseMatch
+    ? args.content.replace(
+        new RegExp(`\\b${selectedCourseMatch[1]}\\s*\\d{3}\\b`, 'gi'),
+        selectedCourseCode,
+      )
+    : args.content;
+  const qualityArgs = { ...args, content: identitySafeContent };
+
   console.log('tutor_quality_check_started', {
     phase: args.phase,
     turnType: args.turnType,
@@ -235,7 +247,7 @@ export async function enforceTutorMessageQuality(
     sectionTitle: args.section.title,
   });
 
-  const validation = validateTutorMessageQuality(args);
+  const validation = validateTutorMessageQuality(qualityArgs);
   if (validation.passed) {
     if (args.qualityTrace) {
       args.qualityTrace.issues = [];
@@ -245,7 +257,7 @@ export async function enforceTutorMessageQuality(
       turnType: args.turnType,
       prompt: args.contextMeta?.prompt,
     });
-    return normalizeText(args.content);
+    return normalizeText(identitySafeContent);
   }
 
   console.log('tutor_quality_check_failed', {
@@ -353,15 +365,31 @@ export async function enforceTutorMessageQuality(
 
     const regenerated = await generateText(
       regenerationPrompt,
-      companionSystemPrompt(),
+      companionSystemPrompt({
+        courseCode: args.contextMeta?.courseCode,
+        materialTitle: args.contextMeta?.materialTitle,
+        sectionTitle: args.section.title,
+        turnIntent:
+          args.responseIntent === 'direct_answer'
+            ? 'direct_answer'
+            : args.turnType === 'checkpoint_question'
+              ? 'teachback'
+              : 'teach',
+      }),
       args.maxTokens || 320,
     );
+    const regeneratedIdentitySafe = selectedCourseMatch
+      ? regenerated.replace(
+          new RegExp(`\\b${selectedCourseMatch[1]}\\s*\\d{3}\\b`, 'gi'),
+          selectedCourseCode,
+        )
+      : regenerated;
     const secondPass = validateTutorMessageQuality({
-      ...args,
-      content: regenerated,
+      ...qualityArgs,
+      content: regeneratedIdentitySafe,
     });
     if (secondPass.passed) {
-      return normalizeText(regenerated);
+      return normalizeText(regeneratedIdentitySafe);
     }
     if (secondPass.correctedContent) {
       if (args.qualityTrace) {
@@ -386,7 +414,26 @@ export async function enforceTutorMessageQuality(
     });
   }
 
-  const fallback = buildDeterministicTutorFallback(args);
+  // A generic checkpoint fallback would turn a clarification into an unrelated
+  // teach-back prompt. Preserve a non-empty direct answer instead; the state
+  // machine will keep the current phase unchanged and wait for the student.
+  if (args.responseIntent === 'direct_answer') {
+    const directAnswer = normalizeText(identitySafeContent || '');
+    if (directAnswer) {
+      if (args.qualityTrace) {
+        args.qualityTrace.fallbackUsed = false;
+        args.qualityTrace.correctionApplied = true;
+      }
+      console.log('direct_answer_preserved_after_quality_check', {
+        phase: args.phase,
+        prompt: args.contextMeta?.prompt,
+        issues: validation.issues,
+      });
+      return directAnswer;
+    }
+  }
+
+  const fallback = buildDeterministicTutorFallback(qualityArgs);
   if (args.qualityTrace) {
     args.qualityTrace.fallbackUsed = true;
     args.qualityTrace.correctionApplied = true;

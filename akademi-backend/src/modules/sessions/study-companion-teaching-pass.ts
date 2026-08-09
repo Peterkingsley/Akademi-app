@@ -42,14 +42,25 @@ import {
   generateText,
 } from './study-companion-quality-relevance';
 import { enforceTutorMessageQuality } from './study-companion-tutor-trace';
-import { companionSystemPrompt } from './study-companion-session-state';
+import {
+  buildCompanionTurnContract,
+  companionSystemPrompt,
+} from './study-companion-session-state';
+
+type TutorPromptMeta = {
+  sessionId: string;
+  materialId: string;
+  sectionIndex: number;
+  courseCode?: string | null;
+  materialTitle?: string | null;
+};
 
 export async function buildTeachingPass(
   section: RoadmapSection,
   pass: 1 | 2 | 3,
   decision: TeachingDecision,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   teacherBrainSectionContext?: TeacherBrainSectionContext,
   studentMemoryPromptContext = '',
   lecturerConstraintPromptContext = '',
@@ -177,6 +188,12 @@ export async function buildTeachingPass(
     .join('\n');
 
   const prompt = [
+    buildCompanionTurnContract({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'teach',
+    }),
     `Section title: ${section.title}`,
     sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -288,7 +305,16 @@ export async function buildTeachingPass(
       repairMode: decision.prerequisiteRepairMode,
     });
   }
-  const rawContent = await generateText(prompt, companionSystemPrompt(), 900);
+  const rawContent = await generateText(
+    prompt,
+    companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'teach',
+    }),
+    900,
+  );
   const content = await enforceTutorMessageQuality({
     content: rawContent,
     prompt,
@@ -324,7 +350,7 @@ export async function evaluateTeachBack(
   studentResponse: string,
   attemptNumber: number,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   teacherBrainSectionContext?: TeacherBrainSectionContext,
   lessonPlan?: StudySectionLessonPlanRecord,
   relevantMaterialContext?: RelevantMaterialContext,
@@ -377,6 +403,12 @@ export async function evaluateTeachBack(
     prerequisiteRepairActive: false,
   });
   const prompt = [
+    buildCompanionTurnContract({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'evaluate',
+    }),
     `Section title: ${section.title}`,
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
     lessonPlan?.promptContext
@@ -395,6 +427,7 @@ export async function evaluateTeachBack(
       : '',
     `Section content:\n${truncate(section.content, 3000)}`,
     `Student teach-back attempt ${attemptNumber}:\n${studentResponse}`,
+    'Evaluation contract: decide whether the student met the core learning objective, not whether they repeated every optional detail. If the answer contains a factual misconception, say explicitly that the claim is incorrect, give the corrected fact, and briefly explain why before any follow-up. Do not hide a correction inside a vague hint. Treat enrichment details as optional. Identify at most one highest-impact missing idea per turn.',
     lessonPlan?.checkpointFocus.length
       ? `Checkpoint focus: ${truncateList(lessonPlan.checkpointFocus, 4, 120).join(' | ')}`
       : '',
@@ -446,7 +479,14 @@ export async function evaluateTeachBack(
       deferredDepthCount: depthPlan.deferredDepthConcepts.length,
     });
   }
-  const evaluation = await generateText(prompt, companionSystemPrompt(), 500);
+  const evaluation = await generateText(
+    prompt,
+    companionSystemPrompt({
+      sectionTitle: section.title,
+      turnIntent: 'evaluate',
+    }),
+    500,
+  );
   return {
     evaluation,
     score: heuristicScore,
@@ -458,7 +498,7 @@ export async function evaluateMemoryDump(
   section: RoadmapSection,
   studentResponse: string,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   teacherBrainSectionContext?: TeacherBrainSectionContext,
   lessonPlan?: StudySectionLessonPlanRecord,
   relevantMaterialContext?: RelevantMaterialContext,
@@ -583,7 +623,16 @@ export async function evaluateMemoryDump(
       deferredDepthCount: depthPlan.deferredDepthConcepts.length,
     });
   }
-  const evaluation = await generateText(prompt, companionSystemPrompt(), 450);
+  const evaluation = await generateText(
+    prompt,
+    companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'evaluate',
+    }),
+    450,
+  );
   return {
     evaluation,
     score: heuristicScore,
@@ -625,7 +674,14 @@ export async function evaluatePrerequisiteRepair(
     'evaluation should be 2 to 4 short sentences and mention exactly what is clear or still weak.',
     'remainingWeaknesses must be a short array.',
   ].join('\n\n');
-  const raw = await generateText(prompt, companionSystemPrompt(), 220);
+  const raw = await generateText(
+    prompt,
+    companionSystemPrompt({
+      sectionTitle: section.title,
+      turnIntent: 'evaluate',
+    }),
+    220,
+  );
   let parsedJson: Record<string, unknown> | null = null;
   try {
     parsedJson = JSON.parse(raw);
@@ -681,7 +737,7 @@ export async function buildTeachBackPrompt(
   attemptNumber: 1 | 2,
   decision: TeachingDecision,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   teacherBrainSectionContext?: TeacherBrainSectionContext,
   lecturerConstraintPromptContext = '',
   lessonPlan?: StudySectionLessonPlanRecord,
@@ -828,9 +884,22 @@ export async function buildTeachBackPrompt(
     });
   }
   const checkpointMaxTokens = isCompletionProblemCheckpoint ? 380 : 220;
+  if (!isCompletionProblemCheckpoint) {
+    return buildDeterministicTeachbackPrompt(
+      section,
+      attemptNumber,
+      lessonPlan?.checkpointFocus || [],
+      'teachback',
+    );
+  }
   const rawContent = await generateText(
     prompt,
-    companionSystemPrompt(),
+    companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'teachback',
+    }),
     checkpointMaxTokens,
   );
   const content = await enforceTutorMessageQuality({
@@ -879,7 +948,7 @@ export async function buildMemoryDumpPrompt(
   section: RoadmapSection,
   decision: TeachingDecision,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   lecturerConstraintPromptContext = '',
   lessonPlan?: StudySectionLessonPlanRecord,
   qualityTrace?: TutorQualityTraceCapture,
@@ -981,41 +1050,14 @@ export async function buildMemoryDumpPrompt(
       repairMode: decision.prerequisiteRepairMode,
     });
   }
-  const rawContent = await generateText(prompt, companionSystemPrompt(), 220);
-  const content = await enforceTutorMessageQuality({
-    content: rawContent,
-    prompt,
-    maxTokens: 220,
-    phase: 'CHECKPOINT',
-    turnType: 'checkpoint_question',
+  void prompt;
+  void qualityTrace;
+  return buildDeterministicTeachbackPrompt(
     section,
-    isCalculationHeavy: false,
-    isDiagramHeavy: false,
-    questionAllowed: true,
-    coveredConcepts: [],
-    isFirstIntro: false,
-    targetWordRange: pacing.targetWordRange,
-    lessonScope,
-    teachingDepthPlan: depthPlan,
-    contextMeta: contextMeta
-      ? { ...contextMeta, prompt: 'memory_dump_prompt' }
-      : undefined,
-    qualityTrace,
-  });
-  const sentenceCount = content.split(/(?<=[.!?])\s+/).filter(Boolean).length;
-  if (sentenceCount > 2) {
-    console.log('teachback_prompt_simplified', {
-      ...contextMeta,
-      attemptNumber: 'memory_dump',
-    });
-    return buildDeterministicTeachbackPrompt(
-      section,
-      1,
-      lessonPlan?.checkpointFocus || [],
-      'memory_dump',
-    );
-  }
-  return content;
+    1,
+    lessonPlan?.checkpointFocus || [],
+    'memory_dump',
+  );
 }
 
 export async function buildGapReteach(
@@ -1023,7 +1065,7 @@ export async function buildGapReteach(
   failedConcepts: string[],
   decision: TeachingDecision,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   teacherBrainSectionContext?: TeacherBrainSectionContext,
   lecturerConstraintPromptContext = '',
   lessonPlan?: StudySectionLessonPlanRecord,
@@ -1210,7 +1252,16 @@ export async function buildGapReteach(
       repairMode: decision.prerequisiteRepairMode,
     });
   }
-  const rawContent = await generateText(prompt, companionSystemPrompt(), 650);
+  const rawContent = await generateText(
+    prompt,
+    companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'reteach',
+    }),
+    650,
+  );
   return enforceTutorMessageQuality({
     content: rawContent,
     prompt,
@@ -1239,7 +1290,7 @@ export async function buildInterruptResponse(
   studentResponse: string,
   decision: TeachingDecision,
   teacherBrainContext = '',
-  contextMeta?: { sessionId: string; materialId: string; sectionIndex: number },
+  contextMeta?: TutorPromptMeta,
   studentMemoryPromptContext = '',
   lecturerConstraintPromptContext = '',
   relevantMaterialContext?: RelevantMaterialContext,
@@ -1278,6 +1329,12 @@ export async function buildInterruptResponse(
     prerequisiteRepairActive: false,
   });
   const prompt = [
+    buildCompanionTurnContract({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'direct_answer',
+    }),
     `Section title: ${section.title}`,
     sessionTranscriptContext || '',
     teacherBrainContext ? `Teacher Brain context:\n${teacherBrainContext}` : '',
@@ -1308,7 +1365,7 @@ export async function buildInterruptResponse(
     lecturerConstraintPromptContext
       ? 'Respect lecturer constraints while answering the interruption.'
       : '',
-    'Task: Respond like a live tutor who was interrupted. The student\'s latest direct question or confusion overrides normal section pacing and must be resolved now, even when it asks for a concrete example of the concept currently being discussed. Answer or correct it directly in plain language. State any necessary scientific conditions and do not repeat an unsafe claim from the transcript. Use the session course code exactly; never invent or substitute another course code. Then ask exactly one short checkpoint question that verifies the clarification. Do not ask multiple questions and do not continue into the next concept.',
+    'Task: Respond like a live tutor who was interrupted. Start with the direct answer to the student\'s latest question. If the student identified a course-code mismatch or tutor mistake, acknowledge it plainly and correct it in the first sentence. If the student asks why this section is being taught, explain the source-selection reason honestly; do not defend irrelevant material. State any necessary scientific conditions and do not repeat an unsafe claim from the transcript. Do not output any Teach-Back, Memory Dump, phase label, or prior pending prompt. End with at most one short question that checks only the clarification. Do not continue into the next concept.',
   ].join('\n\n');
 
   if (teacherBrainContext && contextMeta) {
@@ -1347,7 +1404,16 @@ export async function buildInterruptResponse(
       repairMode: decision.prerequisiteRepairMode,
     });
   }
-  const rawContent = await generateText(prompt, companionSystemPrompt(), 320);
+  const rawContent = await generateText(
+    prompt,
+    companionSystemPrompt({
+      courseCode: contextMeta?.courseCode,
+      materialTitle: contextMeta?.materialTitle,
+      sectionTitle: section.title,
+      turnIntent: 'direct_answer',
+    }),
+    320,
+  );
   return enforceTutorMessageQuality({
     content: rawContent,
     prompt,
@@ -1361,6 +1427,7 @@ export async function buildInterruptResponse(
     targetWordRange: interruptPacing.targetWordRange,
     lessonScope,
     teachingDepthPlan: depthPlan,
+    responseIntent: 'direct_answer',
     contextMeta: contextMeta
       ? { ...contextMeta, prompt: 'interrupt_response' }
       : undefined,

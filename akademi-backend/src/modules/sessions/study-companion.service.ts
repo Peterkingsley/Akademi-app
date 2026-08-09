@@ -394,7 +394,12 @@ export class StudyCompanionService {
           throwback.isRetentionThrowback
             ? `The student is at risk of forgetting this earlier section (retention risk ${throwback.retentionRisk}/100). Create one short throwback recall question testing it before we continue.\n\nSection title: ${throwback.section.title}\n\nSection content:\n${truncate(throwback.section.content, 2200)}`
             : `Create one short refresh question from this completed section.\n\nSection title: ${throwback.section.title}\n\nSection content:\n${truncate(throwback.section.content, 2200)}`,
-          companionSystemPrompt(),
+          companionSystemPrompt({
+            courseCode: state.course_code,
+            materialTitle: material.title,
+            sectionTitle: throwback.section.title,
+            turnIntent: 'teachback',
+          }),
           180,
         );
       }
@@ -427,7 +432,12 @@ export class StudyCompanionService {
     if (!refreshQuestion) {
       refreshQuestion = await generateText(
         `Create one short prequestion about this upcoming section, to be asked before it is taught. A wrong guess is fine and expected, since the point is to prime attention toward the right idea. Base it on the section's core idea or a key prerequisite.\n\nSection title: ${section.title}\n\nSection content:\n${truncate(section.content, 2200)}`,
-        companionSystemPrompt(),
+        companionSystemPrompt({
+          courseCode: state.course_code,
+          materialTitle: material.title,
+          sectionTitle: section.title,
+          turnIntent: 'teachback',
+        }),
         180,
       );
     }
@@ -699,7 +709,15 @@ export class StudyCompanionService {
     });
     try {
       const aiStartedAt = Date.now();
-      const rawContent = await generateText(introPrompt, companionSystemPrompt());
+      const rawContent = await generateText(
+        introPrompt,
+        companionSystemPrompt({
+          courseCode: state.course_code,
+          materialTitle: material.title,
+          sectionTitle: section.title,
+          turnIntent: 'teach',
+        }),
+      );
       introTrace.aiLatencyMs += Date.now() - aiStartedAt;
       const content = await enforceTutorMessageQuality({
         content: rawContent,
@@ -722,6 +740,8 @@ export class StudyCompanionService {
           materialId: material.id,
           sectionIndex: nextIndex,
           prompt: 'start_intro',
+          courseCode: state.course_code,
+          materialTitle: material.title,
         },
         qualityTrace: introQualityTrace,
       });
@@ -804,6 +824,8 @@ export class StudyCompanionService {
       sessionId,
       materialId: material.id,
       sectionIndex: state.current_section_index,
+      courseCode: state.course_code,
+      materialTitle: material.title,
     };
     const lessonPlan = await getOrCreateLessonPlan({
       sessionId,
@@ -2016,6 +2038,8 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
+          courseCode: state.course_code,
+          materialTitle: material.title,
         }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined, undefined, sessionTranscriptContext);
         const content = passResult.content;
         await persistRoadmap(state.id, roadmap, {
@@ -2124,6 +2148,8 @@ export class StudyCompanionService {
           sessionId,
           materialId: material.id,
           sectionIndex: nextIndex,
+          courseCode: state.course_code,
+          materialTitle: material.title,
         }, nextTeacherBrainSectionContext, nextStudentMemoryContext.promptContext, lecturerConstraintContext?.promptContext || '', nextLessonPlan, nextRelevantMaterialContext, {}, undefined, undefined, sessionTranscriptContext);
         const content = passResult.content;
         await persistRoadmap(state.id, roadmap, {

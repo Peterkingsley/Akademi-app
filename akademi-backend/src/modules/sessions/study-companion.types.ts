@@ -281,6 +281,7 @@ export type TutorMessageQualityArgs = {
   targetWordRange?: { min: number; max: number };
   lessonScope?: LessonScope | null;
   teachingDepthPlan?: TeachingDepthPlan | null;
+  responseIntent?: 'standard' | 'direct_answer';
 };
 
 export type TutorQualityTraceCapture = {
