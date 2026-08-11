@@ -55,6 +55,7 @@ type ActiveMatch = {
 };
 
 const activeMatches = new Map<string, ActiveMatch>();
+const matchAdvanceLocks = new Map<string, Promise<CompetitionMatchState>>();
 
 function generateRoomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -853,6 +854,42 @@ export class CompetitionsService {
     const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
     return this.buildMatchState(match);
+  }
+
+  async getMatchStateForParticipant(userId: string, roomId: string) {
+    const room = await this.getLobby(userId, roomId);
+    if (room.status !== CompetitionStatus.LIVE && room.status !== CompetitionStatus.FINISHED) {
+      throw new Error('Match is not live');
+    }
+    return room.status === CompetitionStatus.LIVE
+      ? this.startMatch(roomId)
+      : this.getMatchState(roomId);
+  }
+
+  async submitAnswerForParticipant(userId: string, roomId: string, answer: string) {
+    await this.getLobby(userId, roomId);
+    return this.submitAnswer(roomId, userId, answer);
+  }
+
+  async advanceMatchIfExpired(userId: string, roomId: string) {
+    await this.getLobby(userId, roomId);
+    const existingLock = matchAdvanceLocks.get(roomId);
+    if (existingLock) return existingLock;
+
+    const operation = (async () => {
+      const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
+      if (!match) throw new Error('Match state not found');
+      if (match.status !== CompetitionStatus.LIVE || Date.now() < match.questionExpiresAt) {
+        return this.buildMatchState(match);
+      }
+      return this.advanceMatch(roomId);
+    })();
+    matchAdvanceLocks.set(roomId, operation);
+    try {
+      return await operation;
+    } finally {
+      if (matchAdvanceLocks.get(roomId) === operation) matchAdvanceLocks.delete(roomId);
+    }
   }
 
   async submitAnswer(roomId: string, userId: string, answer: string) {

@@ -73,7 +73,7 @@ export const registerHandlers = (
     const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now());
     const timeout = setTimeout(async () => {
       try {
-        const state = await competitionsService.advanceMatch(roomId);
+        const state = await competitionsService.advanceMatchIfExpired(userId, roomId);
         io.to(competitionRoomName(roomId)).emit('competition:score-update', {
           roomId,
           scoreboard: state.scoreboard,

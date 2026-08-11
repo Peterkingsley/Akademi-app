@@ -65,6 +65,36 @@ export class CompetitionsController {
     }
   }
 
+  async getMatchState(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const state = await competitionsService.getMatchStateForParticipant(userId, req.params.id);
+      res.status(200).json(state);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to load live match' });
+    }
+  }
+
+  async submitAnswer(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const state = await competitionsService.submitAnswerForParticipant(userId, req.params.id, req.body.answer);
+      res.status(200).json(state);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to submit answer' });
+    }
+  }
+
+  async advanceMatch(req: Request, res: Response) {
+    try {
+      const userId = (req.user as any).userId;
+      const state = await competitionsService.advanceMatchIfExpired(userId, req.params.id);
+      res.status(200).json(state);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Failed to advance match' });
+    }
+  }
+
   async getSummary(req: Request, res: Response) {
     try {
       const userId = (req.user as any).userId;

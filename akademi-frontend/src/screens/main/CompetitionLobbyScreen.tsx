@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/Card";
 import { RichMathText } from "../../components/ui/RichMathText";
 import {
   CompetitionParticipantStatus,
+  CompetitionMatchState,
   CompetitionQuestion,
   CompetitionRoom,
   CompetitionScoreboardEntry,
@@ -42,6 +43,21 @@ export const CompetitionLobbyScreen: React.FC = () => {
   const wasDisconnectedRef = useRef(false);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerAnim = useRef(new Animated.Value(1)).current;
+
+  const applyMatchState = (state: CompetitionMatchState) => {
+    setScoreboard(state.scoreboard || []);
+    setQuestion((current) => {
+      if (state.question?.id !== current?.id) setSelectedAnswer(null);
+      return state.question || null;
+    });
+    setRoom((current) => (current ? { ...current, status: state.status } : current));
+    if (state.question) {
+      setTimerNow(Date.now());
+    }
+    if (state.finished) {
+      setWinnerUserId(state.winner_user_id || null);
+    }
+  };
 
   const localStatus = useMemo(() => {
     if (!room) return null;
@@ -182,6 +198,8 @@ export const CompetitionLobbyScreen: React.FC = () => {
         setRoom(latestRoom);
         if (latestRoom.status === "LIVE") {
           socketService.emit("competition:join-room", { roomId: route.params.roomId });
+          const matchState = await competitionService.getMatchState(route.params.roomId);
+          applyMatchState(matchState);
         }
       } catch {
         // The socket remains the primary live channel. Polling is only a recovery path.
@@ -222,12 +240,16 @@ export const CompetitionLobbyScreen: React.FC = () => {
     }
   };
 
-  const submitAnswer = (answer: string) => {
+  const submitAnswer = async (answer: string) => {
     setSelectedAnswer(answer);
-    socketService.emit("competition:submit-answer", {
-      roomId: route.params.roomId,
-      answer,
-    });
+    try {
+      const state = await competitionService.submitAnswer(route.params.roomId, answer);
+      applyMatchState(state);
+      socketService.emit("competition:join-room", { roomId: route.params.roomId });
+    } catch (error: any) {
+      setSelectedAnswer(null);
+      Alert.alert("Answer not submitted", error?.response?.data?.message || "Please try again.");
+    }
   };
 
   const secondsLeft = question
@@ -239,6 +261,13 @@ export const CompetitionLobbyScreen: React.FC = () => {
     ? Math.max(0, Math.ceil((resultRevealAt - timerNow) / 1000))
     : 0;
   const answerLocked = !!selectedAnswer || secondsLeft <= 0;
+
+  useEffect(() => {
+    if (!question || secondsLeft > 0 || room?.status !== "LIVE") return;
+    competitionService.advanceMatch(route.params.roomId)
+      .then(applyMatchState)
+      .catch(() => socketService.emit("competition:join-room", { roomId: route.params.roomId }));
+  }, [question?.id, room?.status, secondsLeft, route.params.roomId]);
 
   const orderedBoard =
     scoreboard.length > 0

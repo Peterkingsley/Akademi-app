@@ -23,6 +23,9 @@ router.post('/tournaments/:id/cheers', controller.sendTournamentCheer);
 router.get('/tournaments/:id', controller.getTournament);
 router.post('/tournaments/:id/join', controller.joinTournament);
 router.post('/tournaments/:id/check-in', controller.checkInTournament);
+router.get('/:id/match-state', controller.getMatchState);
+router.post('/:id/answers', controller.submitAnswer);
+router.post('/:id/advance', controller.advanceMatch);
 router.get('/:id', controller.getOne);
 router.patch('/:id/status', controller.updateStatus);
 

@@ -66,6 +66,15 @@ export interface CompetitionScoreboardEntry {
   hasAnsweredCurrent: boolean;
 }
 
+export interface CompetitionMatchState {
+  roomId: string;
+  status: CompetitionStatus;
+  question: CompetitionQuestion | null;
+  scoreboard: CompetitionScoreboardEntry[];
+  winner_user_id?: string | null;
+  finished?: boolean;
+}
+
 export interface CompetitionLeaderboardEntry {
   user_id: string;
   name: string;
@@ -205,6 +214,21 @@ export const competitionService = {
 
   async getRoom(roomId: string) {
     const { data } = await api.get<CompetitionRoom>(`/competitions/${roomId}`);
+    return data;
+  },
+
+  async getMatchState(roomId: string) {
+    const { data } = await api.get<CompetitionMatchState>(`/competitions/${roomId}/match-state`);
+    return data;
+  },
+
+  async submitAnswer(roomId: string, answer: string) {
+    const { data } = await api.post<CompetitionMatchState>(`/competitions/${roomId}/answers`, { answer });
+    return data;
+  },
+
+  async advanceMatch(roomId: string) {
+    const { data } = await api.post<CompetitionMatchState>(`/competitions/${roomId}/advance`);
     return data;
   },
 
