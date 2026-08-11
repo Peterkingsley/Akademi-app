@@ -125,6 +125,12 @@ export const CompetitionLobbyScreen: React.FC = () => {
       }, 20000);
     };
 
+    const handleSocketError = (payload: { message?: string }) => {
+      if (!mounted) return;
+      setBusy(false);
+      Alert.alert("Live match error", payload?.message || "The live connection could not update the match.");
+    };
+
     const setup = async () => {
       const socket = await socketService.connect();
       if (!mounted) return;
@@ -144,6 +150,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
       socket.on("competition:question", handleQuestion);
       socket.on("competition:score-update", handleScoreUpdate);
       socket.on("competition:match-ended", handleMatchEnded);
+      socket.on("error", handleSocketError);
       socket.emit("competition:join-room", { roomId: route.params.roomId });
     };
 
@@ -159,11 +166,30 @@ export const CompetitionLobbyScreen: React.FC = () => {
       socketService.off("competition:question", handleQuestion);
       socketService.off("competition:score-update", handleScoreUpdate);
       socketService.off("competition:match-ended", handleMatchEnded);
+      socketService.off("error", handleSocketError);
       if (revealTimeoutRef.current) {
         clearTimeout(revealTimeoutRef.current);
       }
     };
   }, [navigation, route.params.roomId]);
+
+  useEffect(() => {
+    if (!room || (room.status !== "WAITING" && !(room.status === "LIVE" && !question))) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const latestRoom = await competitionService.getRoom(route.params.roomId);
+        setRoom(latestRoom);
+        if (latestRoom.status === "LIVE") {
+          socketService.emit("competition:join-room", { roomId: route.params.roomId });
+        }
+      } catch {
+        // The socket remains the primary live channel. Polling is only a recovery path.
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [question, room?.id, room?.status, route.params.roomId]);
 
   useEffect(() => {
     if (!question && !resultRevealAt) return;
@@ -183,9 +209,12 @@ export const CompetitionLobbyScreen: React.FC = () => {
   const updateStatus = async (status: CompetitionParticipantStatus) => {
     try {
       setBusy(true);
-      socketService.emit(status === "READY" ? "competition:ready" : "competition:unready", {
-        roomId: route.params.roomId,
-      });
+      const updatedRoom = await competitionService.updateStatus(route.params.roomId, status);
+      setRoom(updatedRoom);
+
+      // Ask the live channel to broadcast the authoritative REST update to everyone.
+      // The REST request prevents a disconnected socket from turning this button into a no-op.
+      socketService.emit("competition:join-room", { roomId: route.params.roomId });
     } catch (error: any) {
       Alert.alert("Status update failed", error?.response?.data?.message || "Please try again.");
     } finally {

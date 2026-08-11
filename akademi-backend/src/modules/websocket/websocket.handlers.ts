@@ -217,9 +217,9 @@ export const registerHandlers = (
   withSocketRateLimit('competition:join-room', 20, 60, async ({ roomId }) => {
     try {
       socket.join(competitionRoomName(roomId));
-      const room = await competitionsService.getLobby(userId, roomId);
-      socket.emit('competition:room-state', { room });
-      socket.to(competitionRoomName(roomId)).emit('competition:room-state', { room });
+      // Rejoining is also the recovery handshake. It must restore the current
+      // question for a LIVE room, not only return the lobby shell.
+      await broadcastCompetitionState(roomId);
     } catch (error: any) {
       socket.emit('error', { message: error.message });
     }

@@ -764,6 +764,25 @@ export class CompetitionsService {
           starts_at: new Date(),
         },
       });
+
+      try {
+        // Starting the match here makes the REST status endpoint authoritative.
+        // WebSocket delivery can then reconnect without leaving a LIVE room that
+        // has no active question state.
+        await this.startMatch(room.id);
+      } catch (error) {
+        await prisma.$transaction([
+          prisma.competitionRoom.update({
+            where: { id: room.id },
+            data: { status: CompetitionStatus.WAITING, starts_at: null },
+          }),
+          prisma.competitionParticipant.update({
+            where: { id: participant.id },
+            data: { status: CompetitionParticipantStatus.JOINED, ready_at: null },
+          }),
+        ]);
+        throw error;
+      }
       return this.getLobby(userId, roomId);
     }
 
