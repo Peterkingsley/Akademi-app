@@ -366,8 +366,8 @@ export class CompetitionsService {
         orderBy: { generated_at: 'desc' },
       });
 
-      if (questions.length < Math.min(5, room.question_count)) {
-        throw new Error('Not enough scored questions are available from the selected materials yet');
+      if (questions.length === 0) {
+        throw new Error('No scored questions are available from the selected materials yet');
       }
 
       return questions;
@@ -386,8 +386,8 @@ export class CompetitionsService {
       orderBy: { generated_at: 'desc' },
     });
 
-    if (questions.length < Math.min(5, room.question_count)) {
-      throw new Error('Not enough scored questions are available for this match yet');
+    if (questions.length === 0) {
+      throw new Error('No scored questions are available for this match yet');
     }
 
     return questions;

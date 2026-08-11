@@ -39,6 +39,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
   const [timerRecovered, setTimerRecovered] = useState(false);
   const [resultRevealAt, setResultRevealAt] = useState<number | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [matchLoadError, setMatchLoadError] = useState<string | null>(null);
 
   const wasDisconnectedRef = useRef(false);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +53,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
     });
     setRoom((current) => (current ? { ...current, status: state.status } : current));
     if (state.question) {
+      setMatchLoadError(null);
       setTimerNow(Date.now());
     }
     if (state.finished) {
@@ -89,6 +91,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
       setLoading(false);
       if (payload.room.status !== "LIVE") {
         setQuestion(null);
+        setMatchLoadError(null);
       }
       if (payload.room.status !== "FINISHED") {
         setWinnerUserId(null);
@@ -109,6 +112,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
         wasDisconnectedRef.current = false;
       }
       setQuestion(payload.question);
+      setMatchLoadError(null);
       setSelectedAnswer(null);
       setTimerNow(Date.now());
       timerAnim.setValue(1);
@@ -190,7 +194,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
   }, [navigation, route.params.roomId]);
 
   useEffect(() => {
-    if (!room || (room.status !== "WAITING" && !(room.status === "LIVE" && !question))) return;
+    if (!room || matchLoadError || (room.status !== "WAITING" && !(room.status === "LIVE" && !question))) return;
 
     const interval = setInterval(async () => {
       try {
@@ -201,13 +205,16 @@ export const CompetitionLobbyScreen: React.FC = () => {
           const matchState = await competitionService.getMatchState(route.params.roomId);
           applyMatchState(matchState);
         }
-      } catch {
+      } catch (error: any) {
+        if (error?.response?.status === 400) {
+          setMatchLoadError(error?.response?.data?.message || "This match does not have playable questions yet.");
+        }
         // The socket remains the primary live channel. Polling is only a recovery path.
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [question, room?.id, room?.status, route.params.roomId]);
+  }, [matchLoadError, question, room?.id, room?.status, route.params.roomId]);
 
   useEffect(() => {
     if (!question && !resultRevealAt) return;
@@ -499,8 +506,10 @@ export const CompetitionLobbyScreen: React.FC = () => {
                 </>
               ) : (
                 <View style={styles.syncingBox}>
-                  <RefreshCw size={24} color={colors.primary} style={styles.spinIcon} />
-                  <Text style={[styles.syncingText, { color: colors.textSecondary }]}>Syncing live question stream...</Text>
+                  {matchLoadError ? null : <RefreshCw size={24} color={colors.primary} style={styles.spinIcon} />}
+                  <Text style={[styles.syncingText, { color: matchLoadError ? colors.error : colors.textSecondary }]}>
+                    {matchLoadError || "Syncing live question stream..."}
+                  </Text>
                 </View>
               )}
             </Card>
