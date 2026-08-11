@@ -150,9 +150,15 @@ export const createRateLimiter = ({
 };
 
 export const generalAuthenticatedApiLimiter = createRateLimiter({
-  namespace: 'general-authenticated',
+  // Version the namespace when changing the policy so users are not trapped
+  // in an already-exhausted Redis bucket after a deploy. Normal app startup
+  // fans out across several authenticated endpoints and live competition
+  // recovery polls while the socket reconnects, so 150/15m was too small for
+  // legitimate mobile use. Sensitive auth and write-heavy routes retain their
+  // dedicated, stricter limiters below.
+  namespace: 'general-authenticated-v2',
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 600,
   strategy: 'hybrid',
 });
 
