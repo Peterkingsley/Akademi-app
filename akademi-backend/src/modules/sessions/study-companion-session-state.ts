@@ -5,6 +5,7 @@ import {
   StudyRoadmapStatus,
 } from '@prisma/client';
 import prisma from '../../config/db';
+import { aiProvider } from '../ai/ai.provider';
 import {
   ReaderPageShape,
   RoadmapSection,
@@ -336,28 +337,192 @@ export async function getPublicState(
   };
 }
 
+type PersistExtra = Partial<{
+  current_phase: StudyCompanionPhase;
+  current_section_index: number;
+  last_completed_index: number;
+  last_mastery_score: number | null;
+  refresh_question: string | null;
+  refresh_answer: string | null;
+  pending_prompt: string | null;
+  session_summary: string | null;
+  external_support_used: boolean;
+  section_context: Prisma.InputJsonValue;
+}>;
+
+function clampTutorScore(value: unknown) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return null;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function parseJsonPayload(raw: string) {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(raw.slice(start, end + 1)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+async function adjudicateLatestFirstTeachBack(
+  stateId: string,
+  roadmap: RoadmapSection[],
+) {
+  const state = await prisma.studyCompanionState.findUnique({
+    where: { id: stateId },
+    select: {
+      current_phase: true,
+      current_section_index: true,
+      mastery_threshold: true,
+    },
+  });
+  if (!state || state.current_phase !== StudyCompanionPhase.TEACHBACK_1_REQUESTED) {
+    return null;
+  }
+
+  const attempt = await prisma.teachBackAttempt.findFirst({
+    where: {
+      companion_state_id: stateId,
+      section_index: state.current_section_index,
+      attempt_number: 1,
+    },
+    orderBy: { created_at: 'desc' },
+  });
+  if (!attempt) return null;
+  if (attempt.passed) {
+    return {
+      passed: true,
+      score: attempt.score,
+      feedback: attempt.evaluation,
+    };
+  }
+
+  const section = roadmap[state.current_section_index];
+  if (!section) return null;
+
+  try {
+    const raw = await aiProvider.generateResponse(
+      [
+        `Checkpoint prompt:\n${attempt.prompt || ''}`,
+        `Student response:\n${attempt.student_response}`,
+        `Section title: ${section.title}`,
+        `Relevant section source:\n${String(section.content || '').slice(0, 2600)}`,
+        'Judge the answer to the checkpoint that was actually asked. Do not require the student to reproduce unrelated facts from the entire section.',
+        'A concise answer may be fully correct. Reward correct application, explanation, or transfer even when wording differs from the source.',
+        'Return strict JSON only with: score (0-100), passed (boolean), feedback (one concise specific sentence), missingIdeas (array of strings).',
+      ].join('\n\n'),
+      {
+        systemPrompt: [
+          'You are a strict but fair university tutor evaluator.',
+          'Evaluate the student against the exact checkpoint prompt and core concept, not lexical overlap with the whole lesson.',
+          'Never use generic praise such as absolutely correct, perfect, excellent, brilliant, great job, or well done.',
+          'When correct, feedback should begin with the specific fact or method that was correct.',
+        ].join('\n'),
+        maxTokens: 220,
+      },
+    );
+    const parsed = parseJsonPayload(raw);
+    if (!parsed) return null;
+    const score = clampTutorScore(parsed.score);
+    if (score === null) return null;
+    const passed =
+      typeof parsed.passed === 'boolean'
+        ? parsed.passed
+        : score >= state.mastery_threshold;
+    const feedback = normalizeText(String(parsed.feedback || attempt.evaluation || ''));
+
+    if (passed) {
+      await prisma.teachBackAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          score,
+          passed: true,
+          evaluation: feedback || attempt.evaluation,
+        },
+      });
+      console.log('teachback_semantic_adjudication_passed', {
+        stateId,
+        sectionIndex: state.current_section_index,
+        legacyScore: attempt.score,
+        semanticScore: score,
+      });
+    }
+
+    return { passed, score, feedback };
+  } catch (error) {
+    console.error('teachback_semantic_adjudication_failed', {
+      stateId,
+      sectionIndex: state.current_section_index,
+      message: error instanceof Error ? error.message : 'Unknown semantic adjudication error',
+    });
+    return null;
+  }
+}
+
 export async function persistRoadmap(
   stateId: string,
   roadmap: RoadmapSection[],
-  extra: Partial<{
-    current_phase: StudyCompanionPhase;
-    current_section_index: number;
-    last_completed_index: number;
-    last_mastery_score: number | null;
-    refresh_question: string | null;
-    refresh_answer: string | null;
-    pending_prompt: string | null;
-    session_summary: string | null;
-    external_support_used: boolean;
-    section_context: Prisma.InputJsonValue;
-  }> = {},
+  extra: PersistExtra = {},
 ) {
+  const normalizedExtra: PersistExtra = { ...extra };
+  let sectionContext = safeJsonObject<Record<string, unknown>>(
+    extra.section_context,
+    {},
+  );
+
+  // Pass 2 always ends with a real micro-question. The previous state machine
+  // forgot to mark that question as pending on the Pass-1-answer -> Pass-2
+  // transition, so the next student answer generated Pass 2 a second time.
+  if (
+    extra.current_phase === PASS_2 &&
+    Boolean(extra.pending_prompt?.includes('?')) &&
+    sectionContext.pass2QuestionPending !== true
+  ) {
+    sectionContext = {
+      ...sectionContext,
+      pass2QuestionPending: true,
+    };
+    normalizedExtra.section_context = sectionContext as Prisma.InputJsonValue;
+    console.log('pass2_question_pending_normalized', { stateId });
+  }
+
+  // The legacy path routed every first teach-back into GAP_RETEACH, even when
+  // the answer had passed. Check the persisted attempt before accepting that
+  // transition. For false negatives from lexical scoring, use one tiny semantic
+  // adjudication against the exact checkpoint rather than the whole section.
+  if (extra.current_phase === StudyCompanionPhase.GAP_RETEACH) {
+    const adjudication = await adjudicateLatestFirstTeachBack(stateId, roadmap);
+    if (adjudication?.passed) {
+      normalizedExtra.current_phase = StudyCompanionPhase.MEMORY_DUMP_REQUESTED;
+      normalizedExtra.pending_prompt = adjudication.feedback || extra.pending_prompt;
+      normalizedExtra.section_context = {
+        coveredConcepts: safeJsonArray<string>(sectionContext.coveredConcepts),
+        nextPromptKind: 'memory_dump',
+        failedConcepts: [],
+        reteachDelivered: true,
+      } as Prisma.InputJsonValue;
+      console.log('passed_teachback_reteach_skipped', {
+        stateId,
+        score: adjudication.score,
+      });
+    }
+  }
+
   return prisma.studyCompanionState.update({
     where: { id: stateId },
     data: {
       roadmap: roadmap as unknown as Prisma.InputJsonValue,
       progress: buildProgress(roadmap) as unknown as Prisma.InputJsonValue,
-      ...extra,
+      ...normalizedExtra,
     },
   });
 }
@@ -547,22 +712,22 @@ export function companionSystemPrompt(identity: CompanionPromptIdentity = {}) {
     'Use LaTeX delimiters for math.',
     'If the material does not provide enough numbers for a worked example, create a tiny illustrative example and label it as "simple example".',
     'Do not overcomplicate explanations.',
-    'For diagram-heavy topics, explain what visual would help naturally, but do not generate images yet.',
-    'For visual-heavy topics, teach with mental diagrams.',
-    'Describe diagrams clearly using simple spatial language.',
+    'Use a visual or mental diagram only when it genuinely helps the current concept. Never add generic visual filler just to satisfy a visual style.',
     'Do not claim an actual image is shown unless the frontend supports it.',
-    'Say imagine or picture instead of look at this image.',
-    'For graphs, explain axes and trends.',
-    'For biological or anatomical diagrams, explain parts and functions.',
-    'For processes, explain stages in order.',
+    'For graphs, explain axes and trends when a graph is actually relevant.',
+    'For biological or anatomical diagrams, explain parts and functions when a diagram is actually relevant.',
+    'For processes, explain stages in order when the section actually teaches a process.',
     'Always be structured, clear, patient, and slightly demanding about recall.',
     'Keep replies practical, short, conversational, and ready for a Nigerian university student.',
     'Sound like an experienced university lecturer, not a textbook summary.',
     'Use natural transitions and continue from the previous idea instead of restarting the lesson.',
     'Avoid repeating prerequisite explanations once they have already been refreshed in the same section.',
     'Never ask a rhetorical question, and never ask a question you do not wait for. The only teaching-pass questions allowed are the single genuine micro-question at the end of Pass 1 and Pass 2 when explicitly instructed, which the student will actually answer before the lesson continues.',
-    'Whenever you respond to a student attempt (a micro-question answer, a checkpoint, a repair), follow the feedback doctrine: one sentence about the work, never the person, naming what was right before what was missing, fixing only the single highest-leverage error, and never a bare great job or well done.',
-    'Whenever math appears, render it using proper LaTeX delimiters.',
+    'Whenever you respond to a student attempt, give one specific sentence about the work before moving on. Say what fact, method, or reasoning was correct or what single point needs repair.',
+    'Never use generic praise such as absolutely correct, perfect example, excellent, brilliant, great job, or well done. Prefer specific feedback such as Correct — kilo represents a factor of 1000.',
+    'Do not restate a correct student answer and then explain the same fact again in a full paragraph. Confirm it briefly and advance to a new idea or application.',
+    'Do not enumerate an entire table, taxonomy, or list unless the student explicitly asks for the full list. Teach representative items and the rule that lets the student infer or use the rest.',
+    'Whenever math appears, render the complete mathematical expression inside proper LaTeX delimiters.',
     'Do not use markdown syntax, bold markers, heading markers, or chatbot-style formatting.',
     'Teach like a live tutor, one idea at a time.',
     'The latest student question, correction request, or confusion signal takes priority over the planned teaching phase.',
