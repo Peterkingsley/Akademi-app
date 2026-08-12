@@ -3,6 +3,9 @@ import prisma from '../../config/db';
 
 type Limits = Record<UsageMetric, number | null>;
 
+// Temporary testing switch. Set to false when AI Tutor allowance enforcement resumes.
+const AI_TUTOR_LIMITS_PAUSED = true;
+
 const FREE_LIMITS: Limits = {
   SOLVE_QUESTION: 10,
   STUDY_ASK: 10,
@@ -46,6 +49,9 @@ export class UsageService {
   async consume(userId: string, metric: UsageMetric, amount = 1) {
     if (!Number.isInteger(amount) || amount < 1) throw new Error('Usage amount must be a positive integer');
     const premium = await this.isPremium(userId);
+    if (AI_TUTOR_LIMITS_PAUSED && metric === UsageMetric.AI_TUTOR_SECONDS) {
+      return { premium, limit: null, used: 0, remaining: null };
+    }
     const limit = (premium ? PREMIUM_LIMITS : FREE_LIMITS)[metric];
     if (limit === null) return { premium, limit: null, used: 0, remaining: null };
     const periodKey = this.periodKey(metric, premium);
@@ -78,7 +84,9 @@ export class UsageService {
       plan: premium ? 'PREMIUM' : 'FREE',
       periodKey: dailyKey,
       metrics: Object.fromEntries(Object.values(UsageMetric).map((metric) => {
-        const limit = limits[metric];
+        const limit = AI_TUTOR_LIMITS_PAUSED && metric === UsageMetric.AI_TUTOR_SECONDS
+          ? null
+          : limits[metric];
         const value = used[metric] || 0;
         return [metric, { used: value, limit, remaining: limit === null ? null : Math.max(limit - value, 0) }];
       })),
@@ -86,6 +94,9 @@ export class UsageService {
   }
 
   async assertAvailable(userId: string, metric: UsageMetric) {
+    if (AI_TUTOR_LIMITS_PAUSED && metric === UsageMetric.AI_TUTOR_SECONDS) {
+      return { used: 0, limit: null, remaining: null };
+    }
     const summary: any = await this.getSummary(userId);
     const item = summary.metrics[metric];
     if (item.limit !== null && item.remaining <= 0) {
