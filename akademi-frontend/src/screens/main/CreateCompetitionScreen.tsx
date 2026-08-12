@@ -24,6 +24,7 @@ import {
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
+import { ArenaHeader } from "../../components/competition/CompetitionArena";
 import { competitionService, CompetitionFormat, CompetitionVisibility } from "../../services/competition";
 import { useTheme } from "../../theme/ThemeContext";
 
@@ -91,23 +92,11 @@ export const CreateCompetitionScreen: React.FC = () => {
       title="Create Match Room"
     >
       <View style={styles.container}>
-        {/* Header Hero Section */}
-        <View style={styles.heroHeader}>
-          <View
-            style={[
-              styles.heroIconWrap,
-              { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: "rgba(34, 197, 94, 0.3)" },
-            ]}
-          >
-            <Swords size={26} color={colors.primary} />
-          </View>
-          <View style={styles.heroTextWrap}>
-            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Create Live Arena</Text>
-            <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-              Set up a live speed battle, pick course questions, and invite classmates with a code.
-            </Text>
-          </View>
-        </View>
+        <ArenaHeader
+          eyebrow="NEW CHALLENGE"
+          title="Build your arena"
+          subtitle="Choose the course, pace, and format before inviting your classmates."
+        />
 
         {/* Main Form Card */}
         <Card style={[styles.formCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

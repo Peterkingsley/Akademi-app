@@ -22,6 +22,7 @@ import {
 } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
+import { ArenaHeader } from "../../components/competition/CompetitionArena";
 import {
   competitionService,
   CompetitionLeaderboardEntry,
@@ -92,23 +93,11 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
           />
         }
       >
-        {/* Header Hero */}
-        <View style={styles.heroHeader}>
-          <View
-            style={[
-              styles.heroIconWrap,
-              { backgroundColor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(245, 158, 11, 0.3)" },
-            ]}
-          >
-            <Trophy size={26} color="#F59E0B" />
-          </View>
-          <View style={styles.heroTextWrap}>
-            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Academic Leaderboard</Text>
-            <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-              Global student rankings calculated from live speed duels and tournament victories.
-            </Text>
-          </View>
-        </View>
+        <ArenaHeader
+          eyebrow="GLOBAL RANKINGS"
+          title="Leaderboard"
+          subtitle="See who is turning course mastery into consistent competitive results."
+        />
 
         {loading ? (
           <View style={styles.center}>

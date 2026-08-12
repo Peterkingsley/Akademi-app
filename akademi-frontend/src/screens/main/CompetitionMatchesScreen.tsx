@@ -25,6 +25,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
+import { ArenaHeader } from "../../components/competition/CompetitionArena";
 import { competitionService, CompetitionRoom } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useTheme } from "../../theme/ThemeContext";
@@ -98,25 +99,13 @@ export const CompetitionMatchesScreen: React.FC = () => {
           />
         }
       >
-        {/* Header Hero */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroHeader}>
-            <View
-              style={[
-                styles.heroIconWrap,
-                { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: "rgba(34, 197, 94, 0.3)" },
-              ]}
-            >
-              <ListChecks size={24} color={colors.primary} />
-            </View>
-            <View style={styles.heroTextWrap}>
-              <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Live Room History</Text>
-              <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-                Manage your hosted arenas, friend invitations, or jump into active public rooms.
-              </Text>
-            </View>
-          </View>
-        </View>
+        <ArenaHeader
+          eyebrow="YOUR MATCHES"
+          title="Battle history"
+          subtitle="Resume active rooms, review finished challenges, or launch the next one."
+          actionLabel="Create match"
+          onAction={() => navigation.navigate("CreateCompetition")}
+        />
 
         {loadNotice ? (
           <Card style={[styles.noticeCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>

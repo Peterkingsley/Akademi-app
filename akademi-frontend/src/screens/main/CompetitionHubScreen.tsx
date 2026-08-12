@@ -27,6 +27,7 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react-native";
+import { ArenaHeader, ArenaSectionTitle } from "../../components/competition/CompetitionArena";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
@@ -229,25 +230,13 @@ export const CompetitionHubScreen: React.FC = () => {
           />
         }
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={[styles.badgePill, { backgroundColor: "rgba(34, 197, 94, 0.12)", borderColor: colors.primary }]}>
-              <View style={[styles.liveDot, { backgroundColor: colors.primary }]} />
-              <Text style={[styles.badgeText, { color: colors.primary }]}>
-                {liveCampaignCount} Live Arena{liveCampaignCount === 1 ? "" : "s"}
-              </Text>
-            </View>
-            <View style={[styles.badgePill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-              <Swords size={12} color={colors.textSecondary} />
-              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>Speed Battles</Text>
-            </View>
-          </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Compete Live</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Join official university campaigns, launch 1v1 speed battles, or climb the academic leaderboards.
-          </Text>
-        </View>
+        <ArenaHeader
+          eyebrow={`${liveCampaignCount} LIVE ARENA${liveCampaignCount === 1 ? "" : "S"}`}
+          title="Compete live"
+          subtitle="Challenge classmates, test your course mastery, and climb the Akademi standings."
+          actionLabel="Create a match"
+          onAction={() => navigation.navigate("CreateCompetition")}
+        />
 
         {loading ? (
           <View style={styles.center}>
@@ -318,12 +307,7 @@ export const CompetitionHubScreen: React.FC = () => {
             </View>
 
             {/* Happening Now Section (X Spaces Live Cards) */}
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleWrap}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Happening Now</Text>
-                <Text style={[styles.sectionSub, { color: colors.textSecondary }]}>Spaces going on right now</Text>
-              </View>
-            </View>
+            <ArenaSectionTitle title="Happening now" subtitle="Live academic challenges you can join." />
 
             {liveTournaments.length > 0 ? (
               <View style={styles.liveCardsList}>

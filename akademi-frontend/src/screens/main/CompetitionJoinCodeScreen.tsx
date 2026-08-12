@@ -22,6 +22,7 @@ import * as Clipboard from "expo-clipboard";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
+import { ArenaHeader } from "../../components/competition/CompetitionArena";
 import { competitionService } from "../../services/competition";
 import { useTheme } from "../../theme/ThemeContext";
 
@@ -76,23 +77,11 @@ export const CompetitionJoinCodeScreen: React.FC = () => {
       scrollable
     >
       <View style={styles.container}>
-        {/* Header Hero */}
-        <View style={styles.heroSection}>
-          <View
-            style={[
-              styles.heroIconWrap,
-              { backgroundColor: "rgba(34, 197, 94, 0.15)", borderColor: "rgba(34, 197, 94, 0.3)" },
-            ]}
-          >
-            <KeyRound size={28} color={colors.primary} />
-          </View>
-          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-            Enter Match Code
-          </Text>
-          <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-            Paste or enter the 6-character room code from your classmate or host to enter the arena.
-          </Text>
-        </View>
+        <ArenaHeader
+          eyebrow="JOIN A CHALLENGE"
+          title="Enter match code"
+          subtitle="Use the six-character invite from your classmate or match host."
+        />
 
         {/* Main Code Input Card */}
         <Card style={[styles.mainCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
