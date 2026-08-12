@@ -659,8 +659,12 @@ export class UsersService {
   }
 
   async getFeatureAccess(userId: string) {
+    const persistedAccess = await prisma.featureAccess.findMany({
+      where: { user_id: userId },
+    });
+
     if (config.unlockAllFeatures) {
-      return Object.values(Feature).map((feature) => ({
+      const bypassAccess = Object.values(Feature).map((feature) => ({
         id: 'bypassed',
         user_id: userId,
         feature,
@@ -670,11 +674,12 @@ export class UsersService {
         purchased_at: new Date(),
         payment_ref: 'BYPASS',
       }));
+      // Beta access must supplement real purchases, never hide them. The
+      // subscription screen relies on persisted product_code/payment_ref data.
+      return [...persistedAccess, ...bypassAccess];
     }
 
-    return prisma.featureAccess.findMany({
-      where: { user_id: userId },
-    });
+    return persistedAccess;
   }
 
   async getUploads(userId: string) {
