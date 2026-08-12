@@ -1004,7 +1004,7 @@ Important:
       ),
     ].filter(Boolean).join('\n\n---\n\n');
 
-    // 5. Call AI Provider (Gemini)
+    // 5. Call AI provider (OpenAI primary, Gemini fallback)
     // A multi-part assignment question taught at zero-background depth - with a hook,
     // causal chain, and retell per lettered sub-part on top of full worked steps - easily
     // runs to several thousand tokens; 3000 was still low enough to cut answers off

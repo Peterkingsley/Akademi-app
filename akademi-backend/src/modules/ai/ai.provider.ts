@@ -198,6 +198,64 @@ const GEMINI_FALLBACK_MODELS = [
   'gemini-3.5-flash',
 ];
 
+const OPENAI_ATTEMPT_TIMEOUT_MS = 15000;
+const EXTENDED_OPENAI_ATTEMPT_TIMEOUT_MS = 45000;
+
+function extractOpenAIText(response: any): string {
+  if (typeof response?.output_text === 'string' && response.output_text.trim()) {
+    return response.output_text.trim();
+  }
+  return (response?.output || [])
+    .flatMap((item: any) => item?.content || [])
+    .filter((item: any) => item?.type === 'output_text' && typeof item?.text === 'string')
+    .map((item: any) => item.text)
+    .join('')
+    .trim();
+}
+
+async function callOpenAI(
+  prompt: string,
+  options: AIRequestOptions,
+): Promise<{ text: string; model: string }> {
+  if (isPlaceholder(config.openAiApiKey)) throw new Error('OpenAI API key is missing or invalid');
+  const model = config.openAiModel || 'gpt-5-nano';
+  let maxOutputTokens = Math.max(options.maxTokens || 1000, 256);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await withTimeout(fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.openAiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        ...(options.systemPrompt ? { instructions: options.systemPrompt } : {}),
+        input: prompt,
+        max_output_tokens: maxOutputTokens,
+        reasoning: { effort: 'minimal' },
+        text: { verbosity: 'medium' },
+        store: false,
+      }),
+    }), options.extendedTimeouts ? EXTENDED_OPENAI_ATTEMPT_TIMEOUT_MS : OPENAI_ATTEMPT_TIMEOUT_MS, `OpenAI (${model})`);
+
+    const body: any = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(`OpenAI ${response.status}: ${body?.error?.message || 'request failed'}`);
+    }
+    const text = extractOpenAIText(body);
+    const truncated = body?.status === 'incomplete' && body?.incomplete_details?.reason === 'max_output_tokens';
+    if (text && !truncated) return { text, model };
+    if (attempt === 0 && truncated) {
+      maxOutputTokens = Math.min(maxOutputTokens * 2, MAX_OUTPUT_TOKENS_CEILING);
+      continue;
+    }
+    if (text) return { text, model };
+    throw new Error('OpenAI returned an empty response');
+  }
+  throw new Error('OpenAI response failed');
+}
+
 
 function isPlaceholder(key: string | undefined | null): boolean {
   if (!key) return true;
@@ -240,8 +298,8 @@ const GEMINI_TOTAL_BUDGET_MS = 25000;
 // Extended limits for long-form answers (see AIRequestOptions.extendedTimeouts): a
 // several-thousand-token assignment solve simply cannot finish inside 8s, and killing it
 // mid-generation is what surfaced as "AI is temporarily busy" on the assignment pager.
-// Gemini is the sole provider now, so this budget alone has to cover the whole call -
-// 60s leaves a healthy 30s margin under the frontend's 90s wait for network/DB overhead.
+// Extended Gemini fallback budget for long-form calls. The OpenAI primary attempt
+// is bounded separately before this fallback chain begins.
 const EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS = 20000;
 const EXTENDED_GEMINI_TOTAL_BUDGET_MS = 60000;
 
@@ -335,6 +393,14 @@ export class AIProvider {
     options: AIRequestOptions = {}
   ): Promise<{ text: string; model: string }> {
     const { maxTokens = 1000, systemPrompt, extendedTimeouts = false, temperature } = options;
+
+    // GPT-5 nano is Akademi's primary text model. Any configuration, capacity,
+    // timeout, or provider error falls through to the existing Gemini chain.
+    try {
+      return await callOpenAI(prompt, { maxTokens, systemPrompt, extendedTimeouts, temperature });
+    } catch (openAiError: any) {
+      console.error('OpenAI primary provider failed; falling back to Gemini:', openAiError?.message || openAiError);
+    }
 
     const geminiAttemptTimeoutMs = extendedTimeouts ? EXTENDED_GEMINI_ATTEMPT_TIMEOUT_MS : GEMINI_ATTEMPT_TIMEOUT_MS;
     const geminiTotalBudgetMs = extendedTimeouts ? EXTENDED_GEMINI_TOTAL_BUDGET_MS : GEMINI_TOTAL_BUDGET_MS;
