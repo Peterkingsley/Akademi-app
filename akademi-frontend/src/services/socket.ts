@@ -19,12 +19,11 @@ class SocketService {
   }
 
   async connect() {
-    if (this.socket?.connected) return this.socket;
-
+    // Reuse an in-progress connection as well as a connected one. Several
+    // screens mount together at startup; recreating the socket from each call
+    // makes them disconnect one another and produces a connect-error storm.
     if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+      return this.socket;
     }
 
     const token = await this.getAccessToken();
@@ -33,12 +32,18 @@ class SocketService {
 
     this.socket = io(socketUrl, {
       auth: { token },
-      transports: ["websocket"],
+      // Render's polling handshake is consistently available even when a
+      // carrier/proxy blocks the direct WebSocket handshake. Socket.IO can
+      // establish over polling and upgrade to WebSocket when supported.
+      transports: ["polling", "websocket"],
+      upgrade: true,
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      forceNew: true,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
+      timeout: 20000,
     });
 
     this.socket.on("connect", () => {
