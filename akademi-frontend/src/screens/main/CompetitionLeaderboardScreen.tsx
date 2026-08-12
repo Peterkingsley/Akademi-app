@@ -1,504 +1,211 @@
-import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import {
-  Award,
-  Crown,
-  Flame,
-  Medal,
-  Percent,
-  ShieldCheck,
-  Sparkles,
-  Swords,
-  Trophy,
-  Zap,
-} from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ChevronLeft, Medal, Search, Trophy, X } from "lucide-react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
-import { Card } from "../../components/ui/Card";
-import { ArenaHeader } from "../../components/competition/CompetitionArena";
-import {
-  competitionService,
-  CompetitionLeaderboardEntry,
-  CompetitionSummary,
-} from "../../services/competition";
+import { competitionService, CompetitionLeaderboardEntry } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useTheme } from "../../theme/ThemeContext";
 
+const periods = ["Weekly", "Monthly", "All time"] as const;
+type Period = typeof periods[number];
+
 export const CompetitionLeaderboardScreen: React.FC = () => {
-  const { colors } = useTheme();
-  const { user } = useAuthStore();
-  const [summary, setSummary] = useState<CompetitionSummary | null>(null);
+  const navigation = useNavigation<any>();
+  const { colors, typeScale, radius, controlSize, contentWidth } = useTheme();
+  const user = useAuthStore((state) => state.user);
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [period, setPeriod] = useState<Period>("All time");
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
   const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
   const loadData = async (isRefresh = false) => {
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-
+      isRefresh ? setRefreshing(true) : setLoading(true);
       setLoadNotice(null);
-
-      const [summaryData, leaderboardData] = await Promise.all([
-        competitionService.getSummary(),
-        competitionService.getLeaderboard(),
-      ]);
-
-      setSummary(summaryData);
-      setLeaderboard(leaderboardData);
+      setLeaderboard(await competitionService.getLeaderboard());
     } catch (error: any) {
-      const message =
-        error?.response?.data?.message || "We could not load the competition rankings right now.";
-      if (isRefresh) {
-        Alert.alert("Unable to refresh leaderboard", message);
-      } else {
-        setLoadNotice(message);
-      }
+      const message = error?.response?.data?.message || "We could not load the rankings right now.";
+      isRefresh ? Alert.alert("Unable to refresh", message) : setLoadNotice(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { void loadData(); }, []);
 
-  const stats = [
-    { label: "Matches Played", value: summary?.matchesPlayed ?? 0, icon: Swords, color: colors.primary },
-    { label: "Total Wins", value: summary?.wins ?? 0, icon: Trophy, color: "#F59E0B" },
-    { label: "Win Rate", value: `${summary?.winRate ?? 0}%`, icon: Percent, color: "#A855F7" },
-    { label: "Live Battles", value: summary?.liveMatches ?? 0, icon: Zap, color: "#3B82F6" },
-  ];
+  const visibleLeaders = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return normalized ? leaderboard.filter((entry) => entry.name.toLowerCase().includes(normalized)) : leaderboard;
+  }, [leaderboard, query]);
 
-  const champion = leaderboard[0] || null;
+  const selectPeriod = (next: Period) => {
+    if (next !== "All time") {
+      Alert.alert(`${next} rankings`, "Time-based rankings are coming soon. Showing all-time results for now.");
+      return;
+    }
+    setPeriod(next);
+  };
 
   return (
-    <Screen style={[styles.screen, { backgroundColor: colors.background }]} title="Leaderboard" scrollable>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => loadData(true)}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        <ArenaHeader
-          eyebrow="GLOBAL RANKINGS"
-          title="Leaderboard"
-          subtitle="See who is turning course mastery into consistent competitive results."
-        />
+    <Screen style={[styles.screen, { backgroundColor: colors.bg.canvas }]}>
+      <View style={[styles.shell, { maxWidth: contentWidth.readingMax }]}>
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={8}
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            <ChevronLeft size={24} color={colors.fg.primary} />
+          </Pressable>
+          {searching ? (
+            <View style={[styles.searchBox, { backgroundColor: colors.bg.surfaceRaised, borderColor: colors.borderRoles.default, borderRadius: radius.md }]}>
+              <Search size={18} color={colors.fg.muted} />
+              <TextInput
+                autoFocus
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Find a student"
+                placeholderTextColor={colors.fg.muted}
+                style={[typeScale.body, styles.searchInput, { color: colors.fg.primary }]}
+              />
+              <Pressable accessibilityRole="button" accessibilityLabel="Close search" onPress={() => { setSearching(false); setQuery(""); }}>
+                <X size={20} color={colors.fg.secondary} />
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={styles.titleRow}>
+                <View style={[styles.titleMark, { backgroundColor: colors.brand.fill, borderRadius: radius.sm }]} />
+                <Text style={[typeScale.title, { color: colors.fg.primary }]}>Leaderboard</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Search leaderboard"
+                onPress={() => setSearching(true)}
+                style={({ pressed }) => [styles.iconButton, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Search size={23} color={colors.fg.primary} />
+              </Pressable>
+            </>
+          )}
+        </View>
+
+        <View style={styles.filters}>
+          {periods.map((item) => {
+            const active = item === period;
+            return (
+              <Pressable
+                key={item}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => selectPeriod(item)}
+                style={({ pressed }) => [
+                  styles.filter,
+                  {
+                    minHeight: controlSize.minTouch,
+                    borderRadius: radius.full,
+                    borderColor: active ? colors.brand.fill : colors.brand.border,
+                    backgroundColor: active ? colors.brand.fill : pressed ? colors.brand.subtle : "transparent",
+                  },
+                ]}
+              >
+                <Text style={[typeScale.label, { color: active ? colors.brand.onFill : colors.brand.foreground }]}>{item}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.primary} size="large" />
+          <View style={styles.state}><ActivityIndicator color={colors.brand.foreground} size="large" /></View>
+        ) : loadNotice ? (
+          <View style={styles.state}>
+            <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>Rankings unavailable</Text>
+            <Text style={[typeScale.secondary, styles.stateCopy, { color: colors.fg.secondary }]}>{loadNotice}</Text>
+            <Pressable onPress={() => loadData()} style={[styles.retry, { backgroundColor: colors.brand.fill, borderRadius: radius.md }]}>
+              <Text style={[typeScale.label, { color: colors.brand.onFill }]}>Try again</Text>
+            </Pressable>
           </View>
         ) : (
-          <>
-            {loadNotice ? (
-              <Card style={[styles.noticeCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-                <Text style={[styles.noticeTitle, { color: colors.textPrimary }]}>Notice</Text>
-                <Text style={[styles.noticeText, { color: colors.textSecondary }]}>{loadNotice}</Text>
-              </Card>
-            ) : null}
-
-            {/* User Stats Grid */}
-            <View style={styles.statsGrid}>
-              {stats.map((item) => {
-                return (
-                  <Card
-                    key={item.label}
-                    style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                  >
-                    <View style={styles.statContent}>
-                      <Text style={[styles.statValue, { color: colors.textPrimary }]}>{item.value}</Text>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{item.label}</Text>
+          <ScrollView
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.brand.foreground} />}
+          >
+            {visibleLeaders.map((entry, index) => {
+              const rank = index + 1;
+              const topThree = rank <= 3;
+              const isYou = entry.user_id === user?.id;
+              const medalColor = rank === 1 ? colors.status.warning.icon : rank === 2 ? colors.fg.muted : colors.status.warning.fg;
+              return (
+                <View
+                  key={entry.user_id}
+                  style={[
+                    styles.row,
+                    { borderBottomColor: colors.borderRoles.subtle },
+                    isYou && { backgroundColor: colors.brand.subtle, borderRadius: radius.md },
+                  ]}
+                  accessibilityLabel={`${rank}. ${entry.name}, ${entry.totalScore} points`}
+                >
+                  <View style={styles.rankSlot}>
+                    {topThree ? <Medal size={19} color={medalColor} /> : <Text style={[typeScale.label, { color: colors.fg.muted }]}>{rank}</Text>}
+                  </View>
+                  <View style={[styles.avatar, { backgroundColor: topThree ? colors.brand.subtle : colors.bg.surfaceRaised, borderColor: topThree ? colors.brand.border : colors.borderRoles.default }]}>
+                    <Text style={[typeScale.label, { color: topThree ? colors.brand.foreground : colors.fg.primary }]}>{entry.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.identity}>
+                    <View style={styles.nameLine}>
+                      <Text style={[typeScale.bodyStrong, styles.name, { color: colors.fg.primary }]} numberOfLines={1}>{entry.name}</Text>
+                      {isYou ? <Text style={[typeScale.caption, { color: colors.brand.foreground }]}>You</Text> : null}
                     </View>
-                  </Card>
-                );
-              })}
-            </View>
-
-            {/* Champion Showcase Card */}
-            {champion ? (
-              <Card style={[styles.championCard, { backgroundColor: colors.surface, borderColor: "rgba(245, 158, 11, 0.4)" }]}>
-                <View style={styles.championBadgeRow}>
-                  <View style={styles.crownPill}>
-                    <Text style={styles.crownPillText}>#1 GLOBAL CHAMPION</Text>
+                    <Text style={[typeScale.caption, { color: colors.fg.muted }]}>{entry.wins} wins · {entry.winRate}% win rate</Text>
+                  </View>
+                  <View style={styles.score}>
+                    {rank === 1 ? <Trophy size={15} color={colors.status.warning.icon} /> : null}
+                    <Text style={[typeScale.label, { color: topThree ? colors.brand.foreground : colors.fg.primary }]}>{entry.totalScore} pts</Text>
                   </View>
                 </View>
-
-                <View style={styles.championBody}>
-                  <View style={styles.championAvatar}>
-                    <Text style={styles.championAvatarText}>
-                      {champion.name[0].toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.championTextWrap}>
-                    <Text style={[styles.championName, { color: colors.textPrimary }]}>{champion.name}</Text>
-                    <Text style={[styles.championMeta, { color: colors.textSecondary }]}>
-                      {`${champion.wins} Wins • ${champion.winRate}% Win Rate`}
-                    </Text>
-                  </View>
-                  <View style={styles.championScoreWrap}>
-                    <Text style={styles.championScoreText}>{champion.totalScore}</Text>
-                    <Text style={styles.championScoreSub}>PTS</Text>
-                  </View>
-                </View>
-              </Card>
+              );
+            })}
+            {visibleLeaders.length === 0 ? (
+              <View style={styles.state}>
+                <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>No student found</Text>
+                <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>Try another name.</Text>
+              </View>
             ) : null}
-
-            {/* Rankings Section Header */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Global Student Rankings</Text>
-            </View>
-
-            {leaderboard.length === 0 ? (
-              <Card style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Rankings Yet</Text>
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  Once live speed battles finish, global rankings will automatically populate here.
-                </Text>
-              </Card>
-            ) : (
-              <Card style={[styles.leaderboardCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                {leaderboard.map((entry, index) => {
-                  const isCurrentUser = user?.id === entry.user_id;
-                  const isTop3 = index < 3;
-
-                  const rankColor =
-                    index === 0
-                      ? "#F59E0B"
-                      : index === 1
-                        ? "#94A3B8"
-                        : index === 2
-                          ? "#D97706"
-                          : colors.textMuted;
-
-                  const rankBg =
-                    index === 0
-                      ? "rgba(245, 158, 11, 0.15)"
-                      : index === 1
-                        ? "rgba(148, 163, 184, 0.15)"
-                        : index === 2
-                          ? "rgba(217, 119, 6, 0.15)"
-                          : colors.surfaceElevated;
-
-                  return (
-                    <View
-                      key={entry.user_id}
-                      style={[
-                        styles.leaderRow,
-                        { borderColor: colors.border },
-                        isCurrentUser && {
-                          backgroundColor: "rgba(34, 197, 94, 0.12)",
-                          borderColor: colors.primary,
-                        },
-                      ]}
-                    >
-                      {/* Metallic Rank Badge */}
-                      <View style={[styles.rankBadge, { backgroundColor: rankBg }]}>
-                        <Text style={[styles.rankText, { color: rankColor }]}>#{index + 1}</Text>
-                      </View>
-
-                      {/* Avatar */}
-                      <View style={[styles.rowAvatar, { backgroundColor: colors.surfaceElevated }]}>
-                        <Text style={[styles.rowAvatarText, { color: colors.textPrimary }]}>
-                          {entry.name[0].toUpperCase()}
-                        </Text>
-                      </View>
-
-                      {/* User Info */}
-                      <View style={styles.leaderTextWrap}>
-                        <View style={styles.nameRow}>
-                          <Text style={[styles.leaderName, { color: colors.textPrimary }]}>
-                            {entry.name}
-                          </Text>
-                          {isCurrentUser ? (
-                            <View style={[styles.youTag, { backgroundColor: colors.primary }]}>
-                              <Text style={styles.youTagText}>YOU</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <Text style={[styles.leaderMeta, { color: colors.textSecondary }]}>
-                          {`${entry.wins} W • ${entry.matchesPlayed} battles • ${entry.winRate}% win rate`}
-                        </Text>
-                      </View>
-
-                      {/* Score */}
-                      <Text
-                        style={[
-                          styles.leaderScore,
-                          { color: isTop3 ? colors.primary : colors.textPrimary },
-                        ]}
-                      >
-                        {entry.totalScore} pts
-                      </Text>
-                    </View>
-                  );
-                })}
-              </Card>
-            )}
-          </>
+          </ScrollView>
         )}
-      </ScrollView>
+      </View>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  container: {
-    padding: 18,
-    gap: 14,
-    paddingBottom: 36,
-  },
-  heroHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  heroIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  heroTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  center: {
-    paddingTop: 80,
-    alignItems: "center",
-  },
-  noticeCard: {
-    gap: 6,
-    borderWidth: 1,
-    padding: 14,
-    borderRadius: 14,
-  },
-  noticeTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  noticeText: {
-    fontSize: 13,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  statCard: {
-    width: "48%",
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-  },
-  statIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statContent: {
-    gap: 2,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  statLabel: {
-    fontSize: 10,
-  },
-  championCard: {
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    gap: 12,
-  },
-  championBadgeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  crownPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(245, 158, 11, 0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  crownPillText: {
-    color: "#F59E0B",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  championBody: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  championAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F59E0B",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  championAvatarText: {
-    color: "#04110A",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  championTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  championName: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  championMeta: {
-    fontSize: 12,
-  },
-  championScoreWrap: {
-    alignItems: "flex-end",
-  },
-  championScoreText: {
-    color: "#F59E0B",
-    fontSize: 20,
-    fontWeight: "800",
-  },
-  championScoreSub: {
-    color: "#F59E0B",
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 6,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-  },
-  emptyCard: {
-    alignItems: "center",
-    padding: 26,
-    gap: 10,
-    borderRadius: 18,
-    borderWidth: 1,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  emptyText: {
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  leaderboardCard: {
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 8,
-  },
-  leaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
-  },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  rowAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowAvatarText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  leaderTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  leaderName: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  youTag: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  youTagText: {
-    color: "#04110A",
-    fontSize: 9,
-    fontWeight: "800",
-  },
-  leaderMeta: {
-    fontSize: 11,
-  },
-  leaderScore: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
+  screen: { flex: 1 },
+  shell: { flex: 1, width: "100%", alignSelf: "center", paddingHorizontal: 16, paddingTop: 8 },
+  header: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 8 },
+  iconButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  titleRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  titleMark: { width: 16, height: 16 },
+  searchBox: { flex: 1, minHeight: 48, borderWidth: 1, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchInput: { flex: 1, paddingVertical: 0 },
+  filters: { flexDirection: "row", gap: 8, paddingVertical: 12 },
+  filter: { flex: 1, borderWidth: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
+  list: { paddingTop: 6, paddingBottom: 40 },
+  row: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 10, borderBottomWidth: 1 },
+  rankSlot: { width: 24, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  identity: { flex: 1, gap: 2 },
+  nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { flexShrink: 1 },
+  score: { flexDirection: "row", alignItems: "center", gap: 5 },
+  state: { flex: 1, minHeight: 240, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 24 },
+  stateCopy: { textAlign: "center" },
+  retry: { minHeight: 48, justifyContent: "center", paddingHorizontal: 20, marginTop: 4 },
 });
