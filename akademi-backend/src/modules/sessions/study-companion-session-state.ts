@@ -529,10 +529,6 @@ export async function persistRoadmap(
     normalizedExtra.section_context = sectionContext as Prisma.InputJsonValue;
 
     if (condensed) {
-      // For a simple factual/rule-based section, the Pass 2 application
-      // question is already enough to become the first mastery checkpoint.
-      // Persist it as TEACHBACK_1 so the student's next answer is evaluated
-      // instead of generating another explanatory pass.
       normalizedExtra.current_phase = StudyCompanionPhase.TEACHBACK_1_REQUESTED;
       console.log('condensed_companion_checkpoint_activated', {
         stateId,
@@ -546,13 +542,17 @@ export async function persistRoadmap(
   if (extra.current_phase === StudyCompanionPhase.GAP_RETEACH) {
     const adjudication = await adjudicateLatestFirstTeachBack(stateId, roadmap);
     if (adjudication?.passed) {
-      normalizedExtra.current_phase = StudyCompanionPhase.MEMORY_DUMP_REQUESTED;
+      // Keep GAP_RETEACH only as the existing frontend auto-continue bridge.
+      // Mark reteach as already delivered so the next automatic turn skips the
+      // reteach generator and emits the memory/retention checkpoint directly.
+      normalizedExtra.current_phase = StudyCompanionPhase.GAP_RETEACH;
       normalizedExtra.pending_prompt = adjudication.feedback || extra.pending_prompt;
       normalizedExtra.section_context = {
         coveredConcepts: safeJsonArray<string>(sectionContext.coveredConcepts),
         nextPromptKind: 'memory_dump',
         failedConcepts: [],
         reteachDelivered: true,
+        passedTeachbackSkip: true,
       } as Prisma.InputJsonValue;
       console.log('passed_teachback_reteach_skipped', {
         stateId,
