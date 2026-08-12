@@ -17,6 +17,29 @@ function isNonSubstantiveResponse(value: string) {
   );
 }
 
+function normalizeMathMatch(value: string) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[−–—]/g, '-')
+    .replace(/\\times/g, '×')
+    .replace(/\\cdot/g, '×')
+    .replace(/\\left|\\right/g, '')
+    .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+    .replace(/[{}$\s]/g, '')
+    .trim();
+}
+
+function isConciseExactNumericAnswer(section: RoadmapSection, studentResponse: string) {
+  const response = normalizeText(studentResponse);
+  if (!response || response.length > 48 || !/[0-9^×÷+\-]/.test(response)) {
+    return false;
+  }
+  const normalizedResponse = normalizeMathMatch(response);
+  if (normalizedResponse.length < 2) return false;
+  const normalizedSource = normalizeMathMatch(`${section.title}\n${section.content || ''}`);
+  return normalizedSource.includes(normalizedResponse);
+}
+
 function fallbackWeakConcept(section: RoadmapSection) {
   const source = `${section.title}\n${section.content || ''}`.toLowerCase();
   if (/prefix|abbreviation|milli|micro|nano|kilo|centi|deci/.test(source)) {
@@ -79,6 +102,7 @@ export function computeCoverageScore(
   studentResponse: string,
 ) {
   if (isNonSubstantiveResponse(studentResponse)) return 0;
+  if (isConciseExactNumericAnswer(section, studentResponse)) return 92;
   return base.computeCoverageScore(section, studentResponse);
 }
 
