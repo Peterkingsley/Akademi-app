@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import {
   X,
   Sparkles,
@@ -15,7 +15,8 @@ import {
   Book,
   Download,
   Target,
-  ArrowRight
+  ArrowRight,
+  CheckCircle2,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -29,6 +30,28 @@ export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
+  const [subscription, setSubscription] = useState<{ plan: "monthly" | "yearly"; expiresAt: string } | null>(null);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
+
+  const loadSubscription = useCallback(async () => {
+    try {
+      setCheckingSubscription(true);
+      const access = await userService.getFeatureAccess();
+      const active = access
+        .filter((item) => item.product_code?.startsWith("AKADEMI_PRO_") && item.expires_at && new Date(item.expires_at) > new Date())
+        .sort((a, b) => new Date(b.expires_at!).getTime() - new Date(a.expires_at!).getTime())[0];
+      setSubscription(active ? {
+        plan: active.product_code === "AKADEMI_PRO_YEARLY" ? "yearly" : "monthly",
+        expiresAt: active.expires_at!,
+      } : null);
+    } catch (error) {
+      console.error("Subscription status check failed:", error);
+    } finally {
+      setCheckingSubscription(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { void loadSubscription(); }, [loadSubscription]));
 
   const handleUpgrade = async () => {
     setLoading(true);
@@ -40,6 +63,7 @@ export const SubscriptionScreen: React.FC = () => {
       });
       try {
         await userService.verifySubscription(checkout.reference);
+        await loadSubscription();
         Alert.alert("Welcome to Akademi Pro", "Your payment is confirmed and Pro access is now active.", [
           { text: "Continue", onPress: () => navigation.goBack() },
         ]);
@@ -105,6 +129,18 @@ export const SubscriptionScreen: React.FC = () => {
             ))}
           </View>
 
+          {subscription ? (
+            <View style={styles.activeSubscriptionCard}>
+              <CheckCircle2 size={24} color={colors.primary} />
+              <View style={styles.activeSubscriptionCopy}>
+                <Text style={styles.activeSubscriptionTitle}>You’re already subscribed</Text>
+                <Text style={styles.activeSubscriptionText}>
+                  Akademi Pro {subscription.plan === "yearly" ? "Yearly" : "Monthly"} · Active until {new Date(subscription.expiresAt).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" })}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
           {/* Billing Toggle */}
           <View style={styles.toggleContainer}>
             <View style={styles.toggleBackground}>
@@ -145,10 +181,11 @@ export const SubscriptionScreen: React.FC = () => {
 
           {/* Action Button */}
           <Button
-            label={`Pay ${displayPrice} with Kora`}
+            label={subscription ? "Already subscribed" : `Pay ${displayPrice} with Kora`}
             onPress={handleUpgrade}
-            loading={loading}
-            icon={<ArrowRight size={20} color="#FFFFFF" />}
+            loading={loading || checkingSubscription}
+            disabled={!!subscription}
+            icon={subscription ? <CheckCircle2 size={20} color="#FFFFFF" /> : <ArrowRight size={20} color="#FFFFFF" />}
             style={styles.upgradeButton}
           />
 
@@ -214,6 +251,20 @@ const styles = StyleSheet.create({
   featuresList: {
     marginBottom: 24,
   },
+  activeSubscriptionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.4)",
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+  },
+  activeSubscriptionCopy: { flex: 1, gap: 4 },
+  activeSubscriptionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: "800" },
+  activeSubscriptionText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   featureRow: {
     flexDirection: "row",
     alignItems: "center",

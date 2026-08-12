@@ -32,6 +32,7 @@ export interface FeatureAccess {
   uses_remaining?: number | null;
   purchased_at?: string;
   payment_ref?: string;
+  product_code?: string | null;
   hasAccess?: boolean;
   plan?: "free" | "pro";
   expiresAt?: string;
