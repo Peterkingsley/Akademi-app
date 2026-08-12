@@ -84,9 +84,10 @@ export function parseMetadata(session: Session) {
 
 export function isCompanionSession(session: Session) {
   const metadata = parseMetadata(session);
+  const companionModes = new Set(['ai-study-companion', 'ai-tutor']);
   return (
     session.session_type === 'STUDY' &&
-    metadata.mode === 'ai-study-companion' &&
+    companionModes.has(String(metadata.mode || '')) &&
     !!session.material_id
   );
 }
