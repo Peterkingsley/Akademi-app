@@ -156,6 +156,7 @@ export const SubscriptionScreen: React.FC = () => {
                 onPress={() => setBillingCycle("weekly")}
               >
                 <Text style={[styles.toggleText, billingCycle === "weekly" && styles.toggleTextActive]}>Weekly</Text>
+                <View style={styles.badgeSlot} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.toggleOption, billingCycle === "monthly" && styles.toggleActive]}
@@ -164,15 +165,16 @@ export const SubscriptionScreen: React.FC = () => {
                 <Text style={[styles.toggleText, billingCycle === "monthly" && styles.toggleTextActive]}>
                   Monthly
                 </Text>
+                <View style={styles.badgeSlot} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.toggleOption, billingCycle === "four_month" && styles.toggleActive]}
                 onPress={() => setBillingCycle("four_month")}
               >
-                <View style={styles.yearlyOptionRow}>
-                  <Text style={[styles.toggleText, billingCycle === "four_month" && styles.toggleTextActive]}>
-                    4 Months
-                  </Text>
+                <Text style={[styles.toggleText, billingCycle === "four_month" && styles.toggleTextActive]}>
+                  4 Months
+                </Text>
+                <View style={styles.badgeSlot}>
                   <View style={styles.saveBadge}>
                     <Text style={styles.saveBadgeText}>BEST VALUE</Text>
                   </View>
@@ -303,45 +305,52 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 24,
-    padding: 4,
+    borderRadius: 18,
+    padding: 6,
+    gap: 6,
     width: "100%",
   },
   toggleOption: {
     flex: 1,
-    height: 42,
-    borderRadius: 20,
+    minWidth: 0,
+    height: 68,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 3,
   },
   toggleActive: {
     backgroundColor: colors.primary,
   },
   toggleText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "800",
     color: colors.textSecondary,
+    textAlign: "center",
   },
   toggleTextActive: {
     color: "#FFFFFF",
   },
-  yearlyOptionRow: {
-    flexDirection: "row",
+  badgeSlot: {
+    height: 18,
+    width: "100%",
     alignItems: "center",
+    justifyContent: "center",
   },
   saveBadge: {
     backgroundColor: "#04110A",
     borderColor: "rgba(34, 197, 94, 0.4)",
     borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
   saveBadgeText: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: "800",
     color: colors.primary,
+    letterSpacing: 0.25,
   },
   priceContainer: {
     alignItems: "center",
