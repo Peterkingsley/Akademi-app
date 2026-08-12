@@ -95,10 +95,6 @@ export function truncate(value: string, max = 900) {
   return `${value.slice(0, max - 3).trimEnd()}...`;
 }
 
-// For STUDENT-FACING content only. Plain truncate() cuts mid-word ("its
-// accelera...") which reads as a broken message and gets spoken aloud as a
-// broken sentence by TTS. This trims back to the last complete sentence
-// under the cap, so an over-long turn ends cleanly instead of amputated.
 export function truncateToSentence(value: string, max = 900) {
   if (value.length <= max) return value;
   const slice = value.slice(0, max);
@@ -109,8 +105,6 @@ export function truncateToSentence(value: string, max = 900) {
     slice.lastIndexOf('.\n'),
   );
   if (lastStop > max * 0.4) return slice.slice(0, lastStop + 1).trimEnd();
-  // No usable sentence boundary - fall back to the last word boundary so we
-  // at least never split a word in half.
   const lastSpace = slice.lastIndexOf(' ');
   return lastSpace > 0
     ? `${slice.slice(0, lastSpace).trimEnd()}.`
@@ -326,7 +320,6 @@ export function getTeacherBrainSectionContext(
   const concepts = teacherBrain.conceptGraph.filter((item) =>
     (item.section_indexes || []).includes(sectionIndex),
   );
-
   const prerequisites = teacherBrain.prerequisites.filter(
     (item) => item.section_index === sectionIndex,
   );
@@ -385,20 +378,10 @@ export function isCalculationHeavySection(
   section: RoadmapSection,
   teacherBrainContext: TeacherBrainSectionContext,
 ) {
-  const subjectFamily = teacherBrainContext.subjectFamily || '';
-  const calculationFamilies = new Set([
-    'mathematics',
-    'statistics',
-    'engineering',
-    'economics',
-    'finance',
-    'physics',
-    'chemistry',
-    'computer_science',
-    'cybersecurity',
-    'agriculture',
-  ]);
-
+  // A subject being quantitative does not mean every section is a calculation
+  // lesson. Physics definitions, SI-prefix tables, and chemistry terminology
+  // were previously forced through full calculation pedagogy just because of
+  // their subject family or because a power of ten appeared in the text.
   if (
     teacherBrainContext.formulas.length ||
     teacherBrainContext.calculationMethods.length
@@ -406,24 +389,20 @@ export function isCalculationHeavySection(
     return true;
   }
 
-  if (calculationFamilies.has(subjectFamily)) {
-    return true;
-  }
-
   const content = `${section.title}\n${section.content}`.toLowerCase();
-  const quantitativePatterns = [
-    /\bmean\b|\bmedian\b|\bmode\b|\bvariance\b|\bstandard deviation\b|\bprobability\b/,
-    /\binterest\b|\bdiscount\b|\bpresent value\b|\bfuture value\b|\belasticity\b|\bcost\b|\brevenue\b/,
-    /\bforce\b|\bvelocity\b|\bacceleration\b|\bdensity\b|\bmolar\b|\bconcentration\b|\bpressure\b/,
-    /\balgorithmic complexity\b|\bbig o\b|\bhash\b|\bencryption\b|\bthroughput\b/,
-    /\bpercentage\b|\bratio\b|\brate\b|\bunit\b|\bsolve\b|\bcalculate\b|\bsubstitute\b/,
-    /\bkg\b|\bg\b|\bmg\b|\bmol\b|\blitre\b|\bl\b|\bcm\b|\bmm\b|\bkm\b|\bnaira\b|\bseconds?\b|\bminutes?\b/,
-  ];
+  const hasCalculationAction =
+    /\b(solve|calculate|compute|determine|convert|conversion|substitute|rearrange|derive|differentiate|integrate|evaluate|factor|simplify|find\s+(?:x|y|the\s+(?:value|mean|median|probability|velocity|acceleration|force|pressure|density)))\b/.test(
+      content,
+    );
+  const hasEquationStructure =
+    /\b[a-z][a-z0-9_]*\s*=\s*[^,.;\n]{2,80}/i.test(content) ||
+    /\\frac|\\sum|\\int|\b(?:sin|cos|tan|log)\s*\(/i.test(content);
+  const calculationTopic =
+    /\b(mean|median|variance|standard deviation|probability|interest rate|present value|future value|elasticity|velocity|acceleration|force|density|molarity|concentration|pressure|percentage|ratio)\b/.test(
+      content,
+    );
 
-  return (
-    hasMathNotation(content) ||
-    quantitativePatterns.some((pattern) => pattern.test(content))
-  );
+  return hasCalculationAction || hasEquationStructure || calculationTopic;
 }
 
 export function buildCalculationTeachingContext(
@@ -478,18 +457,10 @@ export function buildCalculationTeachingContext(
       ).join(' | ')}`,
     );
   }
-  if (workedExamples.length) {
-    lines.push(`Worked examples: ${workedExamples.join(' | ')}`);
-  }
-  if (commonMistakes.length) {
-    lines.push(`Common mistakes: ${commonMistakes.join(' | ')}`);
-  }
-  if (unitFormats.length) {
-    lines.push(`Unit or answer format: ${unitFormats.join(' | ')}`);
-  }
-  if (likelyEquations.length) {
-    lines.push(`Likely equations from section: ${likelyEquations.join(' | ')}`);
-  }
+  if (workedExamples.length) lines.push(`Worked examples: ${workedExamples.join(' | ')}`);
+  if (commonMistakes.length) lines.push(`Common mistakes: ${commonMistakes.join(' | ')}`);
+  if (unitFormats.length) lines.push(`Unit or answer format: ${unitFormats.join(' | ')}`);
+  if (likelyEquations.length) lines.push(`Likely equations from section: ${likelyEquations.join(' | ')}`);
   if (teacherBrainContext.prerequisites.length) {
     lines.push(
       `Prerequisites before solving: ${truncateList(
@@ -556,30 +527,15 @@ export function isDiagramHeavySection(
   section: RoadmapSection,
   teacherBrainContext: TeacherBrainSectionContext,
 ) {
-  const subjectFamily = teacherBrainContext.subjectFamily || '';
-  const diagramFamilies = new Set([
-    'biology',
-    'medicine',
-    'engineering',
-    'agriculture',
-    'geography',
-    'chemistry',
-    'computer_science',
-    'cybersecurity',
-    'economics',
-    'statistics',
-  ]);
-
+  // Visual teaching must be grounded in an actual visual need. A table, the
+  // word "process", or belonging to a visual-friendly subject family is not
+  // enough evidence to force mental-diagram language into every response.
   if (teacherBrainContext.diagrams.length) {
     return true;
   }
 
-  if (diagramFamilies.has(subjectFamily)) {
-    return true;
-  }
-
   const content = `${section.title}\n${section.content}`.toLowerCase();
-  return /\bdiagram\b|\bfigure\b|\bchart\b|\btable\b|\bgraph\b|\bcurve\b|\bmap\b|\bflowchart\b|\bprocess\b|\baxis\b|\bx-axis\b|\by-axis\b|\barrow\b|\blabel\b|\bimage caption\b|\bimage description\b/.test(
+  return /\b(diagram|figure|graph|curve|map|flowchart|x-axis|y-axis|axis|arrow|image caption|image description|draw|sketch|plot)\b/.test(
     content,
   );
 }
@@ -615,9 +571,7 @@ export function buildDiagramTeachingContext(
     );
   }
   if (imageDescriptions.length) {
-    lines.push(
-      `Image descriptions already in content: ${imageDescriptions.join(' | ')}`,
-    );
+    lines.push(`Image descriptions already in content: ${imageDescriptions.join(' | ')}`);
   }
 
   return {
@@ -638,8 +592,7 @@ export function buildDiagramInstructions(
   if (pass === 1) {
     return [
       'Diagram teaching mode: Pass 1.',
-      'Introduce the visual idea.',
-      'Explain why the diagram matters.',
+      'Introduce the visual idea only if it helps explain the current concept.',
       'Describe the big picture without too much detail.',
       'Use imagine or picture instead of claiming an image is on screen.',
     ].join(' ');
@@ -648,8 +601,8 @@ export function buildDiagramInstructions(
   if (pass === 2) {
     return [
       'Diagram teaching mode: Pass 2.',
-      'Walk through the diagram or process step by step.',
-      'Explain labels, parts, arrows, axes, stages, or relationships.',
+      'Walk through the actual diagram, graph, or visual structure step by step.',
+      'Explain labels, parts, arrows, axes, stages, or relationships that are present.',
       'For graphs, explain x-axis, y-axis, trend, slope, peak, movement, or comparison where relevant.',
       'For anatomy or biology, explain parts and functions.',
       'For engineering or computer science, explain flow, components, inputs, outputs, or system behavior.',
@@ -658,19 +611,16 @@ export function buildDiagramInstructions(
 
   return [
     'Diagram teaching mode: Pass 3.',
-    'Connect the diagram to exam use.',
-    'Explain what examiners usually ask from the diagram.',
-    'Highlight common visual mistakes or mislabeling.',
-    'Explain how the student should reproduce or interpret the diagram.',
+    'Connect the actual visual to exam use.',
+    'Highlight common visual mistakes or mislabeling only where relevant.',
+    'Explain how the student should reproduce or interpret the visual.',
   ].join(' ');
 }
 
 export function mapDiagramTypeToSuggestedRenderer(
   diagramType?: string,
 ): StudyVisualSuggestedRenderer {
-  const normalized = String(diagramType || '')
-    .trim()
-    .toLowerCase();
+  const normalized = String(diagramType || '').trim().toLowerCase();
 
   switch (normalized) {
     case 'flowchart':
@@ -709,44 +659,30 @@ export function buildTeacherBrainPromptContext(
   const lines: string[] = [];
 
   if (teacherBrain.summary.overall_summary) {
-    lines.push(
-      `Overall material summary: ${truncate(teacherBrain.summary.overall_summary, 320)}`,
-    );
+    lines.push(`Overall material summary: ${truncate(teacherBrain.summary.overall_summary, 320)}`);
   }
   if (teacherBrain.summary.main_learning_goal) {
-    lines.push(
-      `Main learning goal: ${truncate(teacherBrain.summary.main_learning_goal, 180)}`,
-    );
+    lines.push(`Main learning goal: ${truncate(teacherBrain.summary.main_learning_goal, 180)}`);
   }
-  if (teacherBrain.subjectFamily) {
-    lines.push(`Subject family: ${teacherBrain.subjectFamily}`);
-  }
+  if (teacherBrain.subjectFamily) lines.push(`Subject family: ${teacherBrain.subjectFamily}`);
   if (teacherBrain.summary.recommended_study_order?.length) {
     lines.push(
       `Recommended study order: ${truncateList(teacherBrain.summary.recommended_study_order, 6, 80).join(' | ')}`,
     );
   }
   if (sectionContext.currentChapterSummary?.summary) {
-    lines.push(
-      `Current chapter summary: ${truncate(sectionContext.currentChapterSummary.summary, 220)}`,
-    );
+    lines.push(`Current chapter summary: ${truncate(sectionContext.currentChapterSummary.summary, 220)}`);
   }
   if (sectionContext.previousChapterSummary?.summary) {
-    lines.push(
-      `Previous section bridge: ${truncate(sectionContext.previousChapterSummary.summary, 140)}`,
-    );
+    lines.push(`Previous section bridge: ${truncate(sectionContext.previousChapterSummary.summary, 140)}`);
   }
   if (sectionContext.nextChapterSummary?.summary) {
-    lines.push(
-      `Next section preview: ${truncate(sectionContext.nextChapterSummary.summary, 140)}`,
-    );
+    lines.push(`Next section preview: ${truncate(sectionContext.nextChapterSummary.summary, 140)}`);
   }
   if (sectionContext.concepts.length) {
     lines.push(
       `Connected concepts: ${truncateList(
-        sectionContext.concepts.map(
-          (item) => `${item.concept} (${item.importance})`,
-        ),
+        sectionContext.concepts.map((item) => `${item.concept} (${item.importance})`),
         5,
         90,
       ).join(' | ')}`,
@@ -755,9 +691,7 @@ export function buildTeacherBrainPromptContext(
   if (sectionContext.prerequisites.length) {
     lines.push(
       `Prerequisites: ${truncateList(
-        sectionContext.prerequisites.map(
-          (item) => `${item.concept}: ${item.student_should_know}`,
-        ),
+        sectionContext.prerequisites.map((item) => `${item.concept}: ${item.student_should_know}`),
         4,
         120,
       ).join(' | ')}`,
@@ -766,10 +700,7 @@ export function buildTeacherBrainPromptContext(
   if (sectionContext.formulas.length) {
     lines.push(
       `Formulas: ${truncateList(
-        sectionContext.formulas.map(
-          (item) =>
-            `${item.name}: ${item.formula_latex} | use: ${item.when_to_use}`,
-        ),
+        sectionContext.formulas.map((item) => `${item.name}: ${item.formula_latex} | use: ${item.when_to_use}`),
         4,
         140,
       ).join(' | ')}`,
@@ -779,8 +710,7 @@ export function buildTeacherBrainPromptContext(
     lines.push(
       `Calculation methods: ${truncateList(
         sectionContext.calculationMethods.map(
-          (item) =>
-            `${item.topic} | steps: ${(item.method_steps || []).slice(0, 4).join(' -> ')} | mistakes: ${(item.common_mistakes || []).slice(0, 2).join(', ')}`,
+          (item) => `${item.topic} | steps: ${(item.method_steps || []).slice(0, 4).join(' -> ')} | mistakes: ${(item.common_mistakes || []).slice(0, 2).join(', ')}`,
         ),
         3,
         180,
@@ -790,10 +720,7 @@ export function buildTeacherBrainPromptContext(
   if (sectionContext.diagrams.length) {
     lines.push(
       `Diagrams: ${truncateList(
-        sectionContext.diagrams.map(
-          (item) =>
-            `${item.title} (${item.diagram_type}) - ${item.description}`,
-        ),
+        sectionContext.diagrams.map((item) => `${item.title} (${item.diagram_type}) - ${item.description}`),
         3,
         140,
       ).join(' | ')}`,
@@ -802,9 +729,7 @@ export function buildTeacherBrainPromptContext(
   if (sectionContext.misconceptions.length) {
     lines.push(
       `Common misconceptions: ${truncateList(
-        sectionContext.misconceptions.map(
-          (item) => `${item.misconception} -> ${item.correction}`,
-        ),
+        sectionContext.misconceptions.map((item) => `${item.misconception} -> ${item.correction}`),
         3,
         140,
       ).join(' | ')}`,
@@ -813,9 +738,7 @@ export function buildTeacherBrainPromptContext(
   if (sectionContext.examAngles.length) {
     lines.push(
       `Exam angles: ${truncateList(
-        sectionContext.examAngles.map(
-          (item) => `${item.likely_question_type}: ${item.what_examiner_tests}`,
-        ),
+        sectionContext.examAngles.map((item) => `${item.likely_question_type}: ${item.what_examiner_tests}`),
         3,
         140,
       ).join(' | ')}`,
@@ -824,9 +747,7 @@ export function buildTeacherBrainPromptContext(
 
   const notes: string[] = [];
   if (sectionContext.teacherNotes.teaching_style) {
-    notes.push(
-      `style: ${truncate(sectionContext.teacherNotes.teaching_style, 120)}`,
-    );
+    notes.push(`style: ${truncate(sectionContext.teacherNotes.teaching_style, 120)}`);
   }
   if ((sectionContext.teacherNotes.best_analogies || []).length) {
     notes.push(
@@ -835,8 +756,7 @@ export function buildTeacherBrainPromptContext(
   }
   if (
     (sectionContext.teacherNotes.sections_that_need_extra_care || []).some(
-      (item) =>
-        normalizeTitle(item) === normalizeTitle(currentSection?.title || ''),
+      (item) => normalizeTitle(item) === normalizeTitle(currentSection?.title || ''),
     )
   ) {
     notes.push('this section needs extra care');
@@ -855,9 +775,7 @@ export function buildTeacherBrainPromptContext(
   ) {
     notes.push('diagram-heavy section');
   }
-  if (notes.length) {
-    lines.push(`Teacher notes: ${notes.join(' | ')}`);
-  }
+  if (notes.length) lines.push(`Teacher notes: ${notes.join(' | ')}`);
 
   return lines.join('\n');
 }
