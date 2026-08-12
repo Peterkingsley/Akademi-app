@@ -28,6 +28,9 @@ export const AiVoiceToggleButton: React.FC<AiVoiceToggleButtonProps> = ({
         style,
       ]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={enabled ? "Mute answer voice" : "Unmute answer voice"}
+      accessibilityState={{ checked: enabled }}
     >
       {enabled ? <Volume2 size={18} color={colors.primary} /> : <VolumeX size={18} color={colors.textSecondary} />}
     </TouchableOpacity>

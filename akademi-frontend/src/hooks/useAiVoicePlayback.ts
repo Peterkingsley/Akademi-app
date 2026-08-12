@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { getAiVoiceEnabled, setAiVoiceEnabled as persistAiVoiceEnabled, speakAiText, stopAiSpeech } from "../services/voice";
 
-export const useAiVoicePlayback = () => {
-  const [aiVoiceEnabled, setAiVoiceEnabledState] = useState(true);
+type AiVoicePlaybackOptions = {
+  initialEnabled?: boolean;
+  persistPreference?: boolean;
+};
+
+export const useAiVoicePlayback = ({ initialEnabled = true, persistPreference = true }: AiVoicePlaybackOptions = {}) => {
+  const [aiVoiceEnabled, setAiVoiceEnabledState] = useState(initialEnabled);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+
+    if (!persistPreference) {
+      setAiVoiceEnabledState(initialEnabled);
+      setReady(true);
+      return () => { mounted = false; };
+    }
 
     getAiVoiceEnabled()
       .then((enabled) => {
@@ -16,18 +27,18 @@ export const useAiVoicePlayback = () => {
       })
       .catch(() => {
         if (!mounted) return;
-        setAiVoiceEnabledState(true);
+        setAiVoiceEnabledState(initialEnabled);
         setReady(true);
       });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [initialEnabled, persistPreference]);
 
   const setAiVoiceEnabled = async (enabled: boolean) => {
     setAiVoiceEnabledState(enabled);
-    await persistAiVoiceEnabled(enabled);
+    if (persistPreference) await persistAiVoiceEnabled(enabled);
     if (!enabled) {
       await stopAiSpeech();
     }

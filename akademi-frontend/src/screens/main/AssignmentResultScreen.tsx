@@ -57,7 +57,12 @@ export const AssignmentResultScreen: React.FC = () => {
   const [selectedText, setSelectedText] = useState("");
   const [spokenKey, setSpokenKey] = useState<string | null>(null);
 
-  const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback();
+  // Solve answers must never start speaking automatically. Students explicitly
+  // opt in for the current result screen using the volume control.
+  const { aiVoiceEnabled, toggleAiVoice, speakIfEnabled } = useAiVoicePlayback({
+    initialEnabled: false,
+    persistPreference: false,
+  });
   const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
     onTranscript: (transcript) => setFollowUp((prev) => appendTranscript(prev, transcript, true)),
     recordingName: "assignment-followup-voice.m4a",
@@ -119,13 +124,14 @@ export const AssignmentResultScreen: React.FC = () => {
   }, [sessionId]);
 
   useEffect(() => {
+    if (!aiVoiceEnabled) return;
     const latestAiMessage = [...messages].reverse().find((message) => message.role === "AI");
     if (!latestAiMessage) return;
     const key = `${latestAiMessage.id}:${latestAiMessage.created_at}`;
     if (spokenKey === key) return;
     setSpokenKey(key);
     speakIfEnabled(latestAiMessage.content).catch(() => undefined);
-  }, [messages, speakIfEnabled, spokenKey]);
+  }, [aiVoiceEnabled, messages, speakIfEnabled, spokenKey]);
 
   const handleFollowUp = async () => {
     const content = followUp.trim();

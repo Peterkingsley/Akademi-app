@@ -51,7 +51,9 @@ export const Input: React.FC<InputProps> = ({
   const styles = useMemo(() => createStyles(colors, controlSize, radius), [colors, controlSize, radius]);
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
-  const voiceEnabled = enableVoiceInput ?? !secureTextEntry;
+  // Voice is opt-in. Generic forms, search fields, and profile inputs should
+  // not show a microphone merely because they use the shared Input component.
+  const voiceEnabled = enableVoiceInput === true && !secureTextEntry;
   const { isRecording, isTranscribing, toggleRecording } = useVoiceComposer({
     onTranscript: (transcript) => onChangeText(appendTranscript(value, transcript)),
     recordingName: "input-voice.m4a",
