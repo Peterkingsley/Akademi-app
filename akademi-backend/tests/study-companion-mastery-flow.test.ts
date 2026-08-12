@@ -50,6 +50,11 @@ describe('Study Companion mastery-flow regressions', () => {
     expect(computeCoverageScore(prefixSection, 'I do not know')).toBe(0);
   });
 
+  it('recognizes a concise exact numeric checkpoint answer', () => {
+    expect(computeCoverageScore(prefixSection, '10^-9')).toBeGreaterThanOrEqual(80);
+    expect(deriveFailedConcepts(prefixSection, '10^-9')).toEqual([]);
+  });
+
   it('never exposes raw OCR/table rows as failed concepts', () => {
     const failed = deriveFailedConcepts(prefixSection, 'Hmmm');
     expect(failed).toEqual([
