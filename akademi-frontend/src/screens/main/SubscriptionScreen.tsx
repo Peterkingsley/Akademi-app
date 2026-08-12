@@ -25,6 +25,11 @@ import { Button } from "../../components/ui/Button";
 import { userService } from "../../services/user";
 import { SafeArea } from "../../components/layout/SafeArea";
 
+const KORA_PAYMENT_LINKS = {
+  monthly: "https://checkout.korapay.com/pay/akademi",
+  yearly: "https://checkout.korapay.com/pay/akademiY",
+} as const;
+
 export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
@@ -55,22 +60,11 @@ export const SubscriptionScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const { paymentUrl, betaUnlocked, message } = await userService.purchaseSubscription(billingCycle);
-      if (betaUnlocked) {
-        setIsFreeBetaActive(true);
-        Alert.alert("Free beta active", message || "All MVP features are unlocked for now.");
-        return;
-      }
-
-      if (!paymentUrl) {
-        Alert.alert("Payment unavailable", "Payment setup is not ready yet. Please try again later.");
-        return;
-      }
-
+      const paymentUrl = KORA_PAYMENT_LINKS[billingCycle];
       await WebBrowser.openBrowserAsync(paymentUrl);
     } catch (error) {
       console.error("Subscription purchase failed:", error);
-      Alert.alert("Payment unavailable", "We could not start checkout. Please try again later.");
+      Alert.alert("Payment unavailable", "We could not open Kora checkout. Please try again later.");
     } finally {
       setLoading(false);
     }
