@@ -1,7 +1,7 @@
-import { ReplyMode } from '@prisma/client';
-import { aiService } from '../../modules/ai/ai.service';
+import { Feature, ReplyMode } from '@prisma/client';
+import { adaptiveAIService } from '../../modules/ai/ai.service.v2';
+import { aiService as legacyAIService } from '../../modules/ai/ai.service';
 import { checkFeatureAccess } from './feature-access';
-import { Feature } from '@prisma/client';
 
 export interface OrchestratedAIResponse {
   content: string;
@@ -15,17 +15,17 @@ export async function orchestrateAIResponse(
   replyMode: ReplyMode | null,
   standalone = false
 ): Promise<OrchestratedAIResponse> {
-  // Free check for Study Mode (as per monetization table in Ticket-00)
-  // Actually, we check feature access in SessionsService, but let's be safe.
-  const feature = Feature.ASSIGNMENT_SOLVING; // Default feature for general AI queries
+  const feature = Feature.ASSIGNMENT_SOLVING;
   const hasActivePaidFeature = await checkFeatureAccess(userId, feature);
+  const useAdaptiveTutor = process.env.ADAPTIVE_TUTOR_V2_ENABLED !== 'false';
+  const service = useAdaptiveTutor ? adaptiveAIService : legacyAIService;
 
-  return await aiService.getOrchestratedResponse(
+  return service.getOrchestratedResponse(
     userId,
     sessionId,
     content,
     replyMode || ReplyMode.DIRECT,
     hasActivePaidFeature,
-    standalone
+    standalone,
   );
 }
