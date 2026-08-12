@@ -451,14 +451,10 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
 
   if (hasMethod(forbiddenMethods, /\banalogy\b/)) {
     shouldUseAnalogy = false;
-    if (strategy === 'analogy_first') {
-      strategy = shouldUseWorkedExample ? 'worked_example_first' : 'definition_first';
-    }
     reasons.push('lecturer forbids analogy-led teaching');
   }
 
-  if (hasMethod(forbiddenMethods, /\bproblem first\b/) && strategy === 'problem_first') {
-    strategy = 'definition_first';
+  if (hasMethod(forbiddenMethods, /\bproblem first\b/)) {
     reasons.push('lecturer forbids problem-first ordering');
   }
 
@@ -715,6 +711,18 @@ export function decideTeachingStrategy(input: TeachingDecisionInput): TeachingDe
   }
   if (strategy === 'hybrid' && shouldUseWorkedExample && !shouldUseVisualExplanation) {
     strategy = 'worked_example_first';
+  }
+
+  // Apply lecturer prohibitions last because profile and self-improvement signals can
+  // change the strategy after the initial lecturer-constraint pass.
+  if (hasMethod(forbiddenMethods, /\banalogy\b/)) {
+    shouldUseAnalogy = false;
+    if (strategy === 'analogy_first') {
+      strategy = shouldUseWorkedExample ? 'worked_example_first' : 'definition_first';
+    }
+  }
+  if (hasMethod(forbiddenMethods, /\bproblem first\b/) && strategy === 'problem_first') {
+    strategy = 'definition_first';
   }
 
   if (shouldUseAnalogy) promptDirectives.push('Use one simple analogy only if it clarifies the concept.');

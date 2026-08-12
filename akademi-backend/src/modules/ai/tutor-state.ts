@@ -88,13 +88,13 @@ function findRelevantTopicName(studentMessage: string, learningProfile: any) {
 
   const messageTokens = new Set(simpleTokens(studentMessage));
   let best: { topic: string; score: number } | null = null;
-  allTopics.forEach((topic) => {
+  for (const topic of allTopics) {
     const topicTokens = simpleTokens(topic);
     const overlap = topicTokens.filter((token) => messageTokens.has(token)).length;
     const phraseBonus = studentMessage.toLowerCase().includes(topic.toLowerCase()) ? 2 : 0;
     const score = overlap + phraseBonus;
     if (score > 0 && (!best || score > best.score)) best = { topic, score };
-  });
+  }
   return best?.topic || null;
 }
 

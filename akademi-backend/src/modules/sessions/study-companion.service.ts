@@ -98,7 +98,7 @@ export class StudyCompanionService {
   }
 
   async getPublicState(sessionId: string): Promise<PublicState | null> {
-    return getPublicState(sessionId);
+    return getPublicState(sessionId, { explicitCompanionRequest: true });
   }
 
   async processPostAssessmentIntelligenceJob(payload: PostAssessmentIntelligencePayload) {

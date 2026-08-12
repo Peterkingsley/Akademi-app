@@ -102,7 +102,10 @@ async function getQueryEmbedding(question: string): Promise<number[] | null> {
   }
 }
 
-async function rerankWithAI(question: string, candidates: Array<{ id: number; text: string; score: number }>) {
+async function rerankWithAI(
+  question: string,
+  candidates: Array<{ id: number; text: string; score: number }>,
+): Promise<number[]> {
   if (candidates.length <= 6) return candidates.map((candidate) => candidate.id);
   try {
     const raw = await aiProvider.generateResponse(
@@ -122,7 +125,7 @@ async function rerankWithAI(question: string, candidates: Array<{ id: number; te
     const validIds = Array.isArray(parsed?.ids)
       ? parsed.ids.map(Number).filter((id: number) => candidates.some((candidate) => candidate.id === id))
       : [];
-    return [...new Set(validIds)].slice(0, 6);
+    return [...new Set<number>(validIds)].slice(0, 6);
   } catch {
     return candidates.slice(0, 6).map((candidate) => candidate.id);
   }

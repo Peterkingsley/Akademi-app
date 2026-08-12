@@ -197,7 +197,10 @@ export function buildProgress(roadmap: RoadmapSection[]) {
   };
 }
 
-export async function ensureState(sessionId: string) {
+export async function ensureState(
+  sessionId: string,
+  options: { explicitCompanionRequest?: boolean } = {},
+) {
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
     include: {
@@ -214,7 +217,11 @@ export async function ensureState(sessionId: string) {
   });
 
   if (!session) throw new Error('Session not found');
-  if (!isCompanionSession(session)) return null;
+  const isExplicitEligibleSession =
+    options.explicitCompanionRequest &&
+    session.session_type === 'STUDY' &&
+    !!session.material_id;
+  if (!isCompanionSession(session) && !isExplicitEligibleSession) return null;
   if (!session.material)
     throw new Error('Companion study requires a selected material');
 
@@ -300,8 +307,9 @@ export async function ensureState(sessionId: string) {
 
 export async function getPublicState(
   sessionId: string,
+  options: { explicitCompanionRequest?: boolean } = {},
 ): Promise<PublicState | null> {
-  const state = await ensureState(sessionId);
+  const state = await ensureState(sessionId, options);
   if (!state) return null;
   const roadmap = safeJsonArray<RoadmapSection>(state.roadmap);
   return {
@@ -396,7 +404,9 @@ export async function loadSessionContext(sessionId: string) {
   if (!session.material)
     throw new Error('Material not found for this companion session');
 
-  const state = session.companion_state || (await ensureState(session.id));
+  const state = session.companion_state || (await ensureState(session.id, {
+    explicitCompanionRequest: true,
+  }));
   if (!state) throw new Error('Companion state is unavailable');
 
   const roadmap = safeJsonArray<RoadmapSection>(state.roadmap);

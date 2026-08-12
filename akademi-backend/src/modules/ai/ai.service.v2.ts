@@ -1,4 +1,4 @@
-import { ReplyMode } from '@prisma/client';
+import { Prisma, ReplyMode } from '@prisma/client';
 import prisma from '../../config/db';
 import { checkDailyLimit, getAICacheKey, getCachedAIResponse, setCachedAIResponse } from './ai.cache';
 import { graphSystemPrompt } from './ai.prompts';
@@ -407,7 +407,7 @@ export class AdaptiveAIService {
               selected_count: input.retrieval.selectedCount,
             },
             verification: input.verification,
-          },
+          } as unknown as Prisma.InputJsonValue,
         },
       });
     } catch (error) {
