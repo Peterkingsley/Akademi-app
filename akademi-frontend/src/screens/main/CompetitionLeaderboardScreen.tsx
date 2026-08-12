@@ -17,16 +17,17 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
   const [leaderboard, setLeaderboard] = useState<CompetitionLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [period, setPeriod] = useState<Period>("All time");
+  const [period, setPeriod] = useState<Period>("Weekly");
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [loadNotice, setLoadNotice] = useState<string | null>(null);
 
-  const loadData = async (isRefresh = false) => {
+  const loadData = async (isRefresh = false, targetPeriod: Period = period) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setLoadNotice(null);
-      setLeaderboard(await competitionService.getLeaderboard());
+      const apiPeriod = targetPeriod === "Weekly" ? "weekly" : targetPeriod === "Monthly" ? "monthly" : "all-time";
+      setLeaderboard(await competitionService.getLeaderboard(apiPeriod));
     } catch (error: any) {
       const message = error?.response?.data?.message || "We could not load the rankings right now.";
       isRefresh ? Alert.alert("Unable to refresh", message) : setLoadNotice(message);
@@ -36,7 +37,7 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => { void loadData(); }, []);
+  useEffect(() => { void loadData(false, "Weekly"); }, []);
 
   const visibleLeaders = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -44,11 +45,10 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
   }, [leaderboard, query]);
 
   const selectPeriod = (next: Period) => {
-    if (next !== "All time") {
-      Alert.alert(`${next} rankings`, "Time-based rankings are coming soon. Showing all-time results for now.");
-      return;
-    }
+    if (next === period) return;
     setPeriod(next);
+    setLeaderboard([]);
+    void loadData(false, next);
   };
 
   return (
@@ -128,7 +128,7 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
           <View style={styles.state}>
             <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>Rankings unavailable</Text>
             <Text style={[typeScale.secondary, styles.stateCopy, { color: colors.fg.secondary }]}>{loadNotice}</Text>
-            <Pressable onPress={() => loadData()} style={[styles.retry, { backgroundColor: colors.brand.fill, borderRadius: radius.md }]}>
+            <Pressable onPress={() => loadData(false, period)} style={[styles.retry, { backgroundColor: colors.brand.fill, borderRadius: radius.md }]}>
               <Text style={[typeScale.label, { color: colors.brand.onFill }]}>Try again</Text>
             </Pressable>
           </View>
@@ -136,7 +136,7 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
           <ScrollView
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={colors.brand.foreground} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true, period)} tintColor={colors.brand.foreground} />}
           >
             {visibleLeaders.map((entry, index) => {
               const rank = index + 1;
@@ -175,8 +175,8 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
             })}
             {visibleLeaders.length === 0 ? (
               <View style={styles.state}>
-                <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>No student found</Text>
-                <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>Try another name.</Text>
+                <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>{query ? "No student found" : `No ${period.toLowerCase()} results yet`}</Text>
+                <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>{query ? "Try another name." : "Completed matches will appear here automatically."}</Text>
               </View>
             ) : null}
           </ScrollView>

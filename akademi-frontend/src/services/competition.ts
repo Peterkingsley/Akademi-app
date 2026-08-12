@@ -242,8 +242,10 @@ export const competitionService = {
     return data;
   },
 
-  async getLeaderboard() {
-    const { data } = await api.get<CompetitionLeaderboardEntry[]>("/competitions/leaderboard");
+  async getLeaderboard(period: "weekly" | "monthly" | "all-time" = "all-time") {
+    const { data } = await api.get<CompetitionLeaderboardEntry[]>("/competitions/leaderboard", {
+      params: { period },
+    });
     return data;
   },
 

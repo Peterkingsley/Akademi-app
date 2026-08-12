@@ -107,7 +107,13 @@ export class CompetitionsController {
 
   async getLeaderboard(req: Request, res: Response) {
     try {
-      const leaderboard = await competitionsService.getLeaderboard();
+      const requestedPeriod = String(req.query.period || 'all-time');
+      const period = ['weekly', 'monthly', 'all-time'].includes(requestedPeriod)
+        ? requestedPeriod as 'weekly' | 'monthly' | 'all-time'
+        : 'all-time';
+      const requestedLimit = Number(req.query.limit || 20);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 100) : 20;
+      const leaderboard = await competitionsService.getLeaderboard(limit, period);
       res.status(200).json(leaderboard);
     } catch (error) {
       res.status(500).json({ message: 'Failed to fetch leaderboard' });

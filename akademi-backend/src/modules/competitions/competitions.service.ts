@@ -1065,7 +1065,16 @@ export class CompetitionsService {
     };
   }
 
-  async getLeaderboard(limit = 20): Promise<CompetitionLeaderboardEntry[]> {
+  async getLeaderboard(
+    limit = 20,
+    period: 'weekly' | 'monthly' | 'all-time' = 'all-time',
+  ): Promise<CompetitionLeaderboardEntry[]> {
+    const now = new Date();
+    const periodStart = period === 'weekly'
+      ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7)))
+      : period === 'monthly'
+        ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+        : null;
     const participants = await prisma.competitionParticipant.findMany({
       include: {
         user: {
@@ -1078,12 +1087,14 @@ export class CompetitionsService {
           select: {
             status: true,
             winner_user_id: true,
+            ended_at: true,
           },
         },
       },
       where: {
         room: {
           status: CompetitionStatus.FINISHED,
+          ...(periodStart ? { ended_at: { gte: periodStart } } : {}),
         },
       },
     });
