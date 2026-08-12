@@ -92,7 +92,7 @@ export const AITutorScreen: React.FC = () => {
         material_id: item.id,
         topic: item.title,
         metadata: {
-          mode: "ai-study-companion",
+          mode: "ai-tutor",
         },
       });
 

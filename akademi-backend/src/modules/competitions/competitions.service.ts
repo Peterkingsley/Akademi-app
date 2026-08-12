@@ -10,12 +10,14 @@ import {
   TournamentPredictionStatus,
   TournamentStageStatus,
   TournamentStatus,
+  UsageMetric,
 } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import prisma from '../../config/db';
 import { notificationsService } from '../notifications/notifications.service';
 import { emitToUser } from '../websocket/websocket.emitter';
 import { koinService } from '../koin/koin.service';
+import { usageService } from '../usage/usage.service';
 import {
   AdminCompetitionRoomView,
   CompetitionLeaderboardEntry,
@@ -579,6 +581,7 @@ export class CompetitionsService {
   }
 
   async createRoom(userId: string, payload: CreateCompetitionRequest) {
+    await usageService.consume(userId, UsageMetric.COMPETITION_ENTRY);
     const code = await this.generateUniqueCode();
     const visibility = payload.visibility || CompetitionVisibility.PRIVATE;
     const format = payload.format || CompetitionFormat.SHARED_COURSE;
@@ -641,6 +644,8 @@ export class CompetitionsService {
     if (room.participants.length >= room.max_participants) {
       throw new Error('Competition room is full');
     }
+
+    await usageService.consume(userId, UsageMetric.COMPETITION_ENTRY);
 
     const updated = await prisma.competitionRoom.update({
       where: { id: room.id },
@@ -1488,6 +1493,7 @@ export class CompetitionsService {
 
     const existing = tournament.entries.find((entry) => entry.user_id === userId);
     if (!existing) {
+      await usageService.consume(userId, UsageMetric.COMPETITION_ENTRY);
       await prisma.tournamentEntry.create({
         data: {
           tournament_id: tournamentId,

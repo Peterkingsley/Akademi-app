@@ -1,7 +1,7 @@
 import prisma from '../../config/db';
 import { Response } from 'express';
 import { StartSessionRequest, SendMessageRequest, SendPhotoMessageRequest, StartCompanionRequest, CompanionTurnRequest } from './sessions.types';
-import { SessionType, MessageRole, Feature, Prisma, ReplyMode } from '@prisma/client';
+import { SessionType, MessageRole, Feature, Prisma, ReplyMode, UsageMetric } from '@prisma/client';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
@@ -13,6 +13,7 @@ import { aiProvider } from '../ai/ai.provider';
 import { questionReconstructionSystemPrompt } from '../ai/ai.prompts';
 import { studyCompanionService } from './study-companion.service';
 import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
+import { usageService } from '../usage/usage.service';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -352,15 +353,6 @@ export class SessionsService {
   }
 
   async startSession(userId: string, data: StartSessionRequest) {
-    // Free check for Study Mode (as per monetization table)
-    if (data.session_type !== SessionType.STUDY) {
-        const feature = this.mapSessionTypeToFeature(data.session_type);
-        const hasAccess = await checkFeatureAccess(userId, feature);
-        if (!hasAccess) {
-          throw new Error(`You do not have access to the ${feature} feature. Please purchase a plan.`);
-        }
-    }
-
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { university: true, department: true },
@@ -465,6 +457,17 @@ export class SessionsService {
       session.reply_mode ||
       'DIRECT';
 
+    const sessionMetadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+    if (session.session_type === SessionType.ASSIGNMENT) {
+      await usageService.consume(userId, UsageMetric.SOLVE_QUESTION);
+    } else if (sessionMetadata.mode === 'ask-akademi') {
+      await usageService.consume(userId, UsageMetric.STUDY_ASK);
+    } else if (sessionMetadata.mode === 'ai-tutor') {
+      await usageService.assertAvailable(userId, UsageMetric.AI_TUTOR_SECONDS);
+    }
+
     // Save student message
     await prisma.message.create({
       data: {
@@ -477,9 +480,7 @@ export class SessionsService {
     });
 
     const companionState = await studyCompanionService.ensureState(sessionId);
-    const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
-      ? session.metadata as Record<string, unknown>
-      : {};
+    const metadata = sessionMetadata;
     const shouldUseCompanion =
       !!companionState || metadata.mode === 'ai-study-companion';
 
@@ -598,6 +599,8 @@ export class SessionsService {
     if (existingAiMessage) {
       return { question: question.text, answer: existingAiMessage };
     }
+
+    await usageService.consume(userId, UsageMetric.SOLVE_QUESTION);
 
     const replyMode = session.reply_mode || ReplyMode.DIRECT;
 
@@ -741,6 +744,10 @@ export class SessionsService {
 
   async startCompanion(sessionId: string, userId: string, data: StartCompanionRequest) {
     const session = await this.getSession(sessionId, userId);
+    const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+      ? session.metadata as Record<string, unknown>
+      : {};
+    if (metadata.mode === 'ai-tutor') await usageService.assertAvailable(userId, UsageMetric.AI_TUTOR_SECONDS);
     const kickoffText =
       data.mode === 'roadmap'
         ? 'Create my study roadmap first.'

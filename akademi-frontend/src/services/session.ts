@@ -191,6 +191,11 @@ export const sessionService = {
     return response.data;
   },
 
+  recordTutorUsage: async (seconds = 30) => {
+    const response = await api.post("/usage/ai-tutor/heartbeat", { seconds });
+    return response.data as { used: number; limit: number | null; remaining: number | null; premium: boolean };
+  },
+
   getLearningProfile: async () => {
     const response = await api.get<LearningProfile>("/users/me/learning-profile");
     return response.data;

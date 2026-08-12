@@ -253,7 +253,7 @@ export const userService = {
     return response.data;
   },
 
-  purchaseSubscription: async (plan: "monthly" | "yearly") => {
+  purchaseSubscription: async (plan: "weekly" | "monthly" | "four_month") => {
     const response = await api.post<PurchaseSubscriptionResponse>("/feature-access/kora/subscriptions", { billingCycle: plan });
     return response.data;
   },

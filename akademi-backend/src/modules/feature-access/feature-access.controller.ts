@@ -10,7 +10,8 @@ const featureAccessService = new FeatureAccessService();
 export class FeatureAccessController {
   async initiateKoraSubscription(req: Request, res: Response) {
     try {
-      const billingCycle = req.body?.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      const requested = req.body?.billingCycle;
+      const billingCycle = requested === 'weekly' || requested === 'four_month' ? requested : 'monthly';
       res.json(await featureAccessService.initiateKoraSubscription((req.user as any).userId, billingCycle));
     } catch (error: any) {
       res.status(400).json({ message: error.message || 'Unable to initialize Kora checkout' });

@@ -521,6 +521,23 @@ export const StudyCompanionScreen: React.FC = () => {
     };
   }, [cancelRevealTimer, recording]);
 
+  useEffect(() => {
+    let stopped = false;
+    const recordUsage = async () => {
+      try {
+        await sessionService.recordTutorUsage(30);
+      } catch (err: any) {
+        if (stopped) return;
+        setError(err?.response?.data?.message || "Your AI Tutor allowance has ended.");
+        setTutorState("idle");
+        stopped = true;
+      }
+    };
+    void recordUsage();
+    const timer = setInterval(() => { if (!stopped) void recordUsage(); }, 30_000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [setTutorState]);
+
   const handleStart = useCallback(async (mode: StartMode, sectionTitle?: string) => {
     if (requestInFlightRef.current) return;
     requestInFlightRef.current = true;

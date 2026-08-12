@@ -3,7 +3,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import prisma from '../../config/db';
 import { config } from '../../config/env';
 import { MaterialFilter, UploadMaterialRequest, ReportMaterialRequest } from './materials.types';
-import { AdminRole, Feature, FileType, VerificationStatus } from '@prisma/client';
+import { AdminRole, Feature, FileType, VerificationStatus, UsageMetric } from '@prisma/client';
 import { systemQueue, JOB_NAMES } from '../../config/queue';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
@@ -15,6 +15,7 @@ import { stripQuestionAnswers } from '../../shared/utils/sanitize-question';
 import { upsertDepartment, findOrCreateCourse } from '../../shared/utils/department-resolver';
 
 import { s3Client } from '../../shared/storage/r2.client';
+import { usageService } from '../usage/usage.service';
 
 export class MaterialsService {
   private async getAdminRoleByEmail(email?: string | null) {
@@ -899,11 +900,6 @@ export class MaterialsService {
       throw new Error('Verified material not found');
     }
 
-    const hasAccess = await checkFeatureAccess(userId, Feature.EXAM_PREP, 'MATERIAL', id);
-    if (!hasAccess) {
-      throw new Error('Material CBT Day Pass required');
-    }
-
     if ((pageStart == null) !== (pageEnd == null)) {
       throw new Error('Invalid page range: both pageStart and pageEnd must be provided together.');
     }
@@ -986,6 +982,8 @@ export class MaterialsService {
           : 'No CBT questions are available for this material yet.',
       );
     }
+
+    await usageService.consume(userId, UsageMetric.CBT_SESSION);
 
     // Never return the answer key before the student attempts the question.
     return stripQuestionAnswers(this.shuffleQuestions(availableQuestions).slice(0, take));

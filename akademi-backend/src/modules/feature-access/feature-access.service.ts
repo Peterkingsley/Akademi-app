@@ -5,11 +5,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { FEATURE_PRODUCTS, getFeatureProduct } from './feature-products';
 
 export class FeatureAccessService {
-  async initiateKoraSubscription(userId: string, billingCycle: 'monthly' | 'yearly') {
+  async initiateKoraSubscription(userId: string, billingCycle: 'weekly' | 'monthly' | 'four_month') {
     if (!config.koraSecretKey) throw new Error('Kora checkout is not configured');
-    const plan = billingCycle === 'yearly'
-      ? { amount: 18000, code: 'AKADEMI_PRO_YEARLY' }
-      : { amount: 2500, code: 'AKADEMI_PRO_MONTHLY' };
+    const plans = {
+      weekly: { amount: 750, code: 'AKADEMI_PRO_WEEKLY', label: 'weekly' },
+      monthly: { amount: 2500, code: 'AKADEMI_PRO_MONTHLY', label: 'monthly' },
+      four_month: { amount: 9000, code: 'AKADEMI_PRO_FOUR_MONTH', label: 'four-month' },
+    } as const;
+    const plan = plans[billingCycle];
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, university: true } });
     if (!user) throw new Error('User not found');
     const reference = `KORA-${uuidv4()}`;
@@ -26,7 +29,7 @@ export class FeatureAccessService {
           currency: 'NGN',
           reference,
           notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/feature-access/kora/webhook`,
-          narration: billingCycle === 'yearly' ? 'Akademi Pro yearly subscription' : 'Akademi Pro monthly subscription',
+          narration: `Akademi Pro ${plan.label} subscription`,
           channels: ['card', 'bank_transfer', 'pay_with_bank'],
           customer: { email: user.email, name: user.name },
           metadata: { userId: user.id, plan: plan.code },
@@ -247,7 +250,10 @@ export class FeatureAccessService {
     if (!reference || !normalizedEmail) throw new Error('Kora payment is missing its reference or customer email');
 
     const plans: Record<number, { code: string; durationDays: number }> = {
+      750: { code: 'AKADEMI_PRO_WEEKLY', durationDays: 7 },
       2500: { code: 'AKADEMI_PRO_MONTHLY', durationDays: 30 },
+      9000: { code: 'AKADEMI_PRO_FOUR_MONTH', durationDays: 120 },
+      // Preserve verification for subscriptions purchased before this pricing migration.
       18000: { code: 'AKADEMI_PRO_YEARLY', durationDays: 365 },
     };
     const plan = plans[amount];

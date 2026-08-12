@@ -1,9 +1,10 @@
 import prisma from '../../config/db';
-import { Difficulty, VerificationStatus } from '@prisma/client';
+import { Difficulty, VerificationStatus, UsageMetric } from '@prisma/client';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { resolveDepartmentId, findOrCreateCourse } from '../../shared/utils/department-resolver';
 import { UsersService } from '../users/users.service';
+import { usageService } from '../usage/usage.service';
 
 function normalizeAnswer(answer: string) {
   return answer.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -455,6 +456,8 @@ export class ExamPrepService {
     if (selectedQuestions.length === 0) {
       throw new Error('No fresh course questions are available for this exam prep yet');
     }
+
+    await usageService.consume(userId, UsageMetric.CBT_SESSION);
 
     const mockExam = await prisma.mockExam.create({
       data: {

@@ -28,9 +28,9 @@ import { userService } from "../../services/user";
 
 export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
+  const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly" | "four_month">("monthly");
   const [loading, setLoading] = useState(false);
-  const [subscription, setSubscription] = useState<{ plan: "monthly" | "yearly"; expiresAt: string } | null>(null);
+  const [subscription, setSubscription] = useState<{ plan: string; expiresAt: string } | null>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
   const loadSubscription = useCallback(async () => {
@@ -41,7 +41,9 @@ export const SubscriptionScreen: React.FC = () => {
         .filter((item) => item.product_code?.startsWith("AKADEMI_PRO_") && item.expires_at && new Date(item.expires_at) > new Date())
         .sort((a, b) => new Date(b.expires_at!).getTime() - new Date(a.expires_at!).getTime())[0];
       setSubscription(active ? {
-        plan: active.product_code === "AKADEMI_PRO_YEARLY" ? "yearly" : "monthly",
+        plan: active.product_code === "AKADEMI_PRO_WEEKLY" ? "Weekly"
+          : active.product_code === "AKADEMI_PRO_FOUR_MONTH" ? "Four-Month"
+            : active.product_code === "AKADEMI_PRO_YEARLY" ? "Legacy Yearly" : "Monthly",
         expiresAt: active.expires_at!,
       } : null);
     } catch (error) {
@@ -79,15 +81,20 @@ export const SubscriptionScreen: React.FC = () => {
   };
 
   const features = [
-    { icon: <InfinityIcon size={18} color={colors.primary} />, text: "Unlimited AI Socratic tutor & assignment solving" },
+    { icon: <InfinityIcon size={18} color={colors.primary} />, text: "50 Solve questions every day" },
     { icon: <Book size={18} color={colors.primary} />, text: "Full Study Mode with practice questions & formulas" },
     { icon: <Download size={18} color={colors.primary} />, text: "Offline downloads for all course materials" },
-    { icon: <Target size={18} color={colors.primary} />, text: "Complete Exam Prep hub & unlimited CBT mock exams" },
+    { icon: <Target size={18} color={colors.primary} />, text: "30 CBT sessions and 30 competition entries every day" },
+    { icon: <Book size={18} color={colors.primary} />, text: "3 hours of AI Tutor usage every day" },
+    { icon: <Sparkles size={18} color={colors.primary} />, text: "Unlimited Ask Akademi while studying" },
   ];
 
-  const displayPrice = billingCycle === "yearly" ? "NGN 18,000" : "NGN 2,500";
-  const displayOriginalPrice = billingCycle === "yearly" ? "NGN 30,000" : null;
-  const displaySavings = billingCycle === "yearly" ? "SAVE NGN 12,000" : null;
+  const planDetails = {
+    weekly: { price: "NGN 750", period: "week" },
+    monthly: { price: "NGN 2,500", period: "month" },
+    four_month: { price: "NGN 9,000", period: "4 months" },
+  } as const;
+  const displayPrice = planDetails[billingCycle].price;
 
   return (
     <View style={styles.container}>
@@ -135,7 +142,7 @@ export const SubscriptionScreen: React.FC = () => {
               <View style={styles.activeSubscriptionCopy}>
                 <Text style={styles.activeSubscriptionTitle}>You’re already subscribed</Text>
                 <Text style={styles.activeSubscriptionText}>
-                  Akademi Pro {subscription.plan === "yearly" ? "Yearly" : "Monthly"} · Active until {new Date(subscription.expiresAt).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" })}
+                  Akademi Pro {subscription.plan} · Active until {new Date(subscription.expiresAt).toLocaleDateString([], { day: "numeric", month: "long", year: "numeric" })}
                 </Text>
               </View>
             </View>
@@ -145,6 +152,12 @@ export const SubscriptionScreen: React.FC = () => {
           <View style={styles.toggleContainer}>
             <View style={styles.toggleBackground}>
               <TouchableOpacity
+                style={[styles.toggleOption, billingCycle === "weekly" && styles.toggleActive]}
+                onPress={() => setBillingCycle("weekly")}
+              >
+                <Text style={[styles.toggleText, billingCycle === "weekly" && styles.toggleTextActive]}>Weekly</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.toggleOption, billingCycle === "monthly" && styles.toggleActive]}
                 onPress={() => setBillingCycle("monthly")}
               >
@@ -153,15 +166,15 @@ export const SubscriptionScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleOption, billingCycle === "yearly" && styles.toggleActive]}
-                onPress={() => setBillingCycle("yearly")}
+                style={[styles.toggleOption, billingCycle === "four_month" && styles.toggleActive]}
+                onPress={() => setBillingCycle("four_month")}
               >
                 <View style={styles.yearlyOptionRow}>
-                  <Text style={[styles.toggleText, billingCycle === "yearly" && styles.toggleTextActive]}>
-                    Yearly
+                  <Text style={[styles.toggleText, billingCycle === "four_month" && styles.toggleTextActive]}>
+                    4 Months
                   </Text>
                   <View style={styles.saveBadge}>
-                    <Text style={styles.saveBadgeText}>SAVE 40%</Text>
+                    <Text style={styles.saveBadgeText}>BEST VALUE</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -170,13 +183,7 @@ export const SubscriptionScreen: React.FC = () => {
 
           {/* Price Display */}
           <View style={styles.priceContainer}>
-            <Text style={styles.priceText}>{displayPrice}<Text style={styles.pricePeriod}>/{billingCycle === "yearly" ? "year" : "mo"}</Text></Text>
-            {billingCycle === "yearly" && (
-              <View style={styles.savingsRow}>
-                <Text style={styles.originalPrice}>{displayOriginalPrice}</Text>
-                <Text style={styles.savingsText}>{displaySavings}</Text>
-              </View>
-            )}
+            <Text style={styles.priceText}>{displayPrice}<Text style={styles.pricePeriod}>/{planDetails[billingCycle].period}</Text></Text>
           </View>
 
           {/* Action Button */}

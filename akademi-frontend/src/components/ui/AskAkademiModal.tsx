@@ -199,7 +199,7 @@ export const AskAkademiModal: React.FC<AskAkademiModalProps> = ({
       topic: materialTitle || chapterTitle || "AI Study Companion",
       material_id: materialId,
       metadata: {
-        mode: "ai-study-companion",
+        mode: "ask-akademi",
         materialTitle,
         chapterTitle,
         roadmap,
