@@ -1,5 +1,5 @@
 import { ReplyMode } from '@prisma/client';
-import { aiProvider } from './ai.provider';
+import { generateAdaptiveResponse } from './adaptive-model-router';
 
 export type TutorDepth = 'FOUNDATION' | 'GUIDED' | 'STANDARD' | 'ADVANCED';
 export type TutorIntent = 'learn' | 'solve' | 'verify' | 'repair' | 'practice' | 'exam_cram';
@@ -66,21 +66,64 @@ function average(values: number[], fallback = 0.5) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function simpleTokens(value: unknown) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3);
+}
+
 function readTopicStates(learningProfile: any) {
   const patterns = asRecord(learningProfile?.question_patterns);
   return asRecord(patterns.topic_states);
 }
 
-function deriveStudentState(learningProfile: any, latestIntelligence?: any | null): TutorStudentState {
+function findRelevantTopicName(studentMessage: string, learningProfile: any) {
+  const topicStates = readTopicStates(learningProfile);
+  const masteryMap = asRecord(learningProfile?.subject_strengths).mastery;
+  const allTopics = [...new Set([...Object.keys(topicStates), ...Object.keys(asRecord(masteryMap))])];
+  if (!allTopics.length) return null;
+
+  const messageTokens = new Set(simpleTokens(studentMessage));
+  let best: { topic: string; score: number } | null = null;
+  allTopics.forEach((topic) => {
+    const topicTokens = simpleTokens(topic);
+    const overlap = topicTokens.filter((token) => messageTokens.has(token)).length;
+    const phraseBonus = studentMessage.toLowerCase().includes(topic.toLowerCase()) ? 2 : 0;
+    const score = overlap + phraseBonus;
+    if (score > 0 && (!best || score > best.score)) best = { topic, score };
+  });
+  return best?.topic || null;
+}
+
+function deriveStudentState(
+  learningProfile: any,
+  latestIntelligence: any | null | undefined,
+  studentMessage: string,
+): { state: TutorStudentState; relevantTopic: string | null } {
   const strengths = asRecord(learningProfile?.subject_strengths);
   const masteryMap = asRecord(strengths.mastery);
   const topicStates = readTopicStates(learningProfile);
+  const relevantTopic = findRelevantTopicName(studentMessage, learningProfile);
+  const relevantState = relevantTopic ? asRecord(topicStates[relevantTopic]) : {};
+
+  if (relevantTopic) {
+    return {
+      relevantTopic,
+      state: {
+        mastery: clamp01(relevantState.mastery ?? masteryMap[relevantTopic], 0.5),
+        confidence: clamp01(relevantState.confidence, learningProfile?.confidence_support_needed ? 0.35 : 0.55),
+        confusion: clamp01(relevantState.confusion, 0.35),
+      },
+    };
+  }
 
   const masteryValues = [
     ...Object.values(masteryMap).map((value) => clamp01(value)),
     ...Object.values(topicStates).map((state: any) => clamp01(state?.mastery)),
   ];
-
   const confidenceValues = Object.values(topicStates).map((state: any) => clamp01(state?.confidence));
   const confusionValues = Object.values(topicStates).map((state: any) => clamp01(state?.confusion));
   const patterns = asRecord(learningProfile?.question_patterns);
@@ -96,9 +139,12 @@ function deriveStudentState(learningProfile: any, latestIntelligence?: any | nul
     : clamp01(Number(latestIntelligence.hidden_confusion_risk) / 100);
 
   return {
-    mastery: intelligenceMastery ?? average(masteryValues, 0.5),
-    confidence: intelligenceConfidence ?? average(confidenceValues, learningProfile?.confidence_support_needed ? 0.35 : 0.55),
-    confusion: intelligenceConfusion ?? average(confusionValues, clamp01(patterns.confusion_score, 0.35)),
+    relevantTopic: null,
+    state: {
+      mastery: intelligenceMastery ?? average(masteryValues, 0.5),
+      confidence: intelligenceConfidence ?? average(confidenceValues, learningProfile?.confidence_support_needed ? 0.35 : 0.55),
+      confusion: intelligenceConfusion ?? average(confusionValues, clamp01(patterns.confusion_score, 0.35)),
+    },
   };
 }
 
@@ -130,8 +176,6 @@ export function determineTutorDepth(
     return 'ADVANCED';
   }
 
-  // Standalone assignment answers need enough explanation to survive without a chat follow-up,
-  // but they no longer force every learner into zero-background teaching.
   if (standalone && studentState.mastery < 0.75) return 'GUIDED';
   return 'STANDARD';
 }
@@ -168,7 +212,8 @@ function inferComplexity(message: string, calculationSignal: boolean, essaySigna
 }
 
 export function buildBaselineTutorState(input: TutorPlannerInput): TutorState {
-  const studentState = deriveStudentState(input.learningProfile, input.latestIntelligence);
+  const derived = deriveStudentState(input.learningProfile, input.latestIntelligence, input.studentMessage);
+  const studentState = derived.state;
   const intent = inferIntent(input.studentMessage);
   const taskType: TutorTaskType = input.essaySignal
     ? 'essay'
@@ -188,13 +233,15 @@ export function buildBaselineTutorState(input: TutorPlannerInput): TutorState {
     depth,
     strategy: inferStrategy(intent, input.replyMode, studentState),
     studentState,
-    focusConcepts: [],
+    focusConcepts: derived.relevantTopic ? [derived.relevantTopic] : [],
     compressConcepts: [],
     needsVisual: /graph|plot|sketch|diagram|visual|draw/.test(input.studentMessage.toLowerCase()),
     needsCalculation: !!input.calculationSignal,
     needsVerification: intent === 'verify' || !!input.calculationSignal || complexity >= 4,
     complexity,
-    reason: 'Deterministic baseline from learner state, mode, and question signals.',
+    reason: derived.relevantTopic
+      ? `Deterministic baseline using the learner's saved state for ${derived.relevantTopic}.`
+      : 'Deterministic baseline from learner state, mode, and question signals.',
     source: 'heuristic',
   };
 }
@@ -265,10 +312,12 @@ Return this shape:
 Rules: respect explicit requests to explain from scratch or skip basics; do not lower depth merely because the course is advanced; distinguish confidence from mastery; use FOUNDATION only when evidence says the learner needs it.`;
 
   try {
-    const raw = await aiProvider.generateResponse(plannerPrompt, {
+    const raw = await generateAdaptiveResponse(plannerPrompt, {
       systemPrompt: 'You are Akademi Tutor Router. Diagnose the learning turn semantically and return only valid JSON.',
       maxTokens: 260,
       temperature: 0,
+      complexity: baseline.complexity,
+      purpose: 'planner',
     });
     const parsed = parseJsonObject(raw);
     if (!parsed) return baseline;
@@ -290,8 +339,12 @@ Rules: respect explicit requests to explain from scratch or skip basics; do not 
         confusion: clamp01(parsed.confusion, baseline.studentState.confusion),
       },
       prerequisite: String(parsed.prerequisite || '').trim() || baseline.prerequisite,
-      focusConcepts: Array.isArray(parsed.focusConcepts) ? parsed.focusConcepts.map(String).filter(Boolean).slice(0, 3) : [],
-      compressConcepts: Array.isArray(parsed.compressConcepts) ? parsed.compressConcepts.map(String).filter(Boolean).slice(0, 3) : [],
+      focusConcepts: Array.isArray(parsed.focusConcepts)
+        ? parsed.focusConcepts.map(String).filter(Boolean).slice(0, 3)
+        : baseline.focusConcepts,
+      compressConcepts: Array.isArray(parsed.compressConcepts)
+        ? parsed.compressConcepts.map(String).filter(Boolean).slice(0, 3)
+        : baseline.compressConcepts,
       needsVisual: typeof parsed.needsVisual === 'boolean' ? parsed.needsVisual : baseline.needsVisual,
       needsCalculation: typeof parsed.needsCalculation === 'boolean' ? parsed.needsCalculation : baseline.needsCalculation,
       needsVerification: typeof parsed.needsVerification === 'boolean' ? parsed.needsVerification : baseline.needsVerification,
