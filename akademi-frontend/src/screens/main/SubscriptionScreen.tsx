@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -22,7 +22,6 @@ import * as WebBrowser from "expo-web-browser";
 import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
-import { userService } from "../../services/user";
 import { SafeArea } from "../../components/layout/SafeArea";
 
 const KORA_PAYMENT_LINKS = {
@@ -34,34 +33,21 @@ export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly");
   const [loading, setLoading] = useState(false);
-  const [checkingAccess, setCheckingAccess] = useState(true);
-  const [isFreeBetaActive, setIsFreeBetaActive] = useState(false);
-
-  useEffect(() => {
-    const fetchAccess = async () => {
-      try {
-        const access = await userService.getFeatureAccess();
-        setIsFreeBetaActive(access.some((item) => item.payment_ref === "BYPASS"));
-      } catch (error) {
-        console.error("Feature access check failed:", error);
-      } finally {
-        setCheckingAccess(false);
-      }
-    };
-
-    fetchAccess();
-  }, []);
 
   const handleUpgrade = async () => {
-    if (isFreeBetaActive) {
-      navigation.goBack();
-      return;
-    }
-
     setLoading(true);
     try {
       const paymentUrl = KORA_PAYMENT_LINKS[billingCycle];
-      await WebBrowser.openBrowserAsync(paymentUrl);
+      const result = await WebBrowser.openBrowserAsync(paymentUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        controlsColor: colors.primary,
+      });
+      if (result.type === "dismiss" || result.type === "cancel") {
+        Alert.alert(
+          "Payment submitted?",
+          "If your payment was successful, your Akademi Pro access will be confirmed after payment verification.",
+        );
+      }
     } catch (error) {
       console.error("Subscription purchase failed:", error);
       Alert.alert("Payment unavailable", "We could not open Kora checkout. Please try again later.");
@@ -103,9 +89,7 @@ export const SubscriptionScreen: React.FC = () => {
               <Sparkles size={22} color={colors.primary} />
             </View>
             <Text style={styles.subtitle}>
-              {isFreeBetaActive
-                ? "Free beta is active. All MVP study tools are unlocked for you."
-                : "Unlock the ultimate AI study companion for top grades."}
+              Unlock the ultimate AI study companion for top grades.
             </Text>
           </View>
         </LinearGradient>
@@ -122,15 +106,6 @@ export const SubscriptionScreen: React.FC = () => {
               </View>
             ))}
           </View>
-
-          {isFreeBetaActive && (
-            <View style={styles.betaBanner}>
-              <Text style={styles.betaLabel}>FREE BETA</Text>
-              <Text style={styles.betaText}>
-                Payments are configured for launch, but checkout is paused while beta access is unlocked.
-              </Text>
-            </View>
-          )}
 
           {/* Billing Toggle */}
           <View style={styles.toggleContainer}>
@@ -172,24 +147,17 @@ export const SubscriptionScreen: React.FC = () => {
 
           {/* Action Button */}
           <Button
-            label={isFreeBetaActive ? "Continue with free beta" : "Upgrade to Pro"}
+            label={`Pay ${displayPrice} with Kora`}
             onPress={handleUpgrade}
-            loading={loading || checkingAccess}
+            loading={loading}
             icon={<ArrowRight size={20} color="#FFFFFF" />}
             style={styles.upgradeButton}
           />
 
           <Text style={styles.trustText}>
-            {isFreeBetaActive
-              ? "No payment needed during beta. Paid plans can be enabled after launch."
-              : "Cancel anytime - Secure payment - 3-day free trial"}
+            Secure checkout powered by Kora
           </Text>
 
-          {!isFreeBetaActive && (
-            <TouchableOpacity style={styles.restoreButton}>
-              <Text style={styles.restoreText}>Restore purchases</Text>
-            </TouchableOpacity>
-          )}
         </ScrollView>
       </SafeArea>
     </View>
@@ -269,26 +237,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: "600",
     flex: 1,
-  },
-  betaBanner: {
-    backgroundColor: "rgba(34, 197, 94, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.3)",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 24,
-  },
-  betaLabel: {
-    ...typography.mono,
-    color: colors.primary,
-    fontSize: 9,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
-  betaText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 17,
   },
   toggleContainer: {
     alignItems: "center",
@@ -377,13 +325,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
     marginBottom: 16,
-  },
-  restoreButton: {
-    alignSelf: "center",
-  },
-  restoreText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textDecorationLine: "underline",
   },
 });
