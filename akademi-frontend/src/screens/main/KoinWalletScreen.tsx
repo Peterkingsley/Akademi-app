@@ -44,7 +44,7 @@ export const KoinWalletScreen: React.FC = () => {
           <View style={[styles.rateBox, { backgroundColor: colors.bg.surfaceRaised, borderRadius: radius.md }]}>
             <Text style={[typeScale.caption, { color: colors.fg.secondary }]}>BUY RATE</Text><Text style={[typeScale.label, { color: colors.fg.primary }]}>100 Koin = ₦100</Text>
             <View style={[styles.divider, { backgroundColor: colors.borderRoles.default }]} />
-            <Text style={[typeScale.caption, { color: colors.fg.secondary }]}>WITHDRAWAL RATE</Text><Text style={[typeScale.label, { color: colors.fg.primary }]}>100 Koin = ₦80</Text>
+            <Text style={[typeScale.caption, { color: colors.fg.secondary }]}>SELL RATE</Text><Text style={[typeScale.label, { color: colors.fg.primary }]}>100 Koin = ₦80</Text>
           </View>
         </Card>
 
