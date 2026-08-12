@@ -250,7 +250,6 @@ export async function ensureState(
     });
   }
 
-  const progress = buildProgress(roadmap);
   const previousState = await prisma.studyCompanionState.findFirst({
     where: {
       user_id: session.user_id,
@@ -373,6 +372,36 @@ function parseJsonPayload(raw: string) {
   return null;
 }
 
+export function shouldUseCondensedCompanionFlow(section: RoadmapSection) {
+  const text = normalizeText(`${section.title}\n${section.content || ''}`);
+  const lower = text.toLowerCase();
+  if (!text || text.length > 3600) return false;
+
+  const complexMarkers =
+    /\b(derive|prove|proof|differentiate|integrate|solve\s+(?:the|for)|calculate|compute|rearrange|algorithm|mechanism|multi-step|procedure|stages?|case study|compare and contrast|evaluate critically)\b/.test(
+      lower,
+    );
+  const equationStructure =
+    /\b[a-z][a-z0-9_]*\s*=\s*[^,.;\n]{2,80}/i.test(text) ||
+    /\\frac|\\sum|\\int/.test(text);
+  const explicitVisual =
+    /\b(diagram|figure|graph|curve|flowchart|x-axis|y-axis|sketch|plot)\b/.test(
+      lower,
+    );
+  const sentenceCount = text.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+  const factualOrRuleBased =
+    /\b(abbreviation|prefix|symbol|terminology|definition|meaning|unit|classification|types?|properties|rule|law|represents?|signifies?)\b/.test(
+      lower,
+    );
+
+  return (
+    !complexMarkers &&
+    !equationStructure &&
+    !explicitVisual &&
+    (factualOrRuleBased || sentenceCount <= 12)
+  );
+}
+
 async function adjudicateLatestFirstTeachBack(
   stateId: string,
   roadmap: RoadmapSection[],
@@ -479,26 +508,41 @@ export async function persistRoadmap(
     {},
   );
 
-  // Pass 2 always ends with a real micro-question. The previous state machine
-  // forgot to mark that question as pending on the Pass-1-answer -> Pass-2
-  // transition, so the next student answer generated Pass 2 a second time.
   if (
     extra.current_phase === PASS_2 &&
-    Boolean(extra.pending_prompt?.includes('?')) &&
-    sectionContext.pass2QuestionPending !== true
+    Boolean(extra.pending_prompt?.includes('?'))
   ) {
+    const currentState = await prisma.studyCompanionState.findUnique({
+      where: { id: stateId },
+      select: { current_section_index: true },
+    });
+    const section = currentState
+      ? roadmap[currentState.current_section_index]
+      : undefined;
+    const condensed = section ? shouldUseCondensedCompanionFlow(section) : false;
+
     sectionContext = {
       ...sectionContext,
-      pass2QuestionPending: true,
+      pass2QuestionPending: !condensed,
+      condensedFlow: condensed,
     };
     normalizedExtra.section_context = sectionContext as Prisma.InputJsonValue;
-    console.log('pass2_question_pending_normalized', { stateId });
+
+    if (condensed) {
+      // For a simple factual/rule-based section, the Pass 2 application
+      // question is already enough to become the first mastery checkpoint.
+      // Persist it as TEACHBACK_1 so the student's next answer is evaluated
+      // instead of generating another explanatory pass.
+      normalizedExtra.current_phase = StudyCompanionPhase.TEACHBACK_1_REQUESTED;
+      console.log('condensed_companion_checkpoint_activated', {
+        stateId,
+        sectionTitle: section?.title || null,
+      });
+    } else {
+      console.log('pass2_question_pending_normalized', { stateId });
+    }
   }
 
-  // The legacy path routed every first teach-back into GAP_RETEACH, even when
-  // the answer had passed. Check the persisted attempt before accepting that
-  // transition. For false negatives from lexical scoring, use one tiny semantic
-  // adjudication against the exact checkpoint rather than the whole section.
   if (extra.current_phase === StudyCompanionPhase.GAP_RETEACH) {
     const adjudication = await adjudicateLatestFirstTeachBack(stateId, roadmap);
     if (adjudication?.passed) {
@@ -723,6 +767,7 @@ export function companionSystemPrompt(identity: CompanionPromptIdentity = {}) {
     'Use natural transitions and continue from the previous idea instead of restarting the lesson.',
     'Avoid repeating prerequisite explanations once they have already been refreshed in the same section.',
     'Never ask a rhetorical question, and never ask a question you do not wait for. The only teaching-pass questions allowed are the single genuine micro-question at the end of Pass 1 and Pass 2 when explicitly instructed, which the student will actually answer before the lesson continues.',
+    'After teaching a factual rule, mapping, definition, or method, prefer a transfer or application checkpoint. Do not ask the student to merely repeat a fact that was stated immediately before unless the turn is explicitly a recall drill.',
     'Whenever you respond to a student attempt, give one specific sentence about the work before moving on. Say what fact, method, or reasoning was correct or what single point needs repair.',
     'Never use generic praise such as absolutely correct, perfect example, excellent, brilliant, great job, or well done. Prefer specific feedback such as Correct — kilo represents a factor of 1000.',
     'Do not restate a correct student answer and then explain the same fact again in a full paragraph. Confirm it briefly and advance to a new idea or application.',
