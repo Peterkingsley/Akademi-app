@@ -42,9 +42,15 @@ export const KoinWalletScreen: React.FC = () => {
           <Text style={[styles.balance, { color: colors.fg.primary }]}>{(wallet?.balance || 0).toLocaleString()} Koin</Text>
           <Text style={[typeScale.secondary, { color: colors.fg.muted }]}>Withdrawable value: ₦{(wallet?.withdrawableNaira || 0).toLocaleString()}</Text>
           <View style={[styles.rateBox, { backgroundColor: colors.bg.surfaceRaised, borderRadius: radius.md }]}>
-            <Text style={[typeScale.caption, { color: colors.fg.secondary }]}>BUY RATE</Text><Text style={[typeScale.label, { color: colors.fg.primary }]}>100 Koin = ₦100</Text>
+            <View style={styles.rateColumn}>
+              <Text style={[typeScale.caption, styles.rateLabel, { color: colors.fg.secondary }]}>BUY RATE</Text>
+              <Text style={[typeScale.label, styles.rateValue, { color: colors.fg.primary }]}>100 Koin = ₦100</Text>
+            </View>
             <View style={[styles.divider, { backgroundColor: colors.borderRoles.default }]} />
-            <Text style={[typeScale.caption, { color: colors.fg.secondary }]}>SELL RATE</Text><Text style={[typeScale.label, { color: colors.fg.primary }]}>100 Koin = ₦80</Text>
+            <View style={styles.rateColumn}>
+              <Text style={[typeScale.caption, styles.rateLabel, { color: colors.fg.secondary }]}>SELL RATE</Text>
+              <Text style={[typeScale.label, styles.rateValue, { color: colors.fg.primary }]}>100 Koin = ₦80</Text>
+            </View>
           </View>
         </Card>
 
@@ -88,7 +94,11 @@ export const KoinWalletScreen: React.FC = () => {
 const styles = StyleSheet.create({
   screen: { flex: 1 }, center: { alignItems: "center", justifyContent: "center" }, content: { padding: 16, paddingBottom: 48, gap: 24 },
   balanceCard: { alignItems: "center", gap: 5, padding: 20 }, koinIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", marginBottom: 4 }, balance: { fontSize: 32, lineHeight: 40, fontWeight: "800" },
-  rateBox: { width: "100%", marginTop: 12, padding: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }, divider: { width: 1, height: 28 }, section: { gap: 12 }, packages: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  rateBox: { width: "100%", marginTop: 12, paddingVertical: 14, paddingHorizontal: 8, flexDirection: "row", alignItems: "stretch" },
+  rateColumn: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 4 },
+  rateLabel: { textAlign: "center" },
+  rateValue: { textAlign: "center", flexShrink: 1 },
+  divider: { width: 1, alignSelf: "stretch", marginVertical: 2 }, section: { gap: 12 }, packages: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   package: { width: "48%", minHeight: 76, padding: 12, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 7 }, withdraw: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
   safety: { borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "flex-start", gap: 10 }, safetyText: { flex: 1 }, activity: { minHeight: 68, paddingHorizontal: 14, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   activityIcon: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" }, activityCopy: { flex: 1, gap: 2 }, empty: { minHeight: 100, alignItems: "center", justifyContent: "center", padding: 16 },
