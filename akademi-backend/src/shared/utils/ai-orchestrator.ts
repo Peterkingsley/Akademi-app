@@ -1,5 +1,6 @@
 import { Feature, ReplyMode } from '@prisma/client';
 import { adaptiveAIService } from '../../modules/ai/ai.service.v2';
+import { aiService as legacyAIService } from '../../modules/ai/ai.service';
 import { checkFeatureAccess } from './feature-access';
 
 export interface OrchestratedAIResponse {
@@ -16,8 +17,10 @@ export async function orchestrateAIResponse(
 ): Promise<OrchestratedAIResponse> {
   const feature = Feature.ASSIGNMENT_SOLVING;
   const hasActivePaidFeature = await checkFeatureAccess(userId, feature);
+  const useAdaptiveTutor = process.env.ADAPTIVE_TUTOR_V2_ENABLED !== 'false';
+  const service = useAdaptiveTutor ? adaptiveAIService : legacyAIService;
 
-  return adaptiveAIService.getOrchestratedResponse(
+  return service.getOrchestratedResponse(
     userId,
     sessionId,
     content,
