@@ -14,6 +14,7 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
+  Coins,
   ChevronRight,
   Flame,
   ListChecks,
@@ -237,6 +238,23 @@ export const CompetitionHubScreen: React.FC = () => {
           actionLabel="Create a match"
           onAction={() => navigation.navigate("CreateCompetition")}
         />
+
+        <TouchableOpacity
+          activeOpacity={0.86}
+          accessibilityRole="button"
+          accessibilityLabel="Open Koin wallet"
+          onPress={() => navigation.navigate("KoinWallet")}
+          style={[styles.koinBanner, { backgroundColor: colors.brand.subtle, borderColor: colors.brand.border }]}
+        >
+          <View style={[styles.koinBannerIcon, { backgroundColor: colors.surface }]}>
+            <Coins size={22} color={colors.brand.foreground} />
+          </View>
+          <View style={styles.koinBannerCopy}>
+            <Text style={[styles.koinBannerTitle, { color: colors.textPrimary }]}>Koin wallet</Text>
+            <Text style={[styles.koinBannerText, { color: colors.textSecondary }]}>Reward players and grow public prize pools.</Text>
+          </View>
+          <ChevronRight size={20} color={colors.brand.foreground} />
+        </TouchableOpacity>
 
         {loading ? (
           <View style={styles.center}>
@@ -477,6 +495,34 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 36,
     gap: 16,
+  },
+  koinBanner: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  koinBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  koinBannerCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  koinBannerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  koinBannerText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   header: {
     gap: 6,

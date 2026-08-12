@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { CalendarDays, Eye, Heart, Lock, Share2, Swords, Trophy, Users } from "lucide-react-native";
+import { CalendarDays, Coins, Eye, Heart, Lock, Share2, Swords, Trophy, Users } from "lucide-react-native";
 import Svg, { Circle, G, Text as SvgText } from "react-native-svg";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
@@ -10,6 +10,7 @@ import { typography } from "../../theme/typography";
 import { competitionService, Tournament, TournamentArena } from "../../services/competition";
 import { socketService } from "../../services/socket";
 import { useAuthStore } from "../../store/useAuthStore";
+import { KoinPool, koinService } from "../../services/koin";
 
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString([], {
@@ -34,6 +35,8 @@ export const TournamentDetailScreen: React.FC = () => {
   const [arena, setArena] = useState<TournamentArena | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveCheerCount, setLiveCheerCount] = useState(0);
+  const [koinPool, setKoinPool] = useState<KoinPool | null>(null);
+  const [addingKoin, setAddingKoin] = useState(false);
   const [spectatorViewMode, setSpectatorViewMode] = useState<"BUBBLE" | "LIST">("BUBBLE");
   const cheerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bubbleRadiusRefs = useRef<Record<string, Animated.Value>>({});
@@ -97,10 +100,35 @@ export const TournamentDetailScreen: React.FC = () => {
         setArena(arenaData);
         setTournament(arenaData.tournament);
       }
+      const pool = await koinService.getTournamentPool(tournamentId).catch(() => null);
+      setKoinPool(pool);
     } catch (error: any) {
       Alert.alert("Unable to load tournament", error?.response?.data?.message || "Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addToPrizePool = async (amount: number) => {
+    if (!koinPool || koinPool.status !== "OPEN" || addingKoin) return;
+    try {
+      setAddingKoin(true);
+      const updated = await koinService.contribute(koinPool.id, amount);
+      setKoinPool(updated);
+      Alert.alert("Koin added", `${amount} Koin is now in the winner's prize pool.`);
+    } catch (error: any) {
+      Alert.alert("Unable to add Koin", error?.response?.data?.message || "Check your Koin balance and try again.");
+    } finally {
+      setAddingKoin(false);
+    }
+  };
+
+  const rewardParticipant = async (entry: LeaderboardEntry, amount = 10) => {
+    try {
+      await koinService.reward(entry.user_id, amount, "Tournament performance reward");
+      Alert.alert("Reward sent", `${entry.display_name} received ${amount} Koin.`);
+    } catch (error: any) {
+      Alert.alert("Unable to reward player", error?.response?.data?.message || "Check your Koin balance and try again.");
     }
   };
 
@@ -349,6 +377,9 @@ export const TournamentDetailScreen: React.FC = () => {
       actions.push({ text: "Prediction locked", style: "cancel" });
     }
     actions.push({ text: `Cheer ${entry.display_name}`, onPress: () => cheerParticipant(entry.user_id) });
+    if (entry.user_id !== currentUserId) {
+      actions.push({ text: "Reward 10 Koin", onPress: () => rewardParticipant(entry, 10) });
+    }
     actions.push({ text: "Cancel", style: "cancel" });
     Alert.alert(entry.display_name, `${entry.score} pts - ${entry.love_count} cheers`, actions);
   };
@@ -399,6 +430,31 @@ export const TournamentDetailScreen: React.FC = () => {
             <Text style={styles.infoText}>Late join cutoff: {formatDateTime(tournament.late_join_cutoff_at)}</Text>
           ) : null}
         </Card>
+
+        {koinPool ? (
+          <Card style={styles.koinPoolCard}>
+            <View style={styles.koinPoolHeader}>
+              <View style={styles.koinPoolIcon}><Coins size={22} color={colors.primary} /></View>
+              <View style={styles.koinPoolCopy}>
+                <Text style={styles.campaignEyebrow}>Community prize pool</Text>
+                <Text style={styles.koinPoolAmount}>{koinPool.total_koin.toLocaleString()} Koin</Text>
+              </View>
+              <Text style={styles.statusPill}>{koinPool.status}</Text>
+            </View>
+            <Text style={styles.campaignText}>
+              The winner receives 80% ({Math.floor(koinPool.total_koin * 0.8).toLocaleString()} Koin). Akademi retains the unawarded 20%.
+            </Text>
+            {koinPool.status === "OPEN" ? (
+              <View style={styles.koinActions}>
+                {[10, 50, 100].map((amount) => (
+                  <TouchableOpacity key={amount} style={styles.koinButton} onPress={() => addToPrizePool(amount)} disabled={addingKoin}>
+                    <Text style={styles.koinButtonText}>+{amount}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+          </Card>
+        ) : null}
 
         <Card style={styles.campaignCard}>
           <Text style={styles.campaignEyebrow}>What to expect</Text>
@@ -688,6 +744,35 @@ const styles = StyleSheet.create({
   detailCard: {
     gap: 12,
   },
+  koinPoolCard: {
+    gap: 12,
+    borderColor: "rgba(124, 58, 237, 0.4)",
+    backgroundColor: "rgba(124, 58, 237, 0.08)",
+  },
+  koinPoolHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  koinPoolIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(124, 58, 237, 0.16)",
+  },
+  koinPoolCopy: { flex: 1, gap: 2 },
+  koinPoolAmount: { ...typography.h3, color: colors.textPrimary },
+  koinActions: { flexDirection: "row", gap: 8 },
+  koinButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  koinButtonText: { color: "#FFFFFF", fontWeight: "800" },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",

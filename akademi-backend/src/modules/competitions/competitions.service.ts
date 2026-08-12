@@ -15,6 +15,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../../config/db';
 import { notificationsService } from '../notifications/notifications.service';
 import { emitToUser } from '../websocket/websocket.emitter';
+import { koinService } from '../koin/koin.service';
 import {
   AdminCompetitionRoomView,
   CompetitionLeaderboardEntry,
@@ -986,13 +987,14 @@ export class CompetitionsService {
     const ordered = this.sortScoreboard(match.scoreboard);
     const winner = ordered[0] || null;
 
-    await prisma.competitionRoom.update({
+    const finishedRoom = await prisma.competitionRoom.update({
       where: { id: roomId },
       data: {
         status: CompetitionStatus.FINISHED,
         ended_at: new Date(),
         winner_user_id: winner?.user_id || null,
       },
+      select: { tournament_id: true },
     });
 
     await prisma.competitionParticipant.updateMany({
@@ -1016,6 +1018,15 @@ export class CompetitionsService {
       where: { room_id: roomId },
       data: { status: MatchSessionStatus.FINISHED },
     });
+    if (winner) {
+      try {
+        await koinService.settleCompetitionPools(roomId, finishedRoom.tournament_id, winner.user_id);
+      } catch (error) {
+        // Match results remain authoritative. The idempotent pool settlement
+        // can be safely retried without crediting the winner twice.
+        console.error(`Koin pool settlement failed for competition ${roomId}:`, error);
+      }
+    }
     return finalState;
   }
 

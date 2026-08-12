@@ -214,6 +214,44 @@ enum MatchSessionStatus {
   FINISHED
 }
 
+enum KoinLedgerType {
+  PURCHASE
+  REWARD_SENT
+  REWARD_RECEIVED
+  STAKE
+  POOL_CONTRIBUTION
+  PRIZE_WIN
+  POOL_REFUND
+  WITHDRAWAL
+  WITHDRAWAL_REFUND
+  ADMIN_ADJUSTMENT
+}
+
+enum KoinPoolStatus {
+  OPEN
+  LOCKED
+  SETTLED
+  REFUNDED
+  CANCELLED
+}
+
+enum KoinWithdrawalStatus {
+  PENDING_VERIFICATION
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  REJECTED
+  CANCELLED
+}
+
+enum KoinPurchaseStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
 // Models
 model User {
   id                            String       @id @default(uuid())
@@ -236,6 +274,7 @@ model User {
   is_banned                     Boolean      @default(false)
   push_token                    String?
   courses                       String[]     @default([])
+  date_of_birth                 DateTime?
 
   learning_profile              LearningProfile?
   sessions                      Session[]
@@ -270,6 +309,13 @@ model User {
   tournament_predicted_by       TournamentPrediction[]        @relation("TournamentPredictedParticipant")
   tournament_cheers_sent        TournamentCheer[]             @relation("TournamentCheerSpectator")
   tournament_cheers_received    TournamentCheer[]             @relation("TournamentCheerParticipant")
+  koin_wallet                   KoinWallet?
+  koin_ledger_entries           KoinLedgerEntry[]
+  koin_rewards_sent             KoinReward[]                  @relation("KoinRewardSender")
+  koin_rewards_received         KoinReward[]                  @relation("KoinRewardRecipient")
+  koin_pool_contributions       KoinPoolContribution[]
+  koin_withdrawals              KoinWithdrawal[]
+  koin_purchases                KoinPurchase[]
 
   @@index([email])
   @@index([university])
@@ -1069,15 +1115,15 @@ model GeneratedTextbookOutlineNode {
 }
 
 model GeneratedTextbookSection {
-  id                   String   @id @default(uuid())
-  node_id              String   @unique
-  content              String   @db.Text
-  needs_diagram        Boolean  @default(false)
-  diagram_description  String?  @db.Text
+  id                   String    @id @default(uuid())
+  node_id              String    @unique
+  content              String    @db.Text
+  needs_diagram        Boolean   @default(false)
+  diagram_description  String?   @db.Text
   diagram_image_url    String?
-  quality_check_passed Boolean  @default(false)
-  quality_check_notes  String?  @db.Text
-  generated_at         DateTime @default(now())
+  quality_check_passed Boolean   @default(false)
+  quality_check_notes  String?   @db.Text
+  generated_at         DateTime  @default(now())
   // Set when the reset pipeline retires this section (see scripts/reset-generated-textbooks.ts).
   // Null means still live. The outline/node tree above this is never soft-deleted alongside it —
   // only the generated prose itself.
@@ -1215,6 +1261,7 @@ model CompetitionRoom {
   tournament_stage TournamentStage?
   participants     CompetitionParticipant[]
   match_session    CompetitionMatchSession?
+  koin_pool        KoinPool?
 
   @@index([host_user_id])
   @@index([tournament_id])
@@ -1290,6 +1337,7 @@ model Tournament {
   predictions        TournamentPrediction[]
   cheers             TournamentCheer[]
   rooms              CompetitionRoom[]
+  koin_pool          KoinPool?
 
   @@index([status])
   @@index([scheduled_at])
@@ -1465,6 +1513,141 @@ model Transaction {
   created_at DateTime @default(now())
 
   @@map("transactions")
+}
+
+model KoinWallet {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  balance    Int      @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("koin_wallets")
+}
+
+model KoinLedgerEntry {
+  id              String         @id @default(uuid())
+  user_id         String
+  type            KoinLedgerType
+  amount          Int
+  balance_after   Int
+  reference       String         @unique
+  related_user_id String?
+  competition_id  String?
+  tournament_id   String?
+  pool_id         String?
+  purchase_id     String?
+  withdrawal_id   String?
+  metadata        Json           @default("{}")
+  created_at      DateTime       @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, created_at])
+  @@index([pool_id])
+  @@index([competition_id])
+  @@index([tournament_id])
+  @@map("koin_ledger_entries")
+}
+
+model KoinReward {
+  id                String   @id @default(uuid())
+  sender_user_id    String
+  recipient_user_id String
+  amount            Int
+  message           String?
+  reference         String   @unique
+  created_at        DateTime @default(now())
+
+  sender    User @relation("KoinRewardSender", fields: [sender_user_id], references: [id], onDelete: Restrict)
+  recipient User @relation("KoinRewardRecipient", fields: [recipient_user_id], references: [id], onDelete: Restrict)
+
+  @@index([sender_user_id, created_at])
+  @@index([recipient_user_id, created_at])
+  @@map("koin_rewards")
+}
+
+model KoinPool {
+  id                     String         @id @default(uuid())
+  competition_id         String?        @unique
+  tournament_id          String?        @unique
+  status                 KoinPoolStatus @default(OPEN)
+  total_koin             Int            @default(0)
+  winner_share_koin      Int            @default(0)
+  platform_share_koin    Int            @default(0)
+  winner_user_id         String?
+  contributions_close_at DateTime?
+  settled_at             DateTime?
+  created_at             DateTime       @default(now())
+  updated_at             DateTime       @updatedAt
+
+  competition   CompetitionRoom?       @relation(fields: [competition_id], references: [id], onDelete: Cascade)
+  tournament    Tournament?            @relation(fields: [tournament_id], references: [id], onDelete: Cascade)
+  contributions KoinPoolContribution[]
+
+  @@index([status])
+  @@map("koin_pools")
+}
+
+model KoinPoolContribution {
+  id          String    @id @default(uuid())
+  pool_id     String
+  user_id     String
+  amount      Int
+  reference   String    @unique
+  is_stake    Boolean   @default(false)
+  refunded_at DateTime?
+  created_at  DateTime  @default(now())
+
+  pool KoinPool @relation(fields: [pool_id], references: [id], onDelete: Restrict)
+  user User     @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([pool_id, created_at])
+  @@index([user_id, created_at])
+  @@map("koin_pool_contributions")
+}
+
+model KoinWithdrawal {
+  id                 String               @id @default(uuid())
+  user_id            String
+  koin_amount        Int
+  naira_amount_kobo  Int
+  status             KoinWithdrawalStatus @default(PENDING_VERIFICATION)
+  reference          String               @unique
+  payout_provider    String?
+  payout_recipient   String?
+  provider_reference String?
+  failure_reason     String?
+  requested_at       DateTime             @default(now())
+  processed_at       DateTime?
+  updated_at         DateTime             @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, requested_at])
+  @@index([status])
+  @@map("koin_withdrawals")
+}
+
+model KoinPurchase {
+  id                 String             @id @default(uuid())
+  user_id            String
+  koin_amount        Int
+  naira_amount_kobo  Int
+  status             KoinPurchaseStatus @default(PENDING)
+  reference          String             @unique
+  provider_reference String?
+  created_at         DateTime           @default(now())
+  paid_at            DateTime?
+  updated_at         DateTime           @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+
+  @@index([user_id, created_at])
+  @@index([status])
+  @@map("koin_purchases")
 }
 
 model PaystackWebhookLog {
@@ -1730,28 +1913,30 @@ enum TeachingBlockKind {
 // ─── course-level ─────────────────────────────────────────
 
 model CourseFloor {
-  id               String   @id @default(cuid())
-  courseCode       String   @unique
-  assumesCompleted String[]              // ['SSCE Mathematics', 'MTH 101']
+  id               String      @id @default(cuid())
+  courseCode       String      @unique
+  assumesCompleted String[] // ['SSCE Mathematics', 'MTH 101']
   floorPolicy      FloorPolicy @default(JIT_REFRESH)
-  assumedKCIds     String[]              // expanded index
+  assumedKCIds     String[] // expanded index
 }
 
 model ScenarioPool {
   id         String   @id @default(cuid())
-  courseCode String                       // A19 scoping
-  slotKind   String                       // 'scenario' | 'unit' | ...
+  courseCode String // A19 scoping
+  slotKind   String // 'scenario' | 'unit' | ...
   values     String[]
+
   @@unique([courseCode, slotKind])
 }
 
 model TerminologyEntry {
-  id         String  @id @default(cuid())
-  courseCode String
-  term       String
-  definition String
-  notation   String?
-  firstUsedIn String?                     // topic id
+  id          String  @id @default(cuid())
+  courseCode  String
+  term        String
+  definition  String
+  notation    String?
+  firstUsedIn String? // topic id
+
   @@unique([courseCode, term])
 }
 
@@ -1762,296 +1947,302 @@ model TerminologyEntry {
 model OperationVocabulary {
   id         String   @id @default(cuid())
   courseCode String   @unique
-  entries    Json     // [{canonicalName, class, aliases[]}]
+  entries    Json // [{canonicalName, class, aliases[]}]
   frozenAt   DateTime @default(now())
 }
 
 // ─── the model ────────────────────────────────────────────
 
 model KnowledgeModel {
-  id              String   @id @default(cuid())
+  id              String      @id @default(cuid())
   // Null for COURSE-scoped models (the archetype layer, for now — see ModelScope). Set to a real
   // GeneratedTextbookOutlineNode.id once topic-level attribution (KC extraction) is built.
   topicId         String?
-  scope           ModelScope @default(TOPIC)
+  scope           ModelScope  @default(TOPIC)
   courseCode      String
   academicLevel   Int
   learningOutcome String
-  ccmasVersion    String                  // staleness detection
+  ccmasVersion    String // staleness detection
   status          ModelStatus @default(DRAFT)
-  createdAt       DateTime @default(now())
+  createdAt       DateTime    @default(now())
 
-  kcs             KnowledgeComponent[]
-  archetypes      Archetype[]
+  kcs               KnowledgeComponent[]
+  archetypes        Archetype[]
   difficultyFactors DifficultyFactor[]
-  misconceptions  Misconception[]
-  itemModels      ItemModel[]
-  jitBlocks       JitBlock[]
-  teachingBlocks  TeachingBlock[]
-  validationRuns  ValidationRun[]
+  misconceptions    Misconception[]
+  itemModels        ItemModel[]
+  jitBlocks         JitBlock[]
+  teachingBlocks    TeachingBlock[]
+  validationRuns    ValidationRun[]
 
   @@unique([courseCode, topicId])
   @@index([courseCode, status])
 }
 
 model KnowledgeComponent {
-  id            String   @id @default(cuid())
-  modelId       String
-  model         KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  id      String         @id @default(cuid())
+  modelId String
+  model   KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
-  publicId      String                     // MTH102.limits.05 — stable across regen
+  publicId      String // MTH102.limits.05 — stable across regen
   type          KCType
   statement     String
-  steps         String[]                   // PROCEDURE only
-  isSelection   Boolean  @default(false)   // A13 — integrative KC
-  traceEvidence Int                        // A2
+  steps         String[] // PROCEDURE only
+  isSelection   Boolean  @default(false) // A13 — integrative KC
+  traceEvidence Int // A2
 
-  dependsOn     KCDependency[] @relation("dependent")
-  requiredBy    KCDependency[] @relation("prerequisite")
+  dependsOn  KCDependency[] @relation("dependent")
+  requiredBy KCDependency[] @relation("prerequisite")
 
   @@unique([modelId, publicId])
-  @@index([modelId, type])                 // A12 scans by type
+  @@index([modelId, type]) // A12 scans by type
 }
 
 model KCDependency {
-  id             String @id @default(cuid())
-  dependentId    String
-  dependent      KnowledgeComponent @relation("dependent", fields: [dependentId], references: [id], onDelete: Cascade)
+  id          String             @id @default(cuid())
+  dependentId String
+  dependent   KnowledgeComponent @relation("dependent", fields: [dependentId], references: [id], onDelete: Cascade)
 
-  prerequisiteId String?                   // null when unresolved gap
+  prerequisiteId String? // null when unresolved gap
   prerequisite   KnowledgeComponent? @relation("prerequisite", fields: [prerequisiteId], references: [id])
 
-  gapDescription String?                   // populated when prerequisiteId is null
-  resolution     GapResolution @default(UNRESOLVED)   // A4
-  resolvedAt     String?                   // topic id, for FORWARD_REF
+  gapDescription String? // populated when prerequisiteId is null
+  resolution     GapResolution @default(UNRESOLVED) // A4
+  resolvedAt     String? // topic id, for FORWARD_REF
 
   @@index([dependentId])
-  @@index([resolution])                    // A4 is a hot query
+  @@index([resolution]) // A4 is a hot query
 }
 
 model Archetype {
-  id              String @id @default(cuid())
-  modelId         String
-  model           KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  id      String         @id @default(cuid())
+  modelId String
+  model   KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
   publicId        String
   trigger         String
   method          String
   canonicalStem   String
-  sourcedFrom     String                   // 'harvested' | 'inferred-gap'
-  distinctBecause String                   // A7
-  actionSignature String                   // hash of ordered KC ids — A7 uniqueness
+  sourcedFrom     String // 'harvested' | 'inferred-gap'
+  distinctBecause String // A7
+  actionSignature String // hash of ordered KC ids — A7 uniqueness
   // How many source examples shared this exact signature (v6 archetype-layer pipeline).
   // Not part of the original A7 design — added for modelTopicKnowledge.job.ts's archetype pass.
-  memberCount     Int      @default(1)
+  memberCount     Int    @default(1)
   // [{problemText, solutionSteps}] for every member example — ItemModel synthesis diffs these to
   // find what varies (incidental slots). Null on archetypes written before this field existed.
   memberExamples  Json?
 
-  radicals        ArchetypeRadical[]
-  itemModels      ItemModel[]
+  radicals   ArchetypeRadical[]
+  itemModels ItemModel[]
 
   @@unique([modelId, publicId])
-  @@unique([modelId, actionSignature])     // A7 enforced at DB level
+  @@unique([modelId, actionSignature]) // A7 enforced at DB level
 }
 
 model DifficultyFactor {
-  id                 String @id @default(cuid())
-  modelId            String
-  model              KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  id      String         @id @default(cuid())
+  modelId String
+  model   KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
   publicId           String
   label              String
   whyHard            String
-  recruitsKCId       String?                // the KC the perturbation revealed
-  perturbationResult PerturbationResult     // A8
+  recruitsKCId       String? // the KC the perturbation revealed
+  perturbationResult PerturbationResult // A8
 
-  archetypes         ArchetypeRadical[]
+  archetypes ArchetypeRadical[]
 
   @@unique([modelId, publicId])
 }
 
 model ArchetypeRadical {
   archetypeId String
-  archetype   Archetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  archetype   Archetype        @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
   factorId    String
   factor      DifficultyFactor @relation(fields: [factorId], references: [id], onDelete: Cascade)
+
   @@id([archetypeId, factorId])
 }
 
 model Misconception {
-  id             String @id @default(cuid())
-  modelId        String
-  model          KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  id      String         @id @default(cuid())
+  modelId String
+  model   KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
   publicId       String
   belief         String
   kind           MisconceptionKind
   relatedKCId    String
   atStep         Int?
-  producesAnswer String                     // derivation RULE, not a value
+  producesAnswer String // derivation RULE, not a value
   confrontation  String?
-  confrontable   Boolean @default(false)    // A14
-  source         String                     // 'trace' | 'literature' | 'both'
-  evidenceCount  Int     @default(1)
+  confrontable   Boolean           @default(false) // A14
+  source         String // 'trace' | 'literature' | 'both'
+  evidenceCount  Int               @default(1)
 
   distractorRules DistractorRule[]
-  erroneousModels ItemModel[] @relation("erroneousSource")
+  erroneousModels ItemModel[]      @relation("erroneousSource")
 
   @@unique([modelId, publicId])
-  @@index([modelId, kind, confrontable])    // A14
+  @@index([modelId, kind, confrontable]) // A14
 }
 
 // ─── items ────────────────────────────────────────────────
 
 model ItemModel {
-  id                     String @id @default(cuid())
-  modelId                String
-  model                  KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  archetypeId            String?
-  archetype              Archetype? @relation(fields: [archetypeId], references: [id])
+  id          String         @id @default(cuid())
+  modelId     String
+  model       KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  archetypeId String?
+  archetype   Archetype?     @relation(fields: [archetypeId], references: [id])
 
-  publicId               String
-  targetKCIds            String[]            // B2
-  radicalIds             String[]
+  publicId    String
+  targetKCIds String[] // B2
+  radicalIds  String[]
 
-  tier                   Int
-  tierSource             TierSource @default(MODELLED)
-  bloom                  String
+  tier       Int
+  tierSource TierSource @default(MODELLED)
+  bloom      String
 
-  stemTemplate           String
-  incidentalSlots        Json                // slot name → {kind,pool,range,constraint}
-  variability            Variability         // A16
-  solutionProcedure      String[]
+  stemTemplate      String
+  incidentalSlots   Json // slot name → {kind,pool,range,constraint}
+  variability       Variability // A16
+  solutionProcedure String[]
 
-  branchCoverageRequired Boolean @default(false)   // A11, B5
+  branchCoverageRequired Boolean           @default(false) // A11, B5
   branches               ItemModelBranch[]
 
-  kind                   ItemKind @default(STANDARD)
-  erroneousSourceId      String?
-  erroneousSource        Misconception? @relation("erroneousSource", fields: [erroneousSourceId], references: [id])
-  prompts                String[]            // A17/B8 — erroneous + self-explanation
+  kind              ItemKind       @default(STANDARD)
+  erroneousSourceId String?
+  erroneousSource   Misconception? @relation("erroneousSource", fields: [erroneousSourceId], references: [id])
+  prompts           String[] // A17/B8 — erroneous + self-explanation
 
-  supportRungs           SupportRung[]
-  distractorRules        DistractorRule[]
-  items                  Item[]
+  supportRungs    SupportRung[]
+  distractorRules DistractorRule[]
+  items           Item[]
 
-  minTraceEvidence       Int
-  harvestedStemRef       String?             // A10
+  minTraceEvidence Int
+  harvestedStemRef String? // A10
 
   @@unique([modelId, publicId])
-  @@index([modelId, tier])                   // A9
-  @@index([modelId, kind])                   // A12
+  @@index([modelId, tier]) // A9
+  @@index([modelId, kind]) // A12
 }
 
 model ItemModelBranch {
-  id          String @id @default(cuid())
+  id          String    @id @default(cuid())
   itemModelId String
   itemModel   ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
-  publicId    String                          // 'deg-num-greater'
+  publicId    String // 'deg-num-greater'
   condition   String
   conclusion  String
+
   @@unique([itemModelId, publicId])
 }
 
 model SupportRung {
-  id                    String @id @default(cuid())
+  id                    String       @id @default(cuid())
   itemModelId           String
-  itemModel             ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
-  ordinal               Int                   // B9
+  itemModel             ItemModel    @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  ordinal               Int // B9
   support               SupportLevel
-  stepsRemoved          Int[]                 // A17 — indices from the END
+  stepsRemoved          Int[] // A17 — indices from the END
   selfExplanationPrompt String?
+
   @@unique([itemModelId, ordinal])
 }
 
 model DistractorRule {
-  id              String @id @default(cuid())
+  id              String        @id @default(cuid())
   itemModelId     String
-  itemModel       ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  itemModel       ItemModel     @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
   misconceptionId String
   misconception   Misconception @relation(fields: [misconceptionId], references: [id])
-  derivation      String                       // A15 — references slot names
+  derivation      String // A15 — references slot names
 }
 
 model Item {
-  id              String @id @default(cuid())
-  itemModelId     String
-  itemModel       ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  itemModelId String
+  itemModel   ItemModel @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
 
-  surface         Surface
-  seed            String                       // reproducible instantiation
-  branchId        String?                      // B5
-  rungOrdinal     Int?                         // B9 — textbook only
+  surface     Surface
+  seed        String // reproducible instantiation
+  branchId    String? // B5
+  rungOrdinal Int? // B9 — textbook only
 
-  renderedStem    String
-  renderedSolution String[]
-  renderedDistractors Json?                    // CBT only
+  renderedStem        String
+  renderedSolution    String[]
+  renderedDistractors Json? // CBT only
 
-  targetKCIds     String[]                     // denormalised for B2
-  solveAgreement  Int                          // B3 — 0..3
-  judgedTier      Int?                         // B4
-  errorMarked     Boolean @default(false)      // B8
+  targetKCIds    String[] // denormalised for B2
+  solveAgreement Int // B3 — 0..3
+  judgedTier     Int? // B4
+  errorMarked    Boolean  @default(false) // B8
 
   @@index([itemModelId, surface])
-  @@index([surface, seed])                     // CBT exposure control
+  @@index([surface, seed]) // CBT exposure control
 }
 
 // ─── placement + audit ────────────────────────────────────
 
 model JitBlock {
-  id               String @id @default(cuid())
-  modelId          String
-  model            KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  forKCId          String
-  placement        String                      // 'inline-before-first-use'
-  anchorItemModelId String?                    // A20 — resolves placement
-  content          String
-  fullTreatmentAt  String?
-  reason           String
+  id                String         @id @default(cuid())
+  modelId           String
+  model             KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  forKCId           String
+  placement         String // 'inline-before-first-use'
+  anchorItemModelId String? // A20 — resolves placement
+  content           String
+  fullTreatmentAt   String?
+  reason            String
 }
 
 model TeachingBlock {
-  id       String @id @default(cuid())
-  modelId  String
-  model    KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  kind     TeachingBlockKind                   // A13
-  forKCId  String
-  content  String
+  id      String            @id @default(cuid())
+  modelId String
+  model   KnowledgeModel    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  kind    TeachingBlockKind // A13
+  forKCId String
+  content String
+
   @@index([modelId, kind])
 }
 
 model RelocationRequest {
-  id            String @id @default(cuid())
-  courseCode    String
-  kcPublicId    String
-  fromTopicId   String
-  toTopicId     String
-  reason        String
-  applied       Boolean @default(false)
+  id          String  @id @default(cuid())
+  courseCode  String
+  kcPublicId  String
+  fromTopicId String
+  toTopicId   String
+  reason      String
+  applied     Boolean @default(false)
+
   @@index([courseCode, applied])
 }
 
 model ValidationRun {
-  id        String @id @default(cuid())
-  modelId   String
-  model     KnowledgeModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
-  gate      String                             // 'A' | 'B'
-  attempt   Int
-  passed    Boolean
-  runAt     DateTime @default(now())
-  findings  ValidationFinding[]
+  id       String              @id @default(cuid())
+  modelId  String
+  model    KnowledgeModel      @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  gate     String // 'A' | 'B'
+  attempt  Int
+  passed   Boolean
+  runAt    DateTime            @default(now())
+  findings ValidationFinding[]
+
   @@index([modelId, gate, attempt])
 }
 
 model ValidationFinding {
-  id        String @id @default(cuid())
+  id        String        @id @default(cuid())
   runId     String
   run       ValidationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  checkId   String                             // 'A12'
+  checkId   String // 'A12'
   severity  Severity
-  subjectId String?                            // the KC / ItemModel that failed
+  subjectId String? // the KC / ItemModel that failed
   detail    String
+
   @@index([runId, severity])
 }
-

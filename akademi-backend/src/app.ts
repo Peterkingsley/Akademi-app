@@ -22,6 +22,7 @@ import searchRoutes from './modules/search/search.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import notificationRoutes from './modules/notifications/notifications.routes';
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
+import koinRoutes from './modules/koin/koin.routes';
 import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
 import { recoverPendingMaterials, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
@@ -87,6 +88,7 @@ app.use('/search', searchRoutes);
 app.use('/admin', adminRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/waitlist', generalPublicApiLimiter, waitlistRoutes);
+app.use('/koin', koinRoutes);
 
 app.get('/health', async (_req, res) => {
   try {

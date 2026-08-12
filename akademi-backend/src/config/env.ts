@@ -62,6 +62,8 @@ export const config = {
   typesenseAutoSync: process.env.TYPESENSE_AUTO_SYNC === 'true',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
+  koinPurchasesEnabled: process.env.KOIN_PURCHASES_ENABLED === 'true',
+  koinWithdrawalsEnabled: process.env.KOIN_WITHDRAWALS_ENABLED === 'true',
   sentryDsn: process.env.SENTRY_DSN || null,
   sentryEnvironment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
   sentryRelease: process.env.SENTRY_RELEASE || 'akademi-backend@1.0.0',

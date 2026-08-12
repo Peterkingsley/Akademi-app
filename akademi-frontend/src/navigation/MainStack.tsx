@@ -40,6 +40,7 @@ import { CompetitionHubScreen } from "../screens/main/CompetitionHubScreen";
 import { CompetitionMatchesScreen } from "../screens/main/CompetitionMatchesScreen";
 import { CompetitionJoinCodeScreen } from "../screens/main/CompetitionJoinCodeScreen";
 import { CompetitionLeaderboardScreen } from "../screens/main/CompetitionLeaderboardScreen";
+import { KoinWalletScreen } from "../screens/main/KoinWalletScreen";
 import { CreateCompetitionScreen } from "../screens/main/CreateCompetitionScreen";
 import { CompetitionLobbyScreen } from "../screens/main/CompetitionLobbyScreen";
 import { CompetitionResultScreen } from "../screens/main/CompetitionResultScreen";
@@ -92,6 +93,7 @@ export const MainStack = () => {
       <Stack.Screen name="CompetitionMatches" component={CompetitionMatchesScreen} />
       <Stack.Screen name="CompetitionJoinCode" component={CompetitionJoinCodeScreen} />
       <Stack.Screen name="CompetitionLeaderboard" component={CompetitionLeaderboardScreen} />
+      <Stack.Screen name="KoinWallet" component={KoinWalletScreen} />
       <Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
       <Stack.Screen name="CreateCompetition" component={CreateCompetitionScreen} />
       <Stack.Screen name="CompetitionLobby" component={CompetitionLobbyScreen} />
