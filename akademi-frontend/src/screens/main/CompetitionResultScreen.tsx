@@ -1,10 +1,11 @@
-import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Award, CheckCircle2, ChevronRight, Home, Medal, Swords, Target, Trophy, XCircle } from "lucide-react-native";
+import { Award, CheckCircle2, ChevronRight, Home, Medal, RotateCcw, Swords, Target, Trophy } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { useAuthStore } from "../../store/useAuthStore";
+import { competitionService } from "../../services/competition";
 import { useTheme } from "../../theme/ThemeContext";
 
 type ScoreEntry = {
@@ -22,7 +23,8 @@ export const CompetitionResultScreen: React.FC = () => {
   const { width } = useWindowDimensions();
   const { colors, typeScale, radius, controlSize, contentWidth } = useTheme();
   const user = useAuthStore((state) => state.user);
-  const { winnerUserId, scoreboard = [] } = route.params || {};
+  const { roomId, winnerUserId, scoreboard = [] } = route.params || {};
+  const [rematching, setRematching] = useState(false);
   const isWide = width >= 600;
 
   const standings = useMemo(
@@ -42,6 +44,29 @@ export const CompetitionResultScreen: React.FC = () => {
     { label: "Correct", value: currentStudent?.correct_answers ?? 0, icon: CheckCircle2, tone: colors.status.success.icon },
     { label: "Accuracy", value: `${accuracy}%`, icon: Target, tone: colors.status.info.icon },
   ];
+
+  const handleRematch = async () => {
+    if (!roomId || rematching) return;
+    try {
+      setRematching(true);
+      const previousRoom = await competitionService.getRoom(roomId);
+      const currentParticipant = previousRoom.participants.find((participant) => participant.user_id === user?.id);
+      const rematch = await competitionService.createRoom({
+        title: previousRoom.title,
+        visibility: previousRoom.visibility,
+        format: previousRoom.format,
+        shared_course_code: previousRoom.shared_course_code || undefined,
+        host_course_code: currentParticipant?.course_code || previousRoom.shared_course_code || undefined,
+        question_count: previousRoom.question_count,
+        question_timer_sec: previousRoom.question_timer_sec,
+        max_participants: previousRoom.max_participants,
+      });
+      navigation.replace("CompetitionLobby", { roomId: rematch.id });
+    } catch (error: any) {
+      Alert.alert("Unable to start rematch", error?.response?.data?.message || "Please try again.");
+      setRematching(false);
+    }
+  };
 
   return (
     <Screen style={[styles.screen, { backgroundColor: colors.bg.canvas }]}>
@@ -172,28 +197,39 @@ export const CompetitionResultScreen: React.FC = () => {
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Start another competition"
-            onPress={() => navigation.replace("CreateCompetition")}
+            accessibilityLabel="Create a rematch with the same settings"
+            accessibilityState={{ busy: rematching, disabled: rematching }}
+            disabled={rematching}
+            onPress={handleRematch}
             style={({ pressed }) => [
               styles.primaryButton,
               { minHeight: controlSize.buttonMinHeight, backgroundColor: pressed ? colors.brand.fillPressed : colors.brand.fill, borderRadius: radius.md },
             ]}
           >
-            <Swords size={20} color={colors.brand.onFill} />
-            <Text style={[typeScale.bodyStrong, { color: colors.brand.onFill }]}>Start another match</Text>
-            <ChevronRight size={20} color={colors.brand.onFill} />
+            {rematching ? <ActivityIndicator color={colors.brand.onFill} /> : <RotateCcw size={20} color={colors.brand.onFill} />}
+            <Text style={[typeScale.bodyStrong, { color: colors.brand.onFill }]}>{rematching ? "Creating rematch..." : "Rematch"}</Text>
+            {!rematching ? <ChevronRight size={20} color={colors.brand.onFill} /> : null}
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Return to compete hub"
-            onPress={() => navigation.navigate("CompetitionHub")}
+            accessibilityLabel="Create a match with different settings"
+            onPress={() => navigation.replace("CreateCompetition")}
             style={({ pressed }) => [
               styles.secondaryButton,
               { minHeight: controlSize.buttonMinHeight, borderColor: colors.borderRoles.default, backgroundColor: pressed ? colors.bg.surfaceRaised : colors.bg.surface, borderRadius: radius.md },
             ]}
           >
-            <Home size={20} color={colors.fg.secondary} />
-            <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>Back to Compete</Text>
+            <Swords size={20} color={colors.fg.secondary} />
+            <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>New match settings</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Return to compete hub"
+            onPress={() => navigation.navigate("CompetitionHub")}
+            style={({ pressed }) => [styles.hubButton, { minHeight: controlSize.minTouch, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Home size={18} color={colors.fg.secondary} />
+            <Text style={[typeScale.label, { color: colors.fg.secondary }]}>Back to Compete</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -236,4 +272,5 @@ const styles = StyleSheet.create({
   actions: { gap: 12 },
   primaryButton: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   secondaryButton: { paddingHorizontal: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  hubButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
 });
