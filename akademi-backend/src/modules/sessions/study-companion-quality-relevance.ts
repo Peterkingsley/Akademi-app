@@ -58,9 +58,7 @@ export function parseEmbeddingVector(value: unknown) {
 export function normalizeConstraintStrictness(
   value: string | null | undefined,
 ): 'low' | 'medium' | 'high' {
-  const normalized = String(value || '')
-    .trim()
-    .toLowerCase();
+  const normalized = String(value || '').trim().toLowerCase();
   if (normalized === 'low' || normalized === 'high') return normalized;
   return 'medium';
 }
@@ -68,9 +66,7 @@ export function normalizeConstraintStrictness(
 export function parseLecturerConstraintContext(
   constraints: LecturerConstraintRecord[],
 ): LecturerConstraintContext {
-  const activeConstraints = constraints.filter(
-    (item) => item.is_active !== false,
-  );
+  const activeConstraints = constraints.filter((item) => item.is_active !== false);
   const strictness = activeConstraints.reduce<'low' | 'medium' | 'high'>(
     (current, item) => {
       const next = normalizeConstraintStrictness(item.strictness);
@@ -87,16 +83,12 @@ export function parseLecturerConstraintContext(
     110,
   );
   const mustCoverTopics = truncateList(
-    activeConstraints.flatMap((item) =>
-      safeStringArray(item.must_cover_topics),
-    ),
+    activeConstraints.flatMap((item) => safeStringArray(item.must_cover_topics)),
     8,
     110,
   );
   const doNotSkipTopics = truncateList(
-    activeConstraints.flatMap((item) =>
-      safeStringArray(item.do_not_skip_topics),
-    ),
+    activeConstraints.flatMap((item) => safeStringArray(item.do_not_skip_topics)),
     8,
     110,
   );
@@ -106,9 +98,7 @@ export function parseLecturerConstraintContext(
     110,
   );
   const forbiddenMethods = truncateList(
-    activeConstraints.flatMap((item) =>
-      safeStringArray(item.forbidden_methods),
-    ),
+    activeConstraints.flatMap((item) => safeStringArray(item.forbidden_methods)),
     6,
     110,
   );
@@ -133,9 +123,7 @@ export function parseLecturerConstraintContext(
       [
         item.unit_policy ? `Unit policy: ${item.unit_policy}` : '',
         item.proof_policy ? `Proof policy: ${item.proof_policy}` : '',
-        item.calculation_policy
-          ? `Calculation policy: ${item.calculation_policy}`
-          : '',
+        item.calculation_policy ? `Calculation policy: ${item.calculation_policy}` : '',
         item.diagram_policy ? `Diagram policy: ${item.diagram_policy}` : '',
       ].filter(Boolean),
     ),
@@ -145,24 +133,12 @@ export function parseLecturerConstraintContext(
 
   const lines = [
     requiredOrder.length ? `Required order: ${requiredOrder.join(' | ')}` : '',
-    mustCoverTopics.length
-      ? `Must-cover topics: ${mustCoverTopics.join(' | ')}`
-      : '',
-    doNotSkipTopics.length
-      ? `Do-not-skip topics: ${doNotSkipTopics.join(' | ')}`
-      : '',
-    terminology.length
-      ? `Preferred terminology: ${terminology.join(' | ')}`
-      : '',
-    requiredMethods.length
-      ? `Required methods: ${requiredMethods.join(' | ')}`
-      : '',
-    forbiddenMethods.length
-      ? `Forbidden methods: ${forbiddenMethods.join(' | ')}`
-      : '',
-    assessmentFocus.length
-      ? `Assessment focus: ${assessmentFocus.join(' | ')}`
-      : '',
+    mustCoverTopics.length ? `Must-cover topics: ${mustCoverTopics.join(' | ')}` : '',
+    doNotSkipTopics.length ? `Do-not-skip topics: ${doNotSkipTopics.join(' | ')}` : '',
+    terminology.length ? `Preferred terminology: ${terminology.join(' | ')}` : '',
+    requiredMethods.length ? `Required methods: ${requiredMethods.join(' | ')}` : '',
+    forbiddenMethods.length ? `Forbidden methods: ${forbiddenMethods.join(' | ')}` : '',
+    assessmentFocus.length ? `Assessment focus: ${assessmentFocus.join(' | ')}` : '',
     policies.length ? `Policies: ${policies.join(' | ')}` : '',
     activeConstraints.length ? `Lecturer strictness: ${strictness}` : '',
   ].filter(Boolean);
@@ -211,44 +187,62 @@ export function explainChunkRelevance(chunkText: string, queryParts: string[]) {
     .map((part) => normalizeText(part))
     .filter(Boolean)
     .find((part) => {
-      const tokens = part
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((token) => token.length >= 4);
+      const tokens = part.toLowerCase().split(/\s+/).filter((token) => token.length >= 4);
       return tokens.some((token) => lower.includes(token));
     });
 
-  if (matched) {
-    return `Supports: ${truncate(matched, 90)}`;
-  }
-
+  if (matched) return `Supports: ${truncate(matched, 90)}`;
   if (/\bformula\b|\bmethod\b|\bexample\b|\bdefinition\b/.test(lower)) {
     return 'Supports a related formula, method, example, or definition.';
   }
-
   return 'Supports continuity with a related explanation from the same material.';
 }
 
 export function hasStepLanguage(text: string) {
-  return /\bstep\b|\bfirst\b|\bsecond\b|\bthen\b|\bnext\b|\bsubstitute\b|\bsolve\b|\bcalculate\b|\bapply\b/i.test(
-    text,
-  );
+  return /\bstep\b|\bfirst\b|\bsecond\b|\bthen\b|\bnext\b|\bsubstitute\b|\bsolve\b|\bcalculate\b|\bapply\b/i.test(text);
 }
 
 export function hasVisualLanguage(text: string) {
-  return /\bimagine\b|\bpicture\b|\bvisual\b|\bflow\b|\barrow\b|\bgraph\b|\baxis\b|\blabel\b|\bpart\b|\bstage\b|\bprocess\b|\bcurve\b|\bdiagram\b/i.test(
-    text,
-  );
+  return /\bimagine\b|\bpicture\b|\bvisual\b|\bflow\b|\barrow\b|\bgraph\b|\baxis\b|\blabel\b|\bpart\b|\bstage\b|\bprocess\b|\bcurve\b|\bdiagram\b/i.test(text);
+}
+
+export function sanitizeTutorStyle(content: string) {
+  const withoutStockVisual = normalizeText(content)
+    .replace(
+      /\s*Picture the process clearly and follow the main parts or stages in order\.?/gi,
+      ' ',
+    )
+    .replace(
+      /^\s*(?:You are\s+)?absolutely correct[!,.;:]?\s*/i,
+      'Correct — ',
+    )
+    .replace(
+      /\b(?:That is|That's) a perfect example[^.?!]*[.?!]\s*/gi,
+      '',
+    )
+    .replace(
+      /^\s*(?:Excellent|Brilliant|Great job|Well done)[!,.;:]?\s*/i,
+      '',
+    )
+    .trim();
+
+  const seen = new Set<string>();
+  const sentences = withoutStockVisual
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .filter((sentence) => {
+      const key = sentence.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return normalizeText(sentences.join(' '));
 }
 
 export function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
-  const scopedPrimary =
-    args.lessonScope?.primaryObjective || args.section.title;
-  const scopedConcepts = truncateList(
-    args.lessonScope?.inScopeConcepts || [],
-    3,
-    40,
-  );
+  const scopedPrimary = args.lessonScope?.primaryObjective || args.section.title;
+  const scopedConcepts = truncateList(args.lessonScope?.inScopeConcepts || [], 3, 40);
   const depthTarget = args.teachingDepthPlan?.targetDepth || 'standard';
   const firstSentence = normalizeText(args.section.content || '')
     .split(/(?<=[.!?])\s+/)
@@ -259,7 +253,7 @@ export function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
     const conceptPart = scopedConcepts.length
       ? ` focusing on ${scopedConcepts.join(', ')}`
       : '';
-    return `Explain ${args.section.title}${conceptPart} in your own words using one clear point at a time.`;
+    return `Explain ${args.section.title}${conceptPart} in your own words, then use one example or application to show the idea.`;
   }
 
   if (args.isCalculationHeavy && args.phase === PASS_2) {
@@ -267,7 +261,7 @@ export function buildDeterministicTutorFallback(args: TutorMessageQualityArgs) {
   }
 
   if (args.isDiagramHeavy) {
-    return `Picture ${args.section.title} as a clear process or diagram. Start with the main parts, then explain how each part or stage connects to the next.`;
+    return `For ${args.section.title}, explain the actual visual structure that matters here and how its key parts relate.`;
   }
 
   if (args.lessonScope?.inScopeConcepts.length) {
@@ -284,7 +278,7 @@ export function applyTutorMessageCorrections(
   issues: string[],
   context: TutorMessageQualityArgs,
 ) {
-  let corrected = normalizeText(content);
+  let corrected = sanitizeTutorStyle(content);
 
   if (
     issues.includes('question_not_allowed') ||
@@ -300,8 +294,8 @@ export function applyTutorMessageCorrections(
   if (issues.includes('micro_question_missing')) {
     const genericMicroQuestion =
       context.phase === PASS_1
-        ? 'Quick guess before we go further: what do you think happens next?'
-        : 'Quick check: where would you apply this?';
+        ? `Use the idea you just learned: what would be one correct example from ${context.section.title}?`
+        : `Apply the idea once: what would you do in a new example from ${context.section.title}?`;
     corrected = `${corrected} ${genericMicroQuestion}`.trim();
   }
 
@@ -361,21 +355,7 @@ export function applyTutorMessageCorrections(
         )
         .join(' ')
         .trim();
-      if (!corrected) {
-        corrected = buildDeterministicTutorFallback(context);
-        console.log('scoped_fallback_used', {
-          phase: context.phase,
-          turnType: context.turnType,
-          primaryObjective: context.lessonScope.primaryObjective,
-        });
-      } else {
-        console.log('scope_trim_applied', {
-          phase: context.phase,
-          turnType: context.turnType,
-          forbiddenConceptsFound: violation.forbiddenConceptsFound,
-          previewConceptsOverExplained: violation.previewConceptsOverExplained,
-        });
-      }
+      if (!corrected) corrected = buildDeterministicTutorFallback(context);
     }
   }
 
@@ -386,10 +366,7 @@ export function applyTutorMessageCorrections(
       issues.includes('depth_too_many_examples') ||
       issues.includes('depth_too_advanced_for_pass'))
   ) {
-    const violation = detectDepthViolation(
-      corrected,
-      context.teachingDepthPlan,
-    );
+    const violation = detectDepthViolation(corrected, context.teachingDepthPlan);
     if (violation.violated) {
       corrected = corrected
         .split(/(?<=[.!?])\s+/)
@@ -411,29 +388,16 @@ export function applyTutorMessageCorrections(
         )
         .join(' ')
         .trim();
-      if (!corrected) {
-        corrected = buildDeterministicTutorFallback(context);
-        console.log('depth_safe_fallback_used', {
-          phase: context.phase,
-          turnType: context.turnType,
-          targetDepth: context.teachingDepthPlan.targetDepth,
-        });
-      } else {
-        console.log('depth_trim_applied', {
-          phase: context.phase,
-          turnType: context.turnType,
-          targetDepth: context.teachingDepthPlan.targetDepth,
-          deferredConceptsExplained: violation.deferredConceptsExplained,
-          tooManyReasoningLayers: violation.tooManyReasoningLayers,
-          tooManyExamples: violation.tooManyExamples,
-          tooAdvancedForPass: violation.tooAdvancedForPass,
-        });
-      }
+      if (!corrected) corrected = buildDeterministicTutorFallback(context);
     }
   }
 
   if (issues.includes('repeated_welcome')) {
     corrected = corrected.replace(/^\s*welcome[^.?!]*[.?!]?\s*/i, '').trim();
+  }
+
+  if (issues.includes('generic_praise')) {
+    corrected = sanitizeTutorStyle(corrected);
   }
 
   if (issues.includes('repeated_prerequisite_explanation')) {
@@ -452,18 +416,14 @@ export function applyTutorMessageCorrections(
     corrected = buildDeterministicTutorFallback(context);
   }
 
-  if (
-    issues.includes('missing_calculation_steps') &&
-    context.phase === PASS_2
-  ) {
+  if (issues.includes('missing_calculation_steps') && context.phase === PASS_2) {
     corrected =
       `${corrected} State the formula, define the variables, then show the steps in order.`.trim();
   }
 
-  if (issues.includes('missing_visual_language')) {
-    corrected =
-      `${corrected} Picture the process clearly and follow the main parts or stages in order.`.trim();
-  }
+  // Do not append stock visual prose. If a real visual explanation is needed,
+  // regeneration can ask the model to produce one that is specific to the
+  // actual graph/diagram instead of injecting the same sentence everywhere.
 
   if (
     (issues.includes('checkpoint_too_long') ||
@@ -509,18 +469,16 @@ export function applyTutorMessageCorrections(
     corrected = trimAfterFirstQuestion(corrected) || corrected;
   }
 
-  return normalizeText(corrected);
+  return sanitizeTutorStyle(corrected);
 }
 
 export function validateTutorMessageQuality(
   args: TutorMessageQualityArgs,
 ): TutorMessageQualityResult {
-  const normalized = normalizeText(args.content || '');
+  const normalized = sanitizeTutorStyle(args.content || '');
   const issues: string[] = [];
 
-  if (!normalized) {
-    issues.push('empty_content');
-  }
+  if (!normalized) issues.push('empty_content');
 
   if (
     normalized.length >
@@ -533,32 +491,24 @@ export function validateTutorMessageQuality(
     issues.push('too_long');
   }
 
-  if (normalized.length < 40) {
-    issues.push('too_short');
+  if (normalized.length < 40) issues.push('too_short');
+
+  if (/\b(absolutely correct|perfect example|excellent|brilliant|great job|well done)\b/i.test(args.content || '')) {
+    issues.push('generic_praise');
   }
 
   const questionMarkCount = (normalized.match(/\?/g) || []).length;
-
   if (args.microQuestionAllowed) {
-    if (questionMarkCount === 0) {
-      issues.push('micro_question_missing');
-    } else if (questionMarkCount > 1) {
-      issues.push('too_many_questions');
-    }
+    if (questionMarkCount === 0) issues.push('micro_question_missing');
+    else if (questionMarkCount > 1) issues.push('too_many_questions');
   } else {
-    if (!args.questionAllowed && questionMarkCount > 0) {
-      issues.push('question_not_allowed');
-    }
-
+    if (!args.questionAllowed && questionMarkCount > 0) issues.push('question_not_allowed');
     if (
-      (args.phase === PASS_1 ||
-        args.phase === PASS_2 ||
-        args.phase === PASS_3) &&
-      questionMarkCount > 0
+      (args.phase === PASS_1 || args.phase === PASS_2 || args.phase === PASS_3) &&
+      questionMarkCount > 0 &&
+      !issues.includes('question_not_allowed')
     ) {
-      if (!issues.includes('question_not_allowed')) {
-        issues.push('question_not_allowed');
-      }
+      issues.push('question_not_allowed');
     }
   }
 
@@ -598,29 +548,15 @@ export function validateTutorMessageQuality(
   }
 
   if (args.turnType === 'checkpoint_question') {
-    const sentenceCount = normalized
-      .split(/(?<=[.!?])\s+/)
-      .filter(Boolean).length;
+    const sentenceCount = normalized.split(/(?<=[.!?])\s+/).filter(Boolean).length;
     if (args.completionProblemCheckpoint) {
-      if (sentenceCount > 10 || normalized.length > 900) {
-        issues.push('checkpoint_too_long');
-      }
-      if (
-        !/\b(complete|solve|finish|calculate|work out|final step|final answer)\b/i.test(
-          normalized,
-        )
-      ) {
+      if (sentenceCount > 10 || normalized.length > 900) issues.push('checkpoint_too_long');
+      if (!/\b(complete|solve|finish|calculate|work out|final step|final answer)\b/i.test(normalized)) {
         issues.push('checkpoint_missing_instruction');
       }
     } else {
-      if (sentenceCount > 2 || normalized.length > 260) {
-        issues.push('checkpoint_too_long');
-      }
-      if (
-        !/\b(explain|respond|say|write|teach-back|memory dump)\b/i.test(
-          normalized,
-        )
-      ) {
+      if (sentenceCount > 2 || normalized.length > 260) issues.push('checkpoint_too_long');
+      if (!/\b(explain|respond|say|write|teach-back|memory dump|apply|use|show)\b/i.test(normalized)) {
         issues.push('checkpoint_missing_instruction');
       }
     }
@@ -636,12 +572,8 @@ export function validateTutorMessageQuality(
     });
   }
   if (args.targetWordRange) {
-    const wordCount = normalized
-      ? normalized.split(/\s+/).filter(Boolean).length
-      : 0;
-    if (wordCount > args.targetWordRange.max) {
-      issues.push('pacing_too_long');
-    }
+    const wordCount = normalized ? normalized.split(/\s+/).filter(Boolean).length : 0;
+    if (wordCount > args.targetWordRange.max) issues.push('pacing_too_long');
   }
   if (args.phase === 'INTRO' && conceptLoad.estimatedConceptCount > 1) {
     issues.push('intro_too_dense');
@@ -659,16 +591,6 @@ export function validateTutorMessageQuality(
 
   if (args.lessonScope) {
     const scopeViolation = detectScopeViolation(normalized, args.lessonScope);
-    if (scopeViolation.violated) {
-      console.log('scope_violation_detected', {
-        phase: args.phase,
-        turnType: args.turnType,
-        violations: scopeViolation.violations,
-        forbiddenConceptsFound: scopeViolation.forbiddenConceptsFound,
-        previewConceptsOverExplained:
-          scopeViolation.previewConceptsOverExplained,
-      });
-    }
     if (scopeViolation.forbiddenConceptsFound.length) {
       issues.push('scope_out_of_scope_expansion');
       issues.push('scope_forbidden_expansion');
@@ -681,41 +603,20 @@ export function validateTutorMessageQuality(
         ...(args.lessonScope.previewOnlyConcepts || []),
         ...(args.lessonScope.outOfScopeConcepts || []),
       ].some((concept) => sentenceContainsConcept(normalized, concept));
-      if (checkpointOffScope) {
-        issues.push('teachback_scope_violation');
-      }
+      if (checkpointOffScope) issues.push('teachback_scope_violation');
     }
   }
 
   if (args.teachingDepthPlan) {
-    const depthViolation = detectDepthViolation(
-      normalized,
-      args.teachingDepthPlan,
-    );
-    if (depthViolation.violated) {
-      console.log('depth_violation_detected', {
-        phase: args.phase,
-        turnType: args.turnType,
-        targetDepth: args.teachingDepthPlan.targetDepth,
-        violations: depthViolation.violations,
-        deferredConceptsExplained: depthViolation.deferredConceptsExplained,
-        tooManyReasoningLayers: depthViolation.tooManyReasoningLayers,
-        tooManyExamples: depthViolation.tooManyExamples,
-        tooAdvancedForPass: depthViolation.tooAdvancedForPass,
-      });
-    }
+    const depthViolation = detectDepthViolation(normalized, args.teachingDepthPlan);
     if (depthViolation.deferredConceptsExplained.length) {
       issues.push('depth_deferred_explained');
     }
     if (depthViolation.tooManyReasoningLayers) {
       issues.push('depth_too_many_reasoning_layers');
     }
-    if (depthViolation.tooManyExamples) {
-      issues.push('depth_too_many_examples');
-    }
-    if (depthViolation.tooAdvancedForPass) {
-      issues.push('depth_too_advanced_for_pass');
-    }
+    if (depthViolation.tooManyExamples) issues.push('depth_too_many_examples');
+    if (depthViolation.tooAdvancedForPass) issues.push('depth_too_advanced_for_pass');
   }
 
   const correctedContent = issues.length
@@ -754,46 +655,28 @@ export function parseStudySectionLessonPlanRecord(value: {
   const fallbackPlan = safeStringArray(value.fallback_plan);
 
   const lines: string[] = [];
-  if (lessonObjective) {
-    lines.push(`Lesson objective: ${truncate(lessonObjective, 180)}`);
-  }
+  if (lessonObjective) lines.push(`Lesson objective: ${truncate(lessonObjective, 180)}`);
   if (prerequisiteRefresh.length) {
-    lines.push(
-      `Prerequisite refresh: ${truncateList(prerequisiteRefresh, 4, 110).join(' | ')}`,
-    );
+    lines.push(`Prerequisite refresh: ${truncateList(prerequisiteRefresh, 4, 110).join(' | ')}`);
   }
   if (teachingSequence.length) {
-    lines.push(
-      `Teaching sequence: ${truncateList(teachingSequence, 5, 110).join(' | ')}`,
-    );
+    lines.push(`Teaching sequence: ${truncateList(teachingSequence, 5, 110).join(' | ')}`);
   }
   if (analogyPlan.length) {
-    lines.push(
-      `Analogy plan: ${truncateList(analogyPlan, 3, 110).join(' | ')}`,
-    );
+    lines.push(`Analogy plan: ${truncateList(analogyPlan, 3, 110).join(' | ')}`);
   }
   if (calculationPlan.length) {
-    lines.push(
-      `Calculation plan: ${truncateList(calculationPlan, 4, 120).join(' | ')}`,
-    );
+    lines.push(`Calculation plan: ${truncateList(calculationPlan, 4, 120).join(' | ')}`);
   }
   if (diagramPlan.length) {
-    lines.push(
-      `Diagram plan: ${truncateList(diagramPlan, 4, 120).join(' | ')}`,
-    );
+    lines.push(`Diagram plan: ${truncateList(diagramPlan, 4, 120).join(' | ')}`);
   }
   if (checkpointFocus.length) {
-    lines.push(
-      `Checkpoint focus: ${truncateList(checkpointFocus, 4, 110).join(' | ')}`,
-    );
+    lines.push(`Checkpoint focus: ${truncateList(checkpointFocus, 4, 110).join(' | ')}`);
   }
-  if (examFocus.length) {
-    lines.push(`Exam focus: ${truncateList(examFocus, 4, 110).join(' | ')}`);
-  }
+  if (examFocus.length) lines.push(`Exam focus: ${truncateList(examFocus, 4, 110).join(' | ')}`);
   if (fallbackPlan.length) {
-    lines.push(
-      `Fallback plan: ${truncateList(fallbackPlan, 4, 110).join(' | ')}`,
-    );
+    lines.push(`Fallback plan: ${truncateList(fallbackPlan, 4, 110).join(' | ')}`);
   }
 
   return {
@@ -835,9 +718,7 @@ export function buildFallbackLessonPlan(args: {
     ? truncateList(
         args.teacherBrainContext
           .split('\n')
-          .filter((line) =>
-            /Prerequisites:|Previous section bridge:/i.test(line),
-          )
+          .filter((line) => /Prerequisites:|Previous section bridge:/i.test(line))
           .map((line) => line.replace(/^[^:]+:\s*/, '').trim()),
         3,
         110,
@@ -845,9 +726,7 @@ export function buildFallbackLessonPlan(args: {
     : [];
   const analogyPlan = truncateList(
     [
-      args.studentMemoryPromptContext.includes(
-        'Preferred explanation style cues',
-      )
+      args.studentMemoryPromptContext.includes('Preferred explanation style cues')
         ? 'Use the student’s preferred explanation style from earlier sections.'
         : '',
       `Use one grounded analogy to make ${args.section.title} easier to remember.`,
@@ -859,16 +738,12 @@ export function buildFallbackLessonPlan(args: {
     ? truncateList(
         [
           ...args.calculationContext.formulas.map(
-            (item) =>
-              `${item.name || 'Formula'}: explain variables and when to use it.`,
+            (item) => `${item.name || 'Formula'}: explain variables and when to use it.`,
           ),
           ...args.calculationContext.calculationMethods.map(
-            (item) =>
-              `${item.topic || 'Method'}: teach the solving order step by step.`,
+            (item) => `${item.topic || 'Method'}: teach the solving order step by step.`,
           ),
-          ...args.calculationContext.commonMistakes.map(
-            (item) => `Warn about: ${item}`,
-          ),
+          ...args.calculationContext.commonMistakes.map((item) => `Warn about: ${item}`),
         ],
         4,
         120,
@@ -878,8 +753,7 @@ export function buildFallbackLessonPlan(args: {
     ? truncateList(
         [
           ...args.diagramContext.diagrams.map(
-            (item) =>
-              `${item.title || 'Diagram'}: explain ${item.diagram_type || 'visual'} using imagine language.`,
+            (item) => `${item.title || 'Diagram'}: explain ${item.diagram_type || 'visual'} using only relevant visual language.`,
           ),
           ...args.diagramContext.imageDescriptions.map(
             (item) => `Use existing visual cue: ${item}`,
@@ -897,7 +771,7 @@ export function buildFallbackLessonPlan(args: {
       args.diagramContext.detected
         ? 'Check visual sequence, labels, and relationships.'
         : '',
-      'Check whether the student can explain the core idea without copying.',
+      'Check whether the student can explain and use the core idea without copying.',
     ].filter(Boolean),
     4,
     110,
@@ -917,14 +791,10 @@ export function buildFallbackLessonPlan(args: {
   );
   const fallbackPlan = truncateList(
     [
-      'Reteach the weak idea in simpler words.',
-      args.calculationContext.detected
-        ? 'Use one small numeric simple example.'
-        : '',
-      args.diagramContext.detected
-        ? 'Use one clean verbal visualization with parts or arrows.'
-        : '',
-      'Return to one checkpoint question after reteaching.',
+      'Reteach only the weak idea in simpler words.',
+      args.calculationContext.detected ? 'Use one small numeric simple example.' : '',
+      args.diagramContext.detected ? 'Use one specific visual relationship from the actual section.' : '',
+      'Return to one transfer-oriented checkpoint after reteaching.',
     ].filter(Boolean),
     4,
     110,
@@ -952,7 +822,6 @@ export function countKeywordHits(source: string, target: string) {
       .map((token) => token.trim())
       .filter((token) => token.length >= 5),
   );
-
   if (!sourceTokens.size) return 0;
 
   let hits = 0;
@@ -971,12 +840,10 @@ export function deriveFailedConcepts(
     .map((sentence) => sentence.trim())
     .filter(Boolean);
 
-  const misses = sentences
+  return sentences
     .filter((sentence) => countKeywordHits(sentence, studentResponse) === 0)
     .slice(0, 4)
     .map((sentence) => truncate(sentence, 120));
-
-  return misses;
 }
 
 export function computeCoverageScore(
