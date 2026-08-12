@@ -23,11 +23,7 @@ import { colors } from "../../theme/colors";
 import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { SafeArea } from "../../components/layout/SafeArea";
-
-const KORA_PAYMENT_LINKS = {
-  monthly: "https://checkout.korapay.com/pay/akademi",
-  yearly: "https://checkout.korapay.com/pay/akademiY",
-} as const;
+import { userService } from "../../services/user";
 
 export const SubscriptionScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -37,16 +33,18 @@ export const SubscriptionScreen: React.FC = () => {
   const handleUpgrade = async () => {
     setLoading(true);
     try {
-      const paymentUrl = KORA_PAYMENT_LINKS[billingCycle];
-      const result = await WebBrowser.openBrowserAsync(paymentUrl, {
+      const checkout = await userService.purchaseSubscription(billingCycle);
+      const result = await WebBrowser.openBrowserAsync(checkout.paymentUrl, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
         controlsColor: colors.primary,
       });
-      if (result.type === "dismiss" || result.type === "cancel") {
-        Alert.alert(
-          "Payment submitted?",
-          "If your payment was successful, your Akademi Pro access will be confirmed after payment verification.",
-        );
+      try {
+        await userService.verifySubscription(checkout.reference);
+        Alert.alert("Welcome to Akademi Pro", "Your payment is confirmed and Pro access is now active.", [
+          { text: "Continue", onPress: () => navigation.goBack() },
+        ]);
+      } catch {
+        Alert.alert("Payment awaiting confirmation", "If you completed payment, it may take a moment to confirm. Return to this screen and try again shortly.");
       }
     } catch (error) {
       console.error("Subscription purchase failed:", error);

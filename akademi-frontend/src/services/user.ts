@@ -253,11 +253,12 @@ export const userService = {
   },
 
   purchaseSubscription: async (plan: "monthly" | "yearly") => {
-    const response = await api.post<PurchaseSubscriptionResponse>("/feature-access/purchase", {
-      feature: "EXAM_PREP",
-      access_type: "TIME_WINDOW",
-      amount: plan === "monthly" ? 2000 : 20000,
-    });
+    const response = await api.post<PurchaseSubscriptionResponse>("/feature-access/kora/subscriptions", { billingCycle: plan });
+    return response.data;
+  },
+
+  verifySubscription: async (reference: string) => {
+    const response = await api.post<{ active: boolean; plan: string }>("/feature-access/kora/subscriptions/verify", { reference });
     return response.data;
   },
 

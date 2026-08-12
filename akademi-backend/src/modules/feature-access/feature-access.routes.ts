@@ -13,6 +13,8 @@ router.use(authenticate);
 router.use(generalAuthenticatedApiLimiter);
 
 router.get('/products', controller.getProducts);
+router.post('/kora/subscriptions', controller.initiateKoraSubscription.bind(controller));
+router.post('/kora/subscriptions/verify', controller.verifyKoraSubscription.bind(controller));
 router.get('/', controller.getActiveUnlocks);
 router.post('/purchase', controller.purchase);
 router.get('/check/:feature', controller.checkFeature);

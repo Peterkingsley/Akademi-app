@@ -5,6 +5,53 @@ import { v4 as uuidv4 } from 'uuid';
 import { FEATURE_PRODUCTS, getFeatureProduct } from './feature-products';
 
 export class FeatureAccessService {
+  async initiateKoraSubscription(userId: string, billingCycle: 'monthly' | 'yearly') {
+    if (!config.koraSecretKey) throw new Error('Kora checkout is not configured');
+    const plan = billingCycle === 'yearly'
+      ? { amount: 18000, code: 'AKADEMI_PRO_YEARLY' }
+      : { amount: 2500, code: 'AKADEMI_PRO_MONTHLY' };
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, name: true, university: true } });
+    if (!user) throw new Error('User not found');
+    const reference = `KORA-${uuidv4()}`;
+
+    await prisma.transaction.create({
+      data: { user_id: user.id, feature: Feature.ASSIGNMENT_SOLVING, plan: plan.code, amount: plan.amount, status: 'PENDING', reference, university: user.university },
+    });
+    try {
+      const response = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${config.koraSecretKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: plan.amount,
+          currency: 'NGN',
+          reference,
+          notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/feature-access/kora/webhook`,
+          narration: billingCycle === 'yearly' ? 'Akademi Pro yearly subscription' : 'Akademi Pro monthly subscription',
+          channels: ['card', 'bank_transfer', 'pay_with_bank'],
+          customer: { email: user.email, name: user.name },
+          metadata: { userId: user.id, plan: plan.code },
+        }),
+      });
+      const result: any = await response.json().catch(() => null);
+      if (!response.ok || result?.status !== true || !result?.data?.checkout_url) {
+        throw new Error(result?.message || 'Kora could not initialize checkout');
+      }
+      return { paymentUrl: result.data.checkout_url, reference, amount: plan.amount, currency: 'NGN' };
+    } catch (error) {
+      await prisma.transaction.update({ where: { reference }, data: { status: 'FAILED' } });
+      throw error;
+    }
+  }
+
+  async verifyKoraSubscriptionForUser(userId: string, reference: string) {
+    const transaction = await prisma.transaction.findUnique({ where: { reference } });
+    if (!transaction || transaction.user_id !== userId || !transaction.plan.startsWith('AKADEMI_PRO_')) {
+      throw new Error('Subscription transaction not found');
+    }
+    await this.verifyAndActivateKoraSubscription(reference);
+    return { active: true, plan: transaction.plan };
+  }
+
   getProducts() {
     return Object.values(FEATURE_PRODUCTS);
   }
@@ -232,7 +279,7 @@ export class FeatureAccessService {
 
       const now = new Date();
       const currentAccess = await tx.featureAccess.findMany({
-        where: { user_id: user.id, product_code: plan.code, expires_at: { gt: now } },
+        where: { user_id: user.id, product_code: { startsWith: 'AKADEMI_PRO_' }, expires_at: { gt: now } },
         select: { expires_at: true },
       });
       const latestExpiry = currentAccess.reduce(

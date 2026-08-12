@@ -8,6 +8,23 @@ import { timingSafeEqual } from '../../shared/utils/secure-compare';
 const featureAccessService = new FeatureAccessService();
 
 export class FeatureAccessController {
+  async initiateKoraSubscription(req: Request, res: Response) {
+    try {
+      const billingCycle = req.body?.billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      res.json(await featureAccessService.initiateKoraSubscription((req.user as any).userId, billingCycle));
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Unable to initialize Kora checkout' });
+    }
+  }
+
+  async verifyKoraSubscription(req: Request, res: Response) {
+    try {
+      res.json(await featureAccessService.verifyKoraSubscriptionForUser((req.user as any).userId, req.body?.reference));
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || 'Payment has not been confirmed' });
+    }
+  }
+
   async getProducts(req: Request, res: Response) {
     try {
       res.status(200).json(featureAccessService.getProducts());
