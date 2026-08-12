@@ -43,7 +43,28 @@ export const CompetitionLobbyScreen: React.FC = () => {
 
   const wasDisconnectedRef = useRef(false);
   const revealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishHandledRef = useRef(false);
   const timerAnim = useRef(new Animated.Value(1)).current;
+
+  const beginResultReveal = (winnerId: string | null, finalScoreboard: CompetitionScoreboardEntry[]) => {
+    if (finishHandledRef.current) return;
+    finishHandledRef.current = true;
+    const revealAt = Date.now() + 20000;
+    setWinnerUserId(winnerId);
+    setScoreboard(finalScoreboard);
+    setQuestion(null);
+    setSelectedAnswer(null);
+    setTimerNow(Date.now());
+    setResultRevealAt(revealAt);
+    setRoom((current) => (current ? { ...current, status: "FINISHED" } : current));
+    revealTimeoutRef.current = setTimeout(() => {
+      navigation.replace("CompetitionResult", {
+        roomId: route.params.roomId,
+        winnerUserId: winnerId,
+        scoreboard: finalScoreboard,
+      });
+    }, 20000);
+  };
 
   const applyMatchState = (state: CompetitionMatchState) => {
     setScoreboard(state.scoreboard || []);
@@ -57,7 +78,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
       setTimerNow(Date.now());
     }
     if (state.finished) {
-      setWinnerUserId(state.winner_user_id || null);
+      beginResultReveal(state.winner_user_id || null, state.scoreboard || []);
     }
   };
 
@@ -129,20 +150,7 @@ export const CompetitionLobbyScreen: React.FC = () => {
       scoreboard: CompetitionScoreboardEntry[];
     }) => {
       if (!mounted || payload.roomId !== route.params.roomId) return;
-      const revealAt = Date.now() + 20000;
-      setWinnerUserId(payload.winner_user_id || null);
-      setScoreboard(payload.scoreboard);
-      setQuestion(null);
-      setSelectedAnswer(null);
-      setResultRevealAt(revealAt);
-      setRoom((current) => (current ? { ...current, status: "FINISHED" } : current));
-      revealTimeoutRef.current = setTimeout(() => {
-        navigation.replace("CompetitionResult", {
-          roomId: route.params.roomId,
-          winnerUserId: payload.winner_user_id || null,
-          scoreboard: payload.scoreboard,
-        });
-      }, 20000);
+      beginResultReveal(payload.winner_user_id || null, payload.scoreboard);
     };
 
     const handleSocketError = (payload: { message?: string }) => {

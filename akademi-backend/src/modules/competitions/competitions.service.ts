@@ -853,7 +853,15 @@ export class CompetitionsService {
   async getMatchState(roomId: string) {
     const match = activeMatches.get(roomId) || await this.hydrateMatch(roomId);
     if (!match) throw new Error('Match state not found');
-    return this.buildMatchState(match);
+    const state = this.buildMatchState(match);
+    if (state.finished) {
+      const room = await prisma.competitionRoom.findUnique({
+        where: { id: roomId },
+        select: { winner_user_id: true },
+      });
+      state.winner_user_id = room?.winner_user_id || null;
+    }
+    return state;
   }
 
   async getMatchStateForParticipant(userId: string, roomId: string) {
