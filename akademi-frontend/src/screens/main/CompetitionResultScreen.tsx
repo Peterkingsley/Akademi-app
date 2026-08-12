@@ -1,109 +1,200 @@
 import React, { useMemo } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { Award, CheckCircle2, Home, RotateCcw, Swords, Trophy, XCircle } from "lucide-react-native";
+import { Award, CheckCircle2, ChevronRight, Home, Medal, Swords, Target, Trophy, XCircle } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
+import { useAuthStore } from "../../store/useAuthStore";
 import { useTheme } from "../../theme/ThemeContext";
+
+type ScoreEntry = {
+  user_id: string;
+  name: string;
+  score: number;
+  correct_answers: number;
+  wrong_answers: number;
+  hasAnsweredCurrent: boolean;
+};
 
 export const CompetitionResultScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const { colors } = useTheme();
-  const { roomId, winnerUserId, scoreboard } = route.params;
+  const { width } = useWindowDimensions();
+  const { colors, typeScale, radius, controlSize, contentWidth } = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const { winnerUserId, scoreboard = [] } = route.params || {};
+  const isWide = width >= 600;
 
-  const winner = useMemo(
-    () => scoreboard.find((entry: any) => entry.user_id === winnerUserId) || scoreboard[0],
-    [scoreboard, winnerUserId],
+  const standings = useMemo(
+    () => [...(scoreboard as ScoreEntry[])].sort((a, b) => b.score - a.score || b.correct_answers - a.correct_answers),
+    [scoreboard],
   );
+  const winner = standings.find((entry) => entry.user_id === winnerUserId) || standings[0] || null;
+  const currentStudent = standings.find((entry) => entry.user_id === user?.id) || null;
+  const currentRank = currentStudent ? standings.findIndex((entry) => entry.user_id === currentStudent.user_id) + 1 : null;
+  const studentWon = Boolean(currentStudent && winner && currentStudent.user_id === winner.user_id);
+  const attempts = (currentStudent?.correct_answers || 0) + (currentStudent?.wrong_answers || 0);
+  const accuracy = attempts ? Math.round(((currentStudent?.correct_answers || 0) / attempts) * 100) : 0;
+  const initial = winner?.name?.trim()?.charAt(0)?.toUpperCase() || "?";
+
+  const metricData = [
+    { label: "Points", value: currentStudent?.score ?? 0, icon: Award, tone: colors.brand.foreground },
+    { label: "Correct", value: currentStudent?.correct_answers ?? 0, icon: CheckCircle2, tone: colors.status.success.icon },
+    { label: "Accuracy", value: `${accuracy}%`, icon: Target, tone: colors.status.info.icon },
+  ];
 
   return (
-    <Screen style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Victory Hero Header */}
-        <View style={styles.hero}>
-          <View style={[styles.heroIconWrap, { backgroundColor: "rgba(245, 158, 11, 0.15)", borderColor: "#F59E0B" }]}>
-            <Trophy size={36} color="#F59E0B" />
+    <Screen style={[styles.screen, { backgroundColor: colors.bg.canvas }]}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { maxWidth: contentWidth.readingMax, paddingHorizontal: isWide ? 24 : 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.topBar}>
+          <View style={[styles.completeBadge, { backgroundColor: colors.status.success.bg, borderColor: colors.status.success.border }]}>
+            <CheckCircle2 size={16} color={colors.status.success.icon} />
+            <Text style={[typeScale.label, { color: colors.status.success.fg }]}>Match complete</Text>
           </View>
-          <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Match Concluded</Text>
-          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
-            {winner ? `${winner.name} claims victory in this live battle!` : "The match has ended."}
+        </View>
+
+        <View style={styles.hero} accessibilityRole="summary">
+          <View style={[styles.trophyHalo, { backgroundColor: colors.status.warning.bg, borderColor: colors.status.warning.border }]}>
+            <Trophy size={38} color={colors.status.warning.icon} />
+          </View>
+          <Text style={[typeScale.h1, styles.heroTitle, { color: colors.fg.primary }]}>We have a champion</Text>
+          <Text style={[typeScale.secondary, styles.heroCopy, { color: colors.fg.secondary }]}>
+            {studentWon
+              ? "Outstanding work — you finished at the top of the leaderboard."
+              : winner
+                ? `${winner.name} finished with the strongest performance.`
+                : "The final results are ready."}
           </Text>
         </View>
 
-        {/* Winner Showcase Card */}
-        <Card style={[styles.winnerCard, { backgroundColor: colors.surface, borderColor: "#F59E0B" }]}>
-          <View style={styles.winnerBadgeRow}>
-            <View style={[styles.winnerBadge, { backgroundColor: "#F59E0B" }]}>
-              <Award size={14} color="#04110A" />
-              <Text style={styles.winnerBadgeText}>CHAMPION</Text>
-            </View>
+        <Card
+          elevated
+          style={[
+            styles.championCard,
+            { borderColor: colors.status.warning.border, borderRadius: radius.xl },
+          ]}
+        >
+          <View style={[styles.championAccent, { backgroundColor: colors.status.warning.icon }]} />
+          <View style={[styles.avatar, { backgroundColor: colors.status.warning.bg, borderColor: colors.status.warning.border }]}>
+            <Text style={[typeScale.h1, { color: colors.status.warning.fg }]}>{initial}</Text>
           </View>
-          <Text style={[styles.winnerName, { color: colors.textPrimary }]}>{winner?.name || "No Winner Recorded"}</Text>
-          <Text style={[styles.winnerScore, { color: colors.primary }]}>{winner?.score ?? 0} PTS</Text>
-
-          <View style={styles.statsRow}>
-            <View style={[styles.statBox, { backgroundColor: colors.surfaceElevated }]}>
-              <CheckCircle2 size={16} color={colors.primary} />
-              <Text style={[styles.statNum, { color: colors.textPrimary }]}>{winner?.correct_answers ?? 0}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Correct</Text>
+          <View style={styles.championIdentity}>
+            <View style={styles.championLabelRow}>
+              <Medal size={16} color={colors.status.warning.icon} />
+              <Text style={[typeScale.label, { color: colors.status.warning.fg }]}>Champion</Text>
             </View>
-            <View style={[styles.statBox, { backgroundColor: colors.surfaceElevated }]}>
-              <XCircle size={16} color="#EF4444" />
-              <Text style={[styles.statNum, { color: colors.textPrimary }]}>{winner?.wrong_answers ?? 0}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Wrong</Text>
-            </View>
+            <Text style={[typeScale.h2, styles.championName, { color: colors.fg.primary }]}>{winner?.name || "No winner recorded"}</Text>
+            <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>Final score</Text>
+          </View>
+          <View style={styles.championScoreWrap}>
+            <Text style={[styles.championScore, { color: colors.brand.foreground }]}>{winner?.score ?? 0}</Text>
+            <Text style={[typeScale.caption, { color: colors.fg.muted }]}>POINTS</Text>
           </View>
         </Card>
 
-        {/* Final Scoreboard Table */}
-        <Card style={[styles.boardCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.boardHeader}>
-            <Swords size={18} color={colors.primary} />
-            <Text style={[styles.boardTitle, { color: colors.textPrimary }]}>Final Scoreboard</Text>
-          </View>
-
-          {scoreboard.map((entry: any, index: number) => {
-            const isFirst = index === 0;
-            const rankColor = isFirst ? "#F59E0B" : index === 1 ? "#94A3B8" : "#B45309";
-            return (
-              <View key={entry.user_id} style={[styles.scoreRow, { borderColor: colors.border }]}>
-                <View style={[styles.rankBadge, { backgroundColor: isFirst ? "rgba(245, 158, 11, 0.15)" : colors.surfaceElevated }]}>
-                  <Text style={[styles.rankText, { color: rankColor }]}>#{index + 1}</Text>
-                </View>
-                <View style={styles.scoreTextWrap}>
-                  <Text style={[styles.scoreName, { color: colors.textPrimary }]}>{entry.name}</Text>
-                  <Text style={[styles.scoreMeta, { color: colors.textSecondary }]}>
-                    {entry.correct_answers} correct • {entry.wrong_answers} wrong
-                  </Text>
-                </View>
-                <Text style={[styles.scoreValue, { color: isFirst ? colors.primary : colors.textPrimary }]}>
-                  {entry.score} pts
-                </Text>
+        {currentStudent ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeading}>
+              <View>
+                <Text style={[typeScale.h3, { color: colors.fg.primary }]}>Your performance</Text>
+                <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>You placed #{currentRank} of {standings.length}</Text>
               </View>
-            );
-          })}
-        </Card>
+            </View>
+            <View style={[styles.metricsGrid, !isWide && styles.metricsGridCompact]}>
+              {metricData.map(({ label, value, icon: Icon, tone }) => (
+                <View key={label} style={[styles.metric, { backgroundColor: colors.bg.surface, borderColor: colors.borderRoles.subtle, borderRadius: radius.md }]}>
+                  <Icon size={20} color={tone} />
+                  <Text style={[typeScale.h3, { color: colors.fg.primary }]}>{value}</Text>
+                  <Text style={[typeScale.caption, { color: colors.fg.muted }]}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
-        {/* Action Buttons */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[styles.secondaryButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => navigation.replace("CompetitionLobby", { roomId })}
+        <View style={styles.section}>
+          <View style={styles.boardHeading}>
+            <View style={styles.boardTitleRow}>
+              <Swords size={20} color={colors.brand.foreground} />
+              <Text style={[typeScale.h3, { color: colors.fg.primary }]}>Final standings</Text>
+            </View>
+            <Text style={[typeScale.caption, { color: colors.fg.muted }]}>{standings.length} players</Text>
+          </View>
+
+          <Card noPadding style={[styles.boardCard, { borderRadius: radius.lg }]}>
+            {standings.map((entry, index) => {
+              const isWinner = entry.user_id === winner?.user_id;
+              const isCurrentUser = entry.user_id === user?.id;
+              return (
+                <View
+                  key={entry.user_id}
+                  style={[
+                    styles.scoreRow,
+                    { borderBottomColor: colors.borderRoles.subtle },
+                    isWinner && { backgroundColor: colors.status.warning.bg },
+                  ]}
+                  accessibilityLabel={`${index + 1}. ${entry.name}, ${entry.score} points`}
+                >
+                  <View style={[styles.rank, { backgroundColor: isWinner ? colors.status.warning.border : colors.bg.surfaceRaised }]}>
+                    {isWinner ? <Trophy size={16} color={colors.status.warning.fg} /> : <Text style={[typeScale.label, { color: colors.fg.secondary }]}>{index + 1}</Text>}
+                  </View>
+                  <View style={styles.playerDetails}>
+                    <View style={styles.playerNameRow}>
+                      <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>{entry.name}</Text>
+                      {isCurrentUser ? (
+                        <View style={[styles.youBadge, { backgroundColor: colors.brand.subtle, borderColor: colors.brand.border }]}>
+                          <Text style={[typeScale.caption, { color: colors.brand.foreground }]}>You</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <View style={styles.resultBreakdown}>
+                      <Text style={[typeScale.caption, { color: colors.status.success.fg }]}>{entry.correct_answers} correct</Text>
+                      <Text style={[typeScale.caption, { color: colors.fg.muted }]}>•</Text>
+                      <Text style={[typeScale.caption, { color: colors.status.error.fg }]}>{entry.wrong_answers} wrong</Text>
+                    </View>
+                  </View>
+                  <View style={styles.scoreValueWrap}>
+                    <Text style={[typeScale.title, { color: isWinner ? colors.status.warning.fg : colors.fg.primary }]}>{entry.score}</Text>
+                    <Text style={[typeScale.caption, { color: colors.fg.muted }]}>pts</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Start another competition"
+            onPress={() => navigation.replace("CreateCompetition")}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              { minHeight: controlSize.buttonMinHeight, backgroundColor: pressed ? colors.brand.fillPressed : colors.brand.fill, borderRadius: radius.md },
+            ]}
           >
-            <RotateCcw size={16} color={colors.textPrimary} />
-            <Text style={[styles.secondaryText, { color: colors.textPrimary }]}>Replay Lobby</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+            <Swords size={20} color={colors.brand.onFill} />
+            <Text style={[typeScale.bodyStrong, { color: colors.brand.onFill }]}>Start another match</Text>
+            <ChevronRight size={20} color={colors.brand.onFill} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Return to compete hub"
             onPress={() => navigation.navigate("CompetitionHub")}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              { minHeight: controlSize.buttonMinHeight, borderColor: colors.borderRoles.default, backgroundColor: pressed ? colors.bg.surfaceRaised : colors.bg.surface, borderRadius: radius.md },
+            ]}
           >
-            <Home size={16} color="#04110A" />
-            <Text style={styles.primaryText}>Compete Hub</Text>
-          </TouchableOpacity>
+            <Home size={20} color={colors.fg.secondary} />
+            <Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>Back to Compete</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </Screen>
@@ -111,171 +202,38 @@ export const CompetitionResultScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    padding: 18,
-    gap: 16,
-    paddingBottom: 36,
-  },
-  hero: {
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 12,
-  },
-  heroIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    textAlign: "center",
-  },
-  winnerCard: {
-    alignItems: "center",
-    padding: 20,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    gap: 8,
-  },
-  winnerBadgeRow: {
-    marginBottom: 2,
-  },
-  winnerBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  winnerBadgeText: {
-    color: "#04110A",
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  winnerName: {
-    fontSize: 20,
-    fontWeight: "800",
-  },
-  winnerScore: {
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-    width: "100%",
-  },
-  statBox: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  statNum: {
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  statLabel: {
-    fontSize: 11,
-  },
-  boardCard: {
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 12,
-  },
-  boardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  boardTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  scoreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    gap: 12,
-  },
-  rankBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: {
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  scoreTextWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  scoreName: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  scoreMeta: {
-    fontSize: 11,
-  },
-  scoreValue: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  actionRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 4,
-  },
-  secondaryButton: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  secondaryText: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  primaryButton: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  primaryText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#04110A",
-  },
+  screen: { flex: 1 },
+  content: { width: "100%", alignSelf: "center", paddingTop: 16, paddingBottom: 48, gap: 24 },
+  topBar: { alignItems: "center" },
+  completeBadge: { minHeight: 36, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  hero: { alignItems: "center", gap: 8 },
+  trophyHalo: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  heroTitle: { textAlign: "center" },
+  heroCopy: { textAlign: "center", maxWidth: 480 },
+  championCard: { minHeight: 148, padding: 20, flexDirection: "row", alignItems: "center", gap: 16, overflow: "hidden" },
+  championAccent: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
+  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  championIdentity: { flex: 1, gap: 2 },
+  championLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  championName: { marginTop: 2 },
+  championScoreWrap: { alignItems: "flex-end" },
+  championScore: { fontSize: 32, lineHeight: 38, fontWeight: "800" },
+  section: { gap: 12 },
+  sectionHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
+  metricsGrid: { flexDirection: "row", gap: 12 },
+  metricsGridCompact: { gap: 8 },
+  metric: { flex: 1, minHeight: 112, padding: 12, borderWidth: 1, justifyContent: "center", alignItems: "center", gap: 4 },
+  boardHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  boardTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  boardCard: { overflow: "hidden" },
+  scoreRow: { minHeight: 76, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  rank: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  playerDetails: { flex: 1, gap: 3 },
+  playerNameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  youBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, borderWidth: 1 },
+  resultBreakdown: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5 },
+  scoreValueWrap: { alignItems: "flex-end" },
+  actions: { gap: 12 },
+  primaryButton: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  secondaryButton: { paddingHorizontal: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
 });
