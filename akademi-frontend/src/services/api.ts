@@ -133,7 +133,14 @@ const refreshAccessToken = async () => {
 // Request interceptor — attach token
 api.interceptors.request.use(async (config) => {
   const isAdminRequest = isAdminApiRequest(String(config.url || ""));
-  let token = isAdminRequest ? await readAdminAccessToken() : await readAccessToken();
+  const authState = useAuthStore.getState();
+  // The in-memory store is updated synchronously at login/token rotation,
+  // while SecureStore persistence completes asynchronously. Prefer the live
+  // value so startup requests cannot race the secure write and attach the
+  // previous (expired) token. SecureStore remains the hydration fallback.
+  let token = isAdminRequest
+    ? authState.adminAccessToken || await readAdminAccessToken()
+    : authState.accessToken || await readAccessToken();
 
   if (isAdminRequest && !token) {
     try {
