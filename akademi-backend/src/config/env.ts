@@ -62,6 +62,7 @@ export const config = {
   typesenseAutoSync: process.env.TYPESENSE_AUTO_SYNC === 'true',
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
+  koraSecretKey: process.env.KORA_SECRET_KEY || '',
   koinPurchasesEnabled: process.env.KOIN_PURCHASES_ENABLED === 'true',
   koinWithdrawalsEnabled: process.env.KOIN_WITHDRAWALS_ENABLED === 'true',
   sentryDsn: process.env.SENTRY_DSN || null,

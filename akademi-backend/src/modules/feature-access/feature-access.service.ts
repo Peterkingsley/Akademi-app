@@ -192,4 +192,87 @@ export class FeatureAccessService {
       data: { status: 'SUCCESS' },
     });
   }
+
+  async activateKoraSubscription(reference: string, email: string, amount: number) {
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!reference || !normalizedEmail) throw new Error('Kora payment is missing its reference or customer email');
+
+    const plans: Record<number, { code: string; durationDays: number }> = {
+      2500: { code: 'AKADEMI_PRO_MONTHLY', durationDays: 30 },
+      18000: { code: 'AKADEMI_PRO_YEARLY', durationDays: 365 },
+    };
+    const plan = plans[amount];
+    if (!plan) throw new Error(`Unsupported Kora subscription amount: ${amount}`);
+
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: 'insensitive' }, is_deleted: false },
+      select: { id: true, university: true },
+    });
+    if (!user) throw new Error(`No Akademi account matches Kora customer email ${normalizedEmail}`);
+
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.transaction.findUnique({ where: { reference } });
+      if (existing?.status === 'SUCCESS') return;
+
+      if (!existing) {
+        await tx.transaction.create({
+          data: {
+            user_id: user.id,
+            feature: Feature.ASSIGNMENT_SOLVING,
+            plan: plan.code,
+            amount,
+            status: 'PENDING',
+            reference,
+            university: user.university,
+          },
+        });
+      } else if (existing.user_id !== user.id || existing.amount !== amount) {
+        throw new Error('Kora reference conflicts with an existing transaction');
+      }
+
+      const now = new Date();
+      const currentAccess = await tx.featureAccess.findMany({
+        where: { user_id: user.id, product_code: plan.code, expires_at: { gt: now } },
+        select: { expires_at: true },
+      });
+      const latestExpiry = currentAccess.reduce(
+        (latest, item) => item.expires_at && item.expires_at > latest ? item.expires_at : latest,
+        now,
+      );
+      const expiresAt = new Date(latestExpiry.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
+
+      await tx.featureAccess.createMany({
+        data: Object.values(Feature).map((feature) => ({
+          user_id: user.id,
+          feature,
+          access_type: AccessType.TIME_WINDOW,
+          product_code: plan.code,
+          expires_at: expiresAt,
+          payment_ref: reference,
+        })),
+        skipDuplicates: true,
+      });
+      await tx.transaction.update({ where: { reference }, data: { status: 'SUCCESS' } });
+    });
+  }
+
+  async verifyAndActivateKoraSubscription(reference: string) {
+    if (!reference) throw new Error('Kora payment reference is missing');
+    if (!config.koraSecretKey) throw new Error('Kora verification is not configured');
+
+    const response = await fetch(
+      `https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(reference)}`,
+      { headers: { Authorization: `Bearer ${config.koraSecretKey}` } },
+    );
+    const result: any = await response.json().catch(() => null);
+    const charge = result?.data;
+    if (!response.ok || result?.status !== true || charge?.status !== 'success') {
+      throw new Error('Kora could not verify this successful charge');
+    }
+    if (charge.currency !== 'NGN') throw new Error('Unsupported Kora payment currency');
+
+    const email = charge.customer?.email || charge.customer_email || charge.email;
+    const amount = Number(charge.amount_accepted ?? charge.amount_paid ?? charge.amount);
+    await this.activateKoraSubscription(reference, email, amount);
+  }
 }

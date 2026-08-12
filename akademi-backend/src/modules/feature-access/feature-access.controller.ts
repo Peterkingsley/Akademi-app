@@ -97,4 +97,36 @@ export class FeatureAccessController {
 
     res.status(200).send('Webhook received');
   }
+
+  async koraWebhook(req: Request, res: Response) {
+    if (!config.koraSecretKey) {
+      console.error('KORA_SECRET_KEY is not set; rejecting Kora webhook.');
+      return res.status(503).send('Webhook not configured');
+    }
+
+    const signature = req.headers['x-korapay-signature'];
+    const data = req.body?.data;
+    const hash = crypto
+      .createHmac('sha256', config.koraSecretKey)
+      .update(JSON.stringify(data || {}))
+      .digest('hex');
+
+    if (typeof signature !== 'string' || !timingSafeEqual(hash, signature)) {
+      return res.status(401).send('Invalid signature');
+    }
+
+    if (req.body?.event === 'charge.success' && data?.status === 'success') {
+      const reference = data?.payment_reference || data?.reference;
+      try {
+        // Never grant access from the webhook payload alone. Query Kora using
+        // the server-side secret and use the verified customer, amount and status.
+        await featureAccessService.verifyAndActivateKoraSubscription(reference);
+      } catch (error: any) {
+        console.warn('Kora webhook activation rejected:', error?.message);
+        return res.status(200).send('Webhook received; activation requires review');
+      }
+    }
+
+    return res.status(200).send('Webhook received');
+  }
 }

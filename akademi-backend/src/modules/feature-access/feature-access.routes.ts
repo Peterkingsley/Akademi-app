@@ -7,6 +7,7 @@ const router = Router();
 const controller = new FeatureAccessController();
 
 router.post('/webhook', controller.webhook);
+router.post('/kora/webhook', controller.koraWebhook.bind(controller));
 
 router.use(authenticate);
 router.use(generalAuthenticatedApiLimiter);
