@@ -1097,6 +1097,7 @@ export class CompetitionsService {
           select: {
             id: true,
             name: true,
+            profile_photo_url: true,
           },
         },
         room: {
@@ -1121,6 +1122,7 @@ export class CompetitionsService {
       const existing = totals.get(entry.user_id) || {
         user_id: entry.user_id,
         name: entry.user.name,
+        avatar_url: entry.user.profile_photo_url,
         totalScore: 0,
         wins: 0,
         matchesPlayed: 0,

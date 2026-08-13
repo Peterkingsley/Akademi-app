@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleS
 import { ChevronLeft, Medal, Search, Trophy, X } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Screen } from "../../components/layout/Screen";
+import { Avatar } from "../../components/ui/Avatar";
 import { competitionService, CompetitionLeaderboardEntry } from "../../services/competition";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useTheme } from "../../theme/ThemeContext";
@@ -156,9 +157,18 @@ export const CompetitionLeaderboardScreen: React.FC = () => {
                   <View style={styles.rankSlot}>
                     {topThree ? <Medal size={19} color={medalColor} /> : <Text style={[typeScale.label, { color: colors.fg.muted }]}>{rank}</Text>}
                   </View>
-                  <View style={[styles.avatar, { backgroundColor: topThree ? colors.brand.subtle : colors.bg.surfaceRaised, borderColor: topThree ? colors.brand.border : colors.borderRoles.default }]}>
-                    <Text style={[typeScale.label, { color: topThree ? colors.brand.foreground : colors.fg.primary }]}>{entry.name.charAt(0).toUpperCase()}</Text>
-                  </View>
+                  <Avatar
+                    uri={entry.avatar_url || undefined}
+                    name={entry.name}
+                    size={44}
+                    style={[
+                      styles.avatar,
+                      {
+                        backgroundColor: topThree ? colors.brand.subtle : colors.bg.surfaceRaised,
+                        borderColor: topThree ? colors.brand.border : colors.borderRoles.default,
+                      },
+                    ]}
+                  />
                   <View style={styles.identity}>
                     <View style={styles.nameLine}>
                       <Text style={[typeScale.bodyStrong, styles.name, { color: colors.fg.primary }]} numberOfLines={1}>{entry.name}</Text>
@@ -200,7 +210,7 @@ const styles = StyleSheet.create({
   list: { paddingTop: 6, paddingBottom: 40 },
   row: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 10, borderBottomWidth: 1 },
   rankSlot: { width: 24, alignItems: "center", justifyContent: "center" },
-  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
+  avatar: { borderWidth: 1.5 },
   identity: { flex: 1, gap: 2 },
   nameLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { flexShrink: 1 },

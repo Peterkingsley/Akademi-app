@@ -104,6 +104,7 @@ export interface CompetitionMatchState {
 export interface CompetitionLeaderboardEntry {
   user_id: string;
   name: string;
+  avatar_url: string | null;
   totalScore: number;
   wins: number;
   matchesPlayed: number;

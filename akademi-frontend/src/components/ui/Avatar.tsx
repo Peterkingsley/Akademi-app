@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Image, Text, StyleSheet, ViewStyle } from "react-native";
+import { View, Image, Text, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 
@@ -7,7 +7,7 @@ interface AvatarProps {
   uri?: string;
   name?: string;
   size?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
