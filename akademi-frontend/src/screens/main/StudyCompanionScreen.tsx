@@ -5,6 +5,8 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,8 +16,8 @@ import {
   View,
 } from "react-native";
 import { Audio } from "expo-av";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { ArrowLeft, Mic, Route as RouteIcon, Send, Upload, X } from "lucide-react-native";
+import { RouteProp, useRoute } from "@react-navigation/native";
+import { Mic, Route as RouteIcon, Send, Upload, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 
 import { Screen } from "../../components/layout/Screen";
@@ -200,14 +202,11 @@ const MessageRow = React.memo(
 );
 
 export const StudyCompanionScreen: React.FC = () => {
-  const navigation = useNavigation<any>();
   const route = useRoute<StudyCompanionRoute>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { sessionId, materialTitle, courseCode } = route.params;
+  const { sessionId } = route.params;
 
-  const [sessionTitle, setSessionTitle] = useState(materialTitle);
-  const [sessionCourseCode, setSessionCourseCode] = useState(courseCode);
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
   const [visualPlan, setVisualPlan] = useState<StudyVisualPlan | null>(null);
@@ -223,6 +222,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
   const [voiceUnavailable, setVoiceUnavailable] = useState<{ messageId: string; content: string } | null>(null);
+  const [composerVisible, setComposerVisible] = useState(true);
   const whiteboardExperimentsEnabled =
     process.env.EXPO_PUBLIC_ENABLE_WHITEBOARD_EXPERIMENTS === "true";
 
@@ -237,6 +237,27 @@ export const StudyCompanionScreen: React.FC = () => {
   const prefetchedContinueRef = useRef<Message | null>(null);
   const continuePrefetchPromiseRef = useRef<Promise<Message | null> | null>(null);
   const continuePrefetchTokenRef = useRef(0);
+  const lastScrollOffsetRef = useRef(0);
+  const lastLessonTapRef = useRef(0);
+
+  const handleLessonScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextOffset = Math.max(0, event.nativeEvent.contentOffset.y);
+    const movedDown = nextOffset - lastScrollOffsetRef.current > 6;
+    if (nextOffset > 20 && movedDown) {
+      setComposerVisible(false);
+    }
+    lastScrollOffsetRef.current = nextOffset;
+  }, []);
+
+  const handleLessonTouchEnd = useCallback(() => {
+    const now = Date.now();
+    if (now - lastLessonTapRef.current <= 320) {
+      setComposerVisible(true);
+      lastLessonTapRef.current = 0;
+      return;
+    }
+    lastLessonTapRef.current = now;
+  }, []);
 
   const setTutorState = useCallback((state: TutorRuntimeState) => {
     runtimeStateRef.current = state;
@@ -268,15 +289,12 @@ export const StudyCompanionScreen: React.FC = () => {
   const reload = useCallback(async () => {
     try {
       setError(null);
-      const [session, list, state] = await Promise.all([
-        sessionService.getSession(sessionId),
+      const [list, state] = await Promise.all([
         sessionService.listMessages(sessionId),
         sessionService.getCompanionState(sessionId),
       ]);
       setMessages(list.map(toUiMessage));
       setCompanionState(state);
-      setSessionTitle(session.material?.title || session.topic || materialTitle);
-      setSessionCourseCode(session.material?.course_code || session.course_code || courseCode);
       setStartModalVisible(!list.some((item) => item.role === "AI"));
       setTutorState("idle");
     } catch (err: any) {
@@ -284,7 +302,7 @@ export const StudyCompanionScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [courseCode, materialTitle, sessionId, setTutorState]);
+  }, [sessionId, setTutorState]);
 
   useEffect(() => {
     void reload();
@@ -702,24 +720,6 @@ export const StudyCompanionScreen: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.iconButton}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Back to AI Tutor materials"
-          >
-            <ArrowLeft size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <View style={styles.headerBody}>
-            <Text style={styles.headerTitle}>AI Tutor</Text>
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {sessionCourseCode || sessionTitle}
-            </Text>
-          </View>
-        </View>
-
         {error ? (
           <View style={styles.errorBanner}>
             <Text style={styles.errorText}>{error}</Text>
@@ -766,6 +766,9 @@ export const StudyCompanionScreen: React.FC = () => {
           renderItem={renderMessage}
           contentContainerStyle={styles.chatContent}
           showsVerticalScrollIndicator={false}
+          onScroll={handleLessonScroll}
+          onTouchEnd={handleLessonTouchEnd}
+          scrollEventThrottle={16}
           ListHeaderComponent={
             whiteboardExperimentsEnabled && whiteboardVisible ? (
               <View style={styles.whiteboardPanel}>
@@ -819,8 +822,9 @@ export const StudyCompanionScreen: React.FC = () => {
           </View>
         ) : null}
 
-        <View style={styles.composer}>
-          <View style={styles.composerBox}>
+        {composerVisible ? (
+          <View style={styles.composer}>
+            <View style={styles.composerBox}>
             <TextInput
               value={input}
               onChangeText={setInput}
@@ -860,8 +864,9 @@ export const StudyCompanionScreen: React.FC = () => {
                 <Send size={18} color="#08130C" />
               </Pressable>
             </View>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         <Modal transparent visible={startModalVisible} animationType="fade" statusBarTranslucent>
           <View style={styles.modalBackdrop}>
@@ -994,39 +999,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       ...typography.body,
       color: colors.textSecondary,
       fontSize: 14,
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 18,
-      paddingTop: 10,
-      paddingBottom: 12,
-    },
-    iconButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    headerBody: {
-      flex: 1,
-      minWidth: 0,
-      paddingHorizontal: 12,
-    },
-    headerTitle: {
-      ...typography.h2,
-      color: colors.textPrimary,
-      fontSize: 22,
-    },
-    headerSubtitle: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      marginTop: 2,
-      fontSize: 11,
     },
     errorBanner: {
       marginHorizontal: 18,
