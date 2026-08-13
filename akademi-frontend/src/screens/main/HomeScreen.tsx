@@ -55,7 +55,6 @@ const QUICK_ACTIONS = [
   {
     id: "library",
     label: "Library",
-    description: "Study materials",
     icon: Library,
     tint: colors.accent,
     screen: "Library",
@@ -63,7 +62,6 @@ const QUICK_ACTIONS = [
   {
     id: "exam",
     label: "Exam Prep",
-    description: "Mock tests",
     icon: Target,
     tint: colors.warning,
     screen: "ExamPrep",
@@ -71,7 +69,6 @@ const QUICK_ACTIONS = [
   {
     id: "ai_tutor",
     label: "AI Tutor",
-    description: "Guided study",
     icon: Sparkles,
     tint: "#A855F7",
     screen: "AITutor",
@@ -79,7 +76,6 @@ const QUICK_ACTIONS = [
   {
     id: "compete",
     label: "Compete",
-    description: "Live battles",
     icon: Swords,
     tint: "#F59E0B",
     screen: "CompetitionHub",
@@ -163,9 +159,6 @@ const QuickActionTile = ({
       </View>
       <View style={styles.actionTextBlock}>
         <Text style={styles.actionLabel}>{action.label}</Text>
-        <Text style={styles.actionDescription} numberOfLines={1}>
-          {action.description}
-        </Text>
       </View>
       <ChevronRight size={16} color={colors.textMuted} />
     </AnimatedPressable>
@@ -995,7 +988,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderWidth: 1,
     flexDirection: "row",
     marginBottom: 10,
-    minHeight: 76,
+    minHeight: 64,
     padding: 12,
     width: "48.5%",
   },
@@ -1020,12 +1013,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     ...typography.h4,
     color: colors.textPrimary,
     fontSize: 13,
-    marginBottom: 3,
-  },
-  actionDescription: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 10,
   },
   section: {
     marginBottom: 24,
