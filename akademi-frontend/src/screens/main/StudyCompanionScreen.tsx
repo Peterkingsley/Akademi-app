@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -239,25 +240,46 @@ export const StudyCompanionScreen: React.FC = () => {
   const continuePrefetchTokenRef = useRef(0);
   const lastScrollOffsetRef = useRef(0);
   const lastLessonTapRef = useRef(0);
+  const composerHeightRef = useRef(0);
+  const suppressComposerHideUntilRef = useRef(0);
 
   const handleLessonScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const nextOffset = Math.max(0, event.nativeEvent.contentOffset.y);
     const movedDown = nextOffset - lastScrollOffsetRef.current > 6;
-    if (nextOffset > 20 && movedDown) {
+    if (
+      Date.now() >= suppressComposerHideUntilRef.current &&
+      nextOffset > 20 &&
+      movedDown
+    ) {
       setComposerVisible(false);
     }
     lastScrollOffsetRef.current = nextOffset;
   }, []);
 
+  const rememberComposerHeight = useCallback((event: LayoutChangeEvent) => {
+    composerHeightRef.current = event.nativeEvent.layout.height;
+  }, []);
+
   const handleLessonTouchEnd = useCallback(() => {
     const now = Date.now();
     if (now - lastLessonTapRef.current <= 320) {
-      setComposerVisible(true);
       lastLessonTapRef.current = 0;
+      if (!composerVisible) {
+        // Revealing the dock shrinks the list and emits a synthetic downward scroll.
+        // Ignore that scroll, then move the reading position above the revealed dock.
+        suppressComposerHideUntilRef.current = now + 700;
+        setComposerVisible(true);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            const adjustedOffset = lastScrollOffsetRef.current + composerHeightRef.current;
+            listRef.current?.scrollToOffset({ offset: adjustedOffset, animated: false });
+          });
+        });
+      }
       return;
     }
     lastLessonTapRef.current = now;
-  }, []);
+  }, [composerVisible]);
 
   const setTutorState = useCallback((state: TutorRuntimeState) => {
     runtimeStateRef.current = state;
@@ -823,7 +845,7 @@ export const StudyCompanionScreen: React.FC = () => {
         ) : null}
 
         {composerVisible ? (
-          <View style={styles.composer}>
+          <View style={styles.composer} onLayout={rememberComposerHeight}>
             <View style={styles.composerBox}>
             <TextInput
               value={input}
