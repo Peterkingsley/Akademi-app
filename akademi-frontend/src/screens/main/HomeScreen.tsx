@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Dimensions,
   FlatList,
   ImageBackground,
   Modal,
@@ -161,8 +160,8 @@ export const HomeScreen: React.FC = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
-  const bannerWidth = Dimensions.get("window").width - 36;
   const { width } = useWindowDimensions();
+  const bannerWidth = width - 36;
   const isCompactLayout = width < 420;
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -829,7 +828,6 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   campaignCard: {
     borderRadius: 12,
-    marginRight: 12,
     overflow: "hidden",
   },
   campaignBackground: {
