@@ -966,7 +966,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     padding: 4,
   },
   quickActionsGrid: {
-    flexDirection: "column",
+    flexDirection: "row",
     gap: 8,
     marginBottom: 22,
   },
@@ -976,7 +976,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    flexDirection: "row",
+    flexDirection: "column",
     flex: 1,
     minHeight: 72,
     paddingHorizontal: 8,
