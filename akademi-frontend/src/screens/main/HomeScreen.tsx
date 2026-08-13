@@ -575,7 +575,7 @@ export const HomeScreen: React.FC = () => {
                         <View style={styles.campaignCtaWrap}>
                           <View style={styles.campaignCta}>
                             <Text style={styles.campaignCtaText}>
-                              {isLive ? "Enter Live Arena →" : "Join Competition →"}
+                              {isLive ? "Enter Live Arena" : "Join Competition"}
                             </Text>
                           </View>
                         </View>

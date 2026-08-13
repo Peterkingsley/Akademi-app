@@ -84,7 +84,7 @@ export const MyCoursesScreen: React.FC = () => {
             </Text>
             <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditAcademicDetails")} activeOpacity={0.8}>
               <PenLine size={14} color="#FFFFFF" />
-              <Text style={styles.editButtonText}>Edit Courses →</Text>
+              <Text style={styles.editButtonText}>Edit Courses</Text>
             </TouchableOpacity>
           </LinearGradient>
 
@@ -137,7 +137,7 @@ export const MyCoursesScreen: React.FC = () => {
               </Text>
               <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate("EditAcademicDetails")} activeOpacity={0.8}>
                 <PenLine size={14} color="#FFFFFF" />
-                <Text style={styles.editButtonText}>Add Courses →</Text>
+                <Text style={styles.editButtonText}>Add Courses</Text>
               </TouchableOpacity>
             </View>
           )}

@@ -201,7 +201,7 @@ export const ProfileScreen: React.FC = () => {
             onPress={() => navigation.navigate("Subscription")}
           >
             <Sparkles size={12} color={colors.primary} style={styles.pillIcon} />
-            <Text style={styles.freePillText}>{planName} • Upgrade →</Text>
+            <Text style={styles.freePillText}>{planName} • Upgrade</Text>
           </TouchableOpacity>
 
           <View style={styles.heroButtons}>

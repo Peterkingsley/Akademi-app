@@ -74,7 +74,7 @@ export const HelpSupportScreen: React.FC = () => {
         </View>
 
         <Button
-          label="Visit Help Center →"
+          label="Visit Help Center"
           variant="secondary"
           onPress={() => Linking.openURL("https://help.akademi.app")}
           style={styles.button}

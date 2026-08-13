@@ -210,7 +210,7 @@ export const SessionDetailScreen: React.FC = () => {
               })
             }
           >
-            <Text style={styles.reopenButtonText}>Resume AI Socratic Session →</Text>
+            <Text style={styles.reopenButtonText}>Resume AI Socratic Session</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : null}

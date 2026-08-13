@@ -267,7 +267,7 @@ export const PrepPlanScreen: React.FC = () => {
               </Text>
             </View>
             <Button
-              label={`Take Mock ${plan.assessment_label || "Exam"} →`}
+              label={`Take Mock ${plan.assessment_label || "Exam"}`}
               onPress={startMockExam}
               disabled={plan.progress < 60}
               style={StyleSheet.flatten([styles.mockBtn, plan.progress < 60 ? styles.disabledBtn : undefined])}

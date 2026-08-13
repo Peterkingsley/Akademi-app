@@ -159,12 +159,12 @@ export const ExamPrepScreen: React.FC = () => {
 
           <View style={styles.actionRow}>
             <Button
-              label="Study Course →"
+              label="Study Course"
               style={styles.actionBtn}
               onPress={() => goToLibrary(course.course_code)}
             />
             <Button
-              label="Take Mock Exam →"
+              label="Take Mock Exam"
               variant="outline"
               style={styles.actionBtn}
               disabled={!mockActive}

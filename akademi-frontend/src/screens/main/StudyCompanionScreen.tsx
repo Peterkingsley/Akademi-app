@@ -70,7 +70,7 @@ const phaseLabels: Record<string, string> = {
   MASTERY_PASSED: "Mastery Achieved 🎉",
   MASTERY_FAILED: "Needs Review 📚",
   SECTION_COMPLETED: "Section Complete ✨",
-  NEXT_SECTION_READY: "Next Topic Ready →",
+  NEXT_SECTION_READY: "Next Topic Ready",
   SESSION_COMPLETED: "Session Completed 🏆",
 };
 
@@ -992,7 +992,7 @@ export const StudyCompanionScreen: React.FC = () => {
                     {startingMode === "specific" ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.specificGoText}>Start →</Text>
+                      <Text style={styles.specificGoText}>Start</Text>
                     )}
                   </TouchableOpacity>
                 </View>

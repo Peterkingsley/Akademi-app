@@ -255,7 +255,7 @@ export const CompetitionMatchesScreen: React.FC = () => {
                     </Text>
 
                     <Text style={[styles.enterCtaText, { color: colors.primary }]}>
-                      {isLive ? "Enter Arena →" : "View Lobby →"}
+                      {isLive ? "Enter Arena" : "View Lobby"}
                     </Text>
                   </View>
                 </Card>

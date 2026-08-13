@@ -360,7 +360,7 @@ export const MockExamScreen: React.FC = () => {
            </TouchableOpacity>
 
            <Button
-             label={currentIndex === (exam?.questions.length || 0) - 1 ? "Submit Exam →" : "Next Question →"}
+             label={currentIndex === (exam?.questions.length || 0) - 1 ? "Submit Exam" : "Next Question"}
              onPress={handleNext}
              loading={submitting}
              style={styles.nextBtn}
