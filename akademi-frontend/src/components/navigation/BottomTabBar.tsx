@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
 } from "react-native";
 import { BarChart3, Clock3, House, Camera, Library, User } from "lucide-react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
-import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
 import * as Haptics from "expo-haptics";
 
@@ -132,7 +130,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             key={route.key}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
+            accessibilityLabel={options.tabBarAccessibilityLabel || String(label)}
             testID={options.tabBarTestID}
             onPress={onPress}
             onLongPress={onLongPress}
@@ -142,15 +140,6 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
             <TabIcon focused={isFocused}>
               {getIcon(route.name, isFocused ? activeColor : inactiveColor)}
             </TabIcon>
-            <Text
-              style={[
-                styles.label,
-                typography.caption,
-                { color: isFocused ? activeColor : inactiveColor },
-              ]}
-            >
-              {label}
-            </Text>
           </TouchableOpacity>
         );
       })}
@@ -161,7 +150,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    height: Platform.OS === "ios" ? 88 : 64,
+    height: Platform.OS === "ios" ? 76 : 56,
     borderTopWidth: 1,
     paddingBottom: Platform.OS === "ios" ? 24 : 0,
   },
@@ -169,9 +158,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  label: {
-    marginTop: 4,
   },
   slidingIndicator: {
     position: "absolute",
