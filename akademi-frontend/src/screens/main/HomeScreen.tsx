@@ -20,7 +20,6 @@ import {
   Clock,
   CalendarDays,
   FileText,
-  Library,
   Sparkles,
   Swords,
   Target,
@@ -52,13 +51,6 @@ import { ExamPrepPlan, LearningProfile, Recommendation, Session } from "./types"
 const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 
 const QUICK_ACTIONS = [
-  {
-    id: "library",
-    label: "Library",
-    icon: Library,
-    tint: colors.accent,
-    screen: "Library",
-  },
   {
     id: "exam",
     label: "Exam Prep",
@@ -158,9 +150,8 @@ const QuickActionTile = ({
         <Icon size={22} color={action.tint} />
       </View>
       <View style={styles.actionTextBlock}>
-        <Text style={styles.actionLabel}>{action.label}</Text>
+        <Text style={styles.actionLabel} numberOfLines={1}>{action.label}</Text>
       </View>
-      <ChevronRight size={16} color={colors.textMuted} />
     </AnimatedPressable>
   );
 };
@@ -976,8 +967,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   quickActionsGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 8,
     marginBottom: 22,
   },
   actionTile: {
@@ -987,10 +977,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: "row",
-    marginBottom: 10,
-    minHeight: 64,
-    padding: 12,
-    width: "48.5%",
+    flex: 1,
+    minHeight: 60,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
   },
   actionTileTourTarget: {
     borderColor: colors.accent,
@@ -1000,10 +990,10 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   actionIcon: {
     alignItems: "center",
     borderRadius: 8,
-    height: 38,
+    height: 32,
     justifyContent: "center",
-    marginRight: 10,
-    width: 38,
+    marginRight: 6,
+    width: 32,
   },
   actionTextBlock: {
     flex: 1,
@@ -1012,7 +1002,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   actionLabel: {
     ...typography.h4,
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 11,
   },
   section: {
     marginBottom: 24,
