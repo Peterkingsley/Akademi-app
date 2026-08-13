@@ -53,14 +53,14 @@ const STREAK_BANNER_HIDDEN_KEY = "streak_banner_hidden";
 const QUICK_ACTIONS = [
   {
     id: "exam",
-    label: "Exam Prep",
+    label: "Mock",
     icon: Target,
     tint: colors.warning,
     screen: "ExamPrep",
   },
   {
     id: "ai_tutor",
-    label: "AI Tutor",
+    label: "Tutor",
     icon: Sparkles,
     tint: "#A855F7",
     screen: "AITutor",
@@ -966,7 +966,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     padding: 4,
   },
   quickActionsGrid: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 8,
     marginBottom: 22,
   },
@@ -978,7 +978,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderWidth: 1,
     flexDirection: "row",
     flex: 1,
-    minHeight: 60,
+    minHeight: 72,
     paddingHorizontal: 8,
     paddingVertical: 10,
   },
@@ -992,17 +992,17 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     borderRadius: 8,
     height: 32,
     justifyContent: "center",
-    marginRight: 6,
+    marginBottom: 6,
     width: 32,
   },
   actionTextBlock: {
-    flex: 1,
-    minWidth: 0,
+    alignItems: "center",
   },
   actionLabel: {
     ...typography.h4,
     color: colors.textPrimary,
-    fontSize: 11,
+    fontSize: 12,
+    textAlign: "center",
   },
   section: {
     marginBottom: 24,
