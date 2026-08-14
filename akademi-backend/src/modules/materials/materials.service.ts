@@ -16,6 +16,7 @@ import { upsertDepartment, findOrCreateCourse } from '../../shared/utils/departm
 
 import { s3Client } from '../../shared/storage/r2.client';
 import { usageService } from '../usage/usage.service';
+import { queueQuestionBankRefillIfNeeded } from '../questions/question-bank-inventory.service';
 
 export class MaterialsService {
   private async getAdminRoleByEmail(email?: string | null) {
@@ -955,24 +956,45 @@ export class MaterialsService {
 
     let availableQuestions = await loadAvailableQuestions();
 
-    if (availableQuestions.length < take) {
+    void queueQuestionBankRefillIfNeeded(id, userId).catch((error) => {
+      console.error(`Failed to queue proactive CBT refill for material ${id}:`, error);
+    });
+
+    if (availableQuestions.length === 0) {
       const existingQuestions = await prisma.question.findMany({
         where: { material_id: id },
         select: { question_text: true },
       });
 
-      const generationTarget = Math.max(take - availableQuestions.length + 5, 10);
-      try {
-        await generateQuestionsJob(id, {
-          count: generationTarget,
-          excludeQuestionTexts: existingQuestions.map((question) => question.question_text),
-          ...(hasPageRange ? { pageStart, pageEnd } : {}),
+      // Once a mature bank reaches its safety ceiling, keep CBT usable in revision mode
+      // instead of growing the table forever or leaving the student at a dead end.
+      if (existingQuestions.length >= Number(process.env.QUESTION_BANK_MAX_SIZE || 300)) {
+        availableQuestions = await prisma.question.findMany({
+          where: {
+            material_id: id,
+            ...(hasPageRange
+              ? { source_page_start: { lte: pageEnd }, source_page_end: { gte: pageStart } }
+              : {}),
+          },
+          orderBy: { generated_at: 'asc' },
+          take: Math.max(take * 3, 30),
         });
-      } catch (error) {
-        console.error(`Failed to generate additional CBT questions for material ${id}:`, error);
       }
 
-      availableQuestions = await loadAvailableQuestions();
+      if (availableQuestions.length === 0) {
+        const generationTarget = Math.max(take + 5, 10);
+        try {
+          await generateQuestionsJob(id, {
+            count: generationTarget,
+            excludeQuestionTexts: existingQuestions.map((question) => question.question_text),
+            ...(hasPageRange ? { pageStart, pageEnd } : {}),
+          });
+        } catch (error) {
+          console.error(`Failed to generate additional CBT questions for material ${id}:`, error);
+        }
+
+        availableQuestions = await loadAvailableQuestions();
+      }
     }
 
     if (availableQuestions.length === 0) {
@@ -1047,6 +1069,10 @@ export class MaterialsService {
 
     await prisma.questionAttempt.createMany({
       data: payload,
+    });
+
+    void queueQuestionBankRefillIfNeeded(materialId, userId).catch((error) => {
+      console.error(`Failed to queue post-CBT refill for material ${materialId}:`, error);
     });
 
     return { created: payload.length };

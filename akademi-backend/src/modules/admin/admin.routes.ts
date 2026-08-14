@@ -145,6 +145,7 @@ router.get('/system/websocket', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res
 router.get('/system/cache', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getCacheMonitoring(req, res));
 router.get('/system/rate-limits', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getRateLimitMonitoring(req, res));
 router.get('/system/jobs', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getJobsMonitoring(req, res));
+router.get('/system/question-banks', authorizeRoles(AdminRole.SUPER_ADMIN, AdminRole.CONTENT_MANAGER), (req, res) => adminController.getQuestionBankInventory(req, res));
 router.post('/system/jobs/:name/retry', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.retryJob(req, res));
 
 // Pillar 8: Admin Team & Security

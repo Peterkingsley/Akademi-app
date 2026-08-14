@@ -99,6 +99,23 @@ enum QuestionGenerationStatus {
   FAILED
 }
 
+enum QuestionBankInventoryStatus {
+  BUILDING
+  HEALTHY
+  LOW
+  REFILLING
+  FAILED
+  EXHAUSTED
+}
+
+enum QuestionType {
+  RECALL
+  APPLICATION
+  CALCULATION
+  REASONING
+  MISCONCEPTION
+}
+
 enum ChunkStatus {
   PENDING
   UPLOADED
@@ -432,6 +449,11 @@ model Material {
   question_generation_started_at   DateTime?
   question_generation_completed_at DateTime?
   question_generation_next_retry_at DateTime?
+  question_bank_inventory_status     QuestionBankInventoryStatus @default(BUILDING)
+  question_bank_last_refill_at       DateTime?
+  question_bank_refill_cooldown_until DateTime?
+  question_bank_hour_window_started_at DateTime?
+  question_bank_hour_batch_count     Int @default(0)
   upload_count            Int                      @default(1)
   contributor_ids         Json                     @default("[]")
   verified_at             DateTime?
@@ -482,6 +504,7 @@ model Material {
   @@index([verification_status])
   @@index([processing_status, next_retry_at])
   @@index([question_generation_status, question_generation_next_retry_at])
+  @@index([question_bank_inventory_status, question_bank_refill_cooldown_until])
   @@index([course_code, is_akademi_generated])
   @@index([unpublished_at])
   @@map("materials")
@@ -940,6 +963,7 @@ model Question {
   // Why that answer is correct. Nullable.
   explanation       String?
   difficulty        Difficulty
+  question_type     QuestionType @default(APPLICATION)
   generated_at      DateTime   @default(now())
   // Global reader page range this question was generated from. Nullable for legacy questions
   // and questions generated from the full material (no page scope requested).
@@ -956,6 +980,7 @@ model Question {
   @@index([material_id, source_page_start, source_page_end])
   @@index([department])
   @@index([difficulty])
+  @@index([material_id, question_type])
   @@map("questions")
 }
 

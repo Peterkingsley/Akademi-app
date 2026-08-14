@@ -42,6 +42,9 @@ type JobPayload = {
   sectionId?: string;
   outlineId?: string;
   universityId?: string;
+  requestedCount?: number;
+  priority?: number;
+  reason?: string;
 };
 
 type QueueStatus = 'online' | 'degraded';
@@ -106,7 +109,7 @@ const BACKGROUND_JOB_NAMES = new Set<JobName>([
 ]);
 
 const MAX_BACKGROUND_JOBS = Math.max(Number(process.env.INLINE_BACKGROUND_JOB_CONCURRENCY || 1), 1);
-const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string }> = [];
+const backgroundJobQueue: Array<{ name: JobName; payload: JobPayload; key: string; priority: number }> = [];
 const backgroundJobKeys = new Set<string>();
 let activeBackgroundJobs = 0;
 
@@ -162,7 +165,9 @@ async function runInlineJob(name: JobName, payload: JobPayload) {
     case JOB_NAMES.GENERATE_QUESTIONS: {
       if (!payload.materialId) throw new Error('GENERATE_QUESTIONS requires materialId');
       const { generateQuestionsJob } = await import('../jobs/generateQuestions.job');
-      await generateQuestionsJob(payload.materialId);
+      await generateQuestionsJob(payload.materialId, {
+        ...(payload.requestedCount ? { count: payload.requestedCount } : {}),
+      });
       return;
     }
     case JOB_NAMES.DECOMPOSE_CURRICULUM: {
@@ -252,7 +257,8 @@ export const systemQueue: any = {
       }
 
       backgroundJobKeys.add(key);
-      backgroundJobQueue.push({ name, payload, key });
+      backgroundJobQueue.push({ name, payload, key, priority: Number(payload.priority || 0) });
+      backgroundJobQueue.sort((a, b) => b.priority - a.priority);
       refreshBackgroundQueueHealth();
       setImmediate(() => {
         drainBackgroundJobs();

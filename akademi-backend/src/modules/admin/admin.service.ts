@@ -2219,6 +2219,102 @@ export class AdminService {
     }).sort((a, b) => (b.lastRun.getTime() || 0) - (a.lastRun.getTime() || 0)).slice(0, 50);
   }
 
+  async getQuestionBankInventory() {
+    const [materials, difficulties, questionTypes, pageCoverage, nearExhaustion] = await Promise.all([
+      prisma.material.findMany({
+        where: { unpublished_at: null, verification_status: { in: ['PENDING', 'VERIFIED'] } },
+        select: {
+          id: true,
+          title: true,
+          course_code: true,
+          verification_status: true,
+          question_generation_status: true,
+          question_generation_attempts: true,
+          question_generation_error: true,
+          question_generation_next_retry_at: true,
+          question_bank_inventory_status: true,
+          question_bank_last_refill_at: true,
+          question_bank_refill_cooldown_until: true,
+          reader_structure: true,
+          _count: { select: { questions: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      prisma.question.groupBy({ by: ['material_id', 'difficulty'], _count: { _all: true } }),
+      prisma.question.groupBy({ by: ['material_id', 'question_type'], _count: { _all: true } }),
+      prisma.question.findMany({
+        where: { source_page_start: { not: null } },
+        select: { material_id: true, source_page_start: true, source_page_end: true },
+      }),
+      prisma.$queryRaw<Array<{ material_id: string; user_count: bigint }>>`
+        SELECT inventory.material_id, COUNT(*)::bigint AS user_count
+        FROM (
+          SELECT q.material_id, qa.user_id
+          FROM question_attempts qa
+          JOIN questions q ON q.id = qa.question_id
+          GROUP BY q.material_id, qa.user_id
+          HAVING (SELECT COUNT(*) FROM questions total_q WHERE total_q.material_id = q.material_id)
+            - COUNT(DISTINCT qa.question_id) < 20
+        ) inventory
+        GROUP BY inventory.material_id
+      `,
+    ]);
+    const difficultyByMaterial = new Map<string, Record<string, number>>();
+    for (const row of difficulties) {
+      const current = difficultyByMaterial.get(row.material_id) || { EASY: 0, MEDIUM: 0, HARD: 0 };
+      current[row.difficulty] = row._count._all;
+      difficultyByMaterial.set(row.material_id, current);
+    }
+    const typeByMaterial = new Map<string, Record<string, number>>();
+    for (const row of questionTypes) {
+      const current = typeByMaterial.get(row.material_id) || {
+        RECALL: 0, APPLICATION: 0, CALCULATION: 0, REASONING: 0, MISCONCEPTION: 0,
+      };
+      current[row.question_type] = row._count._all;
+      typeByMaterial.set(row.material_id, current);
+    }
+    const coveredPagesByMaterial = new Map<string, Set<number>>();
+    for (const row of pageCoverage) {
+      if (row.source_page_start === null) continue;
+      const pages = coveredPagesByMaterial.get(row.material_id) || new Set<number>();
+      const end = row.source_page_end ?? row.source_page_start;
+      for (let page = row.source_page_start; page <= end; page += 1) pages.add(page);
+      coveredPagesByMaterial.set(row.material_id, pages);
+    }
+    const nearByMaterial = new Map(nearExhaustion.map((row) => [row.material_id, Number(row.user_count)]));
+    const rows = materials.map((material) => {
+      const readerPages = Array.isArray((material.reader_structure as any)?.pages)
+        ? (material.reader_structure as any).pages.length
+        : 0;
+      const coveredPages = coveredPagesByMaterial.get(material.id)?.size || 0;
+      const { _count, reader_structure, ...details } = material;
+      return {
+        ...details,
+        questionCount: _count.questions,
+        difficulty: difficultyByMaterial.get(material.id) || { EASY: 0, MEDIUM: 0, HARD: 0 },
+        questionTypes: typeByMaterial.get(material.id) || {
+          RECALL: 0, APPLICATION: 0, CALCULATION: 0, REASONING: 0, MISCONCEPTION: 0,
+        },
+        pageCoverage: {
+          coveredPages,
+          totalPages: readerPages,
+          percent: readerPages ? Math.round((coveredPages / readerPages) * 100) : null,
+        },
+        usersNearExhaustion: nearByMaterial.get(material.id) || 0,
+      };
+    });
+    return {
+      summary: {
+        materials: rows.length,
+        totalQuestions: rows.reduce((sum, row) => sum + row.questionCount, 0),
+        healthy: rows.filter((row) => row.question_bank_inventory_status === 'HEALTHY').length,
+        low: rows.filter((row) => ['LOW', 'FAILED'].includes(row.question_bank_inventory_status)).length,
+        exhausted: rows.filter((row) => row.question_bank_inventory_status === 'EXHAUSTED').length,
+      },
+      materials: rows,
+    };
+  }
+
   async retryJob(jobId: string) {
     const job = await systemQueue.getJob(jobId);
     if (!job) {

@@ -713,6 +713,14 @@ export class AdminController {
     }
   }
 
+  async getQuestionBankInventory(req: Request, res: Response) {
+    try {
+      res.json(await adminService.getQuestionBankInventory());
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async retryJob(req: Request, res: Response) {
     try {
       const result = await adminService.retryJob(req.params.name);
