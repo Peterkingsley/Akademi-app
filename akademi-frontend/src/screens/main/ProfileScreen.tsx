@@ -35,6 +35,7 @@ import {
   BarChart2,
   ShieldCheck,
   Camera,
+  CalendarDays,
 } from "lucide-react-native";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useNavigation } from "@react-navigation/native";
@@ -292,6 +293,11 @@ export const ProfileScreen: React.FC = () => {
         <SectionDivider />
 
         <MenuSection label="ACCOUNT">
+          <MenuItem
+            icon={<CalendarDays size={20} color={colors.primary} />}
+            label="Personal Details"
+            onPress={() => navigation.navigate("PersonalDetails")}
+          />
           <MenuItem
             icon={<Lock size={20} color={colors.primary} />}
             label="Change Password"

@@ -16,6 +16,7 @@ export interface UserProfile {
   courses?: string[];
   is_verified?: boolean;
   admin_role?: string | null;
+  date_of_birth?: string | null;
   stats?: {
     assignments: number;
     sessions: number;

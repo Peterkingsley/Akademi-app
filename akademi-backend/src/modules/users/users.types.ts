@@ -6,6 +6,7 @@ export interface UpdateProfileRequest {
   level?: number;
   push_token?: string;
   courses?: string[];
+  date_of_birth?: string;
 }
 
 export interface AcademicCourseInput {
@@ -46,6 +47,7 @@ export interface UserProfileResponse {
   profile_photo_url: string | null;
   created_at: Date;
   updated_at: Date;
+  date_of_birth: Date | null;
 }
 
 export interface DeviceResponse {

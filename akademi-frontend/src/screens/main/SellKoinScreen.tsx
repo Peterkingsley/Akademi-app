@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { CheckCircle2, Search, WalletCards } from "lucide-react-native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { CalendarDays, CheckCircle2, Search, WalletCards } from "lucide-react-native";
 import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { KoinWallet, NigerianBank, ResolvedBankAccount, koinService } from "../../services/koin";
 import { useTheme } from "../../theme/ThemeContext";
+import { userService } from "../../services/user";
 
 export const SellKoinScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -19,6 +20,7 @@ export const SellKoinScreen: React.FC = () => {
   const [resolved, setResolved] = useState<ResolvedBankAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [dateOfBirth, setDateOfBirth] = useState<string | null>(null);
 
   useEffect(() => {
     void Promise.all([koinService.getWallet(), koinService.getBanks()])
@@ -27,12 +29,17 @@ export const SellKoinScreen: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  useFocusEffect(useCallback(() => {
+    void userService.getProfile().then((profile) => setDateOfBirth(profile.date_of_birth || null)).catch(() => undefined);
+  }, []));
+
   const filteredBanks = useMemo(() => {
     const query = bankSearch.trim().toLowerCase();
     return query ? banks.filter((bank) => bank.name.toLowerCase().includes(query)) : banks;
   }, [bankSearch, banks]);
 
   const verifyAccount = async () => {
+    if (!dateOfBirth) return Alert.alert("Date of birth required", "Add your date of birth before selling Koin.", [{ text: "Cancel", style: "cancel" }, { text: "Add now", onPress: () => navigation.navigate("PersonalDetails") }]);
     if (!selectedBank) return Alert.alert("Select a bank", "Choose the destination bank first.");
     if (!/^\d{10}$/.test(accountNumber)) return Alert.alert("Check account number", "Enter a valid 10-digit account number.");
     try {
@@ -72,6 +79,8 @@ export const SellKoinScreen: React.FC = () => {
           <View><Text style={[typeScale.caption, { color: colors.fg.muted }]}>SELL RATE</Text><Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>100 K = ₦80</Text></View>
         </Card>
 
+        {!dateOfBirth ? <Pressable onPress={() => navigation.navigate("PersonalDetails")} style={[styles.dobNotice, { backgroundColor: colors.status.warning.bg, borderColor: colors.status.warning.border, borderRadius: radius.md }]}><CalendarDays size={21} color={colors.status.warning.icon} /><View style={{ flex: 1, gap: 2 }}><Text style={[typeScale.bodyStrong, { color: colors.status.warning.fg }]}>Add your date of birth</Text><Text style={[typeScale.caption, { color: colors.status.warning.fg }]}>Required before payouts. Tap to open Personal Details.</Text></View></Pressable> : null}
+
         <View style={styles.section}>
           <Text style={[typeScale.h3, { color: colors.fg.primary }]}>1. Enter amount</Text>
           <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad" placeholder="Minimum 1,250 Koin" placeholderTextColor={colors.fg.muted} style={[styles.input, { color: colors.fg.primary, borderColor: colors.borderRoles.default, backgroundColor: colors.bg.surface }]} />
@@ -103,4 +112,5 @@ const styles = StyleSheet.create({
   section: { gap: 12 }, input: { height: 54, borderWidth: 1, borderRadius: 12, paddingHorizontal: 15, fontSize: 16 }, searchBox: { height: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 9 }, searchInput: { flex: 1, height: "100%" },
   bankList: { borderWidth: 1, maxHeight: 330, overflow: "hidden" }, bankRow: { minHeight: 52, paddingHorizontal: 14, borderBottomWidth: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   resolved: { borderWidth: 1, borderRadius: 12, padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, primaryButton: { minHeight: 54, alignItems: "center", justifyContent: "center" },
+  dobNotice: { borderWidth: 1, padding: 14, flexDirection: "row", alignItems: "center", gap: 10 },
 });

@@ -62,6 +62,7 @@ export class UsersService {
         updated_at: true,
         push_token: true,
         courses: true,
+        date_of_birth: true,
       },
     });
 
@@ -92,6 +93,22 @@ export class UsersService {
     if (Array.isArray(data.courses)) {
       allowed.courses = data.courses.filter((code): code is string => typeof code === 'string');
     }
+    if (typeof data.date_of_birth === 'string') {
+      const requestedBirthDate = new Date(`${data.date_of_birth}T00:00:00.000Z`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date_of_birth) || Number.isNaN(requestedBirthDate.getTime()) || requestedBirthDate.toISOString().slice(0, 10) !== data.date_of_birth) {
+        throw new Error('Enter a valid date of birth in YYYY-MM-DD format');
+      }
+      const today = new Date();
+      let age = today.getUTCFullYear() - requestedBirthDate.getUTCFullYear();
+      const month = today.getUTCMonth() - requestedBirthDate.getUTCMonth();
+      if (month < 0 || (month === 0 && today.getUTCDate() < requestedBirthDate.getUTCDate())) age -= 1;
+      if (age < 13 || age > 120) throw new Error('Date of birth must represent an age between 13 and 120');
+      const current = await prisma.user.findUnique({ where: { id: userId }, select: { date_of_birth: true } });
+      if (current?.date_of_birth && current.date_of_birth.getTime() !== requestedBirthDate.getTime()) {
+        throw new Error('Date of birth is already set. Contact support if it needs correction.');
+      }
+      allowed.date_of_birth = requestedBirthDate;
+    }
 
     return prisma.user.update({
       where: { id: userId, is_deleted: false },
@@ -109,6 +126,7 @@ export class UsersService {
         updated_at: true,
         push_token: true,
         courses: true,
+        date_of_birth: true,
       },
     });
   }
