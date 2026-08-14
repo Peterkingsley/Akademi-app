@@ -18,8 +18,7 @@ import { RichMathText } from "../../components/ui/RichMathText";
 import { GraphRenderer } from "../../components/graph/GraphRenderer";
 import { GraphSpec } from "../../components/graph/types";
 import { BoardStep, isMeaningfulStep } from "../../components/board/boardTypes";
-import { BoardStepCard } from "../../components/board/BoardStepCard";
-import { BoardFinalAnswerCard } from "../../components/board/BoardFinalAnswerCard";
+import { ClassroomCalculationBoard } from "../../components/board/ClassroomCalculationBoard";
 
 const AUTO_STEP_INTERVAL_MS = 1400;
 
@@ -45,7 +44,6 @@ export const BoardReplayScreen: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(true);
 
   const visibleSteps = steps.slice(0, currentStep);
-  const visibleStepCount = Math.min(currentStep, steps.length);
 
   useEffect(() => {
     const load = async () => {
@@ -156,22 +154,14 @@ export const BoardReplayScreen: React.FC = () => {
           <RichMathText content={question} textColor={colors.textPrimary} fontSize={16} lineHeight={1.45} />
         </View>
 
-        <View style={styles.board}>
-          <View style={styles.boardHeadingRow}>
-            <Text style={styles.boardProgress}>
-              {steps.length > 0 ? `${visibleStepCount}/${steps.length} steps` : "Starting"}
-            </Text>
-          </View>
-          {visibleSteps.length === 0 ? (
-            <Text style={styles.boardPlaceholder}>Setting up the first step...</Text>
-          ) : (
-            visibleSteps.map((step, index) => <BoardStepCard key={step.id} step={step} index={index} />)
-          )}
-        </View>
-
-        {currentStep >= steps.length && (
-          <BoardFinalAnswerCard finalAnswer={finalAnswer} finalAnswerMath={finalAnswerMath} summary={summary} />
-        )}
+        <ClassroomCalculationBoard
+          steps={visibleSteps}
+          totalSteps={steps.length}
+          finalAnswer={finalAnswer}
+          finalAnswerMath={finalAnswerMath}
+          summary={summary}
+          complete={currentStep >= steps.length && steps.length > 0}
+        />
 
         {currentStep >= steps.length && graphSpec && (
           <View style={styles.graphCard}>
@@ -269,23 +259,6 @@ const createStyles = (colors: any) =>
       ...typography.body,
       color: colors.textPrimary,
       lineHeight: 22,
-    },
-    board: {
-      minHeight: 340,
-    },
-    boardHeadingRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "flex-end",
-      marginBottom: 12,
-    },
-    boardProgress: {
-      ...typography.caption,
-      color: colors.textMuted,
-    },
-    boardPlaceholder: {
-      ...typography.body,
-      color: colors.textSecondary,
     },
     graphCard: {
       marginTop: 4,
