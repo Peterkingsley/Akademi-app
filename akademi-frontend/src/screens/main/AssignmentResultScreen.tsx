@@ -48,6 +48,7 @@ export const AssignmentResultScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [graphSpec, setGraphSpec] = useState<GraphSpec | null>(null);
+  const [hasBoardWalkthrough, setHasBoardWalkthrough] = useState(false);
   const [replyMode, setReplyMode] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [initialAiMessageId, setInitialAiMessageId] = useState<string | null>(null);
@@ -108,6 +109,9 @@ export const AssignmentResultScreen: React.FC = () => {
       setInitialAiMessageId(firstAiMsg?.id || null);
       setReplyMode(session.reply_mode || latestAiMsg?.reply_mode || firstAiMsg?.reply_mode || null);
       setGraphSpec(firstAiMsg?.metadata?.graph?.payload || null);
+      setHasBoardWalkthrough(sessionMessages.some(
+        (message: Message) => message.role === "AI" && !!message.metadata?.whiteboard?.payload?.steps?.length
+      ));
       setLoadFailed(false);
 
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
@@ -297,10 +301,15 @@ export const AssignmentResultScreen: React.FC = () => {
                 {isFirstAI && replyMode !== "STUDY" && (
                   <AnimatedPressable
                     style={styles.studyChip}
-                    onPress={() => navigation.navigate("StudyMode", { sessionId })}
+                    onPress={() => navigation.navigate(
+                      hasBoardWalkthrough ? "BoardReplay" : "StudyMode",
+                      { sessionId }
+                    )}
                   >
                     <Sparkles size={14} color={colors.primary} />
-                    <Text style={[styles.studyChipText, typography.caption]}>Switch to Step-by-Step Study Mode</Text>
+                    <Text style={[styles.studyChipText, typography.caption]}>
+                      {hasBoardWalkthrough ? "View Step-by-Step Board" : "Switch to Step-by-Step Study Mode"}
+                    </Text>
                   </AnimatedPressable>
                 )}
               </View>
