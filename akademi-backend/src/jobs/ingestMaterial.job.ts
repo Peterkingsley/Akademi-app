@@ -6,6 +6,7 @@ import * as pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import * as vision from '@google-cloud/vision';
 import { checkVerificationThresholdJob } from './checkVerificationThreshold.job';
+import { JOB_NAMES, systemQueue } from '../config/queue';
 import { buildReaderStructure, buildReaderStructureFromHtml, normalizeExtractedText } from '../modules/materials/reader-structure';
 import { computeMaterialRetryAt } from '../modules/materials/material-processing';
 import { createFallbackTeacherBrain, generateMaterialTeacherBrain } from '../modules/materials/teacher-brain.service';
@@ -400,10 +401,19 @@ export async function ingestMaterialJob(materialId: string) {
       }
     }
 
-    console.log(
-      `Material ${materialId} ingested successfully. Triggering checkVerificationThresholdJob.`,
-    );
-    await checkVerificationThresholdJob(materialId);
+    console.log(`Material ${materialId} ingested successfully. Queuing CBT question-bank generation.`);
+    await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId });
+
+    try {
+      await checkVerificationThresholdJob(materialId);
+    } catch (error) {
+      // Question preparation must not depend on verification. Keep the extracted material
+      // healthy and let verification be retried/reviewed independently.
+      console.error('material_verification_threshold_check_failed', {
+        materialId,
+        message: error instanceof Error ? error.message : 'Unknown verification error',
+      });
+    }
   } catch (error) {
     const attempts = Number((claimedMaterial as any).processing_attempts || 1);
     await prisma.material.update({

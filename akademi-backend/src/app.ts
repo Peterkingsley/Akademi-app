@@ -26,7 +26,7 @@ import koinRoutes from './modules/koin/koin.routes';
 import usageRoutes from './modules/usage/usage.routes';
 import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
-import { recoverPendingMaterials, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
+import { recoverPendingMaterials, recoverQuestionBanks, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
 import { getSystemHealthSnapshot } from './shared/system/system-health';
 import { startCapacitySweeper } from './jobs/capacitySweeper.job';
 import { getRuntimeState, markShuttingDown, markStartupComplete } from './shared/system/runtime-state';
@@ -145,6 +145,7 @@ const startServer = async () => {
         markStartupComplete();
         console.log(`API Server is running with WebSocket support on port ${config.port} in ${config.nodeEnv} mode`);
         void recoverPendingMaterials();
+        void recoverQuestionBanks();
       });
     } else if (config.serviceType === 'websocket') {
       initWebSocket(server);
@@ -161,6 +162,7 @@ const startServer = async () => {
         markStartupComplete();
         console.log(`Jobs Health Check Server is running on port ${config.port}`);
         void recoverPendingMaterials();
+        void recoverQuestionBanks();
       });
     } else {
       console.warn(`Unknown service type: ${config.serviceType}. Starting all components.`);
@@ -173,6 +175,7 @@ const startServer = async () => {
         markStartupComplete();
         console.log(`Full Server is running on port ${config.port} in ${config.nodeEnv} mode`);
         void recoverPendingMaterials();
+        void recoverQuestionBanks();
       });
     }
   } catch (error) {

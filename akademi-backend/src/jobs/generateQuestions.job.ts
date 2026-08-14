@@ -66,7 +66,14 @@ function normalizeQuestion(raw: any): GeneratedQuestion | null {
   };
 }
 
-export async function generateQuestionsJob(materialId: string, options: GenerateQuestionOptions = {}) {
+const QUESTION_BANK_TARGET = Math.max(Number(process.env.MATERIAL_QUESTION_BANK_TARGET || 30), 10);
+
+function questionGenerationRetryAt(attempts: number) {
+  const delayMs = Math.min(30_000 * 2 ** Math.max(attempts - 1, 0), 30 * 60_000);
+  return new Date(Date.now() + delayMs);
+}
+
+async function generateQuestionsBatch(materialId: string, options: GenerateQuestionOptions = {}) {
   let material = await prisma.material.findUnique({
     where: { id: materialId },
   });
@@ -161,7 +168,7 @@ export async function generateQuestionsJob(materialId: string, options: Generate
 
   const aiOutput = await aiProvider.generateResponse(prompt, {
     systemPrompt: 'You are an expert university-level exam-question writer. You construct rigorous, exam-standard multiple-choice questions with plausible, misconception-based distractors — never questions that reward recall or lucky guessing. Return ONLY valid JSON.',
-    maxTokens: 2000,
+    maxTokens: 6000,
   });
 
   const parsed = parseJsonObject(aiOutput);
@@ -213,4 +220,93 @@ export async function generateQuestionsJob(materialId: string, options: Generate
   }
 
   return createdCount;
+}
+
+export async function generateQuestionsJob(materialId: string, options: GenerateQuestionOptions = {}) {
+  const staleGeneration = new Date(Date.now() - 15 * 60_000);
+  const claim = await prisma.material.updateMany({
+    where: {
+      id: materialId,
+      OR: [
+        { question_generation_status: { not: 'GENERATING' } },
+        { question_generation_started_at: { lte: staleGeneration } },
+      ],
+    },
+    data: {
+      question_generation_status: 'GENERATING',
+      question_generation_attempts: { increment: 1 },
+      question_generation_started_at: new Date(),
+      question_generation_completed_at: null,
+      question_generation_error: null,
+      question_generation_next_retry_at: null,
+    },
+  });
+  if (claim.count === 0) return 0;
+
+  const lifecycle = await prisma.material.findUnique({
+    where: { id: materialId },
+    select: { question_generation_attempts: true },
+  });
+  if (!lifecycle) throw new Error('Material not found');
+
+  try {
+    const existing = await prisma.question.findMany({
+      where: { material_id: materialId },
+      select: { question_text: true },
+    });
+    if (
+      options.count == null &&
+      options.pageStart == null &&
+      options.pageEnd == null &&
+      existing.length >= QUESTION_BANK_TARGET
+    ) {
+      await prisma.material.update({
+        where: { id: materialId },
+        data: {
+          question_generation_status: 'READY',
+          question_generation_completed_at: new Date(),
+          question_generation_error: null,
+          question_generation_next_retry_at: null,
+        },
+      });
+      return 0;
+    }
+    const requestedCount = options.count ?? Math.min(Math.max(QUESTION_BANK_TARGET - existing.length, 5), 10);
+    const createdCount = await generateQuestionsBatch(materialId, {
+      ...options,
+      count: requestedCount,
+      excludeQuestionTexts: [
+        ...existing.map((question) => question.question_text),
+        ...(options.excludeQuestionTexts || []),
+      ],
+    });
+    const totalQuestions = await prisma.question.count({ where: { material_id: materialId } });
+    const ready =
+      totalQuestions >= QUESTION_BANK_TARGET ||
+      (createdCount === 0 && totalQuestions >= 10 && lifecycle.question_generation_attempts >= 5);
+
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        question_generation_status: ready ? 'READY' : 'PENDING',
+        question_generation_completed_at: ready ? new Date() : null,
+        question_generation_error: null,
+        question_generation_next_retry_at: ready ? null : new Date(Date.now() + 10_000),
+      },
+    });
+
+    return createdCount;
+  } catch (error) {
+    await prisma.material.update({
+      where: { id: materialId },
+      data: {
+        question_generation_status: 'FAILED',
+        question_generation_error: error instanceof Error ? error.message : 'Unknown question generation error',
+        question_generation_next_retry_at: questionGenerationRetryAt(lifecycle.question_generation_attempts),
+      },
+    }).catch((lifecycleError) => {
+      console.error('Failed to persist question generation failure:', lifecycleError);
+    });
+    throw error;
+  }
 }

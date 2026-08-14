@@ -92,6 +92,13 @@ enum MaterialProcessingStatus {
   FAILED
 }
 
+enum QuestionGenerationStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
 enum ChunkStatus {
   PENDING
   UPLOADED
@@ -419,6 +426,12 @@ model Material {
   processing_started_at   DateTime?
   processing_completed_at DateTime?
   next_retry_at           DateTime?
+  question_generation_status       QuestionGenerationStatus @default(PENDING)
+  question_generation_attempts     Int                      @default(0)
+  question_generation_error        String?                  @db.Text
+  question_generation_started_at   DateTime?
+  question_generation_completed_at DateTime?
+  question_generation_next_retry_at DateTime?
   upload_count            Int                      @default(1)
   contributor_ids         Json                     @default("[]")
   verified_at             DateTime?
@@ -468,6 +481,7 @@ model Material {
   @@index([course_code, level, semester])
   @@index([verification_status])
   @@index([processing_status, next_retry_at])
+  @@index([question_generation_status, question_generation_next_retry_at])
   @@index([course_code, is_akademi_generated])
   @@index([unpublished_at])
   @@map("materials")
