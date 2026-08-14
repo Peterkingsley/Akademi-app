@@ -138,17 +138,17 @@ export const BoardReplayScreen: React.FC = () => {
 
   return (
     <Screen style={styles.screen}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Board walkthrough</Text>
-          <Text style={styles.headerSubtitle}>{title}</Text>
-        </View>
-      </View>
-
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ArrowLeft size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerTitle}>Board walkthrough</Text>
+            <Text style={styles.headerSubtitle}>{title}</Text>
+          </View>
+        </View>
+
         <View style={styles.questionBlock}>
           <Text style={styles.questionLabel}>Question</Text>
           <RichMathText content={question} textColor={colors.textPrimary} fontSize={16} lineHeight={1.45} />
@@ -216,7 +216,6 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       flexDirection: "row",
       gap: 12,
-      paddingHorizontal: 18,
       paddingBottom: 12,
     },
     backButton: {
