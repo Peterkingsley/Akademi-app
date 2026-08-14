@@ -4,6 +4,7 @@ import { FeatureAccessService } from './feature-access.service';
 import { Feature, AccessType } from '@prisma/client';
 import { config } from '../../config/env';
 import { timingSafeEqual } from '../../shared/utils/secure-compare';
+import { koinService } from '../koin/koin.service';
 
 const featureAccessService = new FeatureAccessService();
 
@@ -136,12 +137,21 @@ export class FeatureAccessController {
     if (req.body?.event === 'charge.success' && data?.status === 'success') {
       const reference = data?.payment_reference || data?.reference;
       try {
-        // Never grant access from the webhook payload alone. Query Kora using
-        // the server-side secret and use the verified customer, amount and status.
-        await featureAccessService.verifyAndActivateKoraSubscription(reference);
+        // One Kora account has one dashboard webhook. Route by our server-created
+        // reference, then independently verify the charge before delivering value.
+        if (typeof reference === 'string' && reference.startsWith('KOIN_')) {
+          await koinService.verifyAndCreditPurchase(reference);
+        } else {
+          await featureAccessService.verifyAndActivateKoraSubscription(reference);
+        }
       } catch (error: any) {
         console.warn('Kora webhook activation rejected:', error?.message);
         return res.status(200).send('Webhook received; activation requires review');
+      }
+    } else if (req.body?.event === 'charge.failed') {
+      const reference = data?.payment_reference || data?.reference;
+      if (typeof reference === 'string' && reference.startsWith('KOIN_')) {
+        await koinService.markPurchaseFailed(reference);
       }
     }
 

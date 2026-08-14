@@ -183,7 +183,7 @@ export class KoinService {
           amount: koinAmount,
           currency: 'NGN',
           reference: purchaseReference,
-          notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/koin/kora/webhook`,
+          notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/feature-access/kora/webhook`,
           redirect_url: `akademi://koin-wallet?reference=${encodeURIComponent(purchaseReference)}`,
           narration: `${koinAmount} Akademi Koin purchase`,
           channels: ['card', 'bank_transfer', 'pay_with_bank'],

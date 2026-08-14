@@ -54,7 +54,7 @@ describe('Korapay Koin purchases', () => {
       data: expect.objectContaining({ user_id: 'user-1', koin_amount: 500, naira_amount_kobo: 50_000 }),
     }));
     const request = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
-    expect(request).toMatchObject({ amount: 500, currency: 'NGN', notification_url: 'https://api.akademi.test/koin/kora/webhook' });
+    expect(request).toMatchObject({ amount: 500, currency: 'NGN', notification_url: 'https://api.akademi.test/feature-access/kora/webhook' });
   });
 
   it('credits a verified purchase exactly once through an atomic claim', async () => {
