@@ -73,6 +73,17 @@ describe('Korapay Koin purchases', () => {
     );
   });
 
+  it('retries account resolution with NGN when Kora rejects the NG currency code', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ status: false, message: 'One or more fields are invalid' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ status: true, data: { bank_name: 'Test Bank', bank_code: '044', account_number: '0123456789', account_name: 'TEST STUDENT' } }) }) as any;
+    await expect(koinService.resolveBankAccount('044', '0123456789')).resolves.toMatchObject({ accountName: 'TEST STUDENT' });
+    const firstBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+    const secondBody = JSON.parse((global.fetch as jest.Mock).mock.calls[1][1].body);
+    expect(firstBody.currency).toBe('NG');
+    expect(secondBody.currency).toBe('NGN');
+  });
+
   it('credits a verified purchase exactly once through an atomic claim', async () => {
     const purchase = {
       id: 'purchase-1', user_id: 'user-1', koin_amount: 500, naira_amount_kobo: 50_000,

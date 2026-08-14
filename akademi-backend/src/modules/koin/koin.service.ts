@@ -150,13 +150,28 @@ export class KoinService {
     if (!config.koraPublicKey) throw new Error('Kora public key is not configured');
     if (!/^\d{3,6}$/.test(bankCode)) throw new Error('Choose a valid bank');
     if (!/^\d{10}$/.test(accountNumber)) throw new Error('Enter a valid 10-digit account number');
-    const response = await fetch(`${KORA_API}/misc/banks/resolve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${config.koraPublicKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bank: bankCode, account: accountNumber, currency: 'NG' }),
-    });
-    const result: any = await response.json().catch(() => null);
-    if (!response.ok || result?.status !== true || !result?.data?.account_name) throw new Error(result?.message || 'Kora could not verify this account');
+    let result: any = null;
+    let responseOk = false;
+    // Kora's guide describes the resolver currency as `NG`, while some current
+    // deployments validate the ISO currency `NGN`. Resolution is read-only, so
+    // retry the alternate representation only after a validation response.
+    for (const currency of ['NG', 'NGN']) {
+      const response = await fetch(`${KORA_API}/misc/banks/resolve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${config.koraPublicKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bank: bankCode, account: accountNumber, currency }),
+      });
+      result = await response.json().catch(() => null);
+      responseOk = response.ok;
+      if (response.ok && result?.status === true && result?.data?.account_name) break;
+      if (![400, 422].includes(response.status)) break;
+    }
+    if (!responseOk || result?.status !== true || !result?.data?.account_name) {
+      const fieldReason = Array.isArray(result?.data)
+        ? result.data.map((item: any) => item?.message || item?.msg).filter(Boolean).join(' ')
+        : result?.data?.message || result?.error;
+      throw new Error(fieldReason || result?.message || 'Kora could not verify this bank account');
+    }
     return {
       bankName: String(result.data.bank_name || ''),
       bankCode: String(result.data.bank_code || bankCode),
