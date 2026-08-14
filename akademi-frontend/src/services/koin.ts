@@ -36,11 +36,18 @@ export type KoinCheckout = {
   currency: "NGN";
 };
 
+export type NigerianBank = { name: string; code: string; slug: string };
+export type ResolvedBankAccount = { bankName: string; bankCode: string; accountNumber: string; accountName: string };
+
 export const koinService = {
   async getWallet() { return (await api.get<KoinWallet>("/koin/wallet")).data; },
   async getPackages() { return (await api.get<Array<{ koin: number; naira: number; enabled: boolean }>>("/koin/packages")).data; },
   async purchase(koinAmount: number) { return (await api.post<KoinCheckout>("/koin/purchases", { koinAmount })).data; },
   async verifyPurchase(reference: string) { return (await api.post(`/koin/purchases/${encodeURIComponent(reference)}/verify`)).data; },
+  async getBanks() { return (await api.get<NigerianBank[]>("/koin/banks")).data; },
+  async resolveAccount(bankCode: string, accountNumber: string) {
+    return (await api.post<ResolvedBankAccount>("/koin/banks/resolve", { bankCode, accountNumber })).data;
+  },
   async reward(recipientUserId: string, amount: number, message?: string) {
     return (await api.post("/koin/rewards", { recipientUserId, amount, message })).data;
   },
@@ -49,5 +56,7 @@ export const koinService = {
   async contribute(poolId: string, amount: number, isStake = false) {
     return (await api.post<KoinPool>(`/koin/pools/${poolId}/contributions`, { amount, isStake })).data;
   },
-  async withdraw(koinAmount: number) { return (await api.post("/koin/withdrawals", { koinAmount })).data; },
+  async withdraw(koinAmount: number, bankCode: string, accountNumber: string) {
+    return (await api.post("/koin/withdrawals", { koinAmount, bankCode, accountNumber })).data;
+  },
 };

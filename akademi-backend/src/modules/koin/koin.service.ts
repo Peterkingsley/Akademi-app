@@ -9,6 +9,7 @@ const MAX_REWARD_KOIN = 250;
 const MAX_EVENT_CONTRIBUTION_KOIN = 1000;
 const PURCHASE_PACKAGES = [100, 500, 1000, 5000] as const;
 const KOBO_PER_KOIN = 100;
+const KORA_API = 'https://api.korapay.com/merchant/api/v1';
 
 const reference = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
@@ -135,18 +136,130 @@ export class KoinService {
     for (const pool of pools) await this.settlePool(pool.id, winnerUserId);
   }
 
-  async requestWithdrawal(userId: string, koinAmount: number) {
+  async listBanks() {
+    if (!config.koraSecretKey) throw new Error('Kora payouts are not configured');
+    const response = await fetch(`${KORA_API}/misc/banks?countryCode=NG`, {
+      headers: { Authorization: `Bearer ${config.koraSecretKey}` },
+    });
+    const result: any = await response.json().catch(() => null);
+    if (!response.ok || result?.status !== true || !Array.isArray(result?.data)) throw new Error(result?.message || 'Unable to load Nigerian banks');
+    return result.data.map((bank: any) => ({ name: String(bank.name), code: String(bank.code), slug: String(bank.slug || '') }));
+  }
+
+  async resolveBankAccount(bankCode: string, accountNumber: string) {
+    if (!config.koraSecretKey) throw new Error('Kora payouts are not configured');
+    if (!/^\d{3,6}$/.test(bankCode)) throw new Error('Choose a valid bank');
+    if (!/^\d{10}$/.test(accountNumber)) throw new Error('Enter a valid 10-digit account number');
+    const response = await fetch(`${KORA_API}/misc/banks/resolve`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${config.koraSecretKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bank: bankCode, account: accountNumber, currency: 'NG' }),
+    });
+    const result: any = await response.json().catch(() => null);
+    if (!response.ok || result?.status !== true || !result?.data?.account_name) throw new Error(result?.message || 'Kora could not verify this account');
+    return {
+      bankName: String(result.data.bank_name || ''),
+      bankCode: String(result.data.bank_code || bankCode),
+      accountNumber: String(result.data.account_number || accountNumber),
+      accountName: String(result.data.account_name),
+    };
+  }
+
+  async requestWithdrawal(userId: string, koinAmount: number, bankCode: string, accountNumber: string) {
     if (!Number.isInteger(koinAmount) || koinAmount < MIN_WITHDRAWAL_KOIN) throw new Error(`Minimum withdrawal is ${MIN_WITHDRAWAL_KOIN} Koin`);
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { date_of_birth: true } });
     if (!user?.date_of_birth) throw new Error('Add your date of birth before requesting a withdrawal');
     if (ageOn(user.date_of_birth) < 18) throw new Error('Koin withdrawals unlock when you turn 18');
     if (!config.koinWithdrawalsEnabled) throw new Error('Koin withdrawals are not available yet');
+    if (!config.koraSecretKey) throw new Error('Kora payouts are not configured');
+    const account = await this.resolveBankAccount(bankCode, accountNumber);
+    const customer = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, name: true } });
+    if (!customer) throw new Error('User not found');
     const withdrawalReference = reference('withdrawal');
-    return prisma.$transaction(async (tx) => {
+    const withdrawal = await prisma.$transaction(async (tx) => {
       await this.debit(tx, userId, koinAmount, 'WITHDRAWAL', `${withdrawalReference}_debit`, { withdrawalReference });
       return tx.koinWithdrawal.create({
-        data: { user_id: userId, koin_amount: koinAmount, naira_amount_kobo: koinAmount * WITHDRAWAL_KOBO_PER_KOIN, status: 'PENDING_VERIFICATION', reference: withdrawalReference },
+        data: {
+          user_id: userId,
+          koin_amount: koinAmount,
+          naira_amount_kobo: koinAmount * WITHDRAWAL_KOBO_PER_KOIN,
+          status: 'PENDING',
+          reference: withdrawalReference,
+          payout_provider: 'korapay',
+          payout_recipient: JSON.stringify({ bankName: account.bankName, bankCode: account.bankCode, accountName: account.accountName, accountLast4: account.accountNumber.slice(-4) }),
+        },
       });
+    }, { isolationLevel: 'Serializable' as any });
+
+    const payoutPayload = {
+      reference: withdrawalReference,
+      destination: {
+        type: 'bank_account',
+        amount: withdrawal.naira_amount_kobo / 100,
+        currency: 'NGN',
+        narration: 'Akademi Koin sale',
+        bank_account: { bank: account.bankCode, account: account.accountNumber },
+        customer: { name: account.accountName || customer.name, email: customer.email },
+      },
+      metadata: { purpose: 'koin-sale', userId, koin: koinAmount },
+      notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/feature-access/kora/webhook`,
+    };
+
+    try {
+      const response = await fetch(`${KORA_API}/transactions/disburse`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${config.koraSecretKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payoutPayload),
+      });
+      const result: any = await response.json().catch(() => null);
+      if (!response.ok || result?.status !== true) {
+        // Kora warns that 5xx/timeouts may still mean the payout was accepted. Keep
+        // funds reserved and let webhook/reconciliation decide those uncertain cases.
+        if (response.status >= 500) {
+          await prisma.koinWithdrawal.update({ where: { id: withdrawal.id }, data: { status: 'PROCESSING', failure_reason: 'Payout confirmation pending' } });
+          return { ...withdrawal, status: 'PROCESSING', account };
+        }
+        await this.failAndRefundWithdrawal(withdrawalReference, result?.message || 'Kora rejected payout');
+        throw new Error(result?.message || 'Kora rejected payout');
+      }
+      const updated = await prisma.koinWithdrawal.update({
+        where: { id: withdrawal.id },
+        data: { status: result?.data?.status === 'success' ? 'PAID' : 'PROCESSING', provider_reference: String(result?.data?.reference || withdrawalReference), processed_at: result?.data?.status === 'success' ? new Date() : null },
+      });
+      return { ...updated, account };
+    } catch (error: any) {
+      if (error?.message === 'fetch failed' || error?.name === 'TypeError') {
+        await prisma.koinWithdrawal.update({ where: { id: withdrawal.id }, data: { status: 'PROCESSING', failure_reason: 'Payout confirmation pending' } });
+        return { ...withdrawal, status: 'PROCESSING', account };
+      }
+      throw error;
+    }
+  }
+
+  async markWithdrawalPaid(withdrawalReference: string, amount: number, currency: string) {
+    const withdrawal = await prisma.koinWithdrawal.findUnique({ where: { reference: withdrawalReference } });
+    if (!withdrawal) return;
+    if (currency !== 'NGN' || !Number.isFinite(amount) || amount !== withdrawal.naira_amount_kobo / 100) {
+      throw new Error('Kora payout confirmation does not match the withdrawal');
+    }
+    await prisma.koinWithdrawal.updateMany({
+      where: { reference: withdrawalReference, status: { in: ['PENDING_VERIFICATION', 'PENDING', 'PROCESSING'] } },
+      data: { status: 'PAID', processed_at: new Date(), failure_reason: null },
+    });
+  }
+
+  async failAndRefundWithdrawal(withdrawalReference: string, reason = 'Kora payout failed') {
+    return prisma.$transaction(async (tx) => {
+      const withdrawal = await tx.koinWithdrawal.findUnique({ where: { reference: withdrawalReference } });
+      if (!withdrawal || ['FAILED', 'REJECTED', 'CANCELLED'].includes(withdrawal.status)) return withdrawal;
+      if (withdrawal.status === 'PAID') return withdrawal;
+      const claimed = await tx.koinWithdrawal.updateMany({
+        where: { id: withdrawal.id, status: { in: ['PENDING_VERIFICATION', 'PENDING', 'PROCESSING'] } },
+        data: { status: 'FAILED', failure_reason: reason, processed_at: new Date() },
+      });
+      if (claimed.count === 0) return withdrawal;
+      await this.credit(tx, withdrawal.user_id, withdrawal.koin_amount, 'WITHDRAWAL_REFUND', `${withdrawal.reference}_refund`, { withdrawalReference });
+      return tx.koinWithdrawal.findUnique({ where: { id: withdrawal.id } });
     }, { isolationLevel: 'Serializable' as any });
   }
 

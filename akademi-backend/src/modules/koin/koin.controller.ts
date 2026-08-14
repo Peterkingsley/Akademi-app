@@ -10,6 +10,14 @@ export class KoinController {
     catch (error: any) { res.status(400).json({ message: error.message || 'Unable to load Koin wallet' }); }
   };
   packages = async (_req: Request, res: Response) => { res.json(koinService.getPurchasePackages()); };
+  banks = async (_req: Request, res: Response) => {
+    try { res.json(await koinService.listBanks()); }
+    catch (error: any) { res.status(400).json({ message: error.message || 'Unable to load banks' }); }
+  };
+  resolveAccount = async (req: Request, res: Response) => {
+    try { res.json(await koinService.resolveBankAccount(String(req.body.bankCode || ''), String(req.body.accountNumber || ''))); }
+    catch (error: any) { res.status(400).json({ message: error.message || 'Unable to verify account' }); }
+  };
   purchase = async (req: Request, res: Response) => {
     try { res.status(201).json(await koinService.initiatePurchase((req.user as any).userId, Number(req.body.koinAmount))); }
     catch (error: any) { res.status(400).json({ message: error.message || 'Unable to start Koin purchase' }); }
@@ -55,7 +63,7 @@ export class KoinController {
     catch (error: any) { res.status(400).json({ message: error.message || 'Unable to contribute Koin' }); }
   };
   withdraw = async (req: Request, res: Response) => {
-    try { res.status(201).json(await koinService.requestWithdrawal((req.user as any).userId, Number(req.body.koinAmount))); }
+    try { res.status(201).json(await koinService.requestWithdrawal((req.user as any).userId, Number(req.body.koinAmount), String(req.body.bankCode || ''), String(req.body.accountNumber || ''))); }
     catch (error: any) { res.status(400).json({ message: error.message || 'Unable to request withdrawal' }); }
   };
 }

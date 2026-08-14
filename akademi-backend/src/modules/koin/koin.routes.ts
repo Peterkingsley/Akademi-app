@@ -10,6 +10,8 @@ router.use(authenticate);
 router.use(generalAuthenticatedApiLimiter);
 router.get('/wallet', controller.wallet);
 router.get('/packages', controller.packages);
+router.get('/banks', controller.banks);
+router.post('/banks/resolve', controller.resolveAccount);
 router.post('/purchases', controller.purchase);
 router.post('/purchases/:reference/verify', controller.verifyPurchase);
 router.post('/rewards', controller.reward);

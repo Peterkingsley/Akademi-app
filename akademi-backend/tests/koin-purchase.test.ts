@@ -7,11 +7,14 @@ const txPurchaseUpdateMany = jest.fn();
 const txPurchaseFindUniqueOrThrow = jest.fn();
 const txWalletUpsert = jest.fn();
 const txLedgerCreate = jest.fn();
+const txWithdrawalFindUnique = jest.fn();
+const txWithdrawalUpdateMany = jest.fn();
 
 const tx = {
   koinPurchase: { updateMany: txPurchaseUpdateMany, findUniqueOrThrow: txPurchaseFindUniqueOrThrow },
   koinWallet: { upsert: txWalletUpsert, findUnique: walletFindUnique },
   koinLedgerEntry: { create: txLedgerCreate },
+  koinWithdrawal: { findUnique: txWithdrawalFindUnique, updateMany: txWithdrawalUpdateMany },
 };
 
 jest.mock('../src/config/env', () => ({
@@ -99,5 +102,22 @@ describe('Korapay Koin purchases', () => {
 
     await expect(koinService.verifyAndCreditPurchase('KOIN_reference', 'user-1')).rejects.toThrow('does not match');
     expect(txLedgerCreate).not.toHaveBeenCalled();
+  });
+
+  it('refunds reserved Koin exactly once when a payout fails', async () => {
+    txWithdrawalFindUnique
+      .mockResolvedValueOnce({ id: 'withdrawal-1', user_id: 'user-1', koin_amount: 1250, status: 'PROCESSING', reference: 'withdrawal_ref' })
+      .mockResolvedValueOnce({ id: 'withdrawal-1', status: 'FAILED' });
+    txWithdrawalUpdateMany.mockResolvedValue({ count: 1 });
+    txWalletUpsert.mockResolvedValue({ balance: 1250 });
+    txLedgerCreate.mockResolvedValue({});
+
+    await koinService.failAndRefundWithdrawal('withdrawal_ref', 'Bank rejected payout');
+    expect(txWalletUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: { balance: { increment: 1250 } },
+    }));
+    expect(txLedgerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ type: 'WITHDRAWAL_REFUND', amount: 1250, reference: 'withdrawal_ref_refund' }),
+    }));
   });
 });

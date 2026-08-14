@@ -153,6 +153,10 @@ export class FeatureAccessController {
       if (typeof reference === 'string' && reference.startsWith('KOIN_')) {
         await koinService.markPurchaseFailed(reference);
       }
+    } else if (req.body?.event === 'transfer.success') {
+      await koinService.markWithdrawalPaid(data?.reference, Number(data?.amount), String(data?.currency || ''));
+    } else if (req.body?.event === 'transfer.failed') {
+      await koinService.failAndRefundWithdrawal(data?.reference, data?.message || 'Kora payout failed');
     }
 
     return res.status(200).send('Webhook received');
