@@ -75,4 +75,70 @@ services:
       - key: TYPESENSE_PROTOCOL
         value: "https"
       - key: UNLOCK_ALL_FEATURES
+        sync: false
+
+  - type: worker
+    name: akademi-jobs
+    env: node
+    rootDir: akademi-backend
+    buildCommand: bash ./render-worker-build.sh
+    startCommand: npm run start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ENABLE_REDIS
         value: "true"
+      - key: SERVICE_TYPE
+        value: "jobs"
+      - key: NODE_ENV
+        value: "production"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: "gpt-5-nano"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-3.1-flash-lite"
+      - key: GOOGLE_CSE_API_KEY
+        sync: false
+      - key: GOOGLE_CSE_ID
+        sync: false
+      - key: R2_ACCOUNT_ID
+        value: "bf0c08bae967813bd07e0d1482124840"
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: "akademi-files"
+      - key: R2_PUBLIC_URL
+        value: "https://pub-0bf5d3669a4c4b4fb19f64d29792d640.r2.dev"
+      - key: PUPPETEER_CACHE_DIR
+        value: "/opt/render/project/src/.cache/puppeteer"
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: "production-jobs"
+      - key: TEXTBOOK_GENERATION_PAUSED
+        value: "false"
+      - key: MATERIAL_QUESTION_BANK_TARGET
+        value: "30"
+      - key: QUESTION_BANK_RECOVERY_BATCH_SIZE
+        value: "20"
+      - key: QUESTION_BANK_LOW_WATER
+        value: "20"
+      - key: QUESTION_BANK_CRITICAL_WATER
+        value: "10"
+      - key: QUESTION_BANK_REFILL_BATCH
+        value: "10"
+      - key: QUESTION_BANK_MAX_SIZE
+        value: "300"
+      - key: QUESTION_BANK_REFILL_COOLDOWN_MS
+        value: "60000"
+      - key: QUESTION_BANK_MAX_BATCHES_PER_HOUR
+        value: "6"

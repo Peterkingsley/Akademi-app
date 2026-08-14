@@ -759,6 +759,11 @@ export const adminService = {
     return data;
   },
 
+  getFinanceOperations: async () => {
+    const { data } = await api.get("/admin/finance/operations");
+    return data;
+  },
+
   // Pillar 7: AI & System Monitoring
   getAIMonitoring: async () => {
     const { data } = await api.get("/admin/system/ai");

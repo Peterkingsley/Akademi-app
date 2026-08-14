@@ -2133,6 +2133,77 @@ export class AdminService {
     });
   }
 
+  async getFinanceOperations() {
+    const now = new Date();
+    const staleCutoff = new Date(now.getTime() - 15 * 60 * 1000);
+    const [subscriptionPayments, premiumAccess, koinPurchases, koinWithdrawals, subscriptionRevenue, koinRevenue] = await Promise.all([
+      this.safeTransactionRead([] as any[], () => prisma.transaction.findMany({
+        where: { plan: { startsWith: 'AKADEMI_PRO_' } },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { created_at: 'desc' },
+        take: 100,
+      })),
+      prisma.featureAccess.findMany({
+        where: { product_code: { startsWith: 'AKADEMI_PRO_' } },
+        select: { payment_ref: true, expires_at: true },
+      }),
+      prisma.koinPurchase.findMany({
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { created_at: 'desc' },
+        take: 100,
+      }),
+      prisma.koinWithdrawal.findMany({
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { requested_at: 'desc' },
+        take: 100,
+      }),
+      this.safeTransactionRead({ _sum: { amount: 0 } }, () => prisma.transaction.aggregate({
+        where: { status: { in: ['SUCCESS', 'success', 'successful'] } },
+        _sum: { amount: true },
+      })),
+      prisma.koinPurchase.aggregate({
+        where: { status: 'PAID' },
+        _sum: { naira_amount_kobo: true },
+      }),
+    ]);
+
+    const expiryByPayment = new Map<string, Date>();
+    for (const access of premiumAccess) {
+      if (!access.payment_ref || !access.expires_at) continue;
+      const current = expiryByPayment.get(access.payment_ref);
+      if (!current || access.expires_at > current) expiryByPayment.set(access.payment_ref, access.expires_at);
+    }
+    const subscriptions = subscriptionPayments.map((payment) => ({
+      ...payment,
+      product_code: payment.plan,
+      purchased_at: payment.created_at,
+      expires_at: expiryByPayment.get(payment.reference) || null,
+    }));
+    const koinCases = koinWithdrawals.filter((withdrawal) =>
+      ['FAILED', 'REJECTED', 'CANCELLED'].includes(withdrawal.status)
+      || (['PENDING_VERIFICATION', 'PENDING', 'PROCESSING'].includes(withdrawal.status)
+        && withdrawal.updated_at < staleCutoff),
+    );
+
+    return {
+      summary: {
+        activeSubscriptions: subscriptions.filter((item) =>
+          ['SUCCESS', 'success', 'successful'].includes(item.status)
+          && (!item.expires_at || item.expires_at > now),
+        ).length,
+        expiredSubscriptions: subscriptions.filter((item) => item.expires_at && item.expires_at <= now).length,
+        subscriptionRevenueNaira: subscriptionRevenue._sum.amount || 0,
+        paidKoinPurchases: koinPurchases.filter((item) => item.status === 'PAID').length,
+        koinRevenueNaira: (koinRevenue._sum.naira_amount_kobo || 0) / 100,
+        koinCasesNeedingReview: koinCases.length,
+      },
+      subscriptions,
+      koinPurchases,
+      koinWithdrawals,
+      koinCases,
+    };
+  }
+
   async grantFinanceAccess(userId: string, data: GrantAccessRequest) {
     return this.grantAccess(userId, data);
   }
@@ -2192,10 +2263,40 @@ export class AdminService {
     ]);
 
     const allJobs = [...waiting, ...active, ...completed, ...failed, ...delayed];
+    const failedMaterials = await prisma.material.findMany({
+      where: {
+        OR: [
+          { processing_status: 'FAILED' },
+          { question_generation_status: 'FAILED' },
+          { question_bank_inventory_status: 'FAILED' },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        course_code: true,
+        created_at: true,
+        processing_status: true,
+        processing_error: true,
+        question_generation_status: true,
+        question_generation_error: true,
+      },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+    const persistentFailures = failedMaterials.map((material) => ({
+      id: `material:${material.id}`,
+      name: material.question_generation_status === 'FAILED' ? 'GENERATE_QUESTIONS' : 'INGEST_MATERIAL',
+      label: `${material.course_code || 'Material'} — ${material.title}`,
+      lastRun: material.created_at,
+      status: 'failed',
+      duration: 'needs review',
+      error: material.question_generation_error || material.processing_error || 'Material job failed',
+    }));
 
     if (allJobs.length === 0) {
       const queueHealth = getQueueHealth();
-      return [{
+      return [...persistentFailures, {
         id: 'inline-queue',
         name: 'INLINE_QUEUE_PROCESSOR',
         lastRun: queueHealth.lastRunAt ? new Date(queueHealth.lastRunAt) : new Date(),
@@ -2204,7 +2305,7 @@ export class AdminService {
       }];
     }
 
-    return allJobs.map(job => {
+    const queueJobs = allJobs.map(job => {
       const duration = job.finishedOn && job.processedOn
         ? ((job.finishedOn - job.processedOn) / 1000).toFixed(1) + 's'
         : 'N/A';
@@ -2216,7 +2317,10 @@ export class AdminService {
         status: (job as any)._progress === 100 || job.finishedOn ? 'success' : (job.failedReason ? 'failed' : 'active'),
         duration
       };
-    }).sort((a, b) => (b.lastRun.getTime() || 0) - (a.lastRun.getTime() || 0)).slice(0, 50);
+    });
+    return [...persistentFailures, ...queueJobs]
+      .sort((a, b) => (new Date(b.lastRun).getTime() || 0) - (new Date(a.lastRun).getTime() || 0))
+      .slice(0, 50);
   }
 
   async getQuestionBankInventory() {
@@ -2316,6 +2420,26 @@ export class AdminService {
   }
 
   async retryJob(jobId: string) {
+    if (jobId.startsWith('material:')) {
+      const materialId = jobId.slice('material:'.length);
+      const material = await prisma.material.findUnique({
+        where: { id: materialId },
+        include: { upload_chunks: { select: { id: true }, take: 1 } },
+      });
+      if (!material) throw new NotFoundException(`Material ${materialId} not found`);
+
+      if (material.question_generation_status === 'FAILED') {
+        await prisma.material.update({
+          where: { id: materialId },
+          data: { question_generation_status: 'PENDING', question_generation_error: null },
+        });
+        await systemQueue.add(JOB_NAMES.GENERATE_QUESTIONS, { materialId });
+      } else {
+        await queueMaterialIngestion(materialId, material.upload_chunks.length > 0);
+      }
+      return { id: jobId, status: 'queued', message: `${material.title} was queued again` };
+    }
+
     const job = await systemQueue.getJob(jobId);
     if (!job) {
       throw new NotFoundException(`Job ${jobId} not found`);

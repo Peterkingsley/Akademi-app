@@ -713,6 +713,14 @@ export class AdminController {
     }
   }
 
+  async getFinanceOperations(req: Request, res: Response) {
+    try {
+      res.json(await adminService.getFinanceOperations());
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async getQuestionBankInventory(req: Request, res: Response) {
     try {
       res.json(await adminService.getQuestionBankInventory());

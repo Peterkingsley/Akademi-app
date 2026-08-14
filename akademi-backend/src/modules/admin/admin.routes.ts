@@ -136,6 +136,7 @@ router.get('/finance/transactions', authorizeRoles(AdminRole.SUPER_ADMIN), (req,
 router.get('/finance/failed-payments', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFailedPayments(req, res));
 router.get('/finance/projections', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFinanceProjections(req, res));
 router.get('/finance/webhooks', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getPaystackWebhookLogs(req, res));
+router.get('/finance/operations', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getFinanceOperations(req, res));
 
 // Pillar 7: AI & System Monitoring
 router.get('/system/ai', authorizeRoles(AdminRole.SUPER_ADMIN), (req, res) => adminController.getAIMonitoring(req, res));

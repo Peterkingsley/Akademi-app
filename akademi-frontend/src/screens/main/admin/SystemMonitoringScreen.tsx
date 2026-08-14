@@ -286,23 +286,24 @@ export const SystemMonitoringScreen: React.FC = () => {
               {jobs.map((job, index) => (
                 <View key={index} style={styles.jobRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.jobName}>{job.name}</Text>
+                    <Text style={styles.jobName}>{job.label || job.name}</Text>
                     <Text style={styles.jobMeta}>
                       Last run: {new Date(job.lastRun).toLocaleTimeString()} • {job.duration}
                     </Text>
+                    {job.error ? <Text style={[styles.jobMeta, { color: colors.error }]} numberOfLines={2}>{job.error}</Text> : null}
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Badge
                       label={job.status}
                       variant={job.status === "success" ? "success" : "error"}
                     />
-                    <TouchableOpacity
+                    {job.status === "failed" && job.id !== "inline-queue" ? <TouchableOpacity
                       style={styles.retryBtn}
-                      onPress={() => handleRetryJob(job.name)}
+                      onPress={() => handleRetryJob(job.id)}
                       activeOpacity={0.7}
                     >
                       <RefreshCcw size={14} color={colors.textPrimary} />
-                    </TouchableOpacity>
+                    </TouchableOpacity> : null}
                   </View>
                 </View>
               ))}

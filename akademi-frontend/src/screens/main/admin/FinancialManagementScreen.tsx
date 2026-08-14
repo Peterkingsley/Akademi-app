@@ -1,176 +1,176 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { AlertTriangle, CreditCard, RefreshCcw, WalletCards } from "lucide-react-native";
 import { Screen } from "../../../components/layout/Screen";
-import { useTheme } from "../../../theme/ThemeContext";
-import { adminService } from "../../../services/adminService";
-import { Card } from "../../../components/ui/Card";
-import { ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp } from "lucide-react-native";
 import { Badge } from "../../../components/ui/Badge";
+import { Card } from "../../../components/ui/Card";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { adminService } from "../../../services/adminService";
+import { useTheme } from "../../../theme/ThemeContext";
+
+type Tab = "subscriptions" | "purchases" | "cases";
+
+const money = (value: unknown) => `₦${Number(value || 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+const date = (value: unknown) => value ? new Date(String(value)).toLocaleString() : "—";
 
 export const FinancialManagementScreen: React.FC = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors, typography } = useTheme();
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<any>(null);
-  const [webhooks, setWebhooks] = useState<any[]>([]);
-  const [expandedLog, setExpandedLog] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [tab, setTab] = useState<Tab>("subscriptions");
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const load = useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError("");
     try {
-      setLoading(true);
-      const [overviewData, webhookData] = await Promise.all([
-        adminService.getFinanceOverview(),
-        adminService.getPaystackWebhookLogs()
-      ]);
-      setOverview(overviewData);
-      setWebhooks(webhookData);
-    } catch (error) {
-      console.error("Failed to fetch finance data", error);
+      setData(await adminService.getFinanceOperations());
+    } catch (requestError: any) {
+      setError(requestError?.response?.data?.message || "Could not load financial operations.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const rows = useMemo(() => {
+    if (tab === "subscriptions") return data?.subscriptions || [];
+    if (tab === "purchases") return data?.koinPurchases || [];
+    return data?.koinCases || [];
+  }, [data, tab]);
+
+  const renderRow = (item: any) => {
+    if (tab === "subscriptions") {
+      const paid = ["SUCCESS", "success", "successful"].includes(item.status);
+      const active = paid && (!item.expires_at || new Date(item.expires_at) > new Date());
+      return (
+        <OperationRow
+          key={item.id}
+          title={item.user?.name || item.user?.email || "Unknown user"}
+          subtitle={`${item.product_code || "Premium"} · ${date(item.purchased_at)}`}
+          detail={`Expires ${date(item.expires_at)}`}
+          status={active ? "ACTIVE" : paid ? "EXPIRED" : item.status}
+          statusVariant={active ? "success" : paid ? "warning" : "error"}
+          colors={colors}
+          typography={typography}
+        />
+      );
+    }
+
+    if (tab === "purchases") {
+      return (
+        <OperationRow
+          key={item.id}
+          title={`${Number(item.koin_amount).toLocaleString()} Koin · ${money(item.naira_amount_kobo / 100)}`}
+          subtitle={item.user?.name || item.user?.email || "Unknown user"}
+          detail={`${item.reference} · ${date(item.created_at)}`}
+          status={item.status}
+          statusVariant={item.status === "PAID" ? "success" : item.status === "FAILED" ? "error" : "warning"}
+          colors={colors}
+          typography={typography}
+        />
+      );
+    }
+
+    return (
+      <OperationRow
+        key={item.id}
+        title={`${Number(item.koin_amount).toLocaleString()} Koin · ${money(item.naira_amount_kobo / 100)}`}
+        subtitle={item.user?.name || item.user?.email || "Unknown user"}
+        detail={item.failure_reason || `${item.reference} · ${date(item.requested_at)}`}
+        status={item.status}
+        statusVariant="error"
+        colors={colors}
+        typography={typography}
+      />
+    );
   };
 
-  const FinanceCard = ({ title, amount, trend, trendValue }: any) => (
-    <Card style={styles.financeCard}>
-      <Text style={[typography.caption, { color: colors.textSecondary }]}>{title}</Text>
-      <View style={styles.amountRow}>
-        <Text style={[typography.h3, { color: colors.textPrimary, fontWeight: '700' }]}>
-          ₦{amount?.toLocaleString() || "0"}
-        </Text>
-        <View style={[styles.trendBadge, { backgroundColor: trend === 'up' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)' }]}>
-          {trend === 'up' ? <ArrowUpRight size={12} color="#10B981" /> : <ArrowDownRight size={12} color="#EF4444" />}
-          <Text style={[typography.caption, { color: trend === 'up' ? "#10B981" : "#EF4444", fontWeight: '700', marginLeft: 2 }]}>
-            {trendValue}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-
   return (
-    <Screen title="Financial Management" scrollable>
-      <View style={styles.container}>
-        {loading ? (
-          <View style={styles.grid}>
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} width="48%" height={100} borderRadius={16} />)}
+    <Screen title="Money Operations">
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.primary} />}
+      >
+        <View style={styles.headingRow}>
+          <View style={styles.headingCopy}>
+            <Text style={[typography.h3, { color: colors.textPrimary }]}>Payments control room</Text>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>Subscriptions, Koin purchases and payout cases from the live ledger.</Text>
           </View>
+          <TouchableOpacity style={[styles.refreshButton, { borderColor: colors.border }]} onPress={() => void load(true)}>
+            <RefreshCcw size={17} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <View style={styles.summaryGrid}>{[1, 2, 3, 4].map((item) => <Skeleton key={item} width="48%" height={96} borderRadius={16} />)}</View>
         ) : (
-          <View style={styles.grid}>
-            <FinanceCard title="TOTAL REVENUE" amount={overview?.totalRevenue} trend="up" trendValue="+14%" />
-            <FinanceCard title="MONTHLY" amount={overview?.monthlyRevenue} trend="up" trendValue="+8%" />
-            <FinanceCard title="WEEKLY" amount={overview?.weeklyRevenue} trend="down" trendValue="-2%" />
-            <FinanceCard title="DAILY" amount={overview?.todayRevenue} trend="up" trendValue="+24%" />
+          <View style={styles.summaryGrid}>
+            <SummaryCard icon={CreditCard} label="Active Premium" value={data?.summary?.activeSubscriptions || 0} colors={colors} typography={typography} />
+            <SummaryCard icon={CreditCard} label="Subscription revenue" value={money(data?.summary?.subscriptionRevenueNaira)} colors={colors} typography={typography} />
+            <SummaryCard icon={WalletCards} label="Koin revenue" value={money(data?.summary?.koinRevenueNaira)} colors={colors} typography={typography} />
+            <SummaryCard icon={AlertTriangle} label="Cases to review" value={data?.summary?.koinCasesNeedingReview || 0} danger colors={colors} typography={typography} />
           </View>
         )}
 
-        <View style={styles.section}>
-          <Text style={[typography.label, { color: colors.textMuted, marginBottom: 16 }]}>WEBHOOK EVENT LOGS</Text>
-          <Card style={styles.logCard}>
-            {loading ? (
-              [1, 2, 3].map(i => <Skeleton key={i} width="100%" height={60} style={{ marginVertical: 8 }} />)
-            ) : (
-              webhooks.map((log) => (
-                <View key={log.id} style={[styles.logEntry, { borderBottomColor: colors.border }]}>
-                  <TouchableOpacity
-                    style={styles.logHeader}
-                    onPress={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.logTitleRow}>
-                        <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: '700', fontFamily: 'SpaceMono_400Regular' }]}>
-                          {log.event_type}
-                        </Text>
-                        <Badge
-                          label={log.status}
-                          variant={log.status === 'processed' ? 'success' : 'error'}
-                          style={{ marginLeft: 8 }}
-                        />
-                      </View>
-                      <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                        Ref: {log.reference} • {new Date(log.created_at).toLocaleTimeString()}
-                      </Text>
-                    </View>
-                    {expandedLog === log.id ? <ChevronUp size={16} color={colors.textMuted} /> : <ChevronDown size={16} color={colors.textMuted} />}
-                  </TouchableOpacity>
-
-                  {expandedLog === log.id && (
-                    <View style={[styles.logPayload, { backgroundColor: colors.surface }]}>
-                      <Text style={[styles.payloadText, { color: colors.textPrimary }]}>
-                        {JSON.stringify(JSON.parse(log.payload), null, 2)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))
-            )}
-          </Card>
+        <View style={[styles.tabs, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {([
+            ["subscriptions", "Subscriptions"],
+            ["purchases", "Koin purchases"],
+            ["cases", `Koin cases (${data?.summary?.koinCasesNeedingReview || 0})`],
+          ] as Array<[Tab, string]>).map(([value, label]) => (
+            <TouchableOpacity key={value} style={[styles.tab, tab === value && { backgroundColor: colors.primary }]} onPress={() => setTab(value)}>
+              <Text style={[typography.caption, { color: tab === value ? "#FFFFFF" : colors.textSecondary, fontWeight: "700" }]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
+
+        {error ? <Text style={[typography.bodySmall, styles.error, { color: colors.error }]}>{error}</Text> : null}
+
+        <Card style={styles.listCard}>
+          {!loading && rows.length === 0 ? (
+            <View style={styles.empty}><Text style={[typography.bodySmall, { color: colors.textSecondary }]}>No records in this section.</Text></View>
+          ) : rows.map(renderRow)}
+        </Card>
+      </ScrollView>
     </Screen>
   );
 };
 
+const SummaryCard = ({ icon: Icon, label, value, danger, colors, typography }: any) => (
+  <Card style={styles.summaryCard}>
+    <Icon size={18} color={danger ? colors.error : colors.primary} />
+    <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 10 }]}>{label}</Text>
+    <Text style={[typography.h3, { color: danger ? colors.error : colors.textPrimary, marginTop: 3 }]}>{value}</Text>
+  </Card>
+);
+
+const OperationRow = ({ title, subtitle, detail, status, statusVariant, colors, typography }: any) => (
+  <View style={[styles.operationRow, { borderBottomColor: colors.border }]}>
+    <View style={styles.operationCopy}>
+      <Text style={[typography.bodySmall, { color: colors.textPrimary, fontWeight: "700" }]}>{title}</Text>
+      <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 3 }]}>{subtitle}</Text>
+      <Text style={[typography.caption, { color: colors.textMuted, marginTop: 3 }]} numberOfLines={2}>{detail}</Text>
+    </View>
+    <Badge label={status} variant={statusVariant} />
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  financeCard: {
-    width: "48%",
-    padding: 16,
-    marginBottom: 4,
-  },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  trendBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  section: {
-    marginTop: 32,
-    marginBottom: 40,
-  },
-  logCard: {
-    padding: 0,
-    overflow: 'hidden',
-  },
-  logEntry: {
-    borderBottomWidth: 1,
-  },
-  logHeader: {
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logPayload: {
-    padding: 12,
-    margin: 16,
-    marginTop: 0,
-    borderRadius: 8,
-  },
-  payloadText: {
-    fontFamily: 'SpaceMono_400Regular',
-    fontSize: 10,
-    lineHeight: 16,
-  }
+  container: { padding: 16, paddingBottom: 48 },
+  headingRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  headingCopy: { flex: 1, paddingRight: 12 },
+  refreshButton: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  summaryGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10 },
+  summaryCard: { width: "48%", minHeight: 104, padding: 14 },
+  tabs: { flexDirection: "row", borderWidth: 1, borderRadius: 14, padding: 4, marginTop: 22, marginBottom: 12 },
+  tab: { flex: 1, minHeight: 38, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
+  listCard: { padding: 0, overflow: "hidden" },
+  operationRow: { flexDirection: "row", alignItems: "flex-start", padding: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  operationCopy: { flex: 1, paddingRight: 10 },
+  empty: { padding: 28, alignItems: "center" },
+  error: { paddingVertical: 10 },
 });
