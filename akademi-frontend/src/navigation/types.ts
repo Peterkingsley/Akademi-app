@@ -145,6 +145,7 @@ export type MainStackParamList = {
   CompetitionJoinCode: undefined;
   CompetitionLeaderboard: undefined;
   KoinWallet: undefined;
+  SellKoin: undefined;
   TournamentDetail: { tournamentId: string };
   CreateCompetition: undefined;
   CompetitionLobby: { roomId: string };
