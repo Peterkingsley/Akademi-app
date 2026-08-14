@@ -5,6 +5,7 @@ import { Screen } from "../../components/layout/Screen";
 import { Card } from "../../components/ui/Card";
 import { KoinWallet, koinService } from "../../services/koin";
 import { useTheme } from "../../theme/ThemeContext";
+import * as WebBrowser from "expo-web-browser";
 
 const labels: Record<string, string> = {
   PURCHASE: "Koin purchase", REWARD_SENT: "Player reward", REWARD_RECEIVED: "Reward received",
@@ -19,6 +20,7 @@ export const KoinWalletScreen: React.FC = () => {
   const [packages, setPackages] = useState<Array<{ koin: number; naira: number; enabled: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [buyingKoin, setBuyingKoin] = useState<number | null>(null);
 
   const load = async (refresh = false) => {
     try {
@@ -30,6 +32,35 @@ export const KoinWalletScreen: React.FC = () => {
     } finally { setLoading(false); setRefreshing(false); }
   };
   useEffect(() => { void load(); }, []);
+
+  const buyKoin = async (koinAmount: number, enabled: boolean) => {
+    if (!enabled || buyingKoin !== null) {
+      if (!enabled) Alert.alert("Koin purchases unavailable", "Koin purchases have not been enabled yet.");
+      return;
+    }
+    try {
+      setBuyingKoin(koinAmount);
+      const checkout = await koinService.purchase(koinAmount);
+      await WebBrowser.openBrowserAsync(checkout.paymentUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        controlsColor: colors.brand.foreground,
+      });
+      try {
+        const confirmation = await koinService.verifyPurchase(checkout.reference);
+        await load(true);
+        Alert.alert(
+          confirmation.credited ? "Koin added" : "Payment confirmed",
+          `${koinAmount.toLocaleString()} Koin is available in your wallet.`,
+        );
+      } catch {
+        Alert.alert("Payment awaiting confirmation", "If you completed payment, pull down to refresh in a moment. Your Koin will be added automatically after Kora confirms it.");
+      }
+    } catch (error: any) {
+      Alert.alert("Payment unavailable", error?.response?.data?.message || "We could not open Kora checkout. Please try again.");
+    } finally {
+      setBuyingKoin(null);
+    }
+  };
 
   if (loading) return <Screen style={[styles.screen, styles.center, { backgroundColor: colors.bg.canvas }]}><ActivityIndicator color={colors.brand.foreground} size="large" /></Screen>;
 
@@ -58,8 +89,8 @@ export const KoinWalletScreen: React.FC = () => {
           <Text style={[typeScale.h3, { color: colors.fg.primary }]}>Buy Koin</Text>
           <View style={styles.packages}>
             {packages.map((item) => (
-              <Pressable key={item.koin} onPress={() => Alert.alert("Koin purchases", item.enabled ? "Checkout setup is in progress." : "Purchases will open after payment-provider approval.")} style={[styles.package, { backgroundColor: colors.bg.surface, borderColor: colors.borderRoles.default, borderRadius: radius.md }]}>
-                <Coins size={18} color={colors.brand.foreground} /><Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>{item.koin.toLocaleString()}</Text><Text style={[typeScale.caption, { color: colors.fg.muted }]}>₦{item.naira.toLocaleString()}</Text>
+              <Pressable key={item.koin} disabled={buyingKoin !== null} onPress={() => void buyKoin(item.koin, item.enabled)} style={[styles.package, { backgroundColor: colors.bg.surface, borderColor: colors.borderRoles.default, borderRadius: radius.md, opacity: buyingKoin !== null && buyingKoin !== item.koin ? 0.55 : 1 }]}>
+                {buyingKoin === item.koin ? <ActivityIndicator size="small" color={colors.brand.foreground} /> : <Coins size={18} color={colors.brand.foreground} />}<Text style={[typeScale.bodyStrong, { color: colors.fg.primary }]}>{item.koin.toLocaleString()}</Text><Text style={[typeScale.caption, { color: colors.fg.muted }]}>₦{item.naira.toLocaleString()}</Text>
               </Pressable>
             ))}
           </View>

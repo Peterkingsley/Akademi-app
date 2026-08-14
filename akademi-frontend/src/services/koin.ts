@@ -28,9 +28,19 @@ export type KoinPool = {
   winner_user_id?: string | null;
 };
 
+export type KoinCheckout = {
+  paymentUrl: string;
+  reference: string;
+  koinAmount: number;
+  amount: number;
+  currency: "NGN";
+};
+
 export const koinService = {
   async getWallet() { return (await api.get<KoinWallet>("/koin/wallet")).data; },
   async getPackages() { return (await api.get<Array<{ koin: number; naira: number; enabled: boolean }>>("/koin/packages")).data; },
+  async purchase(koinAmount: number) { return (await api.post<KoinCheckout>("/koin/purchases", { koinAmount })).data; },
+  async verifyPurchase(reference: string) { return (await api.post(`/koin/purchases/${encodeURIComponent(reference)}/verify`)).data; },
   async reward(recipientUserId: string, amount: number, message?: string) {
     return (await api.post("/koin/rewards", { recipientUserId, amount, message })).data;
   },

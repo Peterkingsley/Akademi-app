@@ -7,6 +7,8 @@ const WITHDRAWAL_KOBO_PER_KOIN = 80;
 const WINNER_SHARE_PERCENT = 80;
 const MAX_REWARD_KOIN = 250;
 const MAX_EVENT_CONTRIBUTION_KOIN = 1000;
+const PURCHASE_PACKAGES = [100, 500, 1000, 5000] as const;
+const KOBO_PER_KOIN = 100;
 
 const reference = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
@@ -149,7 +151,137 @@ export class KoinService {
   }
 
   getPurchasePackages() {
-    return [100, 500, 1000, 5000].map((koin) => ({ koin, naira: koin, enabled: config.koinPurchasesEnabled }));
+    return PURCHASE_PACKAGES.map((koin) => ({ koin, naira: koin, enabled: config.koinPurchasesEnabled }));
+  }
+
+  async initiatePurchase(userId: string, koinAmount: number) {
+    if (!config.koinPurchasesEnabled) throw new Error('Koin purchases are not available yet');
+    if (!config.koraSecretKey) throw new Error('Kora checkout is not configured');
+    if (!PURCHASE_PACKAGES.includes(koinAmount as any)) throw new Error('Choose a valid Koin package');
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, is_deleted: false, is_banned: false },
+      select: { id: true, email: true, name: true },
+    });
+    if (!user) throw new Error('User not found');
+
+    const purchaseReference = reference('KOIN');
+    await prisma.koinPurchase.create({
+      data: {
+        user_id: user.id,
+        koin_amount: koinAmount,
+        naira_amount_kobo: koinAmount * KOBO_PER_KOIN,
+        reference: purchaseReference,
+      },
+    });
+
+    try {
+      const response = await fetch('https://api.korapay.com/merchant/api/v1/charges/initialize', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${config.koraSecretKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: koinAmount,
+          currency: 'NGN',
+          reference: purchaseReference,
+          notification_url: `${config.publicApiUrl.replace(/\/$/, '')}/koin/kora/webhook`,
+          redirect_url: `akademi://koin-wallet?reference=${encodeURIComponent(purchaseReference)}`,
+          narration: `${koinAmount} Akademi Koin purchase`,
+          channels: ['card', 'bank_transfer', 'pay_with_bank'],
+          customer: { email: user.email, name: user.name },
+          metadata: { purpose: 'koin-purchase', koin: koinAmount, userId: user.id },
+        }),
+      });
+      const result: any = await response.json().catch(() => null);
+      if (!response.ok || result?.status !== true || !result?.data?.checkout_url) {
+        throw new Error(result?.message || 'Kora could not initialize Koin checkout');
+      }
+      return {
+        paymentUrl: result.data.checkout_url,
+        reference: purchaseReference,
+        koinAmount,
+        amount: koinAmount,
+        currency: 'NGN',
+      };
+    } catch (error) {
+      await prisma.koinPurchase.updateMany({
+        where: { reference: purchaseReference, status: 'PENDING' },
+        data: { status: 'FAILED' },
+      });
+      throw error;
+    }
+  }
+
+  async verifyAndCreditPurchase(purchaseReference: string, expectedUserId?: string) {
+    if (!purchaseReference) throw new Error('Koin purchase reference is missing');
+    if (!config.koraSecretKey) throw new Error('Kora verification is not configured');
+
+    const purchase = await prisma.koinPurchase.findUnique({
+      where: { reference: purchaseReference },
+      include: { user: { select: { email: true } } },
+    });
+    if (!purchase || (expectedUserId && purchase.user_id !== expectedUserId)) {
+      throw new Error('Koin purchase not found');
+    }
+    if (purchase.status === 'PAID') {
+      const wallet = await prisma.koinWallet.findUnique({ where: { user_id: purchase.user_id } });
+      return { paid: true, credited: false, balance: wallet?.balance || 0, purchase };
+    }
+
+    const response = await fetch(
+      `https://api.korapay.com/merchant/api/v1/charges/${encodeURIComponent(purchaseReference)}`,
+      { headers: { Authorization: `Bearer ${config.koraSecretKey}` } },
+    );
+    const result: any = await response.json().catch(() => null);
+    const charge = result?.data;
+    if (!response.ok || result?.status !== true || charge?.status !== 'success') {
+      throw new Error('Kora has not confirmed this Koin payment');
+    }
+    if (charge.currency !== 'NGN') throw new Error('Koin purchases must be paid in NGN');
+
+    const paidAmount = Number(charge.amount_accepted ?? charge.amount_paid ?? charge.amount);
+    const expectedAmount = purchase.naira_amount_kobo / 100;
+    if (!Number.isFinite(paidAmount) || paidAmount !== expectedAmount) {
+      throw new Error(`Kora payment amount does not match this Koin purchase`);
+    }
+    const customerEmail = String(charge.customer?.email || charge.customer_email || charge.email || '').trim().toLowerCase();
+    if (customerEmail && customerEmail !== purchase.user.email.trim().toLowerCase()) {
+      throw new Error('Kora customer does not match this Koin purchase');
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const claimed = await tx.koinPurchase.updateMany({
+        // A delayed success may arrive after an earlier failure callback. Server-side
+        // verification is authoritative, so a verified charge may recover FAILED.
+        where: { id: purchase.id, status: { in: ['PENDING', 'FAILED'] } },
+        data: {
+          status: 'PAID',
+          provider_reference: String(charge.transaction_reference || charge.reference || purchaseReference),
+          paid_at: new Date(),
+        },
+      });
+      if (claimed.count === 0) {
+        const wallet = await tx.koinWallet.findUnique({ where: { user_id: purchase.user_id } });
+        return { paid: true, credited: false, balance: wallet?.balance || 0, purchase };
+      }
+      const wallet = await this.credit(
+        tx,
+        purchase.user_id,
+        purchase.koin_amount,
+        'PURCHASE',
+        `purchase_${purchase.reference}`,
+        { purchaseId: purchase.id, provider: 'korapay', nairaAmount: expectedAmount },
+      );
+      const updatedPurchase = await tx.koinPurchase.findUniqueOrThrow({ where: { id: purchase.id } });
+      return { paid: true, credited: true, balance: wallet.balance, purchase: updatedPurchase };
+    }, { isolationLevel: 'Serializable' as any });
+  }
+
+  async markPurchaseFailed(purchaseReference: string) {
+    if (!purchaseReference) return;
+    await prisma.koinPurchase.updateMany({
+      where: { reference: purchaseReference, status: 'PENDING' },
+      data: { status: 'FAILED' },
+    });
   }
 }
 
