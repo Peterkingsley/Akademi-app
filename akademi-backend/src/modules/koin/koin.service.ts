@@ -234,8 +234,18 @@ export class KoinService {
           await prisma.koinWithdrawal.update({ where: { id: withdrawal.id }, data: { status: 'PROCESSING', failure_reason: 'Payout confirmation pending' } });
           return { ...withdrawal, status: 'PROCESSING', account };
         }
-        await this.failAndRefundWithdrawal(withdrawalReference, result?.message || 'Kora rejected payout');
-        throw new Error(result?.message || 'Kora rejected payout');
+        const providerMessage = String(result?.message || 'Kora rejected payout');
+        await this.failAndRefundWithdrawal(withdrawalReference, providerMessage);
+
+        if (/whitelist.*ip|ip.*whitelist/i.test(providerMessage)) {
+          console.error('Kora payout blocked by IP allowlist configuration', {
+            withdrawalReference,
+            responseStatus: response.status,
+          });
+          throw new Error('Koin payouts are temporarily unavailable while Akademi completes payout security setup. Your Koin has been returned.');
+        }
+
+        throw new Error(providerMessage);
       }
       const updated = await prisma.koinWithdrawal.update({
         where: { id: withdrawal.id },
