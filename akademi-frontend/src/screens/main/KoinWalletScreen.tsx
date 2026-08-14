@@ -71,7 +71,7 @@ export const KoinWalletScreen: React.FC = () => {
           <View style={[styles.koinIcon, { backgroundColor: colors.brand.subtle }]}><Coins size={28} color={colors.brand.foreground} /></View>
           <Text style={[typeScale.secondary, { color: colors.fg.secondary }]}>Available balance</Text>
           <Text style={[styles.balance, { color: colors.fg.primary }]}>{(wallet?.balance || 0).toLocaleString()} Koin</Text>
-          <Text style={[typeScale.secondary, { color: colors.fg.muted }]}>Withdrawable value: ₦{(wallet?.withdrawableNaira || 0).toLocaleString()}</Text>
+          <Text style={[typeScale.secondary, { color: colors.fg.muted }]}>Value: ₦{(wallet?.balance || 0).toLocaleString()}</Text>
           <View style={[styles.rateBox, { backgroundColor: colors.bg.surfaceRaised, borderRadius: radius.md }]}>
             <View style={styles.rateColumn}>
               <Text style={[typeScale.caption, styles.rateLabel, { color: colors.fg.secondary }]}>BUY RATE</Text>
