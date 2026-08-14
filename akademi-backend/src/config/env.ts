@@ -65,6 +65,7 @@ export const config = {
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || '',
   paystackWebhookSecret: process.env.PAYSTACK_WEBHOOK_SECRET || '',
   koraSecretKey: process.env.KORA_SECRET_KEY || '',
+  koraPublicKey: process.env.KORA_PUBLIC_KEY || '',
   publicApiUrl: process.env.PUBLIC_API_URL || 'https://akademi-app-1.onrender.com',
   koinPurchasesEnabled: process.env.KOIN_PURCHASES_ENABLED === 'true',
   koinWithdrawalsEnabled: process.env.KOIN_WITHDRAWALS_ENABLED === 'true',

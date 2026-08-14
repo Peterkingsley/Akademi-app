@@ -21,6 +21,7 @@ jest.mock('../src/config/env', () => ({
   config: {
     koinPurchasesEnabled: true,
     koraSecretKey: 'sk_test_secret',
+    koraPublicKey: 'pk_test_public',
     publicApiUrl: 'https://api.akademi.test',
   },
 }));
@@ -58,6 +59,18 @@ describe('Korapay Koin purchases', () => {
     }));
     const request = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
     expect(request).toMatchObject({ amount: 500, currency: 'NGN', notification_url: 'https://api.akademi.test/feature-access/kora/webhook' });
+  });
+
+  it('uses the Kora public key for the miscellaneous bank API', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: true, data: [{ name: 'Test Bank', code: '044', slug: 'test-bank' }] }),
+    }) as any;
+    await expect(koinService.listBanks()).resolves.toEqual([{ name: 'Test Bank', code: '044', slug: 'test-bank' }]);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/misc/banks?countryCode=NG'),
+      expect.objectContaining({ headers: { Authorization: 'Bearer pk_test_public' } }),
+    );
   });
 
   it('credits a verified purchase exactly once through an atomic claim', async () => {

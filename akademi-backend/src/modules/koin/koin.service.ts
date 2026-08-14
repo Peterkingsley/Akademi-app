@@ -137,9 +137,9 @@ export class KoinService {
   }
 
   async listBanks() {
-    if (!config.koraSecretKey) throw new Error('Kora payouts are not configured');
+    if (!config.koraPublicKey) throw new Error('Kora public key is not configured');
     const response = await fetch(`${KORA_API}/misc/banks?countryCode=NG`, {
-      headers: { Authorization: `Bearer ${config.koraSecretKey}` },
+      headers: { Authorization: `Bearer ${config.koraPublicKey}` },
     });
     const result: any = await response.json().catch(() => null);
     if (!response.ok || result?.status !== true || !Array.isArray(result?.data)) throw new Error(result?.message || 'Unable to load Nigerian banks');
@@ -147,12 +147,12 @@ export class KoinService {
   }
 
   async resolveBankAccount(bankCode: string, accountNumber: string) {
-    if (!config.koraSecretKey) throw new Error('Kora payouts are not configured');
+    if (!config.koraPublicKey) throw new Error('Kora public key is not configured');
     if (!/^\d{3,6}$/.test(bankCode)) throw new Error('Choose a valid bank');
     if (!/^\d{10}$/.test(accountNumber)) throw new Error('Enter a valid 10-digit account number');
     const response = await fetch(`${KORA_API}/misc/banks/resolve`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${config.koraSecretKey}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${config.koraPublicKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ bank: bankCode, account: accountNumber, currency: 'NG' }),
     });
     const result: any = await response.json().catch(() => null);
