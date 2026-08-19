@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Animated, { FadeInUp } from "react-native-reanimated";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
@@ -161,8 +162,9 @@ export const HomeScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
   const { width } = useWindowDimensions();
+  const tabBarHeight = useBottomTabBarHeight();
   const bannerWidth = width - 36;
-  const isCompactLayout = width < 420;
+  const isCompactLayout = width < 560;
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [learningProfile, setLearningProfile] = useState<LearningProfile | null>(null);
@@ -491,7 +493,12 @@ export const HomeScreen: React.FC = () => {
   };
 
   return (
-    <Screen scrollable hideHeader style={styles.screen}>
+    <Screen
+      scrollable
+      hideHeader
+      style={styles.screen}
+      contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+    >
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.navigate("Profile")} activeOpacity={0.75}>
@@ -776,7 +783,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     flex: 1,
     paddingHorizontal: 18,
     paddingTop: 2,
-    paddingBottom: 24,
+    paddingBottom: 0,
   },
   header: {
     alignItems: "center",
@@ -1012,6 +1019,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
   },
   dualPanelsCompact: {
     flexDirection: "column",
+    gap: 12,
   },
   dualPanelCard: {
     backgroundColor: colors.surface,

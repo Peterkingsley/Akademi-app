@@ -27,6 +27,7 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  pressScale?: number;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -38,11 +39,12 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   icon,
   style,
+  pressScale,
 }) => {
   const { colors, controlSize, radius, typeScale } = useTheme();
   const styles = useMemo(() => createStyles(colors, controlSize, radius), [colors, controlSize, radius]);
   const displayLabel = label || title || "";
-  const { animatedStyle, onPressIn, onPressOut } = usePressBounce(0.93);
+  const { animatedStyle, onPressIn, onPressOut } = usePressBounce(pressScale ?? 0.93);
   const shade = useSharedValue(0);
 
   const shadeStyle = useAnimatedStyle(() => ({

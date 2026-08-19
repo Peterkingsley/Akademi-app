@@ -10,8 +10,10 @@ import {
   TextStyle,
 } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { typography } from "../../theme/typography";
 import { useTheme } from "../../theme/ThemeContext";
+import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { useVoiceComposer } from "../../hooks/useVoiceComposer";
 import { appendTranscript } from "../../services/voice";
 import { VoiceInputButton } from "./VoiceInputButton";
@@ -28,6 +30,7 @@ interface InputProps {
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
   labelStyle?: TextStyle;
+  labelAccessory?: React.ReactNode;
   enableVoiceInput?: boolean;
   maxLength?: number;
 }
@@ -44,13 +47,24 @@ export const Input: React.FC<InputProps> = ({
   leftIcon,
   style,
   labelStyle,
+  labelAccessory,
   enableVoiceInput,
   maxLength,
 }) => {
   const { colors, controlSize, radius, typeScale } = useTheme();
   const styles = useMemo(() => createStyles(colors, controlSize, radius), [colors, controlSize, radius]);
-  const [isFocused, setIsFocused] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [isPasswordVisible, setIsPasswordVisible] = useState(!secureTextEntry);
+  const focusProgress = useSharedValue(0);
+
+  const focusStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      focusProgress.value,
+      [0, 1],
+      [colors.surfaceElevated, colors.brand.subtle],
+    ),
+    borderColor: interpolateColor(focusProgress.value, [0, 1], [colors.border, colors.primary]),
+  }));
   // Voice is opt-in. Generic forms, search fields, and profile inputs should
   // not show a microphone merely because they use the shared Input component.
   const voiceEnabled = enableVoiceInput === true && !secureTextEntry;
@@ -67,12 +81,15 @@ export const Input: React.FC<InputProps> = ({
   return (
     <View style={[styles.container, style]}>
       {label ? (
-        <Text style={[styles.label, typeScale.label, labelStyle]}>{label}</Text>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, typeScale.label, labelStyle]}>{label}</Text>
+          {labelAccessory}
+        </View>
       ) : null}
-      <View
+      <Animated.View
         style={[
           styles.inputContainer,
-          isFocused && styles.inputFocused,
+          focusStyle,
           !!error && styles.inputError,
         ]}
       >
@@ -83,8 +100,12 @@ export const Input: React.FC<InputProps> = ({
           placeholderTextColor={colors.textMuted}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={() => {
+            focusProgress.value = withTiming(1, { duration: reduceMotion ? 0 : 160 });
+          }}
+          onBlur={() => {
+            focusProgress.value = withTiming(0, { duration: reduceMotion ? 0 : 160 });
+          }}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -114,7 +135,7 @@ export const Input: React.FC<InputProps> = ({
             )}
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
       {!!error && (
         <Text style={[styles.errorText, typeScale.caption]} accessibilityLiveRegion="polite">{error}</Text>
       )}
@@ -133,8 +154,13 @@ const createStyles = (
   },
   label: {
     color: colors.textSecondary,
-    marginBottom: 8,
     fontSize: 14,
+  },
+  labelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
   inputContainer: {
     flexDirection: "row",
@@ -145,9 +171,6 @@ const createStyles = (
     borderColor: colors.border,
     minHeight: controlSize.inputMinHeight,
     paddingHorizontal: 16,
-  },
-  inputFocused: {
-    borderColor: colors.primary,
   },
   inputError: {
     borderColor: colors.error,

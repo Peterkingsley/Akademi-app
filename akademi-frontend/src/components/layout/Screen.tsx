@@ -21,6 +21,7 @@ interface ScreenProps {
   rightAction?: React.ReactNode;
   scrollable?: boolean;
   style?: StyleProp<ViewStyle>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
   hideHeader?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
 }
@@ -33,6 +34,7 @@ export const Screen: React.FC<ScreenProps> = ({
   rightAction,
   scrollable = false,
   style,
+  contentContainerStyle,
   hideHeader = false,
   refreshControl,
 }) => {
@@ -57,7 +59,7 @@ export const Screen: React.FC<ScreenProps> = ({
         {scrollable ? (
           <ScrollView
             style={[styles.content, { backgroundColor: colors.background }, style]}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
             keyboardShouldPersistTaps="handled"
             refreshControl={refreshControl}
           >
