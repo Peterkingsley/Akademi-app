@@ -77,6 +77,22 @@ describe('conversational quality validator', () => {
     expect(prepackaged[0]).toMatchObject({ turn_id: '11', signals: expect.arrayContaining(['SUMMARY_OPENER', 'LONG_COMPARED_TO_HOST2_TURNS', 'MULTI_CONCLUSION', 'MULTIPLE_DISCOURSE_CONNECTORS']) });
   });
 
+  it('flags the alternate live phrasing when it still bundles the whole lesson', () => {
+    const report = validateConversationalQuality(dialogue([
+      turn('001', 'HOST_1', 'A candidate needs a majority, and a split vote leaves no leader for that term.'),
+      turn('002', 'HOST_2', 'Could a new election give the cluster another chance?', 'DEDUCE'),
+      turn('003', 'HOST_1', 'Yes. Election timeouts permit new attempts after a split vote.'),
+      turn('004', 'HOST_2', 'What prevents every server from starting together again?', 'DEDUCE'),
+      turn('005', 'HOST_1', 'Randomized election timeouts make simultaneous starts and split votes less likely.'),
+      turn('006', 'HOST_2', 'Would identical timeouts cause another collision?', 'DEDUCE'),
+      turn('007', 'HOST_1', 'Randomization makes a leader more likely to be elected, but cannot make split votes impossible.'),
+      turn('008', 'HOST_2', 'Does that keep a collision possible?', 'CHALLENGE'),
+      turn('009', 'HOST_1', 'It does, and another election can try again.'),
+      turn('012', 'HOST_2', 'So, randomized election timeouts are a probabilistic mitigation for split votes. They make it much more likely a leader will be elected, allow the system to recover from a split vote by trying again, but still acknowledge that a split vote could rarely occur.', 'SYNTHESIZE'),
+    ]), analysis);
+    expect(report.issues.find((item) => item.type === 'HOST2_PREPACKAGED_SYNTHESIS')).toMatchObject({ turn_id: '012', signals: expect.arrayContaining(['LONG_COMPARED_TO_HOST2_TURNS', 'MULTI_CONCLUSION', 'MULTIPLE_DISCOURSE_CONNECTORS']) });
+  });
+
   it('does not flag concise new relationships, predictions, or a compact callback', () => {
     const report = validateConversationalQuality(dialogue([
       turn('0', 'HOST_1', 'Randomized timers make candidates less likely to start together.'),

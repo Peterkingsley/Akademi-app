@@ -86,8 +86,8 @@ function prepackagedSynthesisSignals(turns: ProductionDialogueScript['turns'], i
   const novelRatio = currentTokens.filter((word) => !priorTokens.has(word)).length / Math.max(1, currentTokens.length);
   const connectorCount = new Set(Array.from(text.toLowerCase().matchAll(discourseConnectors), (match) => match[0])).size;
   const conclusionCount = [
-    /\b(?:reduce|less likely|rare|stagger)\b/i,
-    /\b(?:majority|one candidate|secure a leader)\b/i,
+    /\b(?:reduce|(?:more|less) likely|rare(?:ly)?|stagger|mitigation)\b/i,
+    /\b(?:majority|one candidate|secure a leader|leader\s+will\s+be\s+elected)\b/i,
     /\b(?:not|still).{0,24}\b(?:impossible|possible|split vote|collision)\b/i,
     /\b(?:new election|another election|try again|retry|another chance)\b/i,
   ].filter((pattern) => pattern.test(text)).length;
@@ -162,7 +162,10 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       issues.push({ type: 'HOST2_ECHO', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'High lexical overlap with the preceding Host 1 turn without a new causal connection, challenge, boundary, or example.' });
     }
     const synthesisSignals = prepackagedSynthesisSignals(dialogue.turns, index);
-    if (synthesisSignals.length >= 3 && synthesisSignals.includes('MULTI_CONCLUSION') && (synthesisSignals.includes('SUMMARY_OPENER') || synthesisSignals.includes('HIGH_PRIOR_TURN_OVERLAP'))) {
+    const hasStrongSynthesisContext = synthesisSignals.includes('SUMMARY_OPENER')
+      || synthesisSignals.includes('HIGH_PRIOR_TURN_OVERLAP')
+      || (synthesisSignals.includes('LONG_COMPARED_TO_HOST2_TURNS') && synthesisSignals.includes('MULTIPLE_DISCOURSE_CONNECTORS'));
+    if (synthesisSignals.length >= 3 && synthesisSignals.includes('MULTI_CONCLUSION') && hasStrongSynthesisContext) {
       prepackaged += 1;
       issues.push({ type: 'HOST2_PREPACKAGED_SYNTHESIS', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, signals: synthesisSignals, reason: 'Host 2 packages several already-established conclusions as a polished recap without adding a new prediction, challenge, boundary test, contrast, or unresolved question.' });
     }
