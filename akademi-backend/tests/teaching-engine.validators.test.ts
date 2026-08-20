@@ -70,6 +70,10 @@ describe('teaching engine deterministic validation', () => {
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.required).toContain('schema_version');
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.schema_version.enum)
       .toEqual([EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION]);
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.tier.enum)
+      .toContain('CORE_PILLAR');
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.epistemic_status.enum)
+      .toContain('CONFIRMED');
   });
 
   it('accepts a source-grounded Raft teaching plan and dialogue', () => {

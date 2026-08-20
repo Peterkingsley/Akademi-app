@@ -122,6 +122,17 @@ export class TeachingEngineService {
             expected_schema_version: args.stage === 'analysis' ? EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION : undefined,
             actual_schema_version: Object.prototype.hasOwnProperty.call(parsed, 'schema_version') ? parsed.schema_version : undefined,
             top_level_keys: Object.keys(parsed).sort(),
+            concept_classifications: Array.isArray(parsed.concepts)
+              ? parsed.concepts.slice(0, 12).map((concept) => {
+                const value = concept && typeof concept === 'object' ? concept as Record<string, unknown> : {};
+                return {
+                  concept_id: value.concept_id,
+                  tier: value.tier,
+                  epistemic_status: value.epistemic_status,
+                  teaching_priority: value.teaching_priority,
+                };
+              })
+              : undefined,
             validation_issues: issues,
             provider_response: response.metadata || { provider: 'unknown' },
           };
