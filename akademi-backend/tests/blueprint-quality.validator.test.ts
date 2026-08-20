@@ -35,6 +35,21 @@ describe('blueprint quality validator', () => {
     });
   });
 
+  it.each([
+    "Randomized timeouts reduce simultaneous candidacy, don't eliminate split votes, and make leader election more reliable.",
+    'The retry mechanism prevents permanent failure, lets the system recover, and keeps the cluster available.',
+  ])('flags a compact but complete multi-layer recap: %s', (payload) => {
+    const report = validateBlueprintQuality(blueprint([
+      turn('1', 'HOST_1', 'EXPLAIN', 'Election attempts can collide or fail.'),
+      turn('2', 'HOST_2', 'SYNTHESIZE', payload),
+    ]));
+    expect(report.issues).toHaveLength(1);
+    expect(report.issues[0]).toMatchObject({
+      type: 'HOST2_OVERCOMPLETE_PAYLOAD',
+      signals: expect.arrayContaining(['MULTI_CONCLUSION', 'HIGH_PAYLOAD_DENSITY']),
+    });
+  });
+
   it('flags the V0.4 terminal recap more strongly than the V0.5 version', () => {
     const v04 = validateBlueprintQuality(blueprint([
       turn('1', 'HOST_1', 'EXPLAIN', 'Randomized timeouts stagger starts.'),

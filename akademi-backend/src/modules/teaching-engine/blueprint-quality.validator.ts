@@ -12,6 +12,7 @@ export type Host2OvercompletePayloadSignal =
   | 'GLOBAL_OUTCOME_CLAUSE'
   | 'RECOVERY_CLAUSE'
   | 'EXCEPTION_CLAUSE'
+  | 'CAUSAL_CONSEQUENCE_CLAUSE'
   | 'HIGH_PAYLOAD_DENSITY';
 
 export interface BlueprintQualityIssue {
@@ -38,10 +39,13 @@ const summaryLanguage = /\b(?:summari[sz]e|in summary|so the picture is|putting 
 const resultClauses = /\b(?:so|therefore|however|but|while|still|which means|and if)\b/gi;
 const mechanismClause = /\b(?:randomi[sz](?:e|ed|ing|ation)|timeout|stagger|separat(?:e|ing)|reduc(?:e|es|ing|tion)|less likely|mitigat(?:e|es|ion)|prevent)\b/i;
 const qualificationClause = /\b(?:do(?:es)?n't\s+(?:make|eliminate)|do\s+not\s+(?:make|eliminate)|not\s+guaranteed|cannot\s+guarantee|can't\s+guarantee|rare\s+but\s+possible|less\s+likely\s*,?\s*(?:but|not)\s+impossible|still\s+possible|can\s+still\s+happen|not\s+a\s+silver\s+bullet)\b/i;
-const exceptionClause = /\b(?:rare\s+but\s+possible|still\s+possible|can\s+still\s+happen|occasional(?:ly)?|by\s+chance|not\s+a\s+silver\s+bullet)\b/i;
+const exceptionClause = /\b(?:rare\s+but\s+possible|still\s+possible|can\s+still\s+happen|occasional(?:ly)?|by\s+chance|not\s+a\s+silver\s+bullet|(?:prevent|avoid)(?:s|ing)?\s+(?:a\s+)?permanent\s+failure|(?:failure|outage)\s+is(?:n't|\s+not)\s+permanent)\b/i;
 const recoveryClause = /\b(?:retry|try again|new election|another chance|recover|recovery|next term|another round)\b/i;
-const globalOutcomeClause = /\b(?:efficient(?:ly)?|reliable|reliably|robust|stable|successful|resilient|availability|ensure(?:s|d)?\s+progress|leader\s+election\s+(?:works|will\s+work)|system\s+(?:works|will\s+work)|overall\s+reliability|eventually|over\s+multiple\s+terms|liveness)\b/i;
-const causalConsequenceClause = /\b(?:majority|head start|single candidate|successful election|contention)\b/i;
+const globalOutcomeClause = /\b(?:efficient(?:ly)?|reliable|reliably|robust|stable|successful|resilient|availab(?:ility|le)|ensure(?:s|d)?\s+progress|leader\s+election\s+(?:works|will\s+work)|system\s+(?:works|will\s+work)|overall\s+reliability|eventually|over\s+multiple\s+terms|liveness)\b/i;
+// This is deliberately narrower than a mechanism: it requires the local election
+// timing mechanism to be tied to its downstream election result. That keeps
+// “randomness makes simultaneous candidacy less likely” as one local insight.
+const causalConsequenceClause = /\b(?:make|makes|making|reduce|reduces|reducing|lower|lowers|lowering|prevent|prevents|preventing)\s+(?:the\s+)?(?:(?:chance|chances|likelihood|frequency)\s+(?:of\s+)?)?(?:split\s+votes?|election\s+contention|leadership\s+contention|failed\s+elections?)\b/i;
 
 function host2MedianWordCount(blueprint: EpisodeTeachingBlueprint, index: number) {
   const counts = blueprint.turns.slice(0, index).filter((turn) => turn.speaker === 'HOST_2').map((turn) => turn.core_epistemic_payload.trim().split(/\s+/).filter(Boolean).length).sort((a, b) => a - b);
@@ -60,7 +64,7 @@ function overcompleteSignals(blueprint: EpisodeTeachingBlueprint, index: number)
   const hasRecovery = recoveryClause.test(payload);
   const hasGlobalOutcome = globalOutcomeClause.test(payload);
   const hasCausalConsequence = causalConsequenceClause.test(payload);
-  const conceptualLayerCount = [hasMechanism, hasQualification, hasRecovery, hasGlobalOutcome, hasCausalConsequence].filter(Boolean).length;
+  const conceptualLayerCount = [hasMechanism, hasQualification, hasException, hasRecovery, hasGlobalOutcome, hasCausalConsequence].filter(Boolean).length;
   const connectorCount = new Set(Array.from(lower.matchAll(resultClauses), (match) => match[0])).size;
   if (summaryLanguage.test(payload)) signals.push('SUMMARY_LANGUAGE');
   if (wordCount >= Math.max(30, host2MedianWordCount(blueprint, index) + 12)) signals.push('LONG_RELATIVE_TO_HOST2');
@@ -68,6 +72,7 @@ function overcompleteSignals(blueprint: EpisodeTeachingBlueprint, index: number)
   if (hasException) signals.push('EXCEPTION_CLAUSE');
   if (hasRecovery) signals.push('RECOVERY_CLAUSE');
   if (hasGlobalOutcome) signals.push('GLOBAL_OUTCOME_CLAUSE');
+  if (hasCausalConsequence) signals.push('CAUSAL_CONSEQUENCE_CLAUSE');
   if (hasMechanism && hasQualification) signals.push('MECHANISM_PLUS_QUALIFICATION');
   if (conceptualLayerCount >= 3) signals.push('MULTI_CONCLUSION');
   if (conceptualLayerCount >= 3 && wordCount <= 60) signals.push('HIGH_PAYLOAD_DENSITY');
