@@ -4,6 +4,11 @@ import {
   EpisodeTeachingBlueprint,
   ProductionDialogueScript,
 } from './types';
+import {
+  EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
+  PRODUCTION_DIALOGUE_SCHEMA_VERSION,
+} from './schema';
 
 const HOST_2_AGENCY_INTENTS = new Set(['DEDUCE', 'CHALLENGE', 'REFRAME', 'TEST_ANALOGY', 'SYNTHESIZE', 'CHECK_UNDERSTANDING']);
 const PASSIVE_HOST_2 = /^(?:wow[,! ]*)?(?:that's fascinating|exactly|tell me more|that's crazy|makes sense)(?:[!. ]+tell me more)?[!. ]*$/i;
@@ -30,7 +35,11 @@ export function parseJsonObject(raw: string): Record<string, unknown> {
 }
 
 function assertAnalysisShape(value: unknown): asserts value is EpisodeTeachingAnalysis {
-  if (!isRecord(value) || value.schema_version !== '0.1') throw new TeachingValidationError(['Invalid analysis schema version.']);
+  if (!isRecord(value)) throw new TeachingValidationError(['Analysis must be a JSON object.']);
+  if (!Object.prototype.hasOwnProperty.call(value, 'schema_version')) throw new TeachingValidationError(['Analysis is missing schema_version.']);
+  if (value.schema_version !== EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION) {
+    throw new TeachingValidationError([`Unsupported analysis schema_version ${JSON.stringify(value.schema_version)}; expected ${EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION}.`]);
+  }
   if (!isRecord(value.analysis_metadata) || !isRecord(value.episode_thesis) || !Array.isArray(value.evidence_registry) || !Array.isArray(value.concepts)) {
     throw new TeachingValidationError(['Analysis is missing required top-level fields.']);
   }
@@ -111,7 +120,7 @@ export function validateAnalysis(value: unknown, analogyRiskThreshold = 0.35): E
 }
 
 export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnalysis): EpisodeTeachingBlueprint {
-  if (!isRecord(value) || value.schema_version !== '0.1' || !Array.isArray(value.turns) || value.turns.length < 2) {
+  if (!isRecord(value) || value.schema_version !== EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION || !Array.isArray(value.turns) || value.turns.length < 2) {
     throw new TeachingValidationError(['Blueprint needs at least two turns.']);
   }
   const blueprint = value as unknown as EpisodeTeachingBlueprint;
@@ -150,7 +159,7 @@ export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnaly
 }
 
 export function validateDialogue(value: unknown, blueprint: EpisodeTeachingBlueprint, analysis: EpisodeTeachingAnalysis): ProductionDialogueScript {
-  if (!isRecord(value) || value.schema_version !== '0.1' || !Array.isArray(value.turns)) throw new TeachingValidationError(['Dialogue has an invalid shape.']);
+  if (!isRecord(value) || value.schema_version !== PRODUCTION_DIALOGUE_SCHEMA_VERSION || !Array.isArray(value.turns)) throw new TeachingValidationError(['Dialogue has an invalid shape.']);
   const script = value as unknown as ProductionDialogueScript;
   const issues: string[] = [];
   const blueprintById = new Map(blueprint.turns.map((turn) => [turn.turn_id, turn]));

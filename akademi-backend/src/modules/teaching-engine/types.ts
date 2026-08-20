@@ -1,3 +1,9 @@
+import {
+  EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
+  PRODUCTION_DIALOGUE_SCHEMA_VERSION,
+} from './schema';
+
 export type ClaimType =
   | 'SOURCE_FACT'
   | 'SOURCE_SYNTHESIS'
@@ -88,7 +94,7 @@ export interface TeachingConcept {
 }
 
 export interface EpisodeTeachingAnalysis {
-  schema_version: '0.1';
+  schema_version: typeof EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION;
   analysis_metadata: { target_learner_level: string; requested_duration_minutes: number; user_focus: string | null; prompt_version: string };
   episode_thesis: { statement: string; claim_type: ClaimType; evidence_ids: string[]; epistemic_status: EpistemicStatus };
   episode_epistemic_goal: { learner_should_understand: string; learner_should_be_able_to_explain: string; learner_should_not_leave_believing: string[] };
@@ -111,7 +117,7 @@ export interface BlueprintTurn {
 }
 
 export interface EpisodeTeachingBlueprint {
-  schema_version: '0.1';
+  schema_version: typeof EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION;
   generation_metadata: { blueprint_prompt_version: string; complexity: Complexity };
   turns: BlueprintTurn[];
 }
@@ -121,7 +127,7 @@ export interface DialogueTurn extends BlueprintTurn {
 }
 
 export interface ProductionDialogueScript {
-  schema_version: '0.1';
+  schema_version: typeof PRODUCTION_DIALOGUE_SCHEMA_VERSION;
   generation_metadata: { dialogue_prompt_version: string; model?: string };
   turns: DialogueTurn[];
 }

@@ -186,6 +186,14 @@ export interface AIRequestOptions {
   // Omitted by default (uses the model's own default). Exists for callers that need explicit
   // control — e.g. an experiment sampling multiple independent runs at a fixed temperature.
   temperature?: number;
+  /** A provider-enforced JSON response shape for generation stages that need it. */
+  jsonSchema?: { name: string; schema: Readonly<Record<string, unknown>> };
+}
+
+export interface AIResponseMetadata {
+  provider: 'openai' | 'gemini' | 'vertex';
+  responseFormat?: 'json_schema';
+  tokenUsage?: { input?: number; output?: number; total?: number };
 }
 
 const PLACEHOLDER_KEYWORDS = [
@@ -219,7 +227,7 @@ function extractOpenAIText(response: any): string {
 async function callOpenAI(
   prompt: string,
   options: AIRequestOptions,
-): Promise<{ text: string; model: string }> {
+): Promise<{ text: string; model: string; metadata: AIResponseMetadata }> {
   if (isPlaceholder(config.openAiApiKey)) throw new Error('OpenAI API key is missing or invalid');
   const model = options.model || config.openAiModel || 'gpt-5-nano';
   let maxOutputTokens = Math.max(options.maxTokens || 1000, 256);
@@ -237,7 +245,10 @@ async function callOpenAI(
         input: prompt,
         max_output_tokens: maxOutputTokens,
         reasoning: { effort: 'minimal' },
-        text: { verbosity: 'medium' },
+        text: {
+          verbosity: 'medium',
+          ...(options.jsonSchema ? { format: { type: 'json_schema', name: options.jsonSchema.name, strict: false, schema: options.jsonSchema.schema } } : {}),
+        },
         store: false,
       }),
     }), options.extendedTimeouts ? EXTENDED_OPENAI_ATTEMPT_TIMEOUT_MS : OPENAI_ATTEMPT_TIMEOUT_MS, `OpenAI (${model})`);
@@ -248,12 +259,17 @@ async function callOpenAI(
     }
     const text = extractOpenAIText(body);
     const truncated = body?.status === 'incomplete' && body?.incomplete_details?.reason === 'max_output_tokens';
-    if (text && !truncated) return { text, model };
+    const metadata: AIResponseMetadata = {
+      provider: 'openai',
+      ...(options.jsonSchema ? { responseFormat: 'json_schema' } : {}),
+      ...(body?.usage ? { tokenUsage: { input: body.usage.input_tokens, output: body.usage.output_tokens, total: body.usage.total_tokens } } : {}),
+    };
+    if (text && !truncated) return { text, model, metadata };
     if (attempt === 0 && truncated) {
       maxOutputTokens = Math.min(maxOutputTokens * 2, MAX_OUTPUT_TOKENS_CEILING);
       continue;
     }
-    if (text) return { text, model };
+    if (text) return { text, model, metadata };
     throw new Error('OpenAI returned an empty response');
   }
   throw new Error('OpenAI response failed');
@@ -394,13 +410,13 @@ export class AIProvider {
   async generateResponseWithModel(
     prompt: string,
     options: AIRequestOptions = {}
-  ): Promise<{ text: string; model: string }> {
+  ): Promise<{ text: string; model: string; metadata: AIResponseMetadata }> {
     const { maxTokens = 1000, systemPrompt, extendedTimeouts = false, temperature } = options;
 
     // GPT-5 nano is Akademi's primary text model. Any configuration, capacity,
     // timeout, or provider error falls through to the existing Gemini chain.
     try {
-      return await callOpenAI(prompt, { maxTokens, systemPrompt, extendedTimeouts, temperature });
+      return await callOpenAI(prompt, { maxTokens, systemPrompt, extendedTimeouts, temperature, jsonSchema: options.jsonSchema });
     } catch (openAiError: any) {
       console.error('OpenAI primary provider failed; falling back to Gemini:', openAiError?.message || openAiError);
     }
@@ -430,6 +446,7 @@ export class AIProvider {
           let attemptMaxTokens = maxTokens;
           let text = '';
           let wasTruncated = false;
+          let usageMetadata: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } | undefined;
 
           // At most one retry per model: if Gemini cuts the answer off at maxOutputTokens,
           // give it a bigger budget once before moving on - most truncations only need a
@@ -443,6 +460,7 @@ export class AIProvider {
               generationConfig: {
                 maxOutputTokens: attemptMaxTokens,
                 ...(temperature !== undefined ? { temperature } : {}),
+                ...(options.jsonSchema ? { responseMimeType: 'application/json', responseSchema: options.jsonSchema.schema as any } : {}),
               },
             });
             const result = await withTimeout(
@@ -453,6 +471,7 @@ export class AIProvider {
             const response = await result.response;
             text = response.text();
             wasTruncated = response.candidates?.[0]?.finishReason === 'MAX_TOKENS';
+            usageMetadata = response.usageMetadata;
 
             if (!wasTruncated || attemptMaxTokens >= MAX_OUTPUT_TOKENS_CEILING) break;
 
@@ -472,7 +491,14 @@ export class AIProvider {
             );
           }
 
-          return { text, model: geminiModelName };
+          return {
+            text, model: geminiModelName,
+            metadata: {
+              provider: 'gemini',
+              ...(options.jsonSchema ? { responseFormat: 'json_schema' } : {}),
+              ...(usageMetadata ? { tokenUsage: { input: usageMetadata.promptTokenCount, output: usageMetadata.candidatesTokenCount, total: usageMetadata.totalTokenCount } } : {}),
+            },
+          };
         } catch (error: any) {
           const errorMessage = error.message || 'Unknown Gemini error';
           geminiError = errorMessage;
@@ -498,7 +524,7 @@ export class AIProvider {
         { role: 'user', parts: [{ text: combinedPrompt }] },
       ], { model: options.model });
       if (vertexText) {
-        return { text: vertexText, model: 'vertex:gemini-2.5-flash' };
+        return { text: vertexText, model: 'vertex:gemini-2.5-flash', metadata: { provider: 'vertex', ...(options.jsonSchema ? { responseFormat: 'json_schema' } : {}) } };
       }
     } catch (vertexError: any) {
       console.error('Vertex AI fallback failed:', vertexError);

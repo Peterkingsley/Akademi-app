@@ -15,9 +15,10 @@ import prisma from '../src/config/db';
 import { aiProvider } from '../src/modules/ai/ai.provider';
 import { TeachingEngineService } from '../src/modules/teaching-engine/teaching-engine.service';
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
+import { EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from '../src/modules/teaching-engine/schema';
 
 const analysis: EpisodeTeachingAnalysis = {
-  schema_version: '0.1',
+  schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
   analysis_metadata: { target_learner_level: 'INTELLIGENT_BEGINNER', requested_duration_minutes: 8, user_focus: null, prompt_version: '0.1' },
   episode_thesis: { statement: 'Randomized timeouts reduce split-vote likelihood.', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },
   episode_epistemic_goal: { learner_should_understand: 'Asymmetry reduces collisions.', learner_should_be_able_to_explain: 'why equal timeouts collide', learner_should_not_leave_believing: ['Randomization prevents every split vote.'] },
@@ -80,6 +81,8 @@ describe('TeachingEngineService fidelity path', () => {
     });
 
     expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(6);
+    expect((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[0][1].jsonSchema.schema.required)
+      .toContain('schema_version');
     expect(result.fidelity).toEqual({ verdict: 'PASS', defects: [] });
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('less likely');
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T1')?.spoken_text).toBe(firstScript.turns[0].spoken_text);

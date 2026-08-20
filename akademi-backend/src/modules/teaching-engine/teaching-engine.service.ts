@@ -17,8 +17,21 @@ import {
   parseJsonObject, TeachingValidationError, validateAnalysis, validateBlueprint,
   validateCriticReview, validateDialogue,
 } from './validators';
+import { ANALYSIS_STRUCTURED_OUTPUT, EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from './schema';
 
 const MAX_PATCH_ATTEMPTS = 1;
+
+export class TeachingCallFailureError extends Error {
+  constructor(
+    message: string,
+    public readonly diagnostic: Record<string, unknown>,
+    /** Returned only to the explicitly enabled development validation harness. */
+    public readonly rawResponse?: string,
+  ) {
+    super(message);
+    this.name = 'TeachingCallFailureError';
+  }
+}
 
 function fingerprint(value: unknown) {
   return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -87,6 +100,7 @@ export class TeachingEngineService {
     model?: string;
     maxTokens: number;
     validate: (value: unknown) => T;
+    structuredOutput?: { name: string; schema: Readonly<Record<string, unknown>> };
   }): Promise<{ artifact: T; model: string; trace: TeachingStageInstrumentation }> {
     let lastError: unknown;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -94,12 +108,32 @@ export class TeachingEngineService {
       try {
         const response = await aiProvider.generateResponseWithModel(
           attempt === 0 ? args.prompt : `${args.prompt}\n\nYour prior output failed validation: ${lastError instanceof Error ? lastError.message : 'invalid JSON'}. Return a corrected JSON object only.`,
-          { model: args.model || undefined, systemPrompt: args.systemPrompt, maxTokens: args.maxTokens, extendedTimeouts: true, temperature: 0.2 },
+          { model: args.model || undefined, systemPrompt: args.systemPrompt, maxTokens: args.maxTokens, extendedTimeouts: true, temperature: 0.2, jsonSchema: args.structuredOutput },
         );
-        const artifact = args.validate(parseJsonObject(response.text));
+        const parsed = parseJsonObject(response.text);
+        let artifact: T;
+        try {
+          artifact = args.validate(parsed);
+        } catch (error) {
+          const issues = error instanceof TeachingValidationError ? error.issues : [error instanceof Error ? error.message : 'Unknown validation error'];
+          const diagnostic = {
+            stage: args.stage === 'analysis' ? 'CALL_1' : args.stage,
+            model: response.model,
+            expected_schema_version: args.stage === 'analysis' ? EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION : undefined,
+            actual_schema_version: Object.prototype.hasOwnProperty.call(parsed, 'schema_version') ? parsed.schema_version : undefined,
+            top_level_keys: Object.keys(parsed).sort(),
+            validation_issues: issues,
+            provider_response: response.metadata || { provider: 'unknown' },
+          };
+          // The raw text is deliberately not logged. The development-only
+          // harness can persist it locally for the Raft fixture if enabled.
+          console.warn('teaching_engine.validation_failed', diagnostic);
+          throw new TeachingCallFailureError(issues.join('; '), diagnostic, response.text);
+        }
         const latencyMs = Date.now() - startedAt;
         const trace: TeachingStageInstrumentation = {
           stage: args.stage as TeachingStageInstrumentation['stage'], latencyMs, model: response.model, attempt: attempt + 1,
+          tokenUsage: response.metadata?.tokenUsage,
         };
         console.info('teaching_engine.stage.completed', { stage: args.stage, latency_ms: latencyMs, model: response.model, attempt: attempt + 1 });
         return { artifact, model: response.model, trace };
@@ -108,6 +142,7 @@ export class TeachingEngineService {
         console.warn('teaching_engine.stage.failed', { stage: args.stage, attempt: attempt + 1, message: error instanceof Error ? error.message : 'Unknown error' });
       }
     }
+    if (lastError instanceof TeachingCallFailureError) throw lastError;
     throw new Error(`Teaching ${args.stage} failed after bounded retries: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`);
   }
 
@@ -115,7 +150,15 @@ export class TeachingEngineService {
     sources: NormalizedSource[], materialId: string | undefined, learnerLevel: string, durationMinutes: number, focus: string | null,
   ) {
     const sourceHash = fingerprint(sources);
-    const cacheKey = fingerprint({ sourceHash, learnerLevel, focus, promptVersion: PROMPT_VERSIONS.analysis });
+    // Versioned cache keys prevent a legacy analysis artifact from being
+    // treated as current merely because the prompt revision is unchanged.
+    const cacheKey = fingerprint({
+      sourceHash,
+      learnerLevel,
+      focus,
+      promptVersion: PROMPT_VERSIONS.analysis,
+      schemaVersion: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+    });
     const cached = await prisma.teachingAnalysisCache.findUnique({ where: { cache_key: cacheKey } });
     if (cached) {
       try {
@@ -136,6 +179,7 @@ export class TeachingEngineService {
       stage: 'analysis', prompt: analysisPrompt(sources, learnerLevel, durationMinutes, focus), systemPrompt: analysisSystemPrompt,
       model: config.teachingAnalysisModel, maxTokens: 12_000,
       validate: (value) => validateAnalysis(value, config.teachingAnalogyRiskThreshold),
+      structuredOutput: ANALYSIS_STRUCTURED_OUTPUT,
     });
     await prisma.teachingAnalysisCache.upsert({
       where: { cache_key: cacheKey },

@@ -1,4 +1,9 @@
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, NormalizedSource, ProductionDialogueScript } from './types';
+import {
+  EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
+  PRODUCTION_DIALOGUE_SCHEMA_VERSION,
+} from './schema';
 
 export const PROMPT_VERSIONS = {
   analysis: '0.1',
@@ -38,7 +43,7 @@ Preserve turn IDs, speaker assignments, intent, evidence bindings, invariant bin
 export function analysisPrompt(sources: NormalizedSource[], learnerLevel: string, durationMinutes: number, focus: string | null) {
   return JSON.stringify({
     task: 'Create EpisodeTeachingAnalysis',
-    schema_version: '0.1',
+    schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
     analysis_metadata: { target_learner_level: learnerLevel, requested_duration_minutes: durationMinutes, user_focus: focus, prompt_version: PROMPT_VERSIONS.analysis },
     required_shape: {
       episode_thesis: { statement: 'string', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },
@@ -50,7 +55,7 @@ export function analysisPrompt(sources: NormalizedSource[], learnerLevel: string
 
 export function blueprintPrompt(analysis: EpisodeTeachingAnalysis, complexity: string) {
   return JSON.stringify({
-    task: 'Create EpisodeTeachingBlueprint', schema_version: '0.1',
+    task: 'Create EpisodeTeachingBlueprint', schema_version: EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
     generation_metadata: { blueprint_prompt_version: PROMPT_VERSIONS.blueprint, complexity },
     required_turn_fields: ['turn_id', 'speaker', 'intent', 'core_epistemic_payload', 'concept_ids', 'invariant_ids', 'misconception_ids', 'evidence_ids', 'analogy_id'],
     analysis,
@@ -59,7 +64,7 @@ export function blueprintPrompt(analysis: EpisodeTeachingAnalysis, complexity: s
 
 export function dialoguePrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint) {
   return JSON.stringify({
-    task: 'Create ProductionDialogueScript', schema_version: '0.1',
+    task: 'Create ProductionDialogueScript', schema_version: PRODUCTION_DIALOGUE_SCHEMA_VERSION,
     generation_metadata: { dialogue_prompt_version: PROMPT_VERSIONS.dialogue },
     required_turn_fields: ['turn_id', 'speaker', 'intent', 'core_epistemic_payload', 'concept_ids', 'invariant_ids', 'misconception_ids', 'evidence_ids', 'analogy_id', 'spoken_text'],
     analysis, blueprint,

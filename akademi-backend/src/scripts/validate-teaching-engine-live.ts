@@ -111,16 +111,25 @@ async function main() {
     throw new Error(`Configure the missing variable(s) above before running a live model validation: ${missing.join(', ')}.`);
   }
 
-  // app.ts does not bind a socket in test mode. Set this only after the safety
-  // check, before importing config/app, so Supertest exercises the real route.
+  // Set this only after the safety check. The test host mounts the actual
+  // production teaching router, including its JWT/admin middleware, without
+  // importing unrelated application modules or opening a listener.
   process.env.NODE_ENV = 'test';
-  const [{ default: prisma }, { config }, { app }, jwtModule, supertestModule] = await Promise.all([
-    import('../config/db'), import('../config/env'), import('../app'), import('jsonwebtoken'), import('supertest'),
+  const [{ default: prisma }, { config }, expressModule, teachingRoutesModule, jwtModule, supertestModule] = await Promise.all([
+    import('../config/db'), import('../config/env'), import('express'), import('../modules/teaching-engine/teaching-engine.routes'), import('jsonwebtoken'), import('supertest'),
   ]);
+  const express = expressModule.default;
+  const teachingRoutes = teachingRoutesModule.default;
+  const app = express();
+  app.use(express.json());
+  app.use('/teaching', teachingRoutes);
   const jwt = jwtModule.default;
   const request = supertestModule.default;
   let connected = false;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const runDir = path.join(OUTPUT_ROOT, timestamp);
   try {
+    await fs.mkdir(runDir, { recursive: true });
     await prisma.$connect();
     connected = true;
     await Promise.all([prisma.teachingAnalysisCache.count(), prisma.teachingEpisode.count()]);
@@ -150,11 +159,17 @@ async function main() {
       .post('/teaching/episodes')
       .set('Authorization', `Bearer ${token}`)
       .send({ materialId: material.id, learnerLevel: 'INTELLIGENT_BEGINNER', durationMinutes: 8, focus: 'Explain why randomized timeouts reduce split votes without making them impossible.', complexity: 'STANDARD' });
-    if (response.status !== 201) throw new Error(`HTTP_INTEGRATION failed with ${response.status}: ${response.body?.message || 'unknown error'}`);
+    if (response.status !== 201) {
+      const diagnostic = response.body?.diagnostic;
+      const rawResponse = response.body?.raw_response;
+      await Promise.all([
+        fs.writeFile(path.join(runDir, 'failure-diagnostic.json'), json({ status: response.status, message: response.body?.message || 'unknown error', diagnostic })),
+        ...(typeof rawResponse === 'string' ? [fs.writeFile(path.join(runDir, 'call-1-raw-response.json'), json({ raw_response: rawResponse }))] : []),
+      ]);
+      if (diagnostic) console.error('CALL_1_SANITIZED_DIAGNOSTIC', json(diagnostic));
+      throw new Error(`HTTP_INTEGRATION failed with ${response.status}: ${response.body?.message || 'unknown error'}`);
+    }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const runDir = path.join(OUTPUT_ROOT, timestamp);
-    await fs.mkdir(runDir, { recursive: true });
     const result = response.body;
     const report = reportFor(result);
     await Promise.all([
@@ -180,7 +195,17 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`Teaching Engine live validation stopped: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-});
+async function exitAfterFlush(code: number) {
+  // Supertest and provider SDKs can retain short-lived handles. This is a
+  // one-off process; the DB disconnect in main's finally has already run.
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  process.exit(code);
+}
+
+main().then(
+  () => exitAfterFlush(0),
+  async (error) => {
+    console.error(`Teaching Engine live validation stopped: ${error instanceof Error ? error.message : String(error)}`);
+    await exitAfterFlush(1);
+  },
+);

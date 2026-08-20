@@ -5,9 +5,13 @@ import {
   validateDialogue,
 } from '../src/modules/teaching-engine/validators';
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
+import {
+  EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA,
+  EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+} from '../src/modules/teaching-engine/schema';
 
 const analysisFixture = (): EpisodeTeachingAnalysis => ({
-  schema_version: '0.1',
+  schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
   analysis_metadata: { target_learner_level: 'INTELLIGENT_BEGINNER', requested_duration_minutes: 8, user_focus: null, prompt_version: '0.1' },
   episode_thesis: { statement: 'Randomized election timeouts reduce simultaneous candidacies.', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },
   episode_epistemic_goal: { learner_should_understand: 'Temporal asymmetry reduces split-vote risk.', learner_should_be_able_to_explain: 'why equal timers can collide', learner_should_not_leave_believing: ['Randomization makes split votes impossible.'] },
@@ -46,6 +50,28 @@ const dialogueFixture = (): ProductionDialogueScript => ({
 });
 
 describe('teaching engine deterministic validation', () => {
+  it('accepts the canonical analysis schema version', () => {
+    expect(validateAnalysis(analysisFixture()).schema_version).toBe(EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION);
+  });
+
+  it('rejects an analysis with no schema version', () => {
+    const fixture: any = analysisFixture();
+    delete fixture.schema_version;
+    expect(() => validateAnalysis(fixture)).toThrow('missing schema_version');
+  });
+
+  it('rejects unsupported analysis schema versions without normalizing them', () => {
+    const fixture: any = analysisFixture();
+    fixture.schema_version = 'v0.1';
+    expect(() => validateAnalysis(fixture)).toThrow('Unsupported analysis schema_version "v0.1"; expected 0.1.');
+  });
+
+  it('requires the canonical schema version in the Call 1 structured-output contract', () => {
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.required).toContain('schema_version');
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.schema_version.enum)
+      .toEqual([EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION]);
+  });
+
   it('accepts a source-grounded Raft teaching plan and dialogue', () => {
     const analysis = validateAnalysis(analysisFixture());
     const blueprint = validateBlueprint(blueprintFixture(), analysis);
