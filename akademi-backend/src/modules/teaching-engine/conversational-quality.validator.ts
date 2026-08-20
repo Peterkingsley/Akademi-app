@@ -1,6 +1,7 @@
 import type { EpisodeTeachingAnalysis, ProductionDialogueScript } from './types';
 
 export type ConversationalQualityIssueType = 'REPETITIVE_AFFIRMATION' | 'UNSUPPORTED_INTENSITY' | 'HOST2_LEADING_QUESTION' | 'HOST2_ECHO' | 'HOST2_PREPACKAGED_SYNTHESIS' | 'REPEATED_OPENER' | 'REPEATED_EXCHANGE_PATTERN';
+export type Host2PrepackagedSynthesisSignal = 'SUMMARY_OPENER' | 'LONG_COMPARED_TO_HOST2_TURNS' | 'MULTI_CONCLUSION' | 'MULTIPLE_DISCOURSE_CONNECTORS' | 'HIGH_PRIOR_TURN_OVERLAP' | 'LOW_NOVEL_RELATIONSHIP_GAIN';
 
 export interface ConversationalQualityIssue {
   type: ConversationalQualityIssueType;
@@ -9,6 +10,7 @@ export interface ConversationalQualityIssue {
   evidence_ids: string[];
   reason: string;
   intensity_context?: 'ASSERTED_INTENSITY' | 'HYPOTHESIS_INTENSITY' | 'NEGATED_INTENSITY';
+  signals?: Host2PrepackagedSynthesisSignal[];
 }
 
 export interface ConversationalQualityReport {
@@ -26,6 +28,7 @@ export interface ConversationalQualityReport {
     repeated_opener_rate: number;
     passive_turn_count: number;
     host2_prepackaged_synthesis_count: number;
+    host2_prepackaged_synthesis_rate: number;
   };
   repeated_affirmation_patterns: string[];
   repeated_turn_openers: string[];
@@ -42,6 +45,10 @@ const affirmation = /^(?:exactly(?: right)?|that's exactly right|that's excellen
 const intensityTerms = ['cripple', 'catastrophic', 'disastrous', 'completely', 'totally', 'permanently', 'guaranteed', 'inevitable', 'impossible', 'always', 'never', 'absolutely', 'instantly', 'perfectly', 'massive', 'devastating'];
 const novelty = /\b(?:because|but|while|if|unless|instead|therefore|which means|for example|imagine|however|reason)\b/i;
 const activeHost2 = new Set(['DEDUCE', 'CHALLENGE', 'TEST_ANALOGY', 'REFRAME', 'SYNTHESIZE', 'CLOSE_LOOP']);
+const summaryOpener = /^(?:okay,?\s+so|so basically|in summary|so the picture is|what this means is|so we(?:'ve| have) got|putting that together)\b/i;
+const relationshipGain = /\b(?:if|would|could|might|why|how|unless|instead|imagine|for example|compare|versus)\b/i;
+const discourseConnectors = /\b(?:so|which makes|which means|however|therefore|but|and if|while|still)\b/gi;
+const stopWords = new Set(['about', 'after', 'again', 'also', 'another', 'because', 'being', 'between', 'candidate', 'candidates', 'chance', 'cluster', 'could', 'does', 'election', 'elections', 'entirely', 'every', 'from', 'have', 'into', 'just', 'leader', 'leaders', 'like', 'makes', 'means', 'more', 'most', 'need', 'only', 'other', 'over', 'really', 'server', 'servers', 'split', 'still', 'system', 'that', 'their', 'there', 'these', 'this', 'those', 'timeout', 'timeouts', 'under', 'what', 'when', 'where', 'which', 'while', 'with', 'would']);
 
 function tokens(text: string) {
   return new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((word) => word.length > 2));
@@ -51,6 +58,46 @@ function jaccard(left: string, right: string) {
   const a = tokens(left); const b = tokens(right);
   const intersection = [...a].filter((word) => b.has(word)).length;
   return intersection / Math.max(1, a.size + b.size - intersection);
+}
+
+function meaningfulTokens(text: string) {
+  return [...tokens(text)].filter((word) => !stopWords.has(word));
+}
+
+function priorHost1Text(turns: ProductionDialogueScript['turns'], index: number) {
+  return turns.slice(0, index).filter((turn) => turn.speaker === 'HOST_1').map((turn) => turn.spoken_text).join(' ');
+}
+
+function priorHost2WordMedian(turns: ProductionDialogueScript['turns'], index: number) {
+  const counts = turns.slice(0, index).filter((turn) => turn.speaker === 'HOST_2').map((turn) => turn.spoken_text.trim().split(/\s+/).filter(Boolean).length).sort((a, b) => a - b);
+  if (!counts.length) return 0;
+  return counts[Math.floor(counts.length / 2)];
+}
+
+function prepackagedSynthesisSignals(turns: ProductionDialogueScript['turns'], index: number): Host2PrepackagedSynthesisSignal[] {
+  const text = turns[index].spoken_text.trim();
+  if (/\?|\b(?:wait|wouldn't|couldn't|how|why)\b/i.test(text) || (relationshipGain.test(text) && /\?$/.test(text))) return [];
+  const signals: Host2PrepackagedSynthesisSignal[] = [];
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const priorHost1 = priorHost1Text(turns, index);
+  const priorTokens = new Set(meaningfulTokens(priorHost1));
+  const currentTokens = meaningfulTokens(text);
+  const overlap = currentTokens.filter((word) => priorTokens.has(word)).length / Math.max(1, currentTokens.length);
+  const novelRatio = currentTokens.filter((word) => !priorTokens.has(word)).length / Math.max(1, currentTokens.length);
+  const connectorCount = new Set(Array.from(text.toLowerCase().matchAll(discourseConnectors), (match) => match[0])).size;
+  const conclusionCount = [
+    /\b(?:reduce|less likely|rare|stagger)\b/i,
+    /\b(?:majority|one candidate|secure a leader)\b/i,
+    /\b(?:not|still).{0,24}\b(?:impossible|possible|split vote|collision)\b/i,
+    /\b(?:new election|another election|try again|retry|another chance)\b/i,
+  ].filter((pattern) => pattern.test(text)).length;
+  if (summaryOpener.test(text)) signals.push('SUMMARY_OPENER');
+  if (wordCount >= Math.max(28, priorHost2WordMedian(turns, index) + 12)) signals.push('LONG_COMPARED_TO_HOST2_TURNS');
+  if (conclusionCount >= 3 || (text.split(/[.!?]+/).filter(Boolean).length >= 3 && connectorCount >= 2)) signals.push('MULTI_CONCLUSION');
+  if (connectorCount >= 3) signals.push('MULTIPLE_DISCOURSE_CONNECTORS');
+  if (overlap >= 0.4) signals.push('HIGH_PRIOR_TURN_OVERLAP');
+  if (currentTokens.length >= 8 && novelRatio <= 0.45) signals.push('LOW_NOVEL_RELATIONSHIP_GAIN');
+  return signals;
 }
 
 function opener(text: string) {
@@ -114,13 +161,10 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       echoes += 1;
       issues.push({ type: 'HOST2_ECHO', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'High lexical overlap with the preceding Host 1 turn without a new causal connection, challenge, boundary, or example.' });
     }
-    const answerShapedStatement = /^(?:so,? )?(?:to summarize:|summary:|the .+ must be|the .+ prevents|the .+ means)/i.test(text)
-      && /\b(?:must be|requires|reduce|retry|guarantee|prevent|permanent)\b/i.test(text)
-      && text.split(/\s+/).length >= 16
-      && !/\bif\b|\bwould\b|\bwait\b|\bwhy\b|\bhow\b/.test(text.toLowerCase());
-    if (answerShapedStatement) {
+    const synthesisSignals = prepackagedSynthesisSignals(dialogue.turns, index);
+    if (synthesisSignals.length >= 3 && synthesisSignals.includes('MULTI_CONCLUSION') && (synthesisSignals.includes('SUMMARY_OPENER') || synthesisSignals.includes('HIGH_PRIOR_TURN_OVERLAP'))) {
       prepackaged += 1;
-      issues.push({ type: 'HOST2_PREPACKAGED_SYNTHESIS', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'Host 2 packages several established conclusions as a ready-made explanation rather than advancing a partial inference or challenge.' });
+      issues.push({ type: 'HOST2_PREPACKAGED_SYNTHESIS', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, signals: synthesisSignals, reason: 'Host 2 packages several already-established conclusions as a polished recap without adding a new prediction, challenge, boundary test, contrast, or unresolved question.' });
     }
     if (!activeHost2.has(turn.intent)) passive += 1;
   });
@@ -141,7 +185,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       host2_agency_ratio: Number(agency.toFixed(2)), host2_leading_question_rate: Number((leading / Math.max(1, host2.length)).toFixed(2)), host2_echo_rate: Number((echoes / Math.max(1, host2.length)).toFixed(2)),
       affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: assertedIntensity,
       asserted_intensity_count: assertedIntensity, hypothesis_intensity_count: hypothesisIntensity, negated_intensity_count: negatedIntensity,
-      repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive, host2_prepackaged_synthesis_count: prepackaged,
+      repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive, host2_prepackaged_synthesis_count: prepackaged, host2_prepackaged_synthesis_rate: Number((prepackaged / Math.max(1, host2.length)).toFixed(2)),
     },
     repeated_affirmation_patterns: [...new Set(affirmations.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))],
     repeated_turn_openers: repeatedOpeners,
