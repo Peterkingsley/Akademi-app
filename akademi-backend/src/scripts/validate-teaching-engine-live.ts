@@ -70,7 +70,7 @@ function host2Category(turn: any) {
 }
 
 function reportFor(result: any) {
-  const { analysis, blueprint, dialogue, fidelity, fidelityHistory = [], preRepairDialogue, instrumentation, conversationalQuality } = result;
+  const { analysis, blueprint, dialogue, fidelity, fidelityHistory = [], preRepairDialogue, instrumentation, conversationalQuality, rawConversationalQuality, host1OpeningRepairs = [] } = result;
   const core = analysis.concepts.filter((concept: any) => concept.tier === 'CORE_PILLAR');
   const host2Turns = dialogue.turns.filter((turn: any) => turn.speaker === 'HOST_2');
   const host2 = host2Turns.map((turn: any) => ({ turn, category: host2Category(turn) }));
@@ -172,7 +172,7 @@ async function main() {
 
     const result = response.body;
     const qualityReport = result.conversationalQuality
-      ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Metrics: ${json(result.conversationalQuality.metrics).trim()}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}” | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
+      ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 opening repairs: ${result.host1OpeningRepairs?.filter((repair: any) => repair.applied).map((repair: any) => `${repair.turn_id}: ${repair.removed_text}`).join('; ') || 'none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}” | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
     const report = `${reportFor(result)}${qualityReport}`;
     await Promise.all([
@@ -181,6 +181,8 @@ async function main() {
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),
       fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, instrumentation: result.instrumentation })),
       fs.writeFile(path.join(runDir, 'conversational-quality.json'), json(result.conversationalQuality)),
+      fs.writeFile(path.join(runDir, 'conversational-quality-raw.json'), json(result.rawConversationalQuality)),
+      fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),
       fs.writeFile(path.join(runDir, 'repaired-dialogue.json'), json(result.preRepairDialogue ? { original: result.preRepairDialogue, repaired: result.dialogue } : { repaired: false, dialogue: result.dialogue })),
       fs.writeFile(path.join(runDir, 'report.md'), report),
     ]);

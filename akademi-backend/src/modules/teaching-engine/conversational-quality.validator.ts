@@ -1,6 +1,6 @@
 import type { EpisodeTeachingAnalysis, ProductionDialogueScript } from './types';
 
-export type ConversationalQualityIssueType = 'REPETITIVE_AFFIRMATION' | 'UNSUPPORTED_INTENSITY' | 'HOST2_LEADING_QUESTION' | 'HOST2_ECHO' | 'REPEATED_OPENER' | 'REPEATED_EXCHANGE_PATTERN';
+export type ConversationalQualityIssueType = 'REPETITIVE_AFFIRMATION' | 'UNSUPPORTED_INTENSITY' | 'HOST2_LEADING_QUESTION' | 'HOST2_ECHO' | 'HOST2_PREPACKAGED_SYNTHESIS' | 'REPEATED_OPENER' | 'REPEATED_EXCHANGE_PATTERN';
 
 export interface ConversationalQualityIssue {
   type: ConversationalQualityIssueType;
@@ -25,6 +25,7 @@ export interface ConversationalQualityReport {
     negated_intensity_count: number;
     repeated_opener_rate: number;
     passive_turn_count: number;
+    host2_prepackaged_synthesis_count: number;
   };
   repeated_affirmation_patterns: string[];
   repeated_turn_openers: string[];
@@ -68,7 +69,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
   const affirmations: string[] = [];
   const openerCounts = new Map<string, number>();
   const host2 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_2');
-  let leading = 0; let echoes = 0; let passive = 0;
+  let leading = 0; let echoes = 0; let passive = 0; let prepackaged = 0;
   let assertedIntensity = 0; let hypothesisIntensity = 0; let negatedIntensity = 0;
 
   dialogue.turns.forEach((turn, index) => {
@@ -113,6 +114,14 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       echoes += 1;
       issues.push({ type: 'HOST2_ECHO', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'High lexical overlap with the preceding Host 1 turn without a new causal connection, challenge, boundary, or example.' });
     }
+    const answerShapedStatement = /^(?:so,? )?(?:to summarize:|summary:|the .+ must be|the .+ prevents|the .+ means)/i.test(text)
+      && /\b(?:must be|requires|reduce|retry|guarantee|prevent|permanent)\b/i.test(text)
+      && text.split(/\s+/).length >= 16
+      && !/\bif\b|\bwould\b|\bwait\b|\bwhy\b|\bhow\b/.test(text.toLowerCase());
+    if (answerShapedStatement) {
+      prepackaged += 1;
+      issues.push({ type: 'HOST2_PREPACKAGED_SYNTHESIS', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'Host 2 packages several established conclusions as a ready-made explanation rather than advancing a partial inference or challenge.' });
+    }
     if (!activeHost2.has(turn.intent)) passive += 1;
   });
 
@@ -132,7 +141,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       host2_agency_ratio: Number(agency.toFixed(2)), host2_leading_question_rate: Number((leading / Math.max(1, host2.length)).toFixed(2)), host2_echo_rate: Number((echoes / Math.max(1, host2.length)).toFixed(2)),
       affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: assertedIntensity,
       asserted_intensity_count: assertedIntensity, hypothesis_intensity_count: hypothesisIntensity, negated_intensity_count: negatedIntensity,
-      repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive,
+      repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive, host2_prepackaged_synthesis_count: prepackaged,
     },
     repeated_affirmation_patterns: [...new Set(affirmations.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))],
     repeated_turn_openers: repeatedOpeners,

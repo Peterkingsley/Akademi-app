@@ -4,6 +4,7 @@ import {
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
 import type { ConversationalQualityReport } from './conversational-quality.validator';
+import type { Host1OpeningRepair } from './host1-opening-repair';
 
 export type ClaimType =
   | 'SOURCE_FACT'
@@ -170,6 +171,8 @@ export interface TeachingEpisodeResult {
   /** First review and, when applicable, the review after the bounded repair. */
   fidelityHistory: CriticReview[];
   conversationalQuality: ConversationalQualityReport;
+  rawConversationalQuality: ConversationalQualityReport;
+  host1OpeningRepairs: Host1OpeningRepair[];
   tts_handoff: Array<{ turn_id: string; speaker: Host; spoken_text: string }>;
   cachedAnalysis: boolean;
   instrumentation: TeachingGenerationInstrumentation;

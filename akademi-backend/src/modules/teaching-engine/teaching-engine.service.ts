@@ -27,6 +27,7 @@ import {
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
 import { validateConversationalQuality } from './conversational-quality.validator';
+import { repairHost1ValidationOpenings } from './host1-opening-repair';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -255,6 +256,9 @@ export class TeachingEngineService {
     });
     traces.push(dialogueTrace);
     let dialogue: ProductionDialogueScript = { ...realizedDialogue, generation_metadata: { ...realizedDialogue.generation_metadata, model: dialogueModel } };
+    const rawConversationalQuality = validateConversationalQuality(dialogue, analysis);
+    const openingRepair = repairHost1ValidationOpenings(dialogue);
+    dialogue = validateDialogue(openingRepair.dialogue, blueprint, analysis);
     let fidelity: CriticReview | null = null;
     const fidelityHistory: CriticReview[] = [];
     let preRepairDialogue: ProductionDialogueScript | null = null;
@@ -296,7 +300,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs: openingRepair.repairs, cachedAnalysis: cached,
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,
