@@ -122,8 +122,8 @@ async function getVertexAccessToken(sa: ServiceAccountKey): Promise<string> {
 
 async function callVertexAi(
   contents: any[],
-  options: { model?: string; location?: string } = {}
-): Promise<string> {
+  options: { model?: string; location?: string; jsonSchema?: Readonly<Record<string, unknown>> } = {}
+): Promise<{ text: string; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }> {
   const sa = getGcpServiceAccount();
   if (!sa) {
     throw new Error('GCP Service Account credentials missing');
@@ -133,7 +133,15 @@ async function callVertexAi(
   const location = options.location || 'us-central1';
   const model = options.model || 'gemini-2.5-flash';
 
-  const postData = JSON.stringify({ contents });
+  const postData = JSON.stringify({
+    contents,
+    ...(options.jsonSchema ? {
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: options.jsonSchema,
+      },
+    } : {}),
+  });
 
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -156,7 +164,7 @@ async function callVertexAi(
             const data = JSON.parse(body);
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
-              resolve(text);
+              resolve({ text, usageMetadata: data.usageMetadata });
             } else {
               reject(new Error(data.error?.message || 'Vertex AI returned empty response'));
             }
@@ -520,11 +528,19 @@ export class AIProvider {
       const combinedPrompt = systemPrompt
         ? `Instructions: ${systemPrompt}\n\nUser Question: ${prompt}`
         : prompt;
-      const vertexText = await callVertexAi([
+      const vertexResponse = await callVertexAi([
         { role: 'user', parts: [{ text: combinedPrompt }] },
-      ], { model: options.model });
-      if (vertexText) {
-        return { text: vertexText, model: 'vertex:gemini-2.5-flash', metadata: { provider: 'vertex', ...(options.jsonSchema ? { responseFormat: 'json_schema' } : {}) } };
+      ], { model: options.model, jsonSchema: options.jsonSchema?.schema });
+      if (vertexResponse.text) {
+        return {
+          text: vertexResponse.text,
+          model: 'vertex:gemini-2.5-flash',
+          metadata: {
+            provider: 'vertex',
+            ...(options.jsonSchema ? { responseFormat: 'json_schema' } : {}),
+            ...(vertexResponse.usageMetadata ? { tokenUsage: { input: vertexResponse.usageMetadata.promptTokenCount, output: vertexResponse.usageMetadata.candidatesTokenCount, total: vertexResponse.usageMetadata.totalTokenCount } } : {}),
+          },
+        };
       }
     } catch (vertexError: any) {
       console.error('Vertex AI fallback failed:', vertexError);
@@ -612,8 +628,8 @@ export class AIProvider {
           },
         };
       });
-      const vertexText = await callVertexAi([{ role: 'user', parts: vertexParts }]);
-      if (vertexText) return vertexText;
+      const vertexResponse = await callVertexAi([{ role: 'user', parts: vertexParts }]);
+      if (vertexResponse.text) return vertexResponse.text;
     } catch (vertexError: any) {
       console.error('Vertex AI multimodal fallback failed:', vertexError);
     }
