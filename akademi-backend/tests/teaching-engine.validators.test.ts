@@ -8,6 +8,7 @@ import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueSc
 import {
   EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA,
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA,
 } from '../src/modules/teaching-engine/schema';
 
 const analysisFixture = (): EpisodeTeachingAnalysis => ({
@@ -76,6 +77,8 @@ describe('teaching engine deterministic validation', () => {
       .toContain('CONFIRMED');
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.teaching_priority)
       .toMatchObject({ minimum: 0, maximum: 1 });
+    expect(EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA.required).toContain('schema_version');
+    expect(EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA.properties.turns.minItems).toBe(2);
   });
 
   it('accepts a source-grounded Raft teaching plan and dialogue', () => {

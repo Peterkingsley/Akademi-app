@@ -73,3 +73,42 @@ export const ANALYSIS_STRUCTURED_OUTPUT = {
   name: 'episode_teaching_analysis',
   schema: EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA,
 } as const;
+
+export const EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    schema_version: { type: 'string', enum: [EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION] },
+    generation_metadata: {
+      type: 'object',
+      properties: {
+        blueprint_prompt_version: string,
+        complexity: { type: 'string', enum: ['FAST', 'STANDARD', 'DEEP'] },
+      },
+      required: ['blueprint_prompt_version', 'complexity'],
+    },
+    turns: {
+      type: 'array', minItems: 2,
+      items: {
+        type: 'object',
+        properties: {
+          turn_id: string,
+          speaker: { type: 'string', enum: ['HOST_1', 'HOST_2'] },
+          intent: { type: 'string', enum: ['FRAME_FRICTION', 'EXPLAIN', 'DEDUCE', 'CHALLENGE', 'REFRAME', 'TEST_ANALOGY', 'SYNTHESIZE', 'CHECK_UNDERSTANDING', 'CLOSE_LOOP'] },
+          core_epistemic_payload: string,
+          concept_ids: stringList,
+          invariant_ids: stringList,
+          misconception_ids: stringList,
+          evidence_ids: evidenceIdList,
+          analogy_id: { type: 'string', nullable: true },
+        },
+        required: ['turn_id', 'speaker', 'intent', 'core_epistemic_payload', 'concept_ids', 'invariant_ids', 'misconception_ids', 'evidence_ids', 'analogy_id'],
+      },
+    },
+  },
+  required: ['schema_version', 'generation_metadata', 'turns'],
+} as const;
+
+export const BLUEPRINT_STRUCTURED_OUTPUT = {
+  name: 'episode_teaching_blueprint',
+  schema: EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA,
+} as const;

@@ -17,7 +17,12 @@ import {
   parseJsonObject, TeachingValidationError, validateAnalysis, validateBlueprint,
   validateCriticReview, validateDialogue,
 } from './validators';
-import { ANALYSIS_STRUCTURED_OUTPUT, EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from './schema';
+import {
+  ANALYSIS_STRUCTURED_OUTPUT,
+  BLUEPRINT_STRUCTURED_OUTPUT,
+  EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
+} from './schema';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -119,7 +124,9 @@ export class TeachingEngineService {
           const diagnostic = {
             stage: args.stage === 'analysis' ? 'CALL_1' : args.stage,
             model: response.model,
-            expected_schema_version: args.stage === 'analysis' ? EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION : undefined,
+            expected_schema_version: args.stage === 'analysis'
+              ? EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION
+              : args.stage === 'blueprint' ? EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION : undefined,
             actual_schema_version: Object.prototype.hasOwnProperty.call(parsed, 'schema_version') ? parsed.schema_version : undefined,
             top_level_keys: Object.keys(parsed).sort(),
             concept_classifications: Array.isArray(parsed.concepts)
@@ -233,6 +240,7 @@ export class TeachingEngineService {
     const { artifact: blueprint, trace: blueprintTrace } = await this.callJson({
       stage: 'blueprint', prompt: blueprintPrompt(analysis, complexity), systemPrompt: blueprintSystemPrompt,
       model: config.teachingBlueprintModel, maxTokens: 8_000, validate: (value) => validateBlueprint(value, analysis),
+      structuredOutput: BLUEPRINT_STRUCTURED_OUTPUT,
     });
     traces.push(blueprintTrace);
     const { artifact: realizedDialogue, model: dialogueModel, trace: dialogueTrace } = await this.callJson({
