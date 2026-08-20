@@ -15,10 +15,23 @@ describe('conversational quality validator', () => {
 
   it('flags leading Host 2 restatement but not a causal deduction', () => {
     const report = validateConversationalQuality(dialogue([
-      turn('1', 'HOST_2', 'So randomized timeouts reduce collisions, right?', 'DEDUCE'),
+      turn('0', 'HOST_1', 'Randomized timeouts reduce split votes by separating candidate starts.'),
+      turn('1', 'HOST_2', "So what you're saying is randomized timeouts reduce split votes, right?", 'DEDUCE'),
       turn('2', 'HOST_2', "If their timers differ, wouldn't one candidate usually get a head start?", 'DEDUCE'),
     ]), analysis);
     expect(report.issues.filter((issue) => issue.type === 'HOST2_LEADING_QUESTION').map((issue) => issue.turn_id)).toEqual(['1']);
+  });
+
+  it('classifies learner-question and negated intensity separately from asserted inflation', () => {
+    const report = validateConversationalQuality(dialogue([
+      turn('1', 'HOST_2', 'Does that permanently break the cluster?', 'CHALLENGE'),
+      turn('2', 'HOST_1', "It isn't completely impossible."),
+      turn('3', 'HOST_1', 'That permanently breaks the cluster.'),
+    ]), analysis);
+    expect(report.issues.find((issue) => issue.turn_id === '1')?.intensity_context).toBe('HYPOTHESIS_INTENSITY');
+    expect(report.issues.find((issue) => issue.turn_id === '2')?.intensity_context).toBe('NEGATED_INTENSITY');
+    expect(report.issues.find((issue) => issue.turn_id === '3')?.intensity_context).toBe('ASSERTED_INTENSITY');
+    expect(report.metrics.asserted_intensity_count).toBe(1);
   });
 
   it('flags Host 2 echo and unsupported intensity, while allowing supported wording', () => {

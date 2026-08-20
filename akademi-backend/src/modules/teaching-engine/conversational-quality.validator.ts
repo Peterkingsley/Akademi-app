@@ -8,6 +8,7 @@ export interface ConversationalQualityIssue {
   phrase: string;
   evidence_ids: string[];
   reason: string;
+  intensity_context?: 'ASSERTED_INTENSITY' | 'HYPOTHESIS_INTENSITY' | 'NEGATED_INTENSITY';
 }
 
 export interface ConversationalQualityReport {
@@ -19,6 +20,9 @@ export interface ConversationalQualityReport {
     affirmation_count: number;
     affirmation_rate: number;
     unsupported_intensity_count: number;
+    asserted_intensity_count: number;
+    hypothesis_intensity_count: number;
+    negated_intensity_count: number;
     repeated_opener_rate: number;
     passive_turn_count: number;
   };
@@ -65,6 +69,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
   const openerCounts = new Map<string, number>();
   const host2 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_2');
   let leading = 0; let echoes = 0; let passive = 0;
+  let assertedIntensity = 0; let hypothesisIntensity = 0; let negatedIntensity = 0;
 
   dialogue.turns.forEach((turn, index) => {
     const text = turn.spoken_text.trim();
@@ -81,17 +86,29 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
 
     for (const word of intensityTerms) {
       if (new RegExp(`\\b${word}\\b`, 'i').test(text) && !intensityIsSupported(word, turn.evidence_ids, analysis)) {
-        issues.push({ type: 'UNSUPPORTED_INTENSITY', turn_id: turn.turn_id, phrase: word, evidence_ids: turn.evidence_ids, reason: 'Intensity word is not present in the evidence bound to this turn.' });
+        const negated = new RegExp(`(?:not|isn't|is not|doesn't|does not|never)\\s+(?:\\w+\\s+){0,2}${word}`, 'i').test(text);
+        const context = negated ? 'NEGATED_INTENSITY' : (turn.speaker === 'HOST_2' || /\?$/.test(text) ? 'HYPOTHESIS_INTENSITY' : 'ASSERTED_INTENSITY');
+        if (context === 'ASSERTED_INTENSITY') assertedIntensity += 1;
+        if (context === 'HYPOTHESIS_INTENSITY') hypothesisIntensity += 1;
+        if (context === 'NEGATED_INTENSITY') negatedIntensity += 1;
+        if (context === 'ASSERTED_INTENSITY') {
+          issues.push({ type: 'UNSUPPORTED_INTENSITY', turn_id: turn.turn_id, phrase: word, evidence_ids: turn.evidence_ids, intensity_context: context, reason: 'Intensity word is asserted but is not present in the evidence bound to this turn.' });
+        } else {
+          issues.push({ type: 'UNSUPPORTED_INTENSITY', turn_id: turn.turn_id, phrase: word, evidence_ids: turn.evidence_ids, intensity_context: context, reason: context === 'NEGATED_INTENSITY' ? 'Intensity occurs in a negated statement; retained for review, not counted as asserted inflation.' : 'Intensity occurs in a learner hypothesis/question; retained for review, not counted as asserted inflation.' });
+        }
       }
     }
 
     if (turn.speaker !== 'HOST_2') return;
-    const leadingQuestion = /^(?:so .+\b(?:right|isn't it)\?|which means .+\?|so the answer is .+\?|doesn't that mean .+\?|so really (?:it'?s|it is) just .+\?)/i.test(text);
+    const previous = dialogue.turns[index - 1];
+    const directLeading = /^(?:so .+\b(?:right|isn't it)\?|which means .+\?|so the answer is .+\?|doesn't that mean .+\?|so really (?:it'?s|it is) just .+\?)/i.test(text);
+    const confirmationFrame = /^(?:so )?(?:what you're saying is|you're saying|basically|in other words,? you're saying|the idea is|really)/i.test(text);
+    const overlapsPrevious = previous?.speaker === 'HOST_1' && jaccard(previous.spoken_text, text) >= conversationalQualityConfig.echoJaccardThreshold;
+    const leadingQuestion = directLeading || (confirmationFrame && Boolean(overlapsPrevious) && !novelty.test(text));
     if (leadingQuestion && !/\bif\b|\bwould\b|\bwhy\b|\bhow\b/.test(text.toLowerCase())) {
       leading += 1;
       issues.push({ type: 'HOST2_LEADING_QUESTION', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'Host 2 states the intended conclusion and merely appends a question.' });
     }
-    const previous = dialogue.turns[index - 1];
     if (previous?.speaker === 'HOST_1' && jaccard(previous.spoken_text, text) >= conversationalQualityConfig.echoJaccardThreshold && !novelty.test(text)) {
       echoes += 1;
       issues.push({ type: 'HOST2_ECHO', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'High lexical overlap with the preceding Host 1 turn without a new causal connection, challenge, boundary, or example.' });
@@ -113,7 +130,8 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
     verdict: issues.length ? 'PASS_WITH_WARNINGS' : 'PASS',
     metrics: {
       host2_agency_ratio: Number(agency.toFixed(2)), host2_leading_question_rate: Number((leading / Math.max(1, host2.length)).toFixed(2)), host2_echo_rate: Number((echoes / Math.max(1, host2.length)).toFixed(2)),
-      affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: issues.filter((issue) => issue.type === 'UNSUPPORTED_INTENSITY').length,
+      affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: assertedIntensity,
+      asserted_intensity_count: assertedIntensity, hypothesis_intensity_count: hypothesisIntensity, negated_intensity_count: negatedIntensity,
       repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive,
     },
     repeated_affirmation_patterns: [...new Set(affirmations.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))],
