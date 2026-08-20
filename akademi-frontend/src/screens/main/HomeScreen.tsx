@@ -405,6 +405,14 @@ export const HomeScreen: React.FC = () => {
   };
 
   const openQuickAction = (action: QuickAction) => {
+    if (action.id === "ai_tutor" && !user?.admin_role) {
+      Alert.alert(
+        "AI Tutor is coming soon",
+        "Guided tutoring is still in testing. It is not available to students yet."
+      );
+      return;
+    }
+
     navigation.navigate(action.screen);
   };
 

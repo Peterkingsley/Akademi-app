@@ -614,10 +614,13 @@ export const MaterialPracticeScreen: React.FC = () => {
                   QUESTION {currentIndex + 1} OF {questions.length}
                 </Text>
                 
-                <View style={styles.wwtbamQuestionWrap}>
-                  <View style={styles.wwtbamQuestionInner}>
-                    <RichMathText content={currentQuestion.question_text} textColor="#FFFFFF" fontSize={16} />
-                  </View>
+                <View style={styles.questionCard}>
+                  <RichMathText
+                    content={currentQuestion.question_text}
+                    textColor={colors.textPrimary}
+                    fontSize={18}
+                    lineHeight={28}
+                  />
                 </View>
 
                 <View style={styles.optionsList}>
@@ -645,10 +648,10 @@ export const MaterialPracticeScreen: React.FC = () => {
                         <View style={styles.wwtbamOptionTextWrap}>
                           <RichMathText
                             content={option}
-                            textColor={selected ? "#000000" : "#FFFFFF"}
+                            textColor={colors.textPrimary}
                             fontSize={15}
                             lineHeight={1.4}
-                            textAlign="center"
+                            textAlign="left"
                           />
                         </View>
                       </TouchableOpacity>
@@ -936,7 +939,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 140,
+    paddingBottom: 108,
   },
   questionCountLabel: {
     color: colors.textMuted,
@@ -946,47 +949,45 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 1,
   },
-  wwtbamQuestionWrap: {
-    backgroundColor: colors.surfaceElevated,
+  questionCard: {
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 20,
-    padding: 3,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  wwtbamQuestionInner: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 16,
-    alignItems: "center",
+    borderRadius: 14,
+    marginBottom: 20,
+    padding: 20,
   },
   optionsList: {
     gap: 10,
   },
   wwtbamOption: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderColor: colors.border,
+    borderRadius: 12,
     borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
+    flexDirection: "row",
+    minHeight: 64,
     paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   wwtbamOptionSelected: {
-    backgroundColor: colors.primary + "1A",
+    backgroundColor: colors.primary + "16",
     borderColor: colors.primary,
-    elevation: 2,
   },
   wwtbamOptionLetterWrap: {
-    marginRight: 10,
-    marginTop: 1,
+    alignItems: "center",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 999,
+    height: 30,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 30,
   },
   wwtbamOptionLetter: {
-    color: colors.primary,
+    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: "800",
-    fontSize: 16,
   },
   wwtbamOptionLetterSelected: {
     color: colors.primary,
@@ -1003,7 +1004,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     left: 0,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     position: "absolute",
     right: 0,
   },
@@ -1012,7 +1014,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     gap: 6,
-    paddingVertical: 12,
+    minHeight: 48,
   },
   navBtnDisabled: {
     opacity: 0.35,
@@ -1023,6 +1025,7 @@ const styles = StyleSheet.create({
   },
   nextBtn: {
     flex: 1.4,
+    minHeight: 48,
   },
   resultCard: {
     alignItems: "center",

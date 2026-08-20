@@ -206,7 +206,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const route = useRoute<StudyCompanionRoute>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { sessionId } = route.params;
+  const { sessionId, materialTitle, courseCode } = route.params;
 
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [companionState, setCompanionState] = useState<StudyCompanionState | null>(null);
@@ -219,6 +219,7 @@ export const StudyCompanionScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [startModalVisible, setStartModalVisible] = useState(false);
   const [startingMode, setStartingMode] = useState<StartMode | null>(null);
+  const [selectedStartMode, setSelectedStartMode] = useState<StartMode>("beginning");
   const [specificSection, setSpecificSection] = useState("");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
@@ -238,6 +239,17 @@ export const StudyCompanionScreen: React.FC = () => {
   const prefetchedContinueRef = useRef<Message | null>(null);
   const continuePrefetchPromiseRef = useRef<Promise<Message | null> | null>(null);
   const continuePrefetchTokenRef = useRef(0);
+
+  const canContinue = (companionState?.currentSectionIndex ?? 0) > 0;
+  const currentSectionNumber = Math.max(1, (companionState?.currentSectionIndex ?? 0) + 1);
+  const totalSections = companionState?.progress.totalSections ?? companionState?.roadmap.length ?? 0;
+  const sectionSuggestions = useMemo(() => {
+    const query = specificSection.trim().toLowerCase();
+    if (!query) return [];
+    return (companionState?.roadmap ?? [])
+      .filter((section) => section.title.toLowerCase().includes(query))
+      .slice(0, 3);
+  }, [companionState?.roadmap, specificSection]);
   const lastScrollOffsetRef = useRef(0);
   const lastLessonTapRef = useRef(0);
   const composerHeightRef = useRef(0);
@@ -895,9 +907,9 @@ export const StudyCompanionScreen: React.FC = () => {
             <View style={styles.modalCard}>
               <View style={styles.modalHeaderRow}>
                 <View style={styles.modalHeaderTitleWrap}>
-                  <Text style={styles.modalTitle}>Start AI Tutor</Text>
+                  <Text style={styles.modalTitle}>Start tutoring</Text>
                   <Text style={styles.modalText}>
-                    Choose how you want Akademi to begin this study session.
+                    {courseCode} · {materialTitle}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -911,92 +923,95 @@ export const StudyCompanionScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Interactive Option Cards */}
+              <Text style={styles.modalProgressText}>
+                {totalSections > 0
+                  ? `You are on section ${currentSectionNumber} of ${totalSections}.`
+                  : "Choose where you want to begin."}
+              </Text>
+
               <View style={styles.startOptions}>
-                {/* Option 1: Start from Beginning */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  style={[styles.optionCardPrimary, Boolean(startingMode) && { opacity: 0.85 }]}
-                  onPress={() => handleStart("beginning")}
+                  style={[styles.startOption, selectedStartMode === "beginning" && styles.startOptionSelected]}
+                  onPress={() => setSelectedStartMode("beginning")}
                   disabled={Boolean(startingMode)}
                   accessibilityRole="button"
                   accessibilityLabel="Start from beginning"
-                  accessibilityState={{ disabled: Boolean(startingMode), busy: startingMode === "beginning" }}
+                  accessibilityState={{ disabled: Boolean(startingMode), selected: selectedStartMode === "beginning" }}
                 >
-                  <View style={styles.optionCardHeader}>
-                    <Text style={styles.optionTitlePrimary}>Start from beginning</Text>
-                    {startingMode === "beginning" ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <View style={styles.optionBadgePrimary}>
-                        <Text style={styles.optionBadgeTextPrimary}>RECOMMENDED</Text>
-                      </View>
-                    )}
+                  <View style={styles.startOptionRadio}>
+                    {selectedStartMode === "beginning" ? <View style={styles.startOptionRadioDot} /> : null}
                   </View>
-                  <Text style={styles.optionSubPrimary}>
-                    {startingMode === "beginning"
-                      ? "Starting AI Tutor session..."
-                      : "Begin from section 1 with full Socratic breakdown"}
-                  </Text>
+                  <View style={styles.startOptionCopy}>
+                    <Text style={styles.startOptionTitle}>Start from section 1</Text>
+                    <Text style={styles.startOptionDescription}>Build the foundation before moving ahead.</Text>
+                  </View>
                 </TouchableOpacity>
 
-                {/* Option 2: Continue Progress */}
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  style={[styles.optionCardSecondary, Boolean(startingMode) && { opacity: 0.85 }]}
-                  onPress={() => handleStart("continue")}
-                  disabled={Boolean(startingMode)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Continue where I stopped"
-                  accessibilityState={{ disabled: Boolean(startingMode), busy: startingMode === "continue" }}
-                >
-                  <View style={styles.optionCardHeader}>
-                    <Text style={styles.optionTitleSecondary}>Continue where I stopped</Text>
-                    {startingMode === "continue" && (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    )}
-                  </View>
-                  <Text style={styles.optionSubSecondary}>
-                    {startingMode === "continue"
-                      ? "Resuming your last active section..."
-                      : "Pick up right from your last active section"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Specific Section Input */}
-              <View style={styles.specificSectionBox}>
-                <Text style={styles.specificLabel}>Or Jump to a Specific Section</Text>
-                <View style={styles.specificInputRow}>
-                  <TextInput
-                    value={specificSection}
-                    onChangeText={setSpecificSection}
-                    placeholder="Type section title..."
-                    placeholderTextColor={colors.textMuted}
-                    style={styles.specificInput}
-                    editable={!startingMode}
-                    accessibilityLabel="Section title"
-                  />
+                {canContinue ? (
                   <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[
-                      styles.specificGoBtn,
-                      (!specificSection.trim() || Boolean(startingMode)) && styles.specificGoBtnDisabled,
-                    ]}
-                    onPress={() => handleStart("specific", specificSection.trim())}
-                    disabled={!specificSection.trim() || Boolean(startingMode)}
+                    activeOpacity={0.88}
+                    style={[styles.startOption, selectedStartMode === "continue" && styles.startOptionSelected]}
+                    onPress={() => setSelectedStartMode("continue")}
+                    disabled={Boolean(startingMode)}
                     accessibilityRole="button"
-                    accessibilityLabel="Start from specific section"
-                    accessibilityState={{ disabled: !specificSection.trim() || Boolean(startingMode), busy: startingMode === "specific" }}
+                    accessibilityLabel="Continue from current section"
+                    accessibilityState={{ disabled: Boolean(startingMode), selected: selectedStartMode === "continue" }}
                   >
-                    {startingMode === "specific" ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.specificGoText}>Start</Text>
-                    )}
+                    <View style={styles.startOptionRadio}>
+                      {selectedStartMode === "continue" ? <View style={styles.startOptionRadioDot} /> : null}
+                    </View>
+                    <View style={styles.startOptionCopy}>
+                      <Text style={styles.startOptionTitle}>Continue from section {currentSectionNumber}</Text>
+                      <Text style={styles.startOptionDescription}>Pick up from your last active study point.</Text>
+                    </View>
                   </TouchableOpacity>
-                </View>
+                ) : null}
               </View>
+
+              <View style={styles.specificSectionBox}>
+                <Text style={styles.specificLabel}>Jump to a section</Text>
+                <TextInput
+                  value={specificSection}
+                  onChangeText={(value) => {
+                    setSpecificSection(value);
+                    if (value.trim()) setSelectedStartMode("specific");
+                  }}
+                  onFocus={() => setSelectedStartMode("specific")}
+                  placeholder="Search sections"
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.specificInput, selectedStartMode === "specific" && styles.specificInputSelected]}
+                  editable={!startingMode}
+                  accessibilityLabel="Search sections"
+                />
+                {sectionSuggestions.map((section) => (
+                  <TouchableOpacity
+                    key={section.key}
+                    style={styles.sectionSuggestion}
+                    onPress={() => {
+                      setSpecificSection(section.title);
+                      setSelectedStartMode("specific");
+                    }}
+                    disabled={Boolean(startingMode)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Start from ${section.title}`}
+                  >
+                    <Text numberOfLines={1} style={styles.sectionSuggestionText}>{section.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Button
+                label="Start tutoring"
+                onPress={() => handleStart(
+                  selectedStartMode,
+                  selectedStartMode === "specific" ? specificSection.trim() : undefined,
+                )}
+                loading={Boolean(startingMode)}
+                disabled={selectedStartMode === "specific" && !specificSection.trim()}
+                pressScale={0.98}
+                style={styles.startTutorButton}
+              />
             </View>
           </View>
         </Modal>
@@ -1322,7 +1337,7 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     },
     modalBackdrop: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.75)",
+      backgroundColor: "rgba(0,0,0,0.52)",
       alignItems: "center",
       justifyContent: "flex-end",
       paddingHorizontal: 16,
@@ -1332,8 +1347,8 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
     modalCard: {
       width: "100%",
       maxWidth: 440,
-      backgroundColor: "#0E1711",
-      borderColor: "rgba(34, 197, 94, 0.3)",
+      backgroundColor: colors.surfaceElevated,
+      borderColor: colors.border,
       borderWidth: 1,
       borderRadius: 16,
       padding: 20,
@@ -1365,58 +1380,57 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       fontSize: 13,
       lineHeight: 19,
     },
+    modalProgressText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      marginBottom: 16,
+    },
     startOptions: {
       gap: 12,
     },
-    optionCardPrimary: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      padding: 16,
-    },
-    optionCardHeader: {
+    startOption: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 4,
-    },
-    optionTitlePrimary: {
-      ...typography.h4,
-      color: "#04110A",
-      fontSize: 15,
-      fontWeight: "800",
-    },
-    optionBadgePrimary: {
-      backgroundColor: "#04110A",
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 4,
-    },
-    optionBadgeTextPrimary: {
-      color: colors.primary,
-      fontSize: 9,
-      fontWeight: "800",
-      letterSpacing: 0.5,
-    },
-    optionSubPrimary: {
-      ...typography.bodySmall,
-      color: "rgba(4, 17, 10, 0.8)",
-      fontSize: 12,
-      lineHeight: 17,
-    },
-    optionCardSecondary: {
       backgroundColor: colors.surfaceElevated,
       borderColor: colors.border,
       borderWidth: 1,
       borderRadius: 12,
-      padding: 14,
+      minHeight: 76,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
     },
-    optionTitleSecondary: {
+    startOptionSelected: {
+      backgroundColor: `${colors.primary}14`,
+      borderColor: colors.primary,
+    },
+    startOptionRadio: {
+      alignItems: "center",
+      borderColor: colors.textMuted,
+      borderRadius: 9,
+      borderWidth: 1.5,
+      height: 18,
+      justifyContent: "center",
+      marginRight: 12,
+      width: 18,
+    },
+    startOptionRadioDot: {
+      backgroundColor: colors.primary,
+      borderRadius: 5,
+      height: 10,
+      width: 10,
+    },
+    startOptionCopy: {
+      flex: 1,
+    },
+    startOptionTitle: {
       ...typography.h4,
       color: colors.textPrimary,
       fontSize: 14,
       marginBottom: 3,
     },
-    optionSubSecondary: {
+    startOptionDescription: {
       ...typography.bodySmall,
       color: colors.textSecondary,
       fontSize: 12,
@@ -1432,14 +1446,9 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       ...typography.label,
       color: colors.textMuted,
       fontSize: 11,
-      marginBottom: 10,
+      marginBottom: 8,
       textTransform: "uppercase",
       letterSpacing: 0.5,
-    },
-    specificInputRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
     },
     specificInput: {
       ...typography.body,
@@ -1453,22 +1462,22 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       paddingVertical: 11,
       fontSize: 13,
     },
-    specificGoBtn: {
-      backgroundColor: colors.primary,
-      borderRadius: 10,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      alignItems: "center",
-      justifyContent: "center",
+    specificInputSelected: {
+      borderColor: colors.primary,
     },
-    specificGoBtnDisabled: {
-      opacity: 0.4,
+    sectionSuggestion: {
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      paddingHorizontal: 2,
+      paddingVertical: 10,
     },
-    specificGoText: {
-      ...typography.h4,
-      color: "#04110A",
+    sectionSuggestionText: {
+      ...typography.bodySmall,
+      color: colors.textPrimary,
       fontSize: 13,
-      fontWeight: "800",
+    },
+    startTutorButton: {
+      marginTop: 18,
     },
     roadmapSheet: {
       paddingHorizontal: 18,

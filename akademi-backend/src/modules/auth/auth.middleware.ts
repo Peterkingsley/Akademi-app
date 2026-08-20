@@ -32,6 +32,32 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+/**
+ * Temporary product gate for features still in internal testing. This uses the
+ * authenticated user's email to verify an active admin record server-side;
+ * the client-side role check is only for presentation and cannot be trusted.
+ */
+export const requireActiveAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user?.email) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { email: req.user.email },
+      select: { status: true },
+    });
+
+    if (!admin || admin.status === 'suspended') {
+      return res.status(403).json({ message: 'AI Tutor is coming soon.' });
+    }
+
+    next();
+  } catch {
+    return res.status(500).json({ message: 'Could not verify AI Tutor access.' });
+  }
+};
+
 export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

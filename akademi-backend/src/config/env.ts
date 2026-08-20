@@ -31,6 +31,15 @@ export const config = {
   geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY || '',
   openAiApiKey: process.env.OPENAI_API_KEY || '',
   openAiModel: process.env.OPENAI_MODEL || 'gpt-5-nano',
+  teachingAnalysisModel: process.env.TEACHING_ANALYSIS_MODEL || '',
+  teachingBlueprintModel: process.env.TEACHING_BLUEPRINT_MODEL || '',
+  teachingDialogueModel: process.env.TEACHING_DIALOGUE_MODEL || '',
+  teachingFidelityModel: process.env.TEACHING_FIDELITY_MODEL || '',
+  teachingPatchModel: process.env.TEACHING_PATCH_MODEL || '',
+  teachingSmallSourceTokenLimit: parseInt(process.env.TEACHING_SMALL_SOURCE_TOKEN_LIMIT || '25000', 10),
+  teachingMediumSourceTokenLimit: parseInt(process.env.TEACHING_MEDIUM_SOURCE_TOKEN_LIMIT || '150000', 10),
+  teachingLargeSourceTokenLimit: parseInt(process.env.TEACHING_LARGE_SOURCE_TOKEN_LIMIT || '500000', 10),
+  teachingAnalogyRiskThreshold: Math.min(1, Math.max(0, parseFloat(process.env.TEACHING_ANALOGY_RISK_THRESHOLD || '0.35'))),
   gcpServiceAccountJson: process.env.GCP_SERVICE_ACCOUNT_JSON || '',
   // gemini-2.5-flash-lite / gemini-2.5-flash / gemini-1.5-flash are all retired (404 as of
   // 2026-07-26). See modules/ai/ai.provider.ts's GEMINI_FALLBACK_MODELS for the fallback chain —

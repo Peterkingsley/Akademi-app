@@ -1019,6 +1019,46 @@ model Admin {
   @@map("admins")
 }
 
+// Stored independently of Material/User relations so cached educational
+// artifacts survive a source being archived while still retaining a content
+// fingerprint for safe invalidation.
+model TeachingAnalysisCache {
+  id             String   @id @default(uuid())
+  cache_key      String   @unique
+  source_hash    String
+  material_id    String?
+  learner_level  String
+  user_focus     String?
+  prompt_version String
+  analysis       Json
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@index([material_id])
+  @@index([source_hash])
+  @@map("teaching_analysis_cache")
+}
+
+model TeachingEpisode {
+  id              String   @id @default(uuid())
+  requested_by    String
+  material_id     String?
+  source_hash     String
+  complexity      String
+  status          String
+  request_config  Json
+  analysis        Json
+  blueprint       Json
+  dialogue        Json
+  fidelity_review Json?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([requested_by, created_at])
+  @@index([material_id])
+  @@map("teaching_episodes")
+}
+
 model RefreshToken {
   id          String     @id @default(uuid())
   user_id     String

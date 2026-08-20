@@ -8,13 +8,12 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { ArrowLeft, BookOpen, Sparkles } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Search } from "lucide-react-native";
 import Animated, { FadeInUp, Layout } from "react-native-reanimated";
 
 import { Screen } from "../../components/layout/Screen";
 import { CourseFilterTabs } from "../../components/ui/CourseFilterTabs";
 import { Input } from "../../components/ui/Input";
-import { MaterialCard } from "../../components/ui/MaterialCard";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { materialService, Material } from "../../services/material";
 import { sessionService } from "../../services/session";
@@ -28,13 +27,13 @@ export const AITutorScreen: React.FC = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuthStore();
+  const isTutorAdmin = Boolean(user?.admin_role);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedCourse, setSelectedCourse] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchActive, setIsSearchActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startingMaterialId, setStartingMaterialId] = useState<string | null>(null);
 
@@ -56,8 +55,13 @@ export const AITutorScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchMaterials();
-  }, []);
+    if (!isTutorAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    void fetchMaterials();
+  }, [isTutorAdmin]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -71,6 +75,8 @@ export const AITutorScreen: React.FC = () => {
 
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+    const seen = new Set<string>();
+
     return materials.filter((material) => {
       const courseCode = material.course_code || "General";
       const matchesCourse = selectedCourse === "All" || courseCode === selectedCourse;
@@ -78,11 +84,18 @@ export const AITutorScreen: React.FC = () => {
         !query ||
         material.title.toLowerCase().includes(query) ||
         courseCode.toLowerCase().includes(query);
-      return matchesCourse && matchesSearch;
+      if (!matchesCourse || !matchesSearch) return false;
+
+      const materialKey = `${courseCode}:${material.title}`.trim().toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(materialKey)) return false;
+      seen.add(materialKey);
+      return true;
     });
   }, [materials, searchQuery, selectedCourse]);
 
   const openCompanion = async (item: Material) => {
+    if (!isTutorAdmin) return;
+
     try {
       setStartingMaterialId(item.id);
       setError(null);
@@ -108,10 +121,33 @@ export const AITutorScreen: React.FC = () => {
     }
   };
 
+  if (!isTutorAdmin) {
+    return (
+      <Screen hideHeader style={styles.screen}>
+        <View style={styles.restrictedContainer}>
+          <View style={styles.restrictedIcon}>
+            <BookOpen size={24} color={colors.primary} />
+          </View>
+          <Text style={styles.restrictedTitle}>AI Tutor is coming soon</Text>
+          <Text style={styles.restrictedText}>
+            Guided tutoring is still in testing and is not available to students yet.
+          </Text>
+          <TouchableOpacity
+            style={styles.restrictedBackButton}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Text style={styles.restrictedBackText}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen hideHeader style={styles.screen}>
       <View style={styles.container}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -123,69 +159,28 @@ export const AITutorScreen: React.FC = () => {
             <ArrowLeft size={20} color={colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerCopy}>
-            <Text style={styles.title}>AI Socratic Tutor</Text>
-            <Text style={styles.subtitle}>Select a course material for guided 1-on-1 mastery</Text>
+            <Text style={styles.title}>Guided study</Text>
+            <Text style={styles.subtitle}>Choose a material. Akademi teaches by asking, not telling.</Text>
           </View>
         </View>
 
-        {/* Hero Card */}
-        <View style={styles.hero}>
-          <View style={styles.heroHeaderRow}>
-            <Text style={styles.heroTitle}>Socratic Study Room</Text>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>LIVE TUTOR</Text>
-            </View>
-          </View>
-          <Text style={styles.heroText}>
-            Akademi breaks down your syllabus section-by-section using voice, step-by-step reasoning, and real-time teach-back checks.
-          </Text>
-          <View style={styles.heroPillRow}>
-            <View style={styles.heroPill}>
-              <Text style={styles.heroPillText}>Socratic Method</Text>
-            </View>
-            <View style={styles.heroPill}>
-              <Text style={styles.heroPillText}>Voice & Text</Text>
-            </View>
-            <View style={styles.heroPill}>
-              <Text style={styles.heroPillText}>Mastery Score</Text>
-            </View>
-          </View>
-        </View>
+        <Input
+          label=""
+          placeholder="Search materials"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          leftIcon={<Search size={19} color={colors.textMuted} />}
+          enableVoiceInput={false}
+          style={styles.searchInput}
+        />
 
-        {/* Search Bar */}
-        {isSearchActive ? (
-          <View style={styles.searchBarContainer}>
-            <Input
-              label=""
-              placeholder="Search course code or topic title..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={styles.searchInput}
-            />
-            <TouchableOpacity
-              onPress={() => {
-                setIsSearchActive(false);
-                setSearchQuery("");
-              }}
-              style={styles.cancelSearch}
-              accessibilityRole="button"
-              accessibilityLabel="Close material search"
-            >
-              <Text style={styles.cancelSearchText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* Course Filters */}
         <CourseFilterTabs
           courses={courses}
           selectedCourse={selectedCourse}
           onSelectCourse={setSelectedCourse}
-          onSearchPress={() => setIsSearchActive(true)}
           contentPaddingHorizontal={0}
         />
 
-        {/* Content List */}
         {loading ? (
           <View style={styles.skeletonContent}>
             {[1, 2, 3, 4].map((item) => (
@@ -212,20 +207,34 @@ export const AITutorScreen: React.FC = () => {
             }
             renderItem={({ item, index }) => (
               <Animated.View entering={FadeInUp.delay(index * 45).duration(320)} layout={Layout.springify()}>
-                <MaterialCard
-                  title={item.title}
-                  courseCode={item.course_code || "General"}
-                  fileType={item.file_type === "PDF" ? "PDF" : item.file_type === "IMAGE" ? "SYSTEM_FILE" : "STUDY_DOC"}
-                  isVerified={item.verification_status === "VERIFIED"}
-                  status={item.verification_status}
-                  date={new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
-                  rating={item.rating}
-                  isBookmarked={item.isBookmarked}
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  disabled={startingMaterialId === item.id}
                   onPress={() => openCompanion(item)}
-                />
-                {startingMaterialId === item.id ? (
-                  <Text style={styles.startingText}>Initializing AI Socratic Tutor...</Text>
-                ) : null}
+                  style={styles.materialRow}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start tutoring with ${item.title}`}
+                >
+                  <View style={styles.materialIcon}>
+                    <BookOpen size={20} color={colors.primary} />
+                  </View>
+                  <View style={styles.materialCopy}>
+                    <Text style={styles.materialTitle} numberOfLines={2}>{item.title}</Text>
+                    <View style={styles.materialMetaRow}>
+                      <Text style={styles.courseCode}>{item.course_code || "General"}</Text>
+                      <View style={styles.metaDivider} />
+                      <CheckCircle2 size={12} color={colors.primary} />
+                      <Text style={styles.verifiedText}>Verified</Text>
+                    </View>
+                    <Text style={styles.updatedText}>
+                      Updated {new Date(item.updated_at || item.created_at || Date.now()).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.startAction}>
+                    <Text style={styles.startActionText}>{startingMaterialId === item.id ? "Starting" : "Start tutor"}</Text>
+                    <ArrowRight size={15} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
               </Animated.View>
             )}
             ListEmptyComponent={
@@ -263,6 +272,49 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       paddingHorizontal: 18,
       paddingTop: 8,
     },
+    restrictedContainer: {
+      alignItems: "center",
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: 32,
+    },
+    restrictedIcon: {
+      alignItems: "center",
+      backgroundColor: colors.brand.subtle,
+      borderRadius: 14,
+      height: 52,
+      justifyContent: "center",
+      marginBottom: 16,
+      width: 52,
+    },
+    restrictedTitle: {
+      ...typography.h3,
+      color: colors.textPrimary,
+      fontSize: 20,
+      textAlign: "center",
+    },
+    restrictedText: {
+      ...typography.body,
+      color: colors.textSecondary,
+      lineHeight: 22,
+      marginTop: 8,
+      maxWidth: 300,
+      textAlign: "center",
+    },
+    restrictedBackButton: {
+      alignItems: "center",
+      borderColor: colors.border,
+      borderRadius: 10,
+      borderWidth: 1,
+      justifyContent: "center",
+      marginTop: 24,
+      minHeight: 44,
+      paddingHorizontal: 18,
+    },
+    restrictedBackText: {
+      ...typography.h4,
+      color: colors.textPrimary,
+    },
     header: {
       flexDirection: "row",
       alignItems: "center",
@@ -294,80 +346,11 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       marginTop: 4,
       lineHeight: 18,
     },
-    hero: {
-      backgroundColor: colors.surface,
-      borderColor: "rgba(34, 197, 94, 0.3)",
-      borderWidth: 1,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
-    },
-    heroHeaderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 8,
-    },
-    heroTitle: {
-      ...typography.h3,
-      color: colors.textPrimary,
-      fontSize: 16,
-    },
-    heroBadge: {
-      backgroundColor: "rgba(34, 197, 94, 0.15)",
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
-    },
-    heroBadgeText: {
-      color: colors.primary,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 0.5,
-    },
-    heroText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      lineHeight: 19,
-      marginBottom: 12,
-    },
-    heroPillRow: {
-      flexDirection: "row",
-      gap: 8,
-    },
-    heroPill: {
-      backgroundColor: colors.surfaceElevated,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    heroPillText: {
-      color: colors.textMuted,
-      fontSize: 11,
-      fontWeight: "600",
-    },
-    searchBarContainer: {
-      alignItems: "center",
-      flexDirection: "row",
-      marginBottom: 10,
-    },
     searchInput: {
-      flex: 1,
       marginBottom: 0,
     },
-    cancelSearch: {
-      marginLeft: 12,
-    },
-    cancelSearchText: {
-      ...typography.bodySmall,
-      color: colors.primary,
-      fontSize: 11,
-      fontWeight: "700",
-    },
     listContent: {
-      paddingTop: 12,
+      paddingTop: 4,
       paddingBottom: 40,
     },
     emptyListContent: {
@@ -421,12 +404,76 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       lineHeight: 20,
       textAlign: "center",
     },
-    startingText: {
-      ...typography.bodySmall,
+    materialRow: {
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 14,
+      borderWidth: 1,
+      flexDirection: "row",
+      marginBottom: 12,
+      minHeight: 100,
+      padding: 14,
+    },
+    materialIcon: {
+      alignItems: "center",
+      backgroundColor: colors.primary + "14",
+      borderRadius: 12,
+      height: 46,
+      justifyContent: "center",
+      width: 46,
+    },
+    materialCopy: {
+      flex: 1,
+      marginLeft: 12,
+      marginRight: 10,
+      minWidth: 0,
+    },
+    materialTitle: {
+      ...typography.h4,
+      color: colors.textPrimary,
+      fontSize: 15,
+      lineHeight: 20,
+    },
+    materialMetaRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      marginTop: 7,
+    },
+    courseCode: {
+      ...typography.caption,
+      color: colors.primary,
+      fontSize: 10,
+      fontWeight: "700",
+    },
+    metaDivider: {
+      backgroundColor: colors.border,
+      borderRadius: 999,
+      height: 3,
+      marginHorizontal: 7,
+      width: 3,
+    },
+    verifiedText: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      fontSize: 10,
+      marginLeft: 4,
+    },
+    updatedText: {
+      ...typography.caption,
+      color: colors.textMuted,
+      fontSize: 10,
+      marginTop: 5,
+    },
+    startAction: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 4,
+    },
+    startActionText: {
+      ...typography.caption,
       color: colors.primary,
       fontSize: 11,
-      marginTop: 6,
-      marginBottom: 10,
-      marginLeft: 4,
+      fontWeight: "700",
     },
   });

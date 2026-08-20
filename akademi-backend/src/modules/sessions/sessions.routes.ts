@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { SessionsController } from './sessions.controller';
-import { authenticate } from '../auth/auth.middleware';
+import { authenticate, requireActiveAdmin } from '../auth/auth.middleware';
 import multer from 'multer';
 import {
   createRateLimiter,
@@ -104,13 +104,13 @@ router.post('/:id/voice/stream', voiceSessionRateLimiter, sessionsController.cre
 router.get('/:id/voice/stream-audio/:streamId', sessionsController.streamTutorSpeech);
 router.get('/', sessionsController.list);
 router.get('/:id', sessionsController.getOne);
-router.get('/:id/companion', sessionsController.getCompanionState);
-router.get('/:id/visual-plan', sessionsController.getVisualPlan);
-router.get('/:id/tutor-traces', sessionsController.listTutorTraces);
-router.get('/:id/tutor-traces/summary', sessionsController.getTutorTraceSummary);
-router.post('/:id/companion/start', companionTurnRateLimiter, sessionsController.startCompanion);
-router.post('/:id/companion/message', companionTurnRateLimiter, sessionsController.sendCompanionMessage);
-router.post('/:id/companion/turn', companionTurnRateLimiter, sessionsController.handleCompanionTurn);
+router.get('/:id/companion', requireActiveAdmin, sessionsController.getCompanionState);
+router.get('/:id/visual-plan', requireActiveAdmin, sessionsController.getVisualPlan);
+router.get('/:id/tutor-traces', requireActiveAdmin, sessionsController.listTutorTraces);
+router.get('/:id/tutor-traces/summary', requireActiveAdmin, sessionsController.getTutorTraceSummary);
+router.post('/:id/companion/start', requireActiveAdmin, companionTurnRateLimiter, sessionsController.startCompanion);
+router.post('/:id/companion/message', requireActiveAdmin, companionTurnRateLimiter, sessionsController.sendCompanionMessage);
+router.post('/:id/companion/turn', requireActiveAdmin, companionTurnRateLimiter, sessionsController.handleCompanionTurn);
 router.patch('/:id/end', sessionsController.end);
 router.get('/:id/messages', sessionsController.getMessages);
 router.post('/:id/messages', sessionMessageRateLimiter, sessionsController.sendMessage);

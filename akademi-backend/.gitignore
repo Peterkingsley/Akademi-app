@@ -2,6 +2,7 @@ node_modules
 dist
 .env
 coverage
+.teaching-engine-runs
 *.log
 gcp-service-account.json
 *service-account*.json

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 
 interface RichMathTextProps {
@@ -18,6 +18,31 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+// react-native-webview intentionally has no web implementation. Rendering it in Expo web
+// replaces every question with its own platform error, so provide a readable text fallback
+// instead of pretending the question data is broken.
+const toWebPlainText = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\$\$([\s\S]*?)\$\$/g, "$1")
+    .replace(/\\\[([\s\S]*?)\\\]/g, "$1")
+    .replace(/\\\(([\s\S]*?)\\\)/g, "$1")
+    .replace(/\$([^$\n]+)\$/g, "$1")
+    .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1 / $2")
+    .replace(/\\sqrt\{([^{}]*)\}/g, "\u221A($1)")
+    .replace(/\\(?:times|cdot)/g, "\u00D7")
+    .replace(/\\(?:leq|le)/g, "\u2264")
+    .replace(/\\(?:geq|ge)/g, "\u2265")
+    .replace(/\\pi/g, "\u03C0")
+    .replace(/\\theta/g, "\u03B8")
+    .replace(/\\([a-zA-Z]+)/g, "$1")
+    .replace(/[{}]/g, "")
+    .trim();
 
 const applyHeuristicMath = (text: string) => {
   let result = text;
@@ -294,6 +319,22 @@ export const RichMathText: React.FC<RichMathTextProps> = ({
   lineHeight = 1.6,
   textAlign = "left",
 }) => {
+  if (Platform.OS === "web") {
+    return (
+      <View style={[styles.container, { backgroundColor }]}>
+        <Text
+          selectable
+          style={[
+            styles.webFallback,
+            { color: textColor, fontSize, lineHeight, textAlign },
+          ]}
+        >
+          {toWebPlainText(content)}
+        </Text>
+      </View>
+    );
+  }
+
   const [height, setHeight] = useState(64);
   const heightRef = useRef(64);
   const isHeightLockedRef = useRef(false);
@@ -514,6 +555,9 @@ const styles = StyleSheet.create({
   },
   webview: {
     backgroundColor: "transparent",
+    width: "100%",
+  },
+  webFallback: {
     width: "100%",
   },
 });

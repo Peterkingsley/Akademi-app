@@ -174,6 +174,9 @@ async function callVertexAi(
 
 
 export interface AIRequestOptions {
+  // A feature-level configuration override. The provider still owns fallback
+  // behavior; domain modules never hard-code a model identifier.
+  model?: string;
   maxTokens?: number;
   systemPrompt?: string;
   // Long-form generations (multi-part assignment solves taught at full depth) need more
@@ -218,7 +221,7 @@ async function callOpenAI(
   options: AIRequestOptions,
 ): Promise<{ text: string; model: string }> {
   if (isPlaceholder(config.openAiApiKey)) throw new Error('OpenAI API key is missing or invalid');
-  const model = config.openAiModel || 'gpt-5-nano';
+  const model = options.model || config.openAiModel || 'gpt-5-nano';
   let maxOutputTokens = Math.max(options.maxTokens || 1000, 256);
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -416,7 +419,7 @@ export class AIProvider {
 
       const geminiDeadline = Date.now() + geminiTotalBudgetMs;
 
-      for (const geminiModelName of uniqueModels(config.geminiModel)) {
+      for (const geminiModelName of uniqueModels(options.model || config.geminiModel)) {
         const remainingBudget = geminiDeadline - Date.now();
         if (remainingBudget <= 0) {
           geminiError = geminiError || 'Gemini budget exhausted before a model could respond';
@@ -493,7 +496,7 @@ export class AIProvider {
         : prompt;
       const vertexText = await callVertexAi([
         { role: 'user', parts: [{ text: combinedPrompt }] },
-      ]);
+      ], { model: options.model });
       if (vertexText) {
         return { text: vertexText, model: 'vertex:gemini-2.5-flash' };
       }

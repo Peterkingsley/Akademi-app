@@ -25,6 +25,7 @@
     "backfill:course-ids": "tsx src/scripts/backfill-course-ids.ts",
     "backfill:textbook-generation": "tsx src/scripts/backfill-textbook-generation.ts",
     "check:elevenlabs": "tsx src/scripts/check-elevenlabs-voice.ts",
+    "teaching:validate-live": "ts-node src/scripts/validate-teaching-engine-live.ts",
     "sync:typesense": "tsx src/shared/search/sync-all.ts",
     "migrate:dev": "prisma migrate dev",
     "test": "jest --runInBand",
