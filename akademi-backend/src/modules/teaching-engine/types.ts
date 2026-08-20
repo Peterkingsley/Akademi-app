@@ -3,6 +3,7 @@ import {
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
+import type { ConversationalQualityReport } from './conversational-quality.validator';
 
 export type ClaimType =
   | 'SOURCE_FACT'
@@ -168,6 +169,7 @@ export interface TeachingEpisodeResult {
   fidelity: CriticReview | null;
   /** First review and, when applicable, the review after the bounded repair. */
   fidelityHistory: CriticReview[];
+  conversationalQuality: ConversationalQualityReport;
   tts_handoff: Array<{ turn_id: string; speaker: Host; spoken_text: string }>;
   cachedAnalysis: boolean;
   instrumentation: TeachingGenerationInstrumentation;

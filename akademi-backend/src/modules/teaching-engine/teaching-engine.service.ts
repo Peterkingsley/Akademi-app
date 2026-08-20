@@ -26,6 +26,7 @@ import {
   FIDELITY_STRUCTURED_OUTPUT,
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
+import { validateConversationalQuality } from './conversational-quality.validator';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -283,6 +284,8 @@ export class TeachingEngineService {
         throw new Error('Teaching episode failed the semantic fidelity gate.');
       }
     }
+    // This measures the final dialogue, including any bounded fidelity repair.
+    const conversationalQuality = validateConversationalQuality(dialogue, analysis);
 
     const episode = await prisma.teachingEpisode.create({
       data: {
@@ -293,7 +296,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, dialogue, preRepairDialogue, fidelity, fidelityHistory, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, cachedAnalysis: cached,
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

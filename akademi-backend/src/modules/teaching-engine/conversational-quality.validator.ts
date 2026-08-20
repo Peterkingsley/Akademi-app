@@ -1,0 +1,124 @@
+import type { EpisodeTeachingAnalysis, ProductionDialogueScript } from './types';
+
+export type ConversationalQualityIssueType = 'REPETITIVE_AFFIRMATION' | 'UNSUPPORTED_INTENSITY' | 'HOST2_LEADING_QUESTION' | 'HOST2_ECHO' | 'REPEATED_OPENER' | 'REPEATED_EXCHANGE_PATTERN';
+
+export interface ConversationalQualityIssue {
+  type: ConversationalQualityIssueType;
+  turn_id: string;
+  phrase: string;
+  evidence_ids: string[];
+  reason: string;
+}
+
+export interface ConversationalQualityReport {
+  verdict: 'PASS' | 'PASS_WITH_WARNINGS';
+  metrics: {
+    host2_agency_ratio: number;
+    host2_leading_question_rate: number;
+    host2_echo_rate: number;
+    affirmation_count: number;
+    affirmation_rate: number;
+    unsupported_intensity_count: number;
+    repeated_opener_rate: number;
+    passive_turn_count: number;
+  };
+  repeated_affirmation_patterns: string[];
+  repeated_turn_openers: string[];
+  repeated_exchange_patterns: string[];
+  issues: ConversationalQualityIssue[];
+}
+
+export const conversationalQualityConfig = {
+  echoJaccardThreshold: 0.35,
+  repeatedOpenerMinimum: 2,
+} as const;
+
+const affirmation = /^(?:exactly(?: right)?|that's exactly right|that's excellent|great question|you're spot on|that's a great way to put it|precisely|correct|absolutely|you've got it)[!,. ]*/i;
+const intensityTerms = ['cripple', 'catastrophic', 'disastrous', 'completely', 'totally', 'permanently', 'guaranteed', 'inevitable', 'impossible', 'always', 'never', 'absolutely', 'instantly', 'perfectly', 'massive', 'devastating'];
+const novelty = /\b(?:because|but|while|if|unless|instead|therefore|which means|for example|imagine|however|reason)\b/i;
+const activeHost2 = new Set(['DEDUCE', 'CHALLENGE', 'TEST_ANALOGY', 'REFRAME', 'SYNTHESIZE', 'CLOSE_LOOP']);
+
+function tokens(text: string) {
+  return new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((word) => word.length > 2));
+}
+
+function jaccard(left: string, right: string) {
+  const a = tokens(left); const b = tokens(right);
+  const intersection = [...a].filter((word) => b.has(word)).length;
+  return intersection / Math.max(1, a.size + b.size - intersection);
+}
+
+function opener(text: string) {
+  return text.toLowerCase().replace(/^[^a-z]+/, '').split(/\s+/).slice(0, 2).join(' ');
+}
+
+function intensityIsSupported(phrase: string, evidenceIds: string[], analysis: EpisodeTeachingAnalysis) {
+  return evidenceIds.some((id) => {
+    const evidence = analysis.evidence_registry.find((item) => item.evidence_id === id);
+    return Boolean(evidence && `${evidence.verbatim_span} ${evidence.normalized_claim}`.toLowerCase().includes(phrase));
+  });
+}
+
+export function validateConversationalQuality(dialogue: ProductionDialogueScript, analysis: EpisodeTeachingAnalysis): ConversationalQualityReport {
+  const issues: ConversationalQualityIssue[] = [];
+  const affirmations: string[] = [];
+  const openerCounts = new Map<string, number>();
+  const host2 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_2');
+  let leading = 0; let echoes = 0; let passive = 0;
+
+  dialogue.turns.forEach((turn, index) => {
+    const text = turn.spoken_text.trim();
+    const match = text.match(affirmation);
+    if (match) {
+      affirmations.push(match[0].trim().toLowerCase());
+      // A brief acknowledgement that immediately advances causal reasoning is allowed.
+      if (!novelty.test(text.slice(match[0].length))) {
+        issues.push({ type: 'REPETITIVE_AFFIRMATION', turn_id: turn.turn_id, phrase: match[0].trim(), evidence_ids: turn.evidence_ids, reason: 'Teacher affirmation does not immediately add a causal, boundary, or example-based contribution.' });
+      }
+    }
+    const first = opener(text);
+    if (first) openerCounts.set(first, (openerCounts.get(first) || 0) + 1);
+
+    for (const word of intensityTerms) {
+      if (new RegExp(`\\b${word}\\b`, 'i').test(text) && !intensityIsSupported(word, turn.evidence_ids, analysis)) {
+        issues.push({ type: 'UNSUPPORTED_INTENSITY', turn_id: turn.turn_id, phrase: word, evidence_ids: turn.evidence_ids, reason: 'Intensity word is not present in the evidence bound to this turn.' });
+      }
+    }
+
+    if (turn.speaker !== 'HOST_2') return;
+    const leadingQuestion = /^(?:so .+\b(?:right|isn't it)\?|which means .+\?|so the answer is .+\?|doesn't that mean .+\?|so really (?:it'?s|it is) just .+\?)/i.test(text);
+    if (leadingQuestion && !/\bif\b|\bwould\b|\bwhy\b|\bhow\b/.test(text.toLowerCase())) {
+      leading += 1;
+      issues.push({ type: 'HOST2_LEADING_QUESTION', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'Host 2 states the intended conclusion and merely appends a question.' });
+    }
+    const previous = dialogue.turns[index - 1];
+    if (previous?.speaker === 'HOST_1' && jaccard(previous.spoken_text, text) >= conversationalQualityConfig.echoJaccardThreshold && !novelty.test(text)) {
+      echoes += 1;
+      issues.push({ type: 'HOST2_ECHO', turn_id: turn.turn_id, phrase: text, evidence_ids: turn.evidence_ids, reason: 'High lexical overlap with the preceding Host 1 turn without a new causal connection, challenge, boundary, or example.' });
+    }
+    if (!activeHost2.has(turn.intent)) passive += 1;
+  });
+
+  const repeatedOpeners = [...openerCounts.entries()].filter(([, count]) => count >= conversationalQualityConfig.repeatedOpenerMinimum).map(([value]) => value);
+  for (const value of repeatedOpeners) issues.push({ type: 'REPEATED_OPENER', turn_id: dialogue.turns.find((turn) => opener(turn.spoken_text) === value)?.turn_id || 'unknown', phrase: value, evidence_ids: [], reason: 'Conversation opener repeats across multiple turns.' });
+  const exchangePatterns: string[] = [];
+  for (let index = 0; index < dialogue.turns.length - 1; index += 2) {
+    const a = dialogue.turns[index]; const b = dialogue.turns[index + 1];
+    if (a?.speaker === 'HOST_2' && b?.speaker === 'HOST_1' && affirmation.test(b.spoken_text)) exchangePatterns.push(`${opener(a.spoken_text)} → affirmation`);
+  }
+  const repeatedExchanges = [...new Set(exchangePatterns.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))];
+  for (const value of repeatedExchanges) issues.push({ type: 'REPEATED_EXCHANGE_PATTERN', turn_id: 'pattern', phrase: value, evidence_ids: [], reason: 'Repeated Host 2 prompt followed by teacher affirmation pattern.' });
+  const agency = host2.filter((turn) => activeHost2.has(turn.intent)).length / Math.max(1, host2.length);
+  return {
+    verdict: issues.length ? 'PASS_WITH_WARNINGS' : 'PASS',
+    metrics: {
+      host2_agency_ratio: Number(agency.toFixed(2)), host2_leading_question_rate: Number((leading / Math.max(1, host2.length)).toFixed(2)), host2_echo_rate: Number((echoes / Math.max(1, host2.length)).toFixed(2)),
+      affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: issues.filter((issue) => issue.type === 'UNSUPPORTED_INTENSITY').length,
+      repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive,
+    },
+    repeated_affirmation_patterns: [...new Set(affirmations.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))],
+    repeated_turn_openers: repeatedOpeners,
+    repeated_exchange_patterns: repeatedExchanges,
+    issues,
+  };
+}
