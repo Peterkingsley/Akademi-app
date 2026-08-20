@@ -112,3 +112,48 @@ export const BLUEPRINT_STRUCTURED_OUTPUT = {
   name: 'episode_teaching_blueprint',
   schema: EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA,
 } as const;
+
+const dialogueTurnProperties = {
+  turn_id: string,
+  speaker: { type: 'string', enum: ['HOST_1', 'HOST_2'] },
+  intent: { type: 'string', enum: ['FRAME_FRICTION', 'EXPLAIN', 'DEDUCE', 'CHALLENGE', 'REFRAME', 'TEST_ANALOGY', 'SYNTHESIZE', 'CHECK_UNDERSTANDING', 'CLOSE_LOOP'] },
+  core_epistemic_payload: string,
+  concept_ids: stringList,
+  invariant_ids: stringList,
+  misconception_ids: stringList,
+  evidence_ids: evidenceIdList,
+  analogy_id: { type: 'string', nullable: true },
+  spoken_text: string,
+} as const;
+
+export const PRODUCTION_DIALOGUE_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    schema_version: { type: 'string', enum: [PRODUCTION_DIALOGUE_SCHEMA_VERSION] },
+    generation_metadata: { type: 'object', properties: { dialogue_prompt_version: string, model: string }, required: ['dialogue_prompt_version'] },
+    turns: { type: 'array', minItems: 2, items: { type: 'object', properties: dialogueTurnProperties, required: Object.keys(dialogueTurnProperties) } },
+  },
+  required: ['schema_version', 'generation_metadata', 'turns'],
+} as const;
+
+export const DIALOGUE_STRUCTURED_OUTPUT = {
+  name: 'production_dialogue_script',
+  schema: PRODUCTION_DIALOGUE_RESPONSE_SCHEMA,
+} as const;
+
+export const FIDELITY_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', enum: ['PASS', 'REPAIR_REQUIRED'] },
+    defects: { type: 'array', items: { type: 'object', properties: {
+      defect_id: string,
+      type: { type: 'string', enum: ['BAD_ANALOGY', 'ANALOGY_LEAKAGE', 'MISSING_PREREQUISITE', 'SOURCE_DRIFT', 'CLAIM_EXAGGERATION', 'PASSIVE_HOST2', 'UNEARNED_AHA', 'JARGON_OVERLOAD', 'WEAK_MENTAL_MODEL', 'UNRESOLVED_LOOP', 'PEDAGOGICAL_REDUNDANCY', 'WEAK_SYNTHESIS', 'PAYLOAD_LOSS'] },
+      severity: { type: 'string', enum: ['HARD_BLOCKER', 'SOFT_WARNING'] },
+      turn_ids: stringList, concept_ids: stringList, invariant_ids: stringList, evidence_ids: evidenceIdList,
+      description: string, repair_directive: string,
+    }, required: ['defect_id', 'type', 'severity', 'turn_ids', 'concept_ids', 'invariant_ids', 'evidence_ids', 'description', 'repair_directive'] } },
+  },
+  required: ['verdict', 'defects'],
+} as const;
+
+export const FIDELITY_STRUCTURED_OUTPUT = { name: 'teaching_fidelity_review', schema: FIDELITY_RESPONSE_SCHEMA } as const;

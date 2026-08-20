@@ -85,6 +85,8 @@ describe('TeachingEngineService fidelity path', () => {
       .toContain('schema_version');
     expect((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[1][1].jsonSchema.schema.required)
       .toContain('schema_version');
+    expect((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[2][1].jsonSchema.schema.required)
+      .toContain('schema_version');
     expect(result.fidelity).toEqual({ verdict: 'PASS', defects: [] });
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('less likely');
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T1')?.spoken_text).toBe(firstScript.turns[0].spoken_text);

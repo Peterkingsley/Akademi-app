@@ -20,8 +20,11 @@ import {
 import {
   ANALYSIS_STRUCTURED_OUTPUT,
   BLUEPRINT_STRUCTURED_OUTPUT,
+  DIALOGUE_STRUCTURED_OUTPUT,
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
+  FIDELITY_STRUCTURED_OUTPUT,
+  PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
 
 const MAX_PATCH_ATTEMPTS = 1;
@@ -126,7 +129,8 @@ export class TeachingEngineService {
             model: response.model,
             expected_schema_version: args.stage === 'analysis'
               ? EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION
-              : args.stage === 'blueprint' ? EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION : undefined,
+              : args.stage === 'blueprint' ? EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION
+                : args.stage === 'dialogue' ? PRODUCTION_DIALOGUE_SCHEMA_VERSION : undefined,
             actual_schema_version: Object.prototype.hasOwnProperty.call(parsed, 'schema_version') ? parsed.schema_version : undefined,
             top_level_keys: Object.keys(parsed).sort(),
             concept_classifications: Array.isArray(parsed.concepts)
@@ -246,6 +250,7 @@ export class TeachingEngineService {
     const { artifact: realizedDialogue, model: dialogueModel, trace: dialogueTrace } = await this.callJson({
       stage: 'dialogue', prompt: dialoguePrompt(analysis, blueprint), systemPrompt: dialogueSystemPrompt,
       model: config.teachingDialogueModel, maxTokens: 12_000, validate: (value) => validateDialogue(value, blueprint, analysis),
+      structuredOutput: DIALOGUE_STRUCTURED_OUTPUT,
     });
     traces.push(dialogueTrace);
     let dialogue: ProductionDialogueScript = { ...realizedDialogue, generation_metadata: { ...realizedDialogue.generation_metadata, model: dialogueModel } };
@@ -257,6 +262,7 @@ export class TeachingEngineService {
       const runFidelity = async (candidate: ProductionDialogueScript) => this.callJson({
         stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate), systemPrompt: fidelitySystemPrompt,
         model: config.teachingFidelityModel, maxTokens: 4_000, validate: validateCriticReview,
+        structuredOutput: FIDELITY_STRUCTURED_OUTPUT,
       });
       const firstFidelity = await runFidelity(dialogue);
       fidelity = firstFidelity.artifact;
