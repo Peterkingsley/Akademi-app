@@ -74,6 +74,8 @@ describe('teaching engine deterministic validation', () => {
       .toContain('CORE_PILLAR');
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.epistemic_status.enum)
       .toContain('CONFIRMED');
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.teaching_priority)
+      .toMatchObject({ minimum: 0, maximum: 1 });
   });
 
   it('accepts a source-grounded Raft teaching plan and dialogue', () => {

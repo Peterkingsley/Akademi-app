@@ -47,7 +47,7 @@ export const EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          concept_id: string, canonical_name: string, tier: conceptTier, teaching_priority: { type: 'number' }, epistemic_status: epistemicStatus,
+          concept_id: string, canonical_name: string, tier: conceptTier, teaching_priority: { type: 'number', minimum: 0, maximum: 1 }, epistemic_status: epistemicStatus,
           prerequisite_concept_ids: stringList, evidence_ids: evidenceIdList, selected_analogy_id: { type: 'string', nullable: true },
           invariants: {
             type: 'array', items: {
