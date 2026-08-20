@@ -5,6 +5,7 @@ import {
 } from './schema';
 import type { ConversationalQualityReport } from './conversational-quality.validator';
 import type { Host1OpeningRepair } from './host1-opening-repair';
+import type { BlueprintQualityReport } from './blueprint-quality.validator';
 
 export type ClaimType =
   | 'SOURCE_FACT'
@@ -164,6 +165,7 @@ export interface TeachingEpisodeResult {
   episodeId: string;
   analysis: EpisodeTeachingAnalysis;
   blueprint: EpisodeTeachingBlueprint;
+  blueprintQuality: BlueprintQualityReport;
   dialogue: ProductionDialogueScript;
   /** Present only when the fidelity gate required a targeted repair. */
   preRepairDialogue: ProductionDialogueScript | null;

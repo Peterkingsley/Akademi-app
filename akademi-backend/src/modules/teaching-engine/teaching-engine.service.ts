@@ -28,6 +28,7 @@ import {
 } from './schema';
 import { validateConversationalQuality } from './conversational-quality.validator';
 import { repairHost1ValidationOpenings } from './host1-opening-repair';
+import { validateBlueprintQuality } from './blueprint-quality.validator';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -249,6 +250,7 @@ export class TeachingEngineService {
       structuredOutput: BLUEPRINT_STRUCTURED_OUTPUT,
     });
     traces.push(blueprintTrace);
+    const blueprintQuality = validateBlueprintQuality(blueprint);
     const { artifact: realizedDialogue, model: dialogueModel, trace: dialogueTrace } = await this.callJson({
       stage: 'dialogue', prompt: dialoguePrompt(analysis, blueprint), systemPrompt: dialogueSystemPrompt,
       model: config.teachingDialogueModel, maxTokens: 12_000, validate: (value) => validateDialogue(value, blueprint, analysis),
@@ -300,7 +302,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs: openingRepair.repairs, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs: openingRepair.repairs, cachedAnalysis: cached,
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

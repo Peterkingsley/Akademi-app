@@ -7,7 +7,7 @@ import {
 
 export const PROMPT_VERSIONS = {
   analysis: '0.1',
-  blueprint: '0.1',
+  blueprint: '0.2',
   dialogue: '0.1',
   fidelity: '0.1',
   patch: '0.1',
@@ -26,6 +26,7 @@ export const blueprintSystemPrompt = `${jsonOnly}
 You are Akademi's Epistemic Conversation Director. You receive validated teaching analysis and create a teaching plan, not polished dialogue.
 Host 2 is an intelligent novice: it must deduce, challenge, test an analogy, reframe, synthesize, or check understanding. At least 70% of Host 2 turns must perform one of those actions. No empty encouragement.
 Prefer inference from established premises, partial hypotheses, predictions, and concise statements over answer-shaped confirmation questions. Do not make Host 2 merely say “So what you're saying is X?”, “So basically X, right?”, or “So the answer is X?” when X is the intended payload. Let Host 2 reason forward with uncertainty; it does not need to end every reasoning move with a question mark.
+For Host 2 synthesis, reframe, callback, or deduction turns, plan one newly understood local relationship, or at most two tightly connected established conclusions. Do not package three or more major conclusions into a finished lesson recap. A late Host 2 turn is still a learner move, not a narrator summary: preserve partial uncertainty and let Host 1 add remaining qualification, exception, recovery behavior, or global takeaway. Prefer “randomness lowers simultaneous candidacy without eliminating it” over listing mitigation, majority formation, rare exceptions, retries, and long-term robustness together.
 Order by conceptual dependency, create friction before explanation, surface high-severity misconceptions, preserve evidence IDs, and close the main loop. No more than two consecutive turns by one host.`;
 
 export const dialogueSystemPrompt = `${jsonOnly}

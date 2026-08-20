@@ -171,13 +171,20 @@ async function main() {
     }
 
     const result = response.body;
+    const blueprintQualityReport = result.blueprintQuality
+      ? `\n## Blueprint quality — soft validation\n\n- Verdict: **${result.blueprintQuality.verdict}**\n- Metrics: ${json(result.blueprintQuality.metrics).trim()}\n\n${result.blueprintQuality.issues.map((issue: any) => {
+        const spoken = result.dialogue.turns.find((turn: any) => turn.turn_id === issue.turn_id)?.spoken_text || 'No realized dialogue turn returned.';
+        return `- ${issue.type} | ${issue.turn_id} | signals: ${issue.signals.join(', ')}\n  - Call 2 payload: ${issue.payload}\n  - Call 3 realization: ${spoken}`;
+      }).join('\n') || 'No overcomplete Host 2 blueprint payloads detected.'}\n`
+      : '';
     const qualityReport = result.conversationalQuality
       ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 opening repairs: ${result.host1OpeningRepairs?.filter((repair: any) => repair.applied).map((repair: any) => `${repair.turn_id}: ${repair.removed_text}`).join('; ') || 'none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
-    const report = `${reportFor(result)}${qualityReport}`;
+    const report = `${reportFor(result)}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'blueprint.json'), json(result.blueprint)),
+      fs.writeFile(path.join(runDir, 'blueprint-quality.json'), json(result.blueprintQuality)),
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),
       fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, instrumentation: result.instrumentation })),
       fs.writeFile(path.join(runDir, 'conversational-quality.json'), json(result.conversationalQuality)),
