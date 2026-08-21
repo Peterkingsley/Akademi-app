@@ -1,4 +1,5 @@
 import type { EpisodeTeachingAnalysis, ProductionDialogueScript } from './types';
+import { detectHost1ValidationPrefix } from './host1-opening-repair';
 
 export type ConversationalQualityIssueType = 'REPETITIVE_AFFIRMATION' | 'UNSUPPORTED_INTENSITY' | 'HOST2_LEADING_QUESTION' | 'HOST2_ECHO' | 'HOST2_PREPACKAGED_SYNTHESIS' | 'REPEATED_OPENER' | 'REPEATED_EXCHANGE_PATTERN';
 export type Host2PrepackagedSynthesisSignal = 'SUMMARY_OPENER' | 'LONG_COMPARED_TO_HOST2_TURNS' | 'MULTI_CONCLUSION' | 'MULTIPLE_DISCOURSE_CONNECTORS' | 'HIGH_PRIOR_TURN_OVERLAP' | 'LOW_NOVEL_RELATIONSHIP_GAIN';
@@ -29,6 +30,12 @@ export interface ConversationalQualityReport {
     passive_turn_count: number;
     host2_prepackaged_synthesis_count: number;
     host2_prepackaged_synthesis_rate: number;
+    host1_validation_count: number;
+    host1_validation_rate: number;
+    host1_pure_affirmation_count: number;
+    host1_learner_evaluation_count: number;
+    host1_meta_praise_count: number;
+    host1_idea_validation_count: number;
   };
   repeated_affirmation_patterns: string[];
   repeated_turn_openers: string[];
@@ -116,11 +123,17 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
   const affirmations: string[] = [];
   const openerCounts = new Map<string, number>();
   const host2 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_2');
+  const host1 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_1');
   let leading = 0; let echoes = 0; let passive = 0; let prepackaged = 0;
   let assertedIntensity = 0; let hypothesisIntensity = 0; let negatedIntensity = 0;
+  const host1ValidationCounts = { PURE_AFFIRMATION: 0, LEARNER_EVALUATION: 0, META_PRAISE: 0, IDEA_VALIDATION: 0 };
 
   dialogue.turns.forEach((turn, index) => {
     const text = turn.spoken_text.trim();
+    if (turn.speaker === 'HOST_1') {
+      const validation = detectHost1ValidationPrefix(text);
+      if (validation) host1ValidationCounts[validation.category] += 1;
+    }
     const match = text.match(affirmation);
     if (match) {
       affirmations.push(match[0].trim().toLowerCase());
@@ -182,6 +195,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
   const repeatedExchanges = [...new Set(exchangePatterns.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))];
   for (const value of repeatedExchanges) issues.push({ type: 'REPEATED_EXCHANGE_PATTERN', turn_id: 'pattern', phrase: value, evidence_ids: [], reason: 'Repeated Host 2 prompt followed by teacher affirmation pattern.' });
   const agency = host2.filter((turn) => activeHost2.has(turn.intent)).length / Math.max(1, host2.length);
+  const host1ValidationCount = Object.values(host1ValidationCounts).reduce((sum, count) => sum + count, 0);
   return {
     verdict: issues.length ? 'PASS_WITH_WARNINGS' : 'PASS',
     metrics: {
@@ -189,6 +203,12 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: assertedIntensity,
       asserted_intensity_count: assertedIntensity, hypothesis_intensity_count: hypothesisIntensity, negated_intensity_count: negatedIntensity,
       repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive, host2_prepackaged_synthesis_count: prepackaged, host2_prepackaged_synthesis_rate: Number((prepackaged / Math.max(1, host2.length)).toFixed(2)),
+      host1_validation_count: host1ValidationCount,
+      host1_validation_rate: Number((host1ValidationCount / Math.max(1, host1.length)).toFixed(2)),
+      host1_pure_affirmation_count: host1ValidationCounts.PURE_AFFIRMATION,
+      host1_learner_evaluation_count: host1ValidationCounts.LEARNER_EVALUATION,
+      host1_meta_praise_count: host1ValidationCounts.META_PRAISE,
+      host1_idea_validation_count: host1ValidationCounts.IDEA_VALIDATION,
     },
     repeated_affirmation_patterns: [...new Set(affirmations.filter((value, _, all) => all.filter((candidate) => candidate === value).length > 1))],
     repeated_turn_openers: repeatedOpeners,

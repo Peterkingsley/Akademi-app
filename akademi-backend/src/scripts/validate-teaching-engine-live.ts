@@ -178,7 +178,7 @@ async function main() {
       }).join('\n') || 'No Host 2 blueprint-payload warnings detected.'}\n`
       : '';
     const qualityReport = result.conversationalQuality
-      ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 opening repairs: ${result.host1OpeningRepairs?.filter((repair: any) => repair.applied).map((repair: any) => `${repair.turn_id}: ${repair.removed_text}`).join('; ') || 'none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
+      ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 validation repairs:\n${result.host1OpeningRepairs?.map((repair: any) => `  - ${repair.turn_id} | ${repair.category} | ${repair.applied ? 'removed' : repair.warning} | ${repair.removed_text}`).join('\n') || '  - none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
     const report = `${reportFor(result)}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([

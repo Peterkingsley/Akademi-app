@@ -260,6 +260,7 @@ export class TeachingEngineService {
     let dialogue: ProductionDialogueScript = { ...realizedDialogue, generation_metadata: { ...realizedDialogue.generation_metadata, model: dialogueModel } };
     const rawConversationalQuality = validateConversationalQuality(dialogue, analysis);
     const openingRepair = repairHost1ValidationOpenings(dialogue);
+    let host1OpeningRepairs = openingRepair.repairs;
     dialogue = validateDialogue(openingRepair.dialogue, blueprint, analysis);
     let fidelity: CriticReview | null = null;
     const fidelityHistory: CriticReview[] = [];
@@ -278,7 +279,9 @@ export class TeachingEngineService {
       for (let attempt = 0; attempt < MAX_PATCH_ATTEMPTS && fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER'); attempt += 1) {
         preRepairDialogue = dialogue;
         const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity);
-        dialogue = repaired.dialogue;
+        const postPatchOpeningRepair = repairHost1ValidationOpenings(repaired.dialogue);
+        host1OpeningRepairs = [...host1OpeningRepairs, ...postPatchOpeningRepair.repairs];
+        dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
         traces.push(repaired.trace);
         const repairedFidelity = await runFidelity(dialogue);
         fidelity = repairedFidelity.artifact;
@@ -302,7 +305,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs: openingRepair.repairs, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, cachedAnalysis: cached,
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

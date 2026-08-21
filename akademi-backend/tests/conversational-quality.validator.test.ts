@@ -13,6 +13,20 @@ describe('conversational quality validator', () => {
     expect(good.issues.some((issue) => issue.type === 'REPETITIVE_AFFIRMATION')).toBe(false);
   });
 
+  it('measures broader Host 1 teacher-validation families, not only exact affirmations', () => {
+    const report = validateConversationalQuality(dialogue([
+      turn('1', 'HOST_1', "You've identified a critical problem. A split vote leaves no leader for that term."),
+      turn('2', 'HOST_1', 'That analogy captures the core idea. Timers model staggered election starts.'),
+      turn('3', 'HOST_1', 'Great observation. A timeout starts a new election.'),
+      turn('4', 'HOST_1', 'Right—but that only solves the timing problem.'),
+    ]), analysis);
+    expect(report.metrics.host1_validation_count).toBe(3);
+    expect(report.metrics.host1_learner_evaluation_count).toBe(1);
+    expect(report.metrics.host1_idea_validation_count).toBe(1);
+    expect(report.metrics.host1_meta_praise_count).toBe(1);
+    expect(report.metrics.host1_validation_rate).toBe(0.75);
+  });
+
   it('flags leading Host 2 restatement but not a causal deduction', () => {
     const report = validateConversationalQuality(dialogue([
       turn('0', 'HOST_1', 'Randomized timeouts reduce split votes by separating candidate starts.'),
