@@ -8,6 +8,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
+import { teachingAudioRenderer } from '../modules/teaching-engine/teaching-audio.service';
 
 dotenv.config();
 
@@ -172,6 +173,9 @@ async function main() {
     }
 
     const result = response.body;
+    const audioBaseline = process.env.TEACHING_AUDIO_BASELINE === 'true'
+      ? await teachingAudioRenderer.renderFinalDialogue(result.episodeId, result.dialogue)
+      : null;
     const blueprintQualityReport = result.blueprintQuality
       ? `\n## Blueprint quality — soft validation\n\n- Verdict: **${result.blueprintQuality.verdict}**\n- Metrics: ${json(result.blueprintQuality.metrics).trim()}\n\n${result.blueprintQuality.issues.map((issue: any) => {
         const spoken = result.dialogue.turns.find((turn: any) => turn.turn_id === issue.turn_id)?.spoken_text || 'No realized dialogue turn returned.';
@@ -188,7 +192,10 @@ async function main() {
     const finalCertaintyBlockers = finalCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
     const semanticFidelityHistory = result.semanticFidelityHistory || [];
     const certaintyEscalationReport = `\n## Deterministic certainty escalation — V0.12\n\n- Initial classifications: ${json(initialCertaintyWarnings).trim()}\n- Initial hard blockers: ${initialCertaintyBlockers.length ? initialCertaintyBlockers.map((warning: any) => `${warning.turn_id} (${warning.phrase}; dialogue ${warning.dialogue_strength}; evidence ${warning.evidence_strength})`).join(', ') : 'none'}\n- Semantic Call 4 first-pass verdict: **${semanticFidelityHistory[0]?.verdict || 'SKIPPED'}**\n- Deterministic-combined first-pass verdict: **${result.fidelityHistory?.[0]?.verdict || 'SKIPPED'}**\n- Targeted repaired turns: ${result.preRepairDialogue ? result.preRepairDialogue.turns.filter((turn: any, index: number) => turn.spoken_text !== result.dialogue.turns[index]?.spoken_text).map((turn: any) => turn.turn_id).join(', ') || 'none detected' : 'none'}\n- Semantic Call 4 second-pass verdict: **${semanticFidelityHistory[1]?.verdict || 'not needed'}**\n- Final deterministic blockers: **${finalCertaintyBlockers.length}**\n- Final classifications: ${json(finalCertaintyWarnings).trim()}\n`;
-    const report = `${reportFor(result)}${referenceIntegrityReport}${certaintyEscalationReport}${blueprintQualityReport}${qualityReport}`;
+    const audioReport = audioBaseline
+      ? `\n## Two-host audio baseline — V1\n\n- Provider: **${audioBaseline.manifest.provider}**\n- Format: ${audioBaseline.manifest.format}\n- Host 1 voice: ${audioBaseline.manifest.voices.host1VoiceId}\n- Host 2 voice: ${audioBaseline.manifest.voices.host2VoiceId}\n- Total audio duration: ${audioBaseline.manifest.assembled_episode.duration_ms}ms\n- Total TTS latency: ${audioBaseline.manifest.metrics.total_tts_latency_ms}ms\n- Assembly latency: ${audioBaseline.manifest.assembled_episode.assembly_latency_ms}ms\n- Average handoff gap: ${audioBaseline.manifest.metrics.average_handoff_gap_ms}ms\n- Quick responses: ${audioBaseline.manifest.metrics.quick_response_count}\n- Reflective pauses: ${audioBaseline.manifest.metrics.reflective_pause_count}\n- Retried turns: ${audioBaseline.manifest.turns.filter((turn: any) => turn.retry_count > 0).map((turn: any) => turn.turn_id).join(', ') || 'none'}\n- Episode artifact: ${audioBaseline.manifest.assembled_episode.url}\n- Manifest artifact: ${audioBaseline.manifest_url}\n\n### Turn timing manifest\n${audioBaseline.manifest.turns.map((turn: any) => `- ${turn.turn_id} | ${turn.speaker} | ${turn.start_ms}–${turn.end_ms}ms | ${turn.duration_ms}ms | ${turn.pause_class} ${turn.pause_after_ms}ms | ${turn.segment_url}`).join('\n')}\n`
+      : '';
+    const report = `${reportFor(result)}${referenceIntegrityReport}${certaintyEscalationReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({
@@ -211,6 +218,10 @@ async function main() {
       fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),
       fs.writeFile(path.join(runDir, 'certainty-drift-warnings.json'), json({ initial: initialCertaintyWarnings, final: finalCertaintyWarnings, semantic_fidelity_history: semanticFidelityHistory })),
       fs.writeFile(path.join(runDir, 'repaired-dialogue.json'), json(result.preRepairDialogue ? { original: result.preRepairDialogue, repaired: result.dialogue } : { repaired: false, dialogue: result.dialogue })),
+      ...(audioBaseline ? [
+        fs.writeFile(path.join(runDir, 'audio-manifest.json'), json(audioBaseline.manifest)),
+        fs.writeFile(path.join(runDir, 'audio-artifacts.json'), json({ manifest_key: audioBaseline.manifest_key, manifest_url: audioBaseline.manifest_url, episode: audioBaseline.manifest.assembled_episode })),
+      ] : []),
       fs.writeFile(path.join(runDir, 'report.md'), report),
     ]);
     console.log(`HTTP_INTEGRATION      PASS`);

@@ -50,6 +50,11 @@ export const config = {
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY || '',
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
   elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID || 'eleven_flash_v2_5',
+  // Teaching episodes use two independent, configurable voices. Host 1 may
+  // temporarily inherit the established tutor voice during the audio baseline;
+  // Host 2 must be explicitly selected so an accidental mono episode fails fast.
+  teachingHost1VoiceId: process.env.TEACHING_HOST1_VOICE_ID || process.env.ELEVENLABS_VOICE_ID || '',
+  teachingHost2VoiceId: process.env.TEACHING_HOST2_VOICE_ID || '',
   googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || '',
   // Google Programmable Search Engine (Custom Search JSON API), image search mode — used to
   // source diagrams for Akademi Generated Textbooks. See .env.example for setup notes.
