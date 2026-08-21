@@ -175,6 +175,8 @@ export interface TeachingEpisodeResult {
   fidelity: CriticReview | null;
   /** First review and, when applicable, the review after the bounded repair. */
   fidelityHistory: CriticReview[];
+  /** Raw Call 4 verdicts before deterministic certainty escalation is merged. */
+  semanticFidelityHistory: CriticReview[];
   conversationalQuality: ConversationalQualityReport;
   rawConversationalQuality: ConversationalQualityReport;
   host1OpeningRepairs: Host1OpeningRepair[];

@@ -17,9 +17,9 @@ const analysis = (claim: string): EpisodeTeachingAnalysis => ({
   source_disagreements: [], pruning_manifest: [],
 });
 
-const dialogue = (spoken_text: string): ProductionDialogueScript => ({
+const dialogue = (spoken_text: string, speaker: 'HOST_1' | 'HOST_2' = 'HOST_1'): ProductionDialogueScript => ({
   schema_version: '0.1', generation_metadata: { dialogue_prompt_version: '0.2' },
-  turns: [{ turn_id: 'T1', speaker: 'HOST_1', intent: 'EXPLAIN', core_epistemic_payload: spoken_text, concept_ids: ['CON_1'], invariant_ids: ['INV_1'], misconception_ids: [], evidence_ids: ['EV_1'], analogy_id: null, spoken_text }],
+  turns: [{ turn_id: 'T1', speaker, intent: speaker === 'HOST_1' ? 'EXPLAIN' : 'CHALLENGE', core_epistemic_payload: spoken_text, concept_ids: ['CON_1'], invariant_ids: ['INV_1'], misconception_ids: [], evidence_ids: ['EV_1'], analogy_id: null, spoken_text }],
 });
 
 describe('certainty-drift validator', () => {
@@ -28,9 +28,9 @@ describe('certainty-drift validator', () => {
     ['The retry mechanism guarantees recovery.', 'guarantee'],
     ['Randomization prevents split votes.', 'prevent'],
     ['The protocol will always elect a leader eventually.', 'always'],
-  ])('warns when %s exceeds retry/probability evidence', (spoken, phrase) => {
+  ])('hard-blocks asserted %s when it exceeds retry/probability evidence', (spoken, phrase) => {
     const warnings = detectPossibleCertaintyDrift(dialogue(spoken), analysis('The system can retry. Randomization makes split votes rare.'));
-    expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', turn_id: 'T1', phrase }]);
+    expect(warnings).toMatchObject([{ type: 'CERTAINTY_DRIFT_HARD_BLOCKER', turn_id: 'T1', phrase, speaker_function: 'ASSERTED_CERTAINTY', support: 'CERTAINTY_UNSUPPORTED' }]);
   });
 
   it.each([
@@ -42,5 +42,29 @@ describe('certainty-drift validator', () => {
 
   it('permits strong certainty only when the bound source uses equivalent certainty', () => {
     expect(detectPossibleCertaintyDrift(dialogue('The protocol always elects a leader.'), analysis('The protocol always elects a leader.'))).toEqual([]);
+  });
+
+  it('permits an absolute one-vote constraint when the source explicitly establishes it', () => {
+    expect(detectPossibleCertaintyDrift(dialogue('A server cannot cast two votes in the same term.'), analysis('Each server grants at most one vote in a term.'))).toEqual([]);
+  });
+
+  it('does not hard-block a learner hypothesis about a guarantee', () => {
+    const warnings = detectPossibleCertaintyDrift(dialogue('Does this guarantee a leader?', 'HOST_2'), analysis('The system can retry.'));
+    expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', speaker_function: 'LEARNER_HYPOTHESIS_CERTAINTY' }]);
+  });
+
+  it('understands negated certainty', () => {
+    const warnings = detectPossibleCertaintyDrift(dialogue("It doesn't guarantee a leader."), analysis('The system can retry.'));
+    expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', speaker_function: 'NEGATED_CERTAINTY' }]);
+  });
+
+  it('does not mistake a Host 2 declarative negation for a learner hypothesis', () => {
+    const warnings = detectPossibleCertaintyDrift(dialogue("It's not a perfect guarantee.", 'HOST_2'), analysis('The system can retry.'));
+    expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', speaker_function: 'NEGATED_CERTAINTY' }]);
+  });
+
+  it('hard-blocks “always a tiny chance” but distinguishes it from failure always occurring', () => {
+    const warnings = detectPossibleCertaintyDrift(dialogue("There's always a tiny chance the timeouts collide."), analysis('Randomized timeouts make split votes rare but do not make them impossible.'));
+    expect(warnings).toMatchObject([{ type: 'CERTAINTY_DRIFT_HARD_BLOCKER', phrase: 'always', support: 'CERTAINTY_UNSUPPORTED' }]);
   });
 });

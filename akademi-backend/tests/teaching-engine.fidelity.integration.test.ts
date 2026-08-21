@@ -72,7 +72,7 @@ describe('TeachingEngineService fidelity path', () => {
         verdict: 'REPAIR_REQUIRED',
         defects: [{ defect_id: 'DEF_001', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'], description: 'The dialogue changes reduces into prevents.', repair_directive: 'Use probabilistic source-faithful language.' }],
       },
-      { replacement_dialogue_turns: [repairedTurn] },
+      [repairedTurn],
       { verdict: 'PASS', defects: [] },
     ];
     (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
@@ -141,8 +141,11 @@ describe('TeachingEngineService fidelity path', () => {
     });
 
     const firstFidelityPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[3][0]);
-    expect(firstFidelityPrompt.certainty_drift_warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', turn_id: 'T3', phrase: 'ensure' }]);
-    expect(result.fidelityHistory[0]).toMatchObject({ verdict: 'REPAIR_REQUIRED', defects: [expect.objectContaining({ type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'] })] });
+    expect(firstFidelityPrompt.certainty_drift_warnings).toMatchObject([{ type: 'CERTAINTY_DRIFT_HARD_BLOCKER', turn_id: 'T3', phrase: 'ensure' }]);
+    expect(result.fidelityHistory[0]).toMatchObject({ verdict: 'REPAIR_REQUIRED' });
+    expect(result.fidelityHistory[0].defects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'] }),
+    ]));
     expect(result.preRepairDialogue?.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toBe(firstScript.turns[2].spoken_text);
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('another opportunity');
     expect(result.fidelityHistory[1]).toEqual({ verdict: 'PASS', defects: [] });
@@ -181,5 +184,29 @@ describe('TeachingEngineService fidelity path', () => {
     expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(5);
     expect(blueprintTrace).toMatchObject({ retryCount: 1, unknownReferenceIds: ['INV_DOES_NOT_EXIST'] });
     expect(blueprintTrace?.validationFailureReason).toContain('UNKNOWN_INVARIANT_REFERENCE');
+  });
+
+  it('repairs a deterministic certainty blocker even when Call 4 initially returns PASS', async () => {
+    const firstScript = script("There's always a tiny chance that the timeouts collide.");
+    const repairedTurn = { ...script("There's still a small chance that the timeouts collide.").turns[2] };
+    const responses = [
+      analysis,
+      blueprint,
+      firstScript,
+      { verdict: 'PASS', defects: [] },
+      { turns: [repairedTurn] },
+      { verdict: 'PASS', defects: [] },
+    ];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.semanticFidelityHistory).toEqual([{ verdict: 'PASS', defects: [] }, { verdict: 'PASS', defects: [] }]);
+    expect(result.fidelityHistory[0]).toMatchObject({ verdict: 'REPAIR_REQUIRED', defects: [expect.objectContaining({ description: expect.stringContaining('CERTAINTY_DRIFT_HARD_BLOCKER') })] });
+    expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('still a small chance');
+    expect(result.certaintyDriftWarnings.filter((warning) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER')).toEqual([]);
   });
 });

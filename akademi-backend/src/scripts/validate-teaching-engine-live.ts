@@ -182,7 +182,13 @@ async function main() {
       ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 validation repairs:\n${result.host1OpeningRepairs?.map((repair: any) => `  - ${repair.turn_id} | ${repair.category} | ${repair.applied ? 'removed' : repair.warning} | ${repair.removed_text}`).join('\n') || '  - none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
     const referenceIntegrityReport = `\n## Reference graph integrity\n\n- Analysis cache status: **${result.analysisCacheStatus || (result.cachedAnalysis ? 'HIT_VALID' : 'MISS')}**\n- Analysis contract version: ${result.analysis.analysis_contract_version || 'not exposed'}\n- Deterministic Call 1 → Call 2 → Call 3 validation: **PASS**\n- Unknown downstream references: **0**\n- Call 1 concept IDs: ${result.analysis.concepts.map((concept: any) => concept.concept_id).join(', ') || 'none'}\n- Call 1 invariant IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.invariants.map((invariant: any) => invariant.invariant_id)).join(', ') || 'none'}\n- Call 1 misconception IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.misconceptions.map((misconception: any) => misconception.misconception_id)).join(', ') || 'none'}\n- Call 1 analogy IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.analogy_candidates.map((analogy: any) => analogy.analogy_id)).join(', ') || 'none'}\n- Call 1 evidence IDs: ${result.analysis.evidence_registry.map((evidence: any) => evidence.evidence_id).join(', ') || 'none'}\n- Blueprint turn IDs: ${result.blueprint.turns.map((turn: any) => turn.turn_id).join(', ') || 'none'}\n`;
-    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintQualityReport}${qualityReport}`;
+    const initialCertaintyWarnings = result.initialCertaintyDriftWarnings || [];
+    const finalCertaintyWarnings = result.certaintyDriftWarnings || [];
+    const initialCertaintyBlockers = initialCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
+    const finalCertaintyBlockers = finalCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
+    const semanticFidelityHistory = result.semanticFidelityHistory || [];
+    const certaintyEscalationReport = `\n## Deterministic certainty escalation — V0.12\n\n- Initial classifications: ${json(initialCertaintyWarnings).trim()}\n- Initial hard blockers: ${initialCertaintyBlockers.length ? initialCertaintyBlockers.map((warning: any) => `${warning.turn_id} (${warning.phrase}; dialogue ${warning.dialogue_strength}; evidence ${warning.evidence_strength})`).join(', ') : 'none'}\n- Semantic Call 4 first-pass verdict: **${semanticFidelityHistory[0]?.verdict || 'SKIPPED'}**\n- Deterministic-combined first-pass verdict: **${result.fidelityHistory?.[0]?.verdict || 'SKIPPED'}**\n- Targeted repaired turns: ${result.preRepairDialogue ? result.preRepairDialogue.turns.filter((turn: any, index: number) => turn.spoken_text !== result.dialogue.turns[index]?.spoken_text).map((turn: any) => turn.turn_id).join(', ') || 'none detected' : 'none'}\n- Semantic Call 4 second-pass verdict: **${semanticFidelityHistory[1]?.verdict || 'not needed'}**\n- Final deterministic blockers: **${finalCertaintyBlockers.length}**\n- Final classifications: ${json(finalCertaintyWarnings).trim()}\n`;
+    const report = `${reportFor(result)}${referenceIntegrityReport}${certaintyEscalationReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({
@@ -199,11 +205,11 @@ async function main() {
       fs.writeFile(path.join(runDir, 'blueprint.json'), json(result.blueprint)),
       fs.writeFile(path.join(runDir, 'blueprint-quality.json'), json(result.blueprintQuality)),
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),
-      fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, instrumentation: result.instrumentation })),
+      fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, semantic_history: result.semanticFidelityHistory, instrumentation: result.instrumentation })),
       fs.writeFile(path.join(runDir, 'conversational-quality.json'), json(result.conversationalQuality)),
       fs.writeFile(path.join(runDir, 'conversational-quality-raw.json'), json(result.rawConversationalQuality)),
       fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),
-      fs.writeFile(path.join(runDir, 'certainty-drift-warnings.json'), json({ initial: result.initialCertaintyDriftWarnings, final: result.certaintyDriftWarnings })),
+      fs.writeFile(path.join(runDir, 'certainty-drift-warnings.json'), json({ initial: initialCertaintyWarnings, final: finalCertaintyWarnings, semantic_fidelity_history: semanticFidelityHistory })),
       fs.writeFile(path.join(runDir, 'repaired-dialogue.json'), json(result.preRepairDialogue ? { original: result.preRepairDialogue, repaired: result.dialogue } : { repaired: false, dialogue: result.dialogue })),
       fs.writeFile(path.join(runDir, 'report.md'), report),
     ]);
@@ -214,7 +220,7 @@ async function main() {
     console.log('\n===== AKADEMI TEACHING ENGINE LIVE VALIDATION =====\n');
     console.log('Environment check\nRequired variables: PRESENT (values redacted)');
     console.log('\nProvider/model information\nSee Instrumentation below; no provider credentials are emitted.');
-    console.log(`\nCertainty-drift warnings\n${json({ initial: result.initialCertaintyDriftWarnings || [], final: result.certaintyDriftWarnings || [] })}`);
+    console.log(`\nCertainty-drift warnings\n${json({ initial: initialCertaintyWarnings, final: finalCertaintyWarnings, semantic_fidelity_history: semanticFidelityHistory })}`);
     console.log(report);
     console.log('\nFinal teaching-quality assessment\nAutomated baseline captured. Review the generated dialogue, fidelity result, evidence traces, and analogy audit above before changing prompts.');
     console.log('\n===== END VALIDATION =====');

@@ -30,7 +30,7 @@ import {
 import { validateConversationalQuality } from './conversational-quality.validator';
 import { repairHost1ValidationOpenings } from './host1-opening-repair';
 import { validateBlueprintQuality } from './blueprint-quality.validator';
-import { detectPossibleCertaintyDrift } from './certainty-drift.validator';
+import { certaintyHardBlockers, detectPossibleCertaintyDrift } from './certainty-drift.validator';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -91,6 +91,36 @@ function unknownReferenceIds(issues: string[]) {
   return [...new Set(issues.flatMap((issue) => [...issue.matchAll(/UNKNOWN_[A-Z_]+_REFERENCE: .*? references ([^,\s]+)/g)].map((match) => match[1])))];
 }
 
+/** The patch contract permits a provider to return the replacement collection directly. */
+function parsePatchResponse(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const parsed = JSON.parse(trimmed) as unknown;
+  if (Array.isArray(parsed)) return { turns: parsed };
+  return parseJsonObject(raw);
+}
+
+function mergeDeterministicCertaintyBlockers(review: CriticReview, warnings: ReturnType<typeof detectPossibleCertaintyDrift>): CriticReview {
+  const blockers = certaintyHardBlockers(warnings);
+  if (!blockers.length) return review;
+  return {
+    verdict: 'REPAIR_REQUIRED',
+    defects: [
+      ...review.defects,
+      ...blockers.map((warning) => ({
+        defect_id: `CERTAINTY_${warning.turn_id}_${warning.phrase.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`,
+        type: 'CLAIM_EXAGGERATION' as const,
+        severity: 'HARD_BLOCKER' as const,
+        turn_ids: [warning.turn_id],
+        concept_ids: [],
+        invariant_ids: [],
+        evidence_ids: warning.evidence_ids,
+        description: `CERTAINTY_DRIFT_HARD_BLOCKER: ${warning.reason}`,
+        repair_directive: 'Replace only this asserted certainty phrase with source-faithful probabilistic, conditional, or explicitly supported wording. Preserve every turn binding and speaker.',
+      })),
+    ],
+  };
+}
+
 export class TeachingEngineService {
   private async sourcesFor(request: TeachingEpisodeRequest): Promise<{ sources: NormalizedSource[]; materialId?: string }> {
     if (request.materialId) {
@@ -123,6 +153,7 @@ export class TeachingEngineService {
     model?: string;
     maxTokens: number;
     validate: (value: unknown) => T;
+    parseResponse?: (raw: string) => Record<string, unknown>;
     structuredOutput?: { name: string; schema: Readonly<Record<string, unknown>> };
   }): Promise<{ artifact: T; model: string; trace: TeachingStageInstrumentation }> {
     let lastError: unknown;
@@ -135,7 +166,7 @@ export class TeachingEngineService {
           attempt === 0 ? args.prompt : `${args.prompt}\n\nYour prior output failed validation: ${lastError instanceof Error ? lastError.message : 'invalid JSON'}. Return a corrected JSON object only.`,
           { model: args.model || undefined, systemPrompt: args.systemPrompt, maxTokens: args.maxTokens, extendedTimeouts: true, temperature: 0.2, jsonSchema: args.structuredOutput },
         );
-        const parsed = parseJsonObject(response.text);
+        const parsed = args.parseResponse ? args.parseResponse(response.text) : parseJsonObject(response.text);
         let artifact: T;
         try {
           artifact = args.validate(parsed);
@@ -264,6 +295,7 @@ export class TeachingEngineService {
     const { artifact: replacement, trace } = await this.callJson({
       stage: 'targeted_patch', prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects), systemPrompt: patchSystemPrompt,
       model: config.teachingPatchModel, maxTokens: 4_000,
+      parseResponse: parsePatchResponse,
       validate: (value) => {
         if (!value || typeof value !== 'object') throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
         const candidate = value as { turns?: ProductionDialogueScript['turns']; replacement_dialogue_turns?: ProductionDialogueScript['turns'] };
@@ -313,18 +345,20 @@ export class TeachingEngineService {
     dialogue = validateDialogue(openingRepair.dialogue, blueprint, analysis);
     let fidelity: CriticReview | null = null;
     const fidelityHistory: CriticReview[] = [];
+    const semanticFidelityHistory: CriticReview[] = [];
     let preRepairDialogue: ProductionDialogueScript | null = null;
     const initialCertaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
     let certaintyDriftWarnings = initialCertaintyDriftWarnings;
 
-    if (complexity !== 'FAST') {
+    if (complexity !== 'FAST' || certaintyHardBlockers(certaintyDriftWarnings).length) {
       const runFidelity = async (candidate: ProductionDialogueScript) => this.callJson({
         stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate, certaintyDriftWarnings), systemPrompt: fidelitySystemPrompt,
         model: config.teachingFidelityModel, maxTokens: 4_000, validate: (value) => validateCriticReview(value, analysis, blueprint),
         structuredOutput: FIDELITY_STRUCTURED_OUTPUT,
       });
       const firstFidelity = await runFidelity(dialogue);
-      fidelity = firstFidelity.artifact;
+      semanticFidelityHistory.push(firstFidelity.artifact);
+      fidelity = mergeDeterministicCertaintyBlockers(firstFidelity.artifact, certaintyDriftWarnings);
       fidelityHistory.push(fidelity);
       traces.push(firstFidelity.trace);
       for (let attempt = 0; attempt < MAX_PATCH_ATTEMPTS && fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER'); attempt += 1) {
@@ -336,7 +370,8 @@ export class TeachingEngineService {
         certaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
         traces.push(repaired.trace);
         const repairedFidelity = await runFidelity(dialogue);
-        fidelity = repairedFidelity.artifact;
+        semanticFidelityHistory.push(repairedFidelity.artifact);
+        fidelity = mergeDeterministicCertaintyBlockers(repairedFidelity.artifact, certaintyDriftWarnings);
         fidelityHistory.push(fidelity);
         traces.push(repairedFidelity.trace);
       }
@@ -357,7 +392,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,
