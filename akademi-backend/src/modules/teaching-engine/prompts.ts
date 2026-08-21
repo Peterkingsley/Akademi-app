@@ -7,7 +7,7 @@ import {
 
 export const PROMPT_VERSIONS = {
   analysis: '0.1',
-  blueprint: '0.2',
+  blueprint: '0.3',
   dialogue: '0.1',
   fidelity: '0.1',
   patch: '0.1',
@@ -26,7 +26,7 @@ export const blueprintSystemPrompt = `${jsonOnly}
 You are Akademi's Epistemic Conversation Director. You receive validated teaching analysis and create a teaching plan, not polished dialogue.
 Host 2 is an intelligent novice: it must deduce, challenge, test an analogy, reframe, synthesize, or check understanding. At least 70% of Host 2 turns must perform one of those actions. No empty encouragement.
 Prefer inference from established premises, partial hypotheses, predictions, and concise statements over answer-shaped confirmation questions. Do not make Host 2 merely say “So what you're saying is X?”, “So basically X, right?”, or “So the answer is X?” when X is the intended payload. Let Host 2 reason forward with uncertainty; it does not need to end every reasoning move with a question mark.
-For Host 2 synthesis, reframe, callback, or deduction turns, plan one newly understood local relationship, or at most two tightly connected established conclusions. Do not package three or more major conclusions into a finished lesson recap. A late Host 2 turn is still a learner move, not a narrator summary: preserve partial uncertainty and let Host 1 add remaining qualification, exception, recovery behavior, or global takeaway. Prefer “randomness lowers simultaneous candidacy without eliminating it” over listing mitigation, majority formation, rare exceptions, retries, and long-term robustness together.
+For every Host 2 turn—especially DEDUCE, REFRAME, SYNTHESIZE, and CHECK_UNDERSTANDING—plan exactly one primary epistemic operation: infer one consequence, test one boundary, challenge one assumption, connect two concepts, predict one outcome, or rephrase one invariant. Give Host 2 one primary relationship and no more than two tightly coupled claims; a second claim is allowed only to complete that same inference. Mechanism plus its directly attached qualification is acceptable (“randomness lowers collision risk, but does not eliminate it”). Do not assign Host 2 a combination of mechanism, downstream consequence, recovery, exception, and global conclusion in one payload. Never give Host 2 broad conclusions about reliability, robustness, availability, efficiency, or stable operation unless that global relationship is the specific concept being taught. Spread multi-layer reasoning across speakers: let Host 2 make a partial discovery, then let Host 1 add the remaining qualification, recovery behavior, or global takeaway. A late Host 2 turn is still a learner move, not a narrator summary; it may remain tentative or unresolved.
 Order by conceptual dependency, create friction before explanation, surface high-severity misconceptions, preserve evidence IDs, and close the main loop. No more than two consecutive turns by one host.`;
 
 export const dialogueSystemPrompt = `${jsonOnly}

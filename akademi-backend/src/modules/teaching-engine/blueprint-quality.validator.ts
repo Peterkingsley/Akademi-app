@@ -1,6 +1,6 @@
 import type { EpisodeTeachingBlueprint } from './types';
 
-export type BlueprintQualityIssueType = 'HOST2_OVERCOMPLETE_PAYLOAD';
+export type BlueprintQualityIssueType = 'HOST2_OVERCOMPLETE_PAYLOAD' | 'HOST2_MULTI_OPERATION_PAYLOAD';
 export type Host2OvercompletePayloadSignal =
   | 'SUMMARY_LANGUAGE'
   | 'LONG_RELATIVE_TO_HOST2'
@@ -13,6 +13,10 @@ export type Host2OvercompletePayloadSignal =
   | 'RECOVERY_CLAUSE'
   | 'EXCEPTION_CLAUSE'
   | 'CAUSAL_CONSEQUENCE_CLAUSE'
+  | 'MECHANISM_PLUS_RECOVERY'
+  | 'MECHANISM_PLUS_GLOBAL_OUTCOME'
+  | 'CAUSAL_CONSEQUENCE_PLUS_GLOBAL_OUTCOME'
+  | 'MULTI_OPERATION'
   | 'HIGH_PAYLOAD_DENSITY';
 
 export interface BlueprintQualityIssue {
@@ -29,6 +33,8 @@ export interface BlueprintQualityReport {
     host2_agency_ratio: number;
     host2_overcomplete_payload_count: number;
     host2_overcomplete_payload_rate: number;
+    host2_multi_operation_payload_count: number;
+    host2_multi_operation_payload_rate: number;
   };
   issues: BlueprintQualityIssue[];
 }
@@ -74,6 +80,9 @@ function overcompleteSignals(blueprint: EpisodeTeachingBlueprint, index: number)
   if (hasGlobalOutcome) signals.push('GLOBAL_OUTCOME_CLAUSE');
   if (hasCausalConsequence) signals.push('CAUSAL_CONSEQUENCE_CLAUSE');
   if (hasMechanism && hasQualification) signals.push('MECHANISM_PLUS_QUALIFICATION');
+  if (hasMechanism && hasRecovery) signals.push('MECHANISM_PLUS_RECOVERY');
+  if (hasMechanism && hasGlobalOutcome) signals.push('MECHANISM_PLUS_GLOBAL_OUTCOME');
+  if (hasCausalConsequence && hasGlobalOutcome) signals.push('CAUSAL_CONSEQUENCE_PLUS_GLOBAL_OUTCOME');
   if (conceptualLayerCount >= 3) signals.push('MULTI_CONCLUSION');
   if (conceptualLayerCount >= 3 && wordCount <= 60) signals.push('HIGH_PAYLOAD_DENSITY');
   if (connectorCount >= 3) signals.push('MULTIPLE_RESULT_CLAUSES');
@@ -94,14 +103,29 @@ export function validateBlueprintQuality(blueprint: EpisodeTeachingBlueprint): B
         reason: 'Host 2 plans a finished recap spanning three or more established conclusions. Keep the learner on one local relationship, or at most two tightly connected conclusions; let Host 1 add remaining qualification or recovery behavior.',
       });
     }
+    const multiOperation = signals.includes('MULTI_CONCLUSION')
+      || signals.includes('MECHANISM_PLUS_RECOVERY')
+      || signals.includes('MECHANISM_PLUS_GLOBAL_OUTCOME')
+      || signals.includes('CAUSAL_CONSEQUENCE_PLUS_GLOBAL_OUTCOME');
+    if (multiOperation) {
+      issues.push({
+        type: 'HOST2_MULTI_OPERATION_PAYLOAD', turn_id: turn.turn_id, payload: turn.core_epistemic_payload,
+        signals: [...signals, 'MULTI_OPERATION'],
+        reason: 'Host 2 is assigned more than one major reasoning operation. Keep its payload to one local inference, boundary test, challenge, prediction, or concept connection; distribute any recovery or global conclusion to another turn or Host 1.',
+      });
+    }
   }
   const agency = host2.filter((turn) => activeHost2.has(turn.intent)).length / Math.max(1, host2.length);
+  const overcompleteCount = issues.filter((issue) => issue.type === 'HOST2_OVERCOMPLETE_PAYLOAD').length;
+  const multiOperationCount = issues.filter((issue) => issue.type === 'HOST2_MULTI_OPERATION_PAYLOAD').length;
   return {
     verdict: issues.length ? 'PASS_WITH_WARNINGS' : 'PASS',
     metrics: {
       host2_agency_ratio: Number(agency.toFixed(2)),
-      host2_overcomplete_payload_count: issues.length,
-      host2_overcomplete_payload_rate: Number((issues.length / Math.max(1, host2.length)).toFixed(2)),
+      host2_overcomplete_payload_count: overcompleteCount,
+      host2_overcomplete_payload_rate: Number((overcompleteCount / Math.max(1, host2.length)).toFixed(2)),
+      host2_multi_operation_payload_count: multiOperationCount,
+      host2_multi_operation_payload_rate: Number((multiOperationCount / Math.max(1, host2.length)).toFixed(2)),
     },
     issues,
   };

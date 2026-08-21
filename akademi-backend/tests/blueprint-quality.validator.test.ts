@@ -35,6 +35,29 @@ describe('blueprint quality validator', () => {
     });
   });
 
+  it('flags the V0.6 terminal payload as both overcomplete and multi-operation', () => {
+    const report = validateBlueprintQuality(blueprint([
+      turn('1', 'HOST_1', 'EXPLAIN', 'Randomized timeouts stagger election attempts.'),
+      turn('12', 'HOST_2', 'SYNTHESIZE', 'Randomized election timeouts are essential because they prevent many simultaneous election attempts, making split votes uncommon. This allows the cluster to usually elect a leader without getting stuck, even though an occasional split vote can still happen.'),
+    ]));
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HOST2_OVERCOMPLETE_PAYLOAD', signals: expect.arrayContaining(['MULTI_CONCLUSION']) }),
+      expect.objectContaining({ type: 'HOST2_MULTI_OPERATION_PAYLOAD', signals: expect.arrayContaining(['MULTI_OPERATION']) }),
+    ]));
+    expect(report.metrics.host2_multi_operation_payload_count).toBe(1);
+  });
+
+  it('flags mechanism plus recovery as two major operations without making Host 2 passive', () => {
+    const report = validateBlueprintQuality(blueprint([
+      turn('1', 'HOST_1', 'EXPLAIN', 'A split vote can be followed by another election.'),
+      turn('2', 'HOST_2', 'DEDUCE', 'Randomization makes simultaneous candidacy less likely, and after a split vote a new election gives the cluster another attempt.'),
+    ]));
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HOST2_MULTI_OPERATION_PAYLOAD', signals: expect.arrayContaining(['MECHANISM_PLUS_RECOVERY']) }),
+    ]));
+    expect(report.metrics.host2_overcomplete_payload_count).toBe(0);
+  });
+
   it.each([
     "Randomized timeouts reduce simultaneous candidacy, don't eliminate split votes, and make leader election more reliable.",
     'The retry mechanism prevents permanent failure, lets the system recover, and keeps the cluster available.',
@@ -43,11 +66,10 @@ describe('blueprint quality validator', () => {
       turn('1', 'HOST_1', 'EXPLAIN', 'Election attempts can collide or fail.'),
       turn('2', 'HOST_2', 'SYNTHESIZE', payload),
     ]));
-    expect(report.issues).toHaveLength(1);
-    expect(report.issues[0]).toMatchObject({
+    expect(report.issues).toEqual(expect.arrayContaining([expect.objectContaining({
       type: 'HOST2_OVERCOMPLETE_PAYLOAD',
       signals: expect.arrayContaining(['MULTI_CONCLUSION', 'HIGH_PAYLOAD_DENSITY']),
-    });
+    })]));
   });
 
   it('flags the V0.4 terminal recap more strongly than the V0.5 version', () => {
@@ -84,6 +106,9 @@ describe('blueprint quality validator', () => {
     "Randomization doesn't eliminate collisions; it just makes them less likely.",
     "If everyone retries together, couldn't the same collision happen again?",
     'The next term gives the nodes another attempt.',
+    'Infer that randomized timeout durations reduce simultaneous candidacy.',
+    'Infer that randomized timeouts reduce, but do not eliminate, split-vote risk.',
+    'Connect the failed election to the next election term: the failure creates another attempt rather than permanent leaderlessness.',
   ])('does not flag a single local relationship: %s', (payload) => {
     const report = validateBlueprintQuality(blueprint([
       turn('1', 'HOST_1', 'EXPLAIN', 'An election can fail when candidates collide.'),
