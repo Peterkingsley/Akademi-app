@@ -1,8 +1,10 @@
 import { detectPossibleCertaintyDrift } from '../src/modules/teaching-engine/certainty-drift.validator';
 import type { EpisodeTeachingAnalysis, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
+import { EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION } from '../src/modules/teaching-engine/schema';
 
 const analysis = (claim: string): EpisodeTeachingAnalysis => ({
   schema_version: '0.1',
+  analysis_contract_version: EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   analysis_metadata: { target_learner_level: 'INTELLIGENT_BEGINNER', requested_duration_minutes: 8, user_focus: null, prompt_version: '0.1' },
   episode_thesis: { statement: claim, claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_1'], epistemic_status: 'CONFIRMED' },
   episode_epistemic_goal: { learner_should_understand: claim, learner_should_be_able_to_explain: claim, learner_should_not_leave_believing: [] },

@@ -9,7 +9,7 @@ import {
   patchPrompt, patchSystemPrompt, PROMPT_VERSIONS,
 } from './prompts';
 import {
-  Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
+  AnalysisCacheStatus, Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
   NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
   TeachingStageInstrumentation,
 } from './types';
@@ -22,6 +22,7 @@ import {
   BLUEPRINT_STRUCTURED_OUTPUT,
   DIALOGUE_STRUCTURED_OUTPUT,
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
   FIDELITY_STRUCTURED_OUTPUT,
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
@@ -80,6 +81,16 @@ function normalisePastedSources(sources: NormalizedSource[]) {
     .filter((source) => source.segments.length);
 }
 
+function cacheCompatibilityStatus(value: unknown): Exclude<AnalysisCacheStatus, 'HIT_VALID' | 'MISS'> {
+  const cached = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  if (cached.schema_version !== EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION) return 'HIT_INVALIDATED_SCHEMA';
+  return 'HIT_INVALIDATED_CONTRACT';
+}
+
+function unknownReferenceIds(issues: string[]) {
+  return [...new Set(issues.flatMap((issue) => [...issue.matchAll(/UNKNOWN_[A-Z_]+_REFERENCE: .*? references ([^,\s]+)/g)].map((match) => match[1])))];
+}
+
 export class TeachingEngineService {
   private async sourcesFor(request: TeachingEpisodeRequest): Promise<{ sources: NormalizedSource[]; materialId?: string }> {
     if (request.materialId) {
@@ -115,6 +126,8 @@ export class TeachingEngineService {
     structuredOutput?: { name: string; schema: Readonly<Record<string, unknown>> };
   }): Promise<{ artifact: T; model: string; trace: TeachingStageInstrumentation }> {
     let lastError: unknown;
+    let validationFailureReason: string | undefined;
+    let invalidReferenceIds: string[] | undefined;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const startedAt = Date.now();
       try {
@@ -151,6 +164,15 @@ export class TeachingEngineService {
             validation_issues: issues,
             provider_response: response.metadata || { provider: 'unknown' },
           };
+          validationFailureReason = issues.join('; ');
+          invalidReferenceIds = unknownReferenceIds(issues);
+          if (args.stage === 'blueprint') {
+            console.warn('teaching_blueprint.validation_failed', {
+              blueprint_validation_failure_reason: validationFailureReason,
+              retry_count: attempt + 1,
+              unknown_reference_ids: invalidReferenceIds,
+            });
+          }
           // The raw text is deliberately not logged. The development-only
           // harness can persist it locally for the Raft fixture if enabled.
           console.warn('teaching_engine.validation_failed', diagnostic);
@@ -159,7 +181,8 @@ export class TeachingEngineService {
         const latencyMs = Date.now() - startedAt;
         const trace: TeachingStageInstrumentation = {
           stage: args.stage as TeachingStageInstrumentation['stage'], latencyMs, model: response.model, attempt: attempt + 1,
-          tokenUsage: response.metadata?.tokenUsage,
+          tokenUsage: response.metadata?.tokenUsage, retryCount: attempt,
+          validationFailureReason, unknownReferenceIds: invalidReferenceIds,
         };
         console.info('teaching_engine.stage.completed', { stage: args.stage, latency_ms: latencyMs, model: response.model, attempt: attempt + 1 });
         return { artifact, model: response.model, trace };
@@ -181,21 +204,40 @@ export class TeachingEngineService {
     const cacheKey = fingerprint({
       sourceHash,
       learnerLevel,
+      durationMinutes,
       focus,
       promptVersion: PROMPT_VERSIONS.analysis,
       schemaVersion: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+      contractVersion: EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
     });
     const cached = await prisma.teachingAnalysisCache.findUnique({ where: { cache_key: cacheKey } });
     if (cached) {
       try {
         return {
-          analysis: validateAnalysis(cached.analysis, config.teachingAnalogyRiskThreshold), sourceHash, cached: true,
-          trace: { stage: 'analysis' as const, latencyMs: 0, attempt: 0, cacheHit: true },
+          analysis: validateAnalysis(cached.analysis, config.teachingAnalogyRiskThreshold), sourceHash, cached: true, cacheStatus: 'HIT_VALID' as const,
+          trace: { stage: 'analysis' as const, latencyMs: 0, attempt: 0, cacheHit: true, cacheStatus: 'HIT_VALID' as const },
         };
       } catch (error) {
-        console.warn('teaching_analysis.cache_invalid', { cacheKey, message: error instanceof Error ? error.message : 'Unknown error' });
+        const cacheStatus = cacheCompatibilityStatus(cached.analysis);
+        console.warn('teaching_analysis.cache_invalid', { cacheKey, cache_status: cacheStatus, message: error instanceof Error ? error.message : 'Unknown error' });
       }
     }
+
+    // The current version is part of the primary key, so inspect a compatible
+    // source/scope row solely to make stale-cache invalidation observable.
+    // It is never reused; only a fully validated exact-key row can be a hit.
+    const stale = await prisma.teachingAnalysisCache.findFirst({
+      where: { source_hash: sourceHash, learner_level: learnerLevel, user_focus: focus },
+      orderBy: { updated_at: 'desc' },
+    });
+    const staleMetadata = stale?.analysis && typeof stale.analysis === 'object'
+      ? (stale.analysis as Record<string, unknown>).analysis_metadata as Record<string, unknown> | undefined
+      : undefined;
+    const sameDuration = staleMetadata?.requested_duration_minutes === durationMinutes;
+    const cacheStatus: Exclude<AnalysisCacheStatus, 'HIT_VALID'> = stale && sameDuration
+      ? cacheCompatibilityStatus(stale.analysis)
+      : 'MISS';
+    if (stale && sameDuration) console.info('teaching_analysis.cache_invalidated', { cache_status: cacheStatus });
 
     console.info('teaching_analysis.started', { source_route: sourceRoute(sources), source_count: sources.length, source_token_estimate: estimateTokens(sources) });
     if (sourceRoute(sources) === 'huge_retrieval_required') {
@@ -212,7 +254,7 @@ export class TeachingEngineService {
       create: { cache_key: cacheKey, source_hash: sourceHash, material_id: materialId, learner_level: learnerLevel, user_focus: focus, prompt_version: PROMPT_VERSIONS.analysis, analysis: analysis as any },
       update: { analysis: analysis as any, material_id: materialId },
     });
-    return { analysis, sourceHash, cached: false, trace };
+    return { analysis, sourceHash, cached: false, cacheStatus, trace: { ...trace, cacheStatus } };
   }
 
   private async repairDialogue(
@@ -244,7 +286,7 @@ export class TeachingEngineService {
     const { analysis, sourceHash, cached, trace: analysisTrace } = await this.getOrCreateAnalysis(sources, materialId, learnerLevel, durationMinutes, focus);
     const traces: TeachingStageInstrumentation[] = [analysisTrace];
 
-    console.info('teaching_blueprint.started', { complexity, cached_analysis: cached });
+    console.info('teaching_blueprint.started', { complexity, cached_analysis: cached, analysis_cache_status: analysisTrace.cacheStatus });
     const { artifact: blueprint, trace: blueprintTrace } = await this.callJson({
       stage: 'blueprint', prompt: blueprintPrompt(analysis, complexity), systemPrompt: blueprintSystemPrompt,
       model: config.teachingBlueprintModel, maxTokens: 8_000, validate: (value) => validateBlueprint(value, analysis),
@@ -272,7 +314,7 @@ export class TeachingEngineService {
     if (complexity !== 'FAST') {
       const runFidelity = async (candidate: ProductionDialogueScript) => this.callJson({
         stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate, certaintyDriftWarnings), systemPrompt: fidelitySystemPrompt,
-        model: config.teachingFidelityModel, maxTokens: 4_000, validate: validateCriticReview,
+        model: config.teachingFidelityModel, maxTokens: 4_000, validate: (value) => validateCriticReview(value, analysis, blueprint),
         structuredOutput: FIDELITY_STRUCTURED_OUTPUT,
       });
       const firstFidelity = await runFidelity(dialogue);
@@ -309,7 +351,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

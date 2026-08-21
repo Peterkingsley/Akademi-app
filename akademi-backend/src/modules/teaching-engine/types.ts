@@ -1,5 +1,6 @@
 import {
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
@@ -99,6 +100,7 @@ export interface TeachingConcept {
 
 export interface EpisodeTeachingAnalysis {
   schema_version: typeof EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION;
+  analysis_contract_version: typeof EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION;
   analysis_metadata: { target_learner_level: string; requested_duration_minutes: number; user_focus: string | null; prompt_version: string };
   episode_thesis: { statement: string; claim_type: ClaimType; evidence_ids: string[]; epistemic_status: EpistemicStatus };
   episode_epistemic_goal: { learner_should_understand: string; learner_should_be_able_to_explain: string; learner_should_not_leave_believing: string[] };
@@ -181,6 +183,7 @@ export interface TeachingEpisodeResult {
   certaintyDriftWarnings: CertaintyDriftWarning[];
   tts_handoff: Array<{ turn_id: string; speaker: Host; spoken_text: string }>;
   cachedAnalysis: boolean;
+  analysisCacheStatus: AnalysisCacheStatus;
   instrumentation: TeachingGenerationInstrumentation;
 }
 
@@ -190,9 +193,15 @@ export interface TeachingStageInstrumentation {
   model?: string;
   attempt: number;
   cacheHit?: boolean;
+  cacheStatus?: AnalysisCacheStatus;
+  retryCount?: number;
+  validationFailureReason?: string;
+  unknownReferenceIds?: string[];
   /** Providers currently do not expose usage through the shared interface. */
   tokenUsage?: { input?: number; output?: number; total?: number };
 }
+
+export type AnalysisCacheStatus = 'HIT_VALID' | 'HIT_INVALIDATED_SCHEMA' | 'HIT_INVALIDATED_CONTRACT' | 'MISS';
 
 export interface TeachingGenerationInstrumentation {
   totalLatencyMs: number;

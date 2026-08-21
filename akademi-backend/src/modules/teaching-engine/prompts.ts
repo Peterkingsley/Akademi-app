@@ -2,6 +2,7 @@ import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, NormalizedSource, Pr
 import type { CertaintyDriftWarning } from './certainty-drift.validator';
 import {
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
   PRODUCTION_DIALOGUE_SCHEMA_VERSION,
 } from './schema';
@@ -52,6 +53,7 @@ export function analysisPrompt(sources: NormalizedSource[], learnerLevel: string
   return JSON.stringify({
     task: 'Create EpisodeTeachingAnalysis',
     schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+    analysis_contract_version: EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
     analysis_metadata: { target_learner_level: learnerLevel, requested_duration_minutes: durationMinutes, user_focus: focus, prompt_version: PROMPT_VERSIONS.analysis },
     required_shape: {
       episode_thesis: { statement: 'string', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },

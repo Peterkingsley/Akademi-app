@@ -2,7 +2,7 @@ jest.mock('../src/config/db', () => ({
   __esModule: true,
   default: {
     material: { findUnique: jest.fn() },
-    teachingAnalysisCache: { findUnique: jest.fn(), upsert: jest.fn() },
+    teachingAnalysisCache: { findUnique: jest.fn(), findFirst: jest.fn(), upsert: jest.fn() },
     teachingEpisode: { create: jest.fn() },
   },
 }));
@@ -15,10 +15,11 @@ import prisma from '../src/config/db';
 import { aiProvider } from '../src/modules/ai/ai.provider';
 import { TeachingEngineService } from '../src/modules/teaching-engine/teaching-engine.service';
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
-import { EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from '../src/modules/teaching-engine/schema';
+import { EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION, EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from '../src/modules/teaching-engine/schema';
 
 const analysis: EpisodeTeachingAnalysis = {
   schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  analysis_contract_version: EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   analysis_metadata: { target_learner_level: 'INTELLIGENT_BEGINNER', requested_duration_minutes: 8, user_focus: null, prompt_version: '0.1' },
   episode_thesis: { statement: 'Randomized timeouts reduce split-vote likelihood.', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },
   episode_epistemic_goal: { learner_should_understand: 'Asymmetry reduces collisions.', learner_should_be_able_to_explain: 'why equal timeouts collide', learner_should_not_leave_believing: ['Randomization prevents every split vote.'] },
@@ -55,6 +56,7 @@ describe('TeachingEngineService fidelity path', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (prisma.teachingAnalysisCache.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.teachingAnalysisCache.findFirst as jest.Mock).mockResolvedValue(null);
     (prisma.teachingAnalysisCache.upsert as jest.Mock).mockResolvedValue({});
     (prisma.teachingEpisode.create as jest.Mock).mockResolvedValue({ id: 'episode-test-1' });
   });
@@ -144,5 +146,40 @@ describe('TeachingEngineService fidelity path', () => {
     expect(result.preRepairDialogue?.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toBe(firstScript.turns[2].spoken_text);
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('another opportunity');
     expect(result.fidelityHistory[1]).toEqual({ verdict: 'PASS', defects: [] });
+  });
+
+  it('invalidates an old analysis contract cache row and regenerates Call 1', async () => {
+    const staleAnalysis: any = { ...analysis };
+    delete staleAnalysis.analysis_contract_version;
+    (prisma.teachingAnalysisCache.findFirst as jest.Mock).mockResolvedValue({ analysis: staleAnalysis });
+    const responses = [analysis, blueprint, script('Randomized timers make split votes less likely.'), { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.analysisCacheStatus).toBe('HIT_INVALIDATED_CONTRACT');
+    expect(result.cachedAnalysis).toBe(false);
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(4);
+    expect(prisma.teachingAnalysisCache.upsert).toHaveBeenCalled();
+  });
+
+  it('retries Call 2 when it invents an invariant reference and records the failure', async () => {
+    const invalidBlueprint: any = JSON.parse(JSON.stringify(blueprint));
+    invalidBlueprint.turns[1].invariant_ids = ['INV_DOES_NOT_EXIST'];
+    const responses = [analysis, invalidBlueprint, blueprint, script('Randomized timers make split votes less likely.'), { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const blueprintTrace = result.instrumentation.stages.find((stage) => stage.stage === 'blueprint');
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(5);
+    expect(blueprintTrace).toMatchObject({ retryCount: 1, unknownReferenceIds: ['INV_DOES_NOT_EXIST'] });
+    expect(blueprintTrace?.validationFailureReason).toContain('UNKNOWN_INVARIANT_REFERENCE');
   });
 });

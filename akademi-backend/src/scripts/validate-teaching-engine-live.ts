@@ -91,7 +91,8 @@ function reportFor(result: any) {
       const turns = dialogue.turns.filter((turn: any) => turn.analogy_id === analogy.analogy_id).map((turn: any) => turn.turn_id);
       return `### ${analogy.analogy_id}: ${analogy.vehicle}\n- Mapping: ${analogy.mapping.map((item: any) => `${item.vehicle_element} → ${item.concept_element}`).join('; ')}\n- Breakdown boundary: ${analogy.breakdown_boundary}\n- Forbidden inferences: ${analogy.forbidden_inferences.join('; ') || 'none'}\n- Dialogue turns: ${turns.join(', ') || 'not used'}`;
     }).join('\n\n') || 'No analogy was selected.';
-  const stageLines = (instrumentation?.stages || []).map((stage: any) => `- ${stage.stage}: ${stage.cacheHit ? 'cache hit' : `${stage.latencyMs}ms`} | model: ${stage.model || 'not exposed'} | provider token usage: ${stage.tokenUsage ? json(stage.tokenUsage).trim() : 'not exposed'}`).join('\n');
+  const stageLines = (instrumentation?.stages || []).map((stage: any) => `- ${stage.stage}: ${stage.cacheHit ? 'cache hit' : `${stage.latencyMs}ms`} | model: ${stage.model || 'not exposed'} | retries: ${stage.retryCount || 0} | provider token usage: ${stage.tokenUsage ? json(stage.tokenUsage).trim() : 'not exposed'}${stage.validationFailureReason ? ` | prior validation failure: ${stage.validationFailureReason}` : ''}${stage.unknownReferenceIds?.length ? ` | unknown reference IDs: ${stage.unknownReferenceIds.join(', ')}` : ''}`).join('\n');
+  const referenceGraph = `## Reference graph integrity\n\n- Deterministic Call 1 → Call 2 → Call 3 validation: **PASS**\n- Unknown downstream references: **0**\n- Call 1 concept IDs: ${analysis.concepts.map((concept: any) => concept.concept_id).join(', ') || 'none'}\n- Call 1 invariant IDs: ${analysis.concepts.flatMap((concept: any) => concept.invariants.map((invariant: any) => invariant.invariant_id)).join(', ') || 'none'}\n- Call 1 misconception IDs: ${analysis.concepts.flatMap((concept: any) => concept.misconceptions.map((misconception: any) => misconception.misconception_id)).join(', ') || 'none'}\n- Call 1 analogy IDs: ${analysis.concepts.flatMap((concept: any) => concept.analogy_candidates.map((analogy: any) => analogy.analogy_id)).join(', ') || 'none'}\n- Call 1 evidence IDs: ${analysis.evidence_registry.map((evidence: any) => evidence.evidence_id).join(', ') || 'none'}\n- Blueprint turn IDs: ${blueprint.turns.map((turn: any) => turn.turn_id).join(', ') || 'none'}\n`;
   const originalDefects = fidelityHistory[0]?.defects || [];
   const repairedDefects = fidelityHistory[1]?.defects || [];
 
@@ -180,9 +181,21 @@ async function main() {
     const qualityReport = result.conversationalQuality
       ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 validation repairs:\n${result.host1OpeningRepairs?.map((repair: any) => `  - ${repair.turn_id} | ${repair.category} | ${repair.applied ? 'removed' : repair.warning} | ${repair.removed_text}`).join('\n') || '  - none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
-    const report = `${reportFor(result)}${blueprintQualityReport}${qualityReport}`;
+    const referenceIntegrityReport = `\n## Reference graph integrity\n\n- Analysis cache status: **${result.analysisCacheStatus || (result.cachedAnalysis ? 'HIT_VALID' : 'MISS')}**\n- Analysis contract version: ${result.analysis.analysis_contract_version || 'not exposed'}\n- Deterministic Call 1 → Call 2 → Call 3 validation: **PASS**\n- Unknown downstream references: **0**\n- Call 1 concept IDs: ${result.analysis.concepts.map((concept: any) => concept.concept_id).join(', ') || 'none'}\n- Call 1 invariant IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.invariants.map((invariant: any) => invariant.invariant_id)).join(', ') || 'none'}\n- Call 1 misconception IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.misconceptions.map((misconception: any) => misconception.misconception_id)).join(', ') || 'none'}\n- Call 1 analogy IDs: ${result.analysis.concepts.flatMap((concept: any) => concept.analogy_candidates.map((analogy: any) => analogy.analogy_id)).join(', ') || 'none'}\n- Call 1 evidence IDs: ${result.analysis.evidence_registry.map((evidence: any) => evidence.evidence_id).join(', ') || 'none'}\n- Blueprint turn IDs: ${result.blueprint.turns.map((turn: any) => turn.turn_id).join(', ') || 'none'}\n`;
+    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
+      fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({
+        cache_status: result.analysisCacheStatus,
+        analysis_contract_version: result.analysis.analysis_contract_version,
+        concept_ids: result.analysis.concepts.map((concept: any) => concept.concept_id),
+        invariant_ids: result.analysis.concepts.flatMap((concept: any) => concept.invariants.map((invariant: any) => invariant.invariant_id)),
+        misconception_ids: result.analysis.concepts.flatMap((concept: any) => concept.misconceptions.map((misconception: any) => misconception.misconception_id)),
+        analogy_ids: result.analysis.concepts.flatMap((concept: any) => concept.analogy_candidates.map((analogy: any) => analogy.analogy_id)),
+        evidence_ids: result.analysis.evidence_registry.map((evidence: any) => evidence.evidence_id),
+        blueprint_turn_ids: result.blueprint.turns.map((turn: any) => turn.turn_id),
+        unknown_reference_ids: [],
+      })),
       fs.writeFile(path.join(runDir, 'blueprint.json'), json(result.blueprint)),
       fs.writeFile(path.join(runDir, 'blueprint-quality.json'), json(result.blueprintQuality)),
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),

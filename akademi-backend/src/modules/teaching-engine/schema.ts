@@ -1,5 +1,12 @@
 /** Canonical artifact versions and provider-agnostic structured-output shapes. */
 export const EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION = '0.1' as const;
+/**
+ * Version of the semantic guarantees imposed on a Call 1 artifact after it
+ * has passed JSON-schema validation. This is intentionally independent from
+ * the transport schema version: strengthening referential integrity must make
+ * old cache rows ineligible even when their JSON shape did not change.
+ */
+export const EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION = '0.2' as const;
 export const EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION = '0.1' as const;
 export const PRODUCTION_DIALOGUE_SCHEMA_VERSION = '0.1' as const;
 
@@ -19,6 +26,7 @@ export const EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
     schema_version: { type: 'string', enum: [EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION] },
+    analysis_contract_version: { type: 'string', enum: [EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION] },
     analysis_metadata: {
       type: 'object',
       properties: { target_learner_level: string, requested_duration_minutes: { type: 'number' }, user_focus: { type: 'string', nullable: true }, prompt_version: string },
@@ -66,7 +74,7 @@ export const EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA = {
     source_disagreements: stringList,
     pruning_manifest: { type: 'array', items: { type: 'object', properties: { concept_id: string, reason: string }, required: ['concept_id', 'reason'] } },
   },
-  required: ['schema_version', 'analysis_metadata', 'episode_thesis', 'episode_epistemic_goal', 'evidence_registry', 'concepts', 'source_disagreements', 'pruning_manifest'],
+  required: ['schema_version', 'analysis_contract_version', 'analysis_metadata', 'episode_thesis', 'episode_epistemic_goal', 'evidence_registry', 'concepts', 'source_disagreements', 'pruning_manifest'],
 } as const;
 
 export const ANALYSIS_STRUCTURED_OUTPUT = {

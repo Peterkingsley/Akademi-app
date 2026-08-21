@@ -7,12 +7,14 @@ import {
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
 import {
   EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA,
+  EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
   EPISODE_TEACHING_BLUEPRINT_RESPONSE_SCHEMA,
 } from '../src/modules/teaching-engine/schema';
 
 const analysisFixture = (): EpisodeTeachingAnalysis => ({
   schema_version: EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
+  analysis_contract_version: EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION,
   analysis_metadata: { target_learner_level: 'INTELLIGENT_BEGINNER', requested_duration_minutes: 8, user_focus: null, prompt_version: '0.1' },
   episode_thesis: { statement: 'Randomized election timeouts reduce simultaneous candidacies.', claim_type: 'SOURCE_SYNTHESIS', evidence_ids: ['EV_001'], epistemic_status: 'CONFIRMED' },
   episode_epistemic_goal: { learner_should_understand: 'Temporal asymmetry reduces split-vote risk.', learner_should_be_able_to_explain: 'why equal timers can collide', learner_should_not_leave_believing: ['Randomization makes split votes impossible.'] },
@@ -61,6 +63,12 @@ describe('teaching engine deterministic validation', () => {
     expect(() => validateAnalysis(fixture)).toThrow('missing schema_version');
   });
 
+  it('rejects an analysis generated under an older contract version', () => {
+    const fixture: any = analysisFixture();
+    delete fixture.analysis_contract_version;
+    expect(() => validateAnalysis(fixture)).toThrow('Unsupported analysis_contract_version');
+  });
+
   it('rejects unsupported analysis schema versions without normalizing them', () => {
     const fixture: any = analysisFixture();
     fixture.schema_version = 'v0.1';
@@ -69,6 +77,7 @@ describe('teaching engine deterministic validation', () => {
 
   it('requires the canonical schema version in the Call 1 structured-output contract', () => {
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.required).toContain('schema_version');
+    expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.required).toContain('analysis_contract_version');
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.schema_version.enum)
       .toEqual([EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION]);
     expect(EPISODE_TEACHING_ANALYSIS_RESPONSE_SCHEMA.properties.concepts.items.properties.tier.enum)
@@ -123,6 +132,55 @@ describe('teaching engine deterministic validation', () => {
     const blueprint = blueprintFixture();
     blueprint.turns.filter((turn) => turn.speaker === 'HOST_2').forEach((turn) => { turn.intent = 'EXPLAIN'; });
     expect(() => validateBlueprint(blueprint, analysis)).toThrow('Host 2 agency');
+  });
+
+  it('rejects the Raft invariant regression instead of allowing Call 2 to invent it', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = blueprintFixture();
+    blueprint.turns[1].invariant_ids = ['INV_ONE_VOTE_PER_TERM'];
+    expect(() => validateBlueprint(blueprint, analysis)).toThrow(
+      'UNKNOWN_INVARIANT_REFERENCE: Blueprint turn T2 references INV_ONE_VOTE_PER_TERM, which does not exist in EpisodeTeachingAnalysis.',
+    );
+  });
+
+  it.each([
+    ['concept_ids', 'CON_DOES_NOT_EXIST', 'UNKNOWN_CONCEPT_REFERENCE'],
+    ['invariant_ids', 'INV_DOES_NOT_EXIST', 'UNKNOWN_INVARIANT_REFERENCE'],
+    ['misconception_ids', 'MISC_DOES_NOT_EXIST', 'UNKNOWN_MISCONCEPTION_REFERENCE'],
+    ['evidence_ids', 'EV_DOES_NOT_EXIST', 'UNKNOWN_EVIDENCE_REFERENCE'],
+  ] as const)('rejects an unknown %s reference', (field, id, expected) => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint: any = blueprintFixture();
+    blueprint.turns[1][field] = [id];
+    expect(() => validateBlueprint(blueprint, analysis)).toThrow(expected);
+  });
+
+  it('rejects an unknown analogy reference', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = blueprintFixture();
+    blueprint.turns[2].analogy_id = 'ANLG_DOES_NOT_EXIST';
+    expect(() => validateBlueprint(blueprint, analysis)).toThrow('UNKNOWN_ANALOGY_REFERENCE');
+  });
+
+  it('requires a blueprint invariant reference to carry an inherited evidence path', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = blueprintFixture();
+    blueprint.turns[1].evidence_ids = [];
+    expect(() => validateBlueprint(blueprint, analysis)).toThrow('MISSING_INVARIANT_EVIDENCE_BINDING');
+  });
+
+  it('rejects a dialogue that changes a validated blueprint binding', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = validateBlueprint(blueprintFixture(), analysis);
+    const dialogue = dialogueFixture();
+    dialogue.turns[1].invariant_ids = [];
+    expect(() => validateDialogue(dialogue, blueprint, analysis)).toThrow('changes planned invariant bindings');
+  });
+
+  it('requires every invariant to carry source evidence', () => {
+    const fixture = analysisFixture();
+    fixture.concepts[0].invariants[0].evidence_ids = [];
+    expect(() => validateAnalysis(fixture)).toThrow('invalid invariant');
   });
 
   it('rejects the Raft split-vote exaggeration regression', () => {
