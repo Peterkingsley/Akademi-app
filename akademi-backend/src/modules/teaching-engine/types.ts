@@ -198,6 +198,12 @@ export interface FidelityRepairObservation {
     codes: string[];
     certainty_hard_blocker_turn_ids: string[];
   };
+  /** Why deterministic validation declined this patch, when it did. */
+  rejection_reason: string | null;
+  /** A provable no-op skips the paid semantic review and spends the final local retry. */
+  no_op_retry_triggered: boolean;
+  call4_invoked: boolean;
+  call4_result: CriticReview | null;
   fidelity_post_patch_result?: CriticReview;
   final_status: FidelityRepairStatus;
 }

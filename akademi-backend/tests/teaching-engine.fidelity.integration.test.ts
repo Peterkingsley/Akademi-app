@@ -117,6 +117,9 @@ describe('TeachingEngineService fidelity path', () => {
 
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('can repeat');
     expect(result.fidelity?.verdict).toBe('PASS');
+    expect(result.fidelityRepairObservations).toEqual([
+      expect.objectContaining({ repair_attempt: 1, call4_invoked: true, no_op_retry_triggered: false, final_status: 'REPAIRED' }),
+    ]);
   });
 
   it('routes eventual-success certainty drift through a hard-blocker repair', async () => {
@@ -259,9 +262,65 @@ describe('TeachingEngineService fidelity path', () => {
     const secondPatchPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
     expect(secondPatchPrompt.repair_context.repair_attempt).toBe(2);
     expect(secondPatchPrompt.repair_context.prior_failure[0].deterministic_result.codes).toEqual(expect.arrayContaining(['PATCH_NO_MEANINGFUL_CHANGE']));
+    expect(secondPatchPrompt.repair_context.retry_instruction).toContain('did not materially remove the blocked claim');
     expect(result.fidelity?.verdict).toBe('PASS');
     expect(result.fidelityRepairObservations.map((item) => item.final_status)).toEqual(expect.arrayContaining(['PATCH_NO_MEANINGFUL_CHANGE', 'REPAIRED']));
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ repair_attempt: 1, call4_invoked: false, call4_result: null, no_op_retry_triggered: true, rejection_reason: expect.stringContaining('PATCH_IDENTICAL_TEXT') }),
+      expect.objectContaining({ repair_attempt: 2, call4_invoked: true, no_op_retry_triggered: false, final_status: 'REPAIRED' }),
+    ]));
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('another chance');
+  });
+
+  it('treats a wording change that preserves unsupported certainty as a semantic no-op before retrying once', async () => {
+    const original = script('Randomized election timeouts ensure leader elections eventually succeed.');
+    const certaintyNoOp = { ...script('Randomized election timeouts always allow a leader election to eventually succeed.').turns[2] };
+    const repairedTurn = { ...script('Randomized election timeouts reduce repeated collisions and give later election rounds another opportunity to succeed.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_SEMANTIC_NOOP', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The claim promises eventual success beyond the source.', repair_directive: 'Use probabilistic wording and do not guarantee a leader.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [certaintyNoOp] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(7);
+    expect(result.fidelityRepairObservations[0]).toMatchObject({
+      repair_attempt: 1,
+      call4_invoked: false,
+      no_op_retry_triggered: true,
+      deterministic_post_patch_result: { codes: expect.arrayContaining(['PATCH_SEMANTIC_NO_OP', 'PATCH_INSUFFICIENT_CERTAINTY_REDUCTION']) },
+    });
+    expect(result.fidelity?.verdict).toBe('PASS');
+  });
+
+  it('fails with a precise bounded diagnostic after two no-op local patches', async () => {
+    const original = script('Randomized election timeouts ensure leader elections eventually succeed.');
+    const defect = {
+      defect_id: 'DEF_EXHAUSTED', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The claim promises eventual success beyond the source.', repair_directive: 'Use probabilistic wording and do not guarantee a leader.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [original.turns[2]] }, { turns: [original.turns[2]] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    await expect(new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    })).rejects.toMatchObject({
+      name: 'TeachingFidelityGateError',
+      diagnostic: expect.objectContaining({
+        failure_type: 'REPAIR_ATTEMPTS_EXHAUSTED',
+        repair_attempt_count: 2,
+        repair_observations: expect.arrayContaining([
+          expect.objectContaining({ repair_attempt: 1, final_status: 'PATCH_NO_MEANINGFUL_CHANGE', no_op_retry_triggered: true, call4_invoked: false }),
+          expect.objectContaining({ repair_attempt: 2, final_status: 'PATCH_NO_MEANINGFUL_CHANGE', no_op_retry_triggered: false, call4_invoked: false }),
+        ]),
+      }),
+    } as Partial<TeachingFidelityGateError>);
   });
 
   it('returns a controlled diagnostic when the second local repair still leaves a fidelity blocker', async () => {

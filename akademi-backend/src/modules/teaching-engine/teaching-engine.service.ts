@@ -147,13 +147,23 @@ function repairContextFor(
   const byTurn = new Map(dialogue.turns.map((turn, index) => [turn.turn_id, { turn, index }]));
   const invariants = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((invariant) => [invariant.invariant_id, invariant] as const)));
   const blueprintByTurn = new Map(blueprint.turns.map((turn) => [turn.turn_id, turn]));
+  const priorFailure = previousFailure?.map((item) => ({
+    defect_id: item.defect_id,
+    turn_id: item.turn_id,
+    proposed_text: item.proposed_text,
+    deterministic_result: item.deterministic_post_patch_result,
+    rejection_reason: item.rejection_reason,
+    call4_invoked: item.call4_invoked,
+    call4_result: item.call4_result,
+    fidelity_result: item.fidelity_post_patch_result,
+    final_status: item.final_status,
+  })) || [];
   return {
     repair_attempt: attempt,
-    prior_failure: previousFailure?.map((item) => ({
-      defect_id: item.defect_id, turn_id: item.turn_id, proposed_text: item.proposed_text,
-      deterministic_result: item.deterministic_post_patch_result, fidelity_result: item.fidelity_post_patch_result,
-      final_status: item.final_status,
-    })) || [],
+    prior_failure: priorFailure,
+    retry_instruction: priorFailure.length
+      ? 'Your previous patch did not materially remove the blocked claim. Do not repeat or lightly paraphrase that claim. Rewrite only the minimum text necessary to satisfy the repair directive.'
+      : undefined,
     affected_turns: defects.flatMap((defect) => defect.turn_ids.map((turnId) => {
       const located = byTurn.get(turnId);
       const turn = located?.turn;
@@ -199,18 +209,34 @@ function deterministicPostPatchValidation(
     else codes.push(`STRUCTURAL_OR_FORBIDDEN:${error instanceof Error ? error.message : 'Unknown validation failure'}`);
   }
   const affectedTurnIds = [...new Set(defects.flatMap((defect) => defect.turn_ids))];
-  if (!affectedTurnIds.some((id) => replacementTurnIds.includes(id))) codes.push('PATCH_NO_MEANINGFUL_CHANGE');
+  if (!affectedTurnIds.some((id) => replacementTurnIds.includes(id))) {
+    codes.push('PATCH_NO_MEANINGFUL_CHANGE', 'PATCH_MISSING_AFFECTED_REPLACEMENT');
+  }
   for (const turnId of affectedTurnIds) {
     const before = original.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '';
     const after = candidate.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '';
     if (normalizedText(before) === normalizedText(after)) {
-      codes.push('PATCH_NO_MEANINGFUL_CHANGE', `PATCH_NO_MEANINGFUL_CHANGE:${turnId}`);
+      codes.push(
+        'PATCH_NO_MEANINGFUL_CHANGE',
+        'PATCH_IDENTICAL_TEXT',
+        `PATCH_NO_MEANINGFUL_CHANGE:${turnId}`,
+        `PATCH_IDENTICAL_TEXT:${turnId}`,
+      );
     }
   }
   const originalHard = certaintyHardBlockers(detectPossibleCertaintyDrift(original, analysis));
   const candidateWarnings = detectPossibleCertaintyDrift(candidate, analysis);
   const candidateHard = certaintyHardBlockers(candidateWarnings);
-  if (candidateHard.some((warning) => affectedTurnIds.includes(warning.turn_id))) codes.push('PATCH_REPEATED_BLOCKED_CLAIM');
+  const affectedCandidateHard = candidateHard.filter((warning) => affectedTurnIds.includes(warning.turn_id));
+  if (affectedCandidateHard.length) {
+    codes.push('PATCH_NO_MEANINGFUL_CHANGE', 'PATCH_SEMANTIC_NO_OP', 'PATCH_INSUFFICIENT_CERTAINTY_REDUCTION', 'PATCH_REPEATED_BLOCKED_CLAIM');
+    for (const warning of affectedCandidateHard) {
+      codes.push(`PATCH_SEMANTIC_NO_OP:${warning.turn_id}`, `PATCH_INSUFFICIENT_CERTAINTY_REDUCTION:${warning.turn_id}`);
+      if (originalHard.some((prior) => prior.turn_id === warning.turn_id && prior.phrase === warning.phrase)) {
+        codes.push('PATCH_REPEATED_BLOCKED_PHRASE', `PATCH_REPEATED_BLOCKED_PHRASE:${warning.turn_id}`);
+      }
+    }
+  }
   if (candidateHard.some((warning) => !originalHard.some((prior) => prior.turn_id === warning.turn_id && prior.phrase === warning.phrase))) {
     codes.push('PATCH_CREATED_NEW_HARD_BLOCKER');
   }
@@ -505,6 +531,10 @@ export class TeachingEngineService {
             codes: deterministic.codes,
             certainty_hard_blocker_turn_ids: deterministic.certaintyHardBlockerTurnIds,
           },
+          rejection_reason: deterministic.verdict === 'PASS' ? null : deterministic.codes.join(', '),
+          no_op_retry_triggered: false,
+          call4_invoked: false,
+          call4_result: null,
         })));
         if (deterministic.verdict !== 'PASS') {
           const status: FidelityRepairObservation['final_status'] = deterministic.codes.some((code) => code.startsWith('PATCH_NO_MEANINGFUL_CHANGE'))
@@ -514,9 +544,12 @@ export class TeachingEngineService {
               : deterministic.codes.includes('PATCH_CREATED_NEW_HARD_BLOCKER')
                 ? 'PATCH_CREATED_NEW_HARD_BLOCKER'
                 : 'PATCH_FAILED_DETERMINISTIC_VALIDATION';
-          fidelityRepairObservations.push(...observationBase.map((item) => ({ ...item, final_status: status })));
+          const noOpRetry = attempt < MAX_PATCH_ATTEMPTS && deterministic.codes.includes('PATCH_NO_MEANINGFUL_CHANGE');
+          fidelityRepairObservations.push(...observationBase.map((item) => ({ ...item, no_op_retry_triggered: noOpRetry, final_status: status })));
           // Retain the last valid dialogue. Attempt two receives the exact
           // failed patch diagnostics rather than blindly repeating attempt one.
+          // A known no-op deliberately skips Call 4: the deterministic layer
+          // already proved that the blocked proposition survived.
           continue;
         }
         dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
@@ -530,19 +563,26 @@ export class TeachingEngineService {
         const survivorTurnIds = new Set(postPatchFidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER').flatMap((defect) => defect.turn_ids));
         fidelityRepairObservations.push(...observationBase.map((item) => ({
           ...item,
+          call4_invoked: true,
+          call4_result: postPatchFidelity,
           fidelity_post_patch_result: postPatchFidelity,
           final_status: (survivorTurnIds.has(item.turn_id) ? 'FIDELITY_BLOCKER_SURVIVED' : 'REPAIRED') as FidelityRepairObservation['final_status'],
         })));
       }
       if (fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER')) {
         const finalHardDefects = fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
+        const patchAttemptCount = traces.filter((trace) => trace.stage === 'targeted_patch').length;
+        const repairAttemptsExhausted = patchAttemptCount >= MAX_PATCH_ATTEMPTS;
+        const finalRepairObservation = fidelityRepairObservations[fidelityRepairObservations.length - 1];
         console.warn('fidelity_gate.failed', {
           hard_blocker_count: finalHardDefects.length,
-          repair_attempt_count: fidelityRepairObservations.length,
+          repair_attempt_count: patchAttemptCount,
+          repair_observation_count: fidelityRepairObservations.length,
+          repair_attempts_exhausted: repairAttemptsExhausted,
           final_defect_ids: finalHardDefects.map((defect) => defect.defect_id),
         });
         throw new TeachingFidelityGateError({
-          failure_type: 'FIDELITY_GATE',
+          failure_type: repairAttemptsExhausted ? 'REPAIR_ATTEMPTS_EXHAUSTED' : 'FIDELITY_GATE',
           initial_dialogue: preRepairDialogue,
           final_candidate_dialogue: dialogue,
           blueprint,
@@ -550,6 +590,8 @@ export class TeachingEngineService {
           fidelity_history: fidelityHistory,
           semantic_fidelity_history: semanticFidelityHistory,
           repair_observations: fidelityRepairObservations,
+          repair_attempt_count: patchAttemptCount,
+          final_blocker_reason: finalRepairObservation?.rejection_reason || finalRepairObservation?.final_status || 'Hard blocker remained after fidelity review.',
           final_hard_defects: finalHardDefects,
         });
       }
