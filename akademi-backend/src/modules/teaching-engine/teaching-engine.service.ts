@@ -265,8 +265,14 @@ export class TeachingEngineService {
       stage: 'targeted_patch', prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects), systemPrompt: patchSystemPrompt,
       model: config.teachingPatchModel, maxTokens: 4_000,
       validate: (value) => {
-        if (!value || typeof value !== 'object' || !Array.isArray((value as any).turns)) throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
-        return value as { turns: ProductionDialogueScript['turns'] };
+        if (!value || typeof value !== 'object') throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
+        const candidate = value as { turns?: ProductionDialogueScript['turns']; replacement_dialogue_turns?: ProductionDialogueScript['turns'] };
+        const turns = candidate.turns || candidate.replacement_dialogue_turns;
+        if (!Array.isArray(turns)) throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
+        // Some providers name the requested replacement collection explicitly.
+        // Normalize that transport detail before the existing binding validator
+        // verifies every returned turn against the approved blueprint.
+        return { turns };
       },
     });
     const replacements = new Map(replacement.turns.map((turn) => [turn.turn_id, turn]));

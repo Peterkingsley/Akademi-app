@@ -72,7 +72,7 @@ describe('TeachingEngineService fidelity path', () => {
         verdict: 'REPAIR_REQUIRED',
         defects: [{ defect_id: 'DEF_001', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'], description: 'The dialogue changes reduces into prevents.', repair_directive: 'Use probabilistic source-faithful language.' }],
       },
-      { turns: [repairedTurn] },
+      { replacement_dialogue_turns: [repairedTurn] },
       { verdict: 'PASS', defects: [] },
     ];
     (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
