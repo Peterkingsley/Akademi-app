@@ -13,7 +13,7 @@ export class TeachingEngineController {
         && (error instanceof TeachingCallFailureError || error instanceof TeachingFidelityGateError);
       // Raw model output is only ever made available to the separately-run,
       // development-fixture validation process. It is never a normal API error.
-      const exposeRawValidationResponse = exposeDiagnostic
+      const exposeRawValidationResponse = error instanceof TeachingCallFailureError
         && process.env.TEACHING_ENGINE_LIVE_VALIDATION_EXPOSE_RAW_CALL_1_RESPONSE === 'true';
       res.status(status).json({
         message,
