@@ -6,6 +6,7 @@ import {
 import type { ConversationalQualityReport } from './conversational-quality.validator';
 import type { Host1OpeningRepair } from './host1-opening-repair';
 import type { BlueprintQualityReport } from './blueprint-quality.validator';
+import type { CertaintyDriftWarning } from './certainty-drift.validator';
 
 export type ClaimType =
   | 'SOURCE_FACT'
@@ -175,6 +176,9 @@ export interface TeachingEpisodeResult {
   conversationalQuality: ConversationalQualityReport;
   rawConversationalQuality: ConversationalQualityReport;
   host1OpeningRepairs: Host1OpeningRepair[];
+  /** Warnings supplied to the initial Call 4 review before any patch. */
+  initialCertaintyDriftWarnings: CertaintyDriftWarning[];
+  certaintyDriftWarnings: CertaintyDriftWarning[];
   tts_handoff: Array<{ turn_id: string; speaker: Host; spoken_text: string }>;
   cachedAnalysis: boolean;
   instrumentation: TeachingGenerationInstrumentation;

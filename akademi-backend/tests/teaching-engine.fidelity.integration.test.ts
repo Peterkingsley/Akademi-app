@@ -116,4 +116,33 @@ describe('TeachingEngineService fidelity path', () => {
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('can repeat');
     expect(result.fidelity?.verdict).toBe('PASS');
   });
+
+  it('routes eventual-success certainty drift through a hard-blocker repair', async () => {
+    const firstScript = script('Randomized election timeouts ensure leader elections eventually succeed.');
+    const repairedTurn = { ...script('Randomized election timeouts reduce repeated collisions and give later election rounds another opportunity to succeed.').turns[2] };
+    const responses = [
+      analysis,
+      blueprint,
+      firstScript,
+      {
+        verdict: 'REPAIR_REQUIRED',
+        defects: [{ defect_id: 'DEF_003', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'], description: 'The dialogue changes another opportunity into guaranteed eventual success.', repair_directive: 'Replace the guaranteed-success claim with wording that randomization reduces repeated collisions and gives later election rounds another chance.' }],
+      },
+      { turns: [repairedTurn] },
+      { verdict: 'PASS', defects: [] },
+    ];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const firstFidelityPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[3][0]);
+    expect(firstFidelityPrompt.certainty_drift_warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', turn_id: 'T3', phrase: 'ensure' }]);
+    expect(result.fidelityHistory[0]).toMatchObject({ verdict: 'REPAIR_REQUIRED', defects: [expect.objectContaining({ type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'] })] });
+    expect(result.preRepairDialogue?.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toBe(firstScript.turns[2].spoken_text);
+    expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('another opportunity');
+    expect(result.fidelityHistory[1]).toEqual({ verdict: 'PASS', defects: [] });
+  });
 });

@@ -29,6 +29,7 @@ import {
 import { validateConversationalQuality } from './conversational-quality.validator';
 import { repairHost1ValidationOpenings } from './host1-opening-repair';
 import { validateBlueprintQuality } from './blueprint-quality.validator';
+import { detectPossibleCertaintyDrift } from './certainty-drift.validator';
 
 const MAX_PATCH_ATTEMPTS = 1;
 
@@ -265,10 +266,12 @@ export class TeachingEngineService {
     let fidelity: CriticReview | null = null;
     const fidelityHistory: CriticReview[] = [];
     let preRepairDialogue: ProductionDialogueScript | null = null;
+    const initialCertaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
+    let certaintyDriftWarnings = initialCertaintyDriftWarnings;
 
     if (complexity !== 'FAST') {
       const runFidelity = async (candidate: ProductionDialogueScript) => this.callJson({
-        stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate), systemPrompt: fidelitySystemPrompt,
+        stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate, certaintyDriftWarnings), systemPrompt: fidelitySystemPrompt,
         model: config.teachingFidelityModel, maxTokens: 4_000, validate: validateCriticReview,
         structuredOutput: FIDELITY_STRUCTURED_OUTPUT,
       });
@@ -282,6 +285,7 @@ export class TeachingEngineService {
         const postPatchOpeningRepair = repairHost1ValidationOpenings(repaired.dialogue);
         host1OpeningRepairs = [...host1OpeningRepairs, ...postPatchOpeningRepair.repairs];
         dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
+        certaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
         traces.push(repaired.trace);
         const repairedFidelity = await runFidelity(dialogue);
         fidelity = repairedFidelity.artifact;
@@ -305,7 +309,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, cachedAnalysis: cached,
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached,
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

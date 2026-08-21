@@ -190,6 +190,7 @@ async function main() {
       fs.writeFile(path.join(runDir, 'conversational-quality.json'), json(result.conversationalQuality)),
       fs.writeFile(path.join(runDir, 'conversational-quality-raw.json'), json(result.rawConversationalQuality)),
       fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),
+      fs.writeFile(path.join(runDir, 'certainty-drift-warnings.json'), json({ initial: result.initialCertaintyDriftWarnings, final: result.certaintyDriftWarnings })),
       fs.writeFile(path.join(runDir, 'repaired-dialogue.json'), json(result.preRepairDialogue ? { original: result.preRepairDialogue, repaired: result.dialogue } : { repaired: false, dialogue: result.dialogue })),
       fs.writeFile(path.join(runDir, 'report.md'), report),
     ]);
@@ -200,6 +201,7 @@ async function main() {
     console.log('\n===== AKADEMI TEACHING ENGINE LIVE VALIDATION =====\n');
     console.log('Environment check\nRequired variables: PRESENT (values redacted)');
     console.log('\nProvider/model information\nSee Instrumentation below; no provider credentials are emitted.');
+    console.log(`\nCertainty-drift warnings\n${json({ initial: result.initialCertaintyDriftWarnings || [], final: result.certaintyDriftWarnings || [] })}`);
     console.log(report);
     console.log('\nFinal teaching-quality assessment\nAutomated baseline captured. Review the generated dialogue, fidelity result, evidence traces, and analogy audit above before changing prompts.');
     console.log('\n===== END VALIDATION =====');

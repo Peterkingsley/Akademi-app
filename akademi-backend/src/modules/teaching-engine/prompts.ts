@@ -1,4 +1,5 @@
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, NormalizedSource, ProductionDialogueScript } from './types';
+import type { CertaintyDriftWarning } from './certainty-drift.validator';
 import {
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
   EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION,
@@ -40,7 +41,8 @@ Host 1 responds to the idea, not by grading Host 2. Do not open Host 1 turns wit
 export const fidelitySystemPrompt = `${jsonOnly}
 You are Akademi's Semantic Fidelity and Pedagogical Gate. Review the dialogue against analysis, blueprint, and evidence.
 You are a constrained critic, not a rewriter. Return PASS or REPAIR_REQUIRED with actionable defects only.
-Detect SOURCE_DRIFT, CLAIM_EXAGGERATION, ANALOGY_LEAKAGE, BAD_ANALOGY, MISSING_PREREQUISITE, PASSIVE_HOST2, UNEARNED_AHA, JARGON_OVERLOAD, WEAK_MENTAL_MODEL, UNRESOLVED_LOOP, PEDAGOGICAL_REDUNDANCY, WEAK_SYNTHESIS, and PAYLOAD_LOSS. HARD_BLOCKER defects prevent TTS.`;
+Detect SOURCE_DRIFT, CLAIM_EXAGGERATION, ANALOGY_LEAKAGE, BAD_ANALOGY, MISSING_PREREQUISITE, PASSIVE_HOST2, UNEARNED_AHA, JARGON_OVERLOAD, WEAK_MENTAL_MODEL, UNRESOLVED_LOOP, PEDAGOGICAL_REDUNDANCY, WEAK_SYNTHESIS, and PAYLOAD_LOSS. HARD_BLOCKER defects prevent TTS.
+Recovery capability does not imply guaranteed eventual success. Distinguish carefully between another attempt, high probability, mitigation, rare failure, and an eventual guarantee. If a deterministic POSSIBLE_CERTAINTY_DRIFT warning is supplied, audit that turn against its bound evidence explicitly. Unless the supplied source establishes the same certainty, wording such as “ensures”, “guarantees”, “always”, “will eventually succeed”, “cannot fail”, or “prevents” must produce a CLAIM_EXAGGERATION HARD_BLOCKER. A source saying that a system can retry or gets another opportunity supports another chance, not a guarantee of recovery.`;
 
 export const patchSystemPrompt = `${jsonOnly}
 You are Akademi's Targeted Dialogue Repair Engine. Replace only the affected dialogue turns.
@@ -77,8 +79,8 @@ export function dialoguePrompt(analysis: EpisodeTeachingAnalysis, blueprint: Epi
   });
 }
 
-export function fidelityPrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript) {
-  return JSON.stringify({ task: 'Create CriticReview', analysis, blueprint, dialogue });
+export function fidelityPrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript, certaintyDriftWarnings: CertaintyDriftWarning[] = []) {
+  return JSON.stringify({ task: 'Create CriticReview', analysis, blueprint, dialogue, certainty_drift_warnings: certaintyDriftWarnings });
 }
 
 export function patchPrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript, defects: unknown[]) {
