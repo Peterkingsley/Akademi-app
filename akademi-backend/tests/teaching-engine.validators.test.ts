@@ -162,11 +162,46 @@ describe('teaching engine deterministic validation', () => {
     expect(() => validateBlueprint(blueprint, analysis)).toThrow('UNKNOWN_ANALOGY_REFERENCE');
   });
 
-  it('requires a blueprint invariant reference to carry an inherited evidence path', () => {
+  it('derives omitted invariant evidence deterministically', () => {
     const analysis = validateAnalysis(analysisFixture());
     const blueprint = blueprintFixture();
     blueprint.turns[1].evidence_ids = [];
+    const normalized = validateBlueprint(blueprint, analysis);
+    expect(normalized.turns[1]).toMatchObject({
+      evidence_ids: ['EV_001'],
+      evidence_provenance: [{ evidence_id: 'EV_001', origins: expect.arrayContaining(['INHERITED_FROM_INVARIANT']) }],
+    });
+  });
+
+  it('unions valid model evidence with deterministic inherited evidence', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = blueprintFixture();
+    const normalized = validateBlueprint(blueprint, analysis);
+    expect(normalized.turns[1].evidence_ids).toEqual(['EV_001']);
+    expect(normalized.turns[1].evidence_provenance).toEqual([{ evidence_id: 'EV_001', origins: expect.arrayContaining(['MODEL_EXPLICIT', 'INHERITED_FROM_INVARIANT']) }]);
+  });
+
+  it('rejects an invariant with no authoritative evidence path', () => {
+    const analysis = analysisFixture();
+    analysis.concepts[0].evidence_ids = [];
+    analysis.concepts[0].invariants[0].evidence_ids = [];
+    const blueprint = blueprintFixture();
+    blueprint.turns[1].evidence_ids = [];
     expect(() => validateBlueprint(blueprint, analysis)).toThrow('MISSING_INVARIANT_EVIDENCE_BINDING');
+  });
+
+  it('normalizes the six omitted inherited-evidence bindings from the V0.13 failure shape', () => {
+    const analysis = validateAnalysis(analysisFixture());
+    const blueprint = blueprintFixture();
+    blueprint.turns.push(
+      { ...blueprint.turns[0], turn_id: 'T5', evidence_ids: [] },
+      { ...blueprint.turns[1], turn_id: 'T6', evidence_ids: [], intent: 'CHECK_UNDERSTANDING' },
+    );
+    blueprint.turns.forEach((turn) => { turn.evidence_ids = []; });
+    const normalized = validateBlueprint(blueprint, analysis);
+    expect(normalized.turns).toHaveLength(6);
+    expect(normalized.turns.every((turn) => turn.evidence_ids.includes('EV_001'))).toBe(true);
+    expect(normalized.turns.every((turn) => turn.evidence_provenance?.some((item) => item.origins.includes('INHERITED_FROM_INVARIANT')))).toBe(true);
   });
 
   it('rejects a dialogue that changes a validated blueprint binding', () => {

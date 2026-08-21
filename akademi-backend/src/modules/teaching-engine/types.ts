@@ -119,7 +119,29 @@ export interface BlueprintTurn {
   invariant_ids: string[];
   misconception_ids: string[];
   evidence_ids: string[];
+  /** Runtime provenance added after Call 2 semantic references are validated. */
+  evidence_provenance?: BlueprintEvidenceProvenance[];
   analogy_id?: string | null;
+}
+
+export type BlueprintEvidenceOrigin =
+  | 'MODEL_EXPLICIT'
+  | 'INHERITED_FROM_INVARIANT'
+  | 'INHERITED_FROM_CONCEPT'
+  | 'INHERITED_FROM_MISCONCEPTION';
+
+export interface BlueprintEvidenceProvenance {
+  evidence_id: string;
+  origins: BlueprintEvidenceOrigin[];
+}
+
+export interface BlueprintProvenanceReport {
+  provenance_fields_enriched: number;
+  turns: Array<{
+    turn_id: string;
+    evidence_ids: string[];
+    evidence_provenance: BlueprintEvidenceProvenance[];
+  }>;
 }
 
 export interface EpisodeTeachingBlueprint {
@@ -193,6 +215,7 @@ export interface TeachingEpisodeResult {
   episodeId: string;
   analysis: EpisodeTeachingAnalysis;
   blueprint: EpisodeTeachingBlueprint;
+  blueprintProvenance: BlueprintProvenanceReport;
   blueprintQuality: BlueprintQualityReport;
   dialogue: ProductionDialogueScript;
   /** Present only when the fidelity gate required a targeted repair. */

@@ -186,6 +186,36 @@ describe('TeachingEngineService fidelity path', () => {
     expect(blueprintTrace?.validationFailureReason).toContain('UNKNOWN_INVARIANT_REFERENCE');
   });
 
+  it('does not retry Call 2 merely to restore six derivable evidence bindings', async () => {
+    const omittedEvidenceBlueprint: any = JSON.parse(JSON.stringify(blueprint));
+    omittedEvidenceBlueprint.turns.forEach((turn: any) => { turn.evidence_ids = []; });
+    omittedEvidenceBlueprint.turns.push(
+      { ...omittedEvidenceBlueprint.turns[0], turn_id: 'T5', evidence_ids: [] },
+      { ...omittedEvidenceBlueprint.turns[1], turn_id: 'T6', intent: 'CHECK_UNDERSTANDING', evidence_ids: [] },
+    );
+    const dialogueWithSixTurns: any = {
+      ...script('Randomized timers make split votes less likely.'),
+      turns: [
+        ...script('Randomized timers make split votes less likely.').turns,
+        { ...script('Randomized timers make split votes less likely.').turns[0], turn_id: 'T5', spoken_text: 'The timing remains deliberately uneven.' },
+        { ...script('Randomized timers make split votes less likely.').turns[1], turn_id: 'T6', intent: 'CHECK_UNDERSTANDING', spoken_text: 'So the staggered timers are the important part?' },
+      ],
+    };
+    const responses = [analysis, omittedEvidenceBlueprint, dialogueWithSixTurns, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const blueprintTrace = result.instrumentation.stages.find((stage) => stage.stage === 'blueprint');
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(4);
+    expect(blueprintTrace).toMatchObject({ retryCount: 0, unknownReferenceIds: undefined });
+    expect(result.blueprintProvenance.provenance_fields_enriched).toBeGreaterThanOrEqual(6);
+    expect(result.blueprint.turns.every((turn) => turn.evidence_ids.includes('EV_001'))).toBe(true);
+  });
+
   it('repairs a deterministic certainty blocker even when Call 4 initially returns PASS', async () => {
     const firstScript = script("There's always a tiny chance that the timeouts collide.");
     const repairedTurn = { ...script("There's still a small chance that the timeouts collide.").turns[2] };

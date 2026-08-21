@@ -14,7 +14,7 @@ import {
   TeachingStageInstrumentation,
 } from './types';
 import {
-  parseJsonObject, TeachingValidationError, validateAnalysis, validateBlueprint,
+  blueprintProvenanceReport, parseJsonObject, TeachingValidationError, validateAnalysis, validateBlueprint,
   validateCriticReview, validateDialogue,
 } from './validators';
 import {
@@ -444,6 +444,13 @@ export class TeachingEngineService {
       structuredOutput: BLUEPRINT_STRUCTURED_OUTPUT,
     });
     traces.push(blueprintTrace);
+    const blueprintProvenance = blueprintProvenanceReport(blueprint);
+    console.info('teaching_blueprint.provenance_enriched', {
+      provenance_fields_enriched: blueprintProvenance.provenance_fields_enriched,
+      blueprint_retry_count: blueprintTrace.retryCount || 0,
+      semantic_reference_failures: blueprintTrace.unknownReferenceIds || [],
+      retry_reason: blueprintTrace.validationFailureReason || null,
+    });
     const blueprintQuality = validateBlueprintQuality(blueprint);
     const { artifact: realizedDialogue, model: dialogueModel, trace: dialogueTrace } = await this.callJson({
       stage: 'dialogue', prompt: dialoguePrompt(analysis, blueprint), systemPrompt: dialogueSystemPrompt,
@@ -559,7 +566,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, fidelityRepairObservations, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
+      episodeId: episode.id, analysis, blueprint, blueprintProvenance, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, fidelityRepairObservations, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

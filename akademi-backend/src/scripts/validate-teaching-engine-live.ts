@@ -183,6 +183,8 @@ async function main() {
         return `- ${issue.type} | ${issue.turn_id} | signals: ${issue.signals.join(', ')}\n  - Call 2 payload: ${issue.payload}\n  - Call 3 realization: ${spoken}`;
       }).join('\n') || 'No Host 2 blueprint-payload warnings detected.'}\n`
       : '';
+    const blueprintTrace = result.instrumentation?.stages?.find((stage: any) => stage.stage === 'blueprint');
+    const blueprintProvenanceReport = `\n## Blueprint evidence provenance — V0.14\n\n- Provenance fields enriched: **${result.blueprintProvenance?.provenance_fields_enriched ?? 0}**\n- Blueprint retry count: **${blueprintTrace?.retryCount ?? 0}**\n- Semantic reference failures before success: ${(blueprintTrace?.unknownReferenceIds || []).join(', ') || 'none'}\n- Retry reason: ${blueprintTrace?.validationFailureReason || 'none'}\n\n${(result.blueprintProvenance?.turns || []).map((turn: any) => `- ${turn.turn_id}: ${turn.evidence_provenance.map((item: any) => `${item.evidence_id} [${item.origins.join(', ')}]`).join('; ') || 'no evidence provenance'}`).join('\n') || 'No provenance report returned.'}\n`;
     const qualityReport = result.conversationalQuality
       ? `\n## Conversational quality — soft validation\n\n- Verdict: **${result.conversationalQuality.verdict}**\n- Raw metrics: ${json(result.rawConversationalQuality?.metrics).trim()}\n- Final metrics: ${json(result.conversationalQuality.metrics).trim()}\n- Host 1 validation repairs:\n${result.host1OpeningRepairs?.map((repair: any) => `  - ${repair.turn_id} | ${repair.category} | ${repair.applied ? 'removed' : repair.warning} | ${repair.removed_text}`).join('\n') || '  - none'}\n\n${result.conversationalQuality.issues.map((issue: any) => `- ${issue.type} | ${issue.turn_id} | “${issue.phrase}”${issue.signals?.length ? ` | signals: ${issue.signals.join(', ')}` : ''} | ${issue.reason}`).join('\n') || 'No soft-quality warnings.'}\n`
       : '';
@@ -196,7 +198,7 @@ async function main() {
     const audioReport = audioBaseline
       ? `\n## Two-host audio baseline — V1\n\n- Provider: **${audioBaseline.manifest.provider}**\n- Format: ${audioBaseline.manifest.format}\n- Host 1 voice: ${audioBaseline.manifest.voices.host1VoiceId}\n- Host 2 voice: ${audioBaseline.manifest.voices.host2VoiceId}\n- Total audio duration: ${audioBaseline.manifest.assembled_episode.duration_ms}ms\n- Total TTS latency: ${audioBaseline.manifest.metrics.total_tts_latency_ms}ms\n- Assembly latency: ${audioBaseline.manifest.assembled_episode.assembly_latency_ms}ms\n- Average handoff gap: ${audioBaseline.manifest.metrics.average_handoff_gap_ms}ms\n- Quick responses: ${audioBaseline.manifest.metrics.quick_response_count}\n- Reflective pauses: ${audioBaseline.manifest.metrics.reflective_pause_count}\n- Retried turns: ${audioBaseline.manifest.turns.filter((turn: any) => turn.retry_count > 0).map((turn: any) => turn.turn_id).join(', ') || 'none'}\n- Episode artifact: ${audioBaseline.manifest.assembled_episode.url}\n- Manifest artifact: ${audioBaseline.manifest_url}\n\n### Turn timing manifest\n${audioBaseline.manifest.turns.map((turn: any) => `- ${turn.turn_id} | ${turn.speaker} | ${turn.start_ms}–${turn.end_ms}ms | ${turn.duration_ms}ms | ${turn.pause_class} ${turn.pause_after_ms}ms | ${turn.segment_url}`).join('\n')}\n`
       : '';
-    const report = `${reportFor(result)}${referenceIntegrityReport}${certaintyEscalationReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
+    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintProvenanceReport}${certaintyEscalationReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({
@@ -211,6 +213,7 @@ async function main() {
         unknown_reference_ids: [],
       })),
       fs.writeFile(path.join(runDir, 'blueprint.json'), json(result.blueprint)),
+      fs.writeFile(path.join(runDir, 'blueprint-evidence-provenance.json'), json(result.blueprintProvenance || {})),
       fs.writeFile(path.join(runDir, 'blueprint-quality.json'), json(result.blueprintQuality)),
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),
       fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, semantic_history: result.semanticFidelityHistory, instrumentation: result.instrumentation })),

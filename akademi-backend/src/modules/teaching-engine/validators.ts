@@ -1,4 +1,7 @@
 import {
+  BlueprintEvidenceOrigin,
+  BlueprintEvidenceProvenance,
+  BlueprintProvenanceReport,
   CriticReview,
   EpisodeTeachingAnalysis,
   EpisodeTeachingBlueprint,
@@ -154,17 +157,20 @@ export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnaly
   if (!isRecord(value) || value.schema_version !== EPISODE_TEACHING_BLUEPRINT_SCHEMA_VERSION || !Array.isArray(value.turns) || value.turns.length < 2) {
     throw new TeachingValidationError(['Blueprint needs at least two turns.']);
   }
-  const blueprint = value as unknown as EpisodeTeachingBlueprint;
+  const rawBlueprint = value as unknown as EpisodeTeachingBlueprint;
   const issues: string[] = [];
-  const conceptIds = new Set(analysis.concepts.map((concept) => concept.concept_id));
-  const invariantIds = new Set(analysis.concepts.flatMap((concept) => concept.invariants.map((invariant) => invariant.invariant_id)));
-  const misconceptionIds = new Set(analysis.concepts.flatMap((concept) => concept.misconceptions.map((misconception) => misconception.misconception_id)));
+  const conceptById = new Map(analysis.concepts.map((concept) => [concept.concept_id, concept] as const));
+  const conceptIds = new Set(conceptById.keys());
+  const invariantById = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((invariant) => [invariant.invariant_id, { invariant, concept }] as const)));
+  const invariantIds = new Set(invariantById.keys());
+  const misconceptionById = new Map(analysis.concepts.flatMap((concept) => concept.misconceptions.map((misconception) => [misconception.misconception_id, concept] as const)));
+  const misconceptionIds = new Set(misconceptionById.keys());
   const evidenceIds = new Set(analysis.evidence_registry.map((evidence) => evidence.evidence_id));
-  const analogyIds = new Set(analysis.concepts.flatMap((concept) => concept.analogy_candidates.map((analogy) => analogy.analogy_id)));
-  const invariantEvidence = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((invariant) => [
-    invariant.invariant_id,
-    new Set([...invariant.evidence_ids, ...concept.evidence_ids]),
-  ] as const)));
+  const evidenceOrder = new Map(analysis.evidence_registry.map((evidence, index) => [evidence.evidence_id, index]));
+  const analogyById = new Map(analysis.concepts.flatMap((concept) => concept.analogy_candidates.map((analogy) => [analogy.analogy_id, analogy] as const)));
+  const analogyIds = new Set(analogyById.keys());
+  const provenanceOriginOrder: BlueprintEvidenceOrigin[] = ['MODEL_EXPLICIT', 'INHERITED_FROM_INVARIANT', 'INHERITED_FROM_CONCEPT', 'INHERITED_FROM_MISCONCEPTION'];
+  const provenanceOriginRank = new Map(provenanceOriginOrder.map((origin, index) => [origin, index]));
   const turnIds = new Set<string>();
   const representedConcepts = new Set<string>();
   const handledMisconceptions = new Set<string>();
@@ -173,8 +179,12 @@ export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnaly
   let sameSpeakerRun = 0;
   let previousSpeaker = '';
 
-  for (const turn of blueprint.turns) {
+  for (const turn of rawBlueprint.turns) {
     if (!nonEmpty(turn.turn_id) || !nonEmpty(turn.core_epistemic_payload)) issues.push('Every blueprint turn needs an ID and epistemic payload.');
+    if (!stringArray(turn.concept_ids) || !stringArray(turn.invariant_ids) || !stringArray(turn.misconception_ids) || !stringArray(turn.evidence_ids)) {
+      issues.push(`Blueprint turn ${turn.turn_id || 'unknown'} has invalid reference bindings.`);
+      continue;
+    }
     if (turnIds.has(turn.turn_id)) issues.push(`Duplicate blueprint turn ID ${turn.turn_id}.`);
     turnIds.add(turn.turn_id);
     if (turn.speaker === previousSpeaker) sameSpeakerRun += 1; else sameSpeakerRun = 1;
@@ -184,20 +194,65 @@ export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnaly
       host2Turns += 1;
       if (HOST_2_AGENCY_INTENTS.has(turn.intent)) activeHost2Turns += 1;
     }
-    for (const id of turn.concept_ids || []) { if (!conceptIds.has(id)) issues.push(unknownReference('CONCEPT', `Blueprint turn ${turn.turn_id}`, id)); else representedConcepts.add(id); }
-    for (const id of turn.invariant_ids || []) {
+    for (const id of turn.concept_ids) { if (!conceptIds.has(id)) issues.push(unknownReference('CONCEPT', `Blueprint turn ${turn.turn_id}`, id)); else representedConcepts.add(id); }
+    for (const id of turn.invariant_ids) {
       if (!invariantIds.has(id)) {
         issues.push(unknownReference('INVARIANT', `Blueprint turn ${turn.turn_id}`, id));
-        continue;
-      }
-      const support = invariantEvidence.get(id) || new Set<string>();
-      if (!(turn.evidence_ids || []).some((evidenceId) => support.has(evidenceId))) {
-        issues.push(`MISSING_INVARIANT_EVIDENCE_BINDING: Blueprint turn ${turn.turn_id} references ${id} without an evidence ID inherited from that invariant or its concept.`);
       }
     }
-    for (const id of turn.misconception_ids || []) { if (!misconceptionIds.has(id)) issues.push(unknownReference('MISCONCEPTION', `Blueprint turn ${turn.turn_id}`, id)); else handledMisconceptions.add(id); }
-    for (const id of turn.evidence_ids || []) if (!evidenceIds.has(id)) issues.push(unknownReference('EVIDENCE', `Blueprint turn ${turn.turn_id}`, id));
+    for (const id of turn.misconception_ids) { if (!misconceptionIds.has(id)) issues.push(unknownReference('MISCONCEPTION', `Blueprint turn ${turn.turn_id}`, id)); else handledMisconceptions.add(id); }
+    for (const id of turn.evidence_ids) if (!evidenceIds.has(id)) issues.push(unknownReference('EVIDENCE', `Blueprint turn ${turn.turn_id}`, id));
     if (turn.analogy_id && !analogyIds.has(turn.analogy_id)) issues.push(unknownReference('ANALOGY', `Blueprint turn ${turn.turn_id}`, turn.analogy_id));
+  }
+  if (issues.length) throw new TeachingValidationError(issues);
+
+  const blueprint: EpisodeTeachingBlueprint = {
+    ...rawBlueprint,
+    turns: rawBlueprint.turns.map((turn) => {
+      const originsByEvidence = new Map<string, Set<BlueprintEvidenceOrigin>>();
+      const addEvidence = (ids: string[], origin: BlueprintEvidenceOrigin) => {
+        for (const id of ids) {
+          const origins = originsByEvidence.get(id) || new Set<BlueprintEvidenceOrigin>();
+          origins.add(origin);
+          originsByEvidence.set(id, origins);
+        }
+      };
+
+      // The model may provide valid evidence explicitly, but the authoritative
+      // Call 1 graph supplies all redundant provenance it omitted.
+      addEvidence(turn.evidence_ids, 'MODEL_EXPLICIT');
+      for (const id of turn.concept_ids) addEvidence(conceptById.get(id)!.evidence_ids, 'INHERITED_FROM_CONCEPT');
+      for (const id of turn.invariant_ids) {
+        const binding = invariantById.get(id)!;
+        addEvidence(binding.invariant.evidence_ids, 'INHERITED_FROM_INVARIANT');
+        addEvidence(binding.concept.evidence_ids, 'INHERITED_FROM_INVARIANT');
+      }
+      for (const id of turn.misconception_ids) addEvidence(misconceptionById.get(id)!.evidence_ids, 'INHERITED_FROM_MISCONCEPTION');
+      if (turn.analogy_id) {
+        for (const invariantId of analogyById.get(turn.analogy_id)!.preserves_invariant_ids) {
+          const binding = invariantById.get(invariantId)!;
+          addEvidence(binding.invariant.evidence_ids, 'INHERITED_FROM_INVARIANT');
+          addEvidence(binding.concept.evidence_ids, 'INHERITED_FROM_INVARIANT');
+        }
+      }
+
+      const evidence_ids = [...originsByEvidence.keys()].sort((left, right) => (evidenceOrder.get(left)! - evidenceOrder.get(right)!));
+      const evidence_provenance: BlueprintEvidenceProvenance[] = evidence_ids.map((evidence_id) => ({
+        evidence_id,
+        origins: [...originsByEvidence.get(evidence_id)!].sort((left, right) => provenanceOriginRank.get(left)! - provenanceOriginRank.get(right)!),
+      }));
+      return { ...turn, evidence_ids, evidence_provenance };
+    }),
+  };
+
+  for (const turn of blueprint.turns) {
+    for (const id of turn.invariant_ids) {
+      const binding = invariantById.get(id)!;
+      const support = new Set([...binding.invariant.evidence_ids, ...binding.concept.evidence_ids]);
+      if (!turn.evidence_ids.some((evidenceId) => support.has(evidenceId))) {
+        issues.push(`MISSING_INVARIANT_EVIDENCE_BINDING: Blueprint turn ${turn.turn_id} references ${id} without a valid evidence path in EpisodeTeachingAnalysis.`);
+      }
+    }
   }
   for (const concept of analysis.concepts.filter((concept) => concept.tier === 'CORE_PILLAR')) if (!representedConcepts.has(concept.concept_id)) issues.push(`Core concept ${concept.concept_id} is missing from blueprint.`);
   for (const misconception of analysis.concepts.flatMap((concept) => concept.misconceptions).filter((item) => item.severity === 'HIGH' && item.must_surface_in_dialogue)) if (!handledMisconceptions.has(misconception.misconception_id)) issues.push(`High-severity misconception ${misconception.misconception_id} is not handled.`);
@@ -205,6 +260,22 @@ export function validateBlueprint(value: unknown, analysis: EpisodeTeachingAnaly
   if (!blueprint.turns.some((turn) => turn.intent === 'CLOSE_LOOP' || turn.intent === 'SYNTHESIZE')) issues.push('Blueprint has no synthesis or loop closure.');
   if (issues.length) throw new TeachingValidationError(issues);
   return blueprint;
+}
+
+/**
+ * Kept outside the persisted Call 2 schema: this is runtime observability for
+ * provenance supplied by deterministic graph traversal, not a new model task.
+ */
+export function blueprintProvenanceReport(blueprint: EpisodeTeachingBlueprint): BlueprintProvenanceReport {
+  const turns = blueprint.turns.map((turn) => ({
+    turn_id: turn.turn_id,
+    evidence_ids: turn.evidence_ids,
+    evidence_provenance: turn.evidence_provenance || [],
+  }));
+  return {
+    provenance_fields_enriched: turns.reduce((total, turn) => total + turn.evidence_provenance.filter((item) => item.origins.some((origin) => origin !== 'MODEL_EXPLICIT')).length, 0),
+    turns,
+  };
 }
 
 export function validateDialogue(value: unknown, blueprint: EpisodeTeachingBlueprint, analysis: EpisodeTeachingAnalysis): ProductionDialogueScript {
