@@ -30,6 +30,11 @@ export interface ConversationalQualityReport {
     passive_turn_count: number;
     host2_prepackaged_synthesis_count: number;
     host2_prepackaged_synthesis_rate: number;
+    host2_average_words_per_turn: number;
+    host2_long_turn_rate: number;
+    host2_recap_opener_count: number;
+    host2_multi_clause_turn_rate: number;
+    host2_restated_conclusion_rate: number;
     host1_validation_count: number;
     host1_validation_rate: number;
     host1_pure_affirmation_count: number;
@@ -53,6 +58,8 @@ const intensityTerms = ['cripple', 'catastrophic', 'disastrous', 'completely', '
 const novelty = /\b(?:because|but|while|if|unless|instead|therefore|which means|for example|imagine|however|reason)\b/i;
 const activeHost2 = new Set(['DEDUCE', 'CHALLENGE', 'TEST_ANALOGY', 'REFRAME', 'SYNTHESIZE', 'CLOSE_LOOP']);
 const summaryOpener = /^(?:okay,?\s+so|so basically|in summary|so the picture is|what this means is|so we(?:'ve| have) got|putting that together)\b/i;
+const spokenRecapOpener = /^(?:so,?\s+(?:essentially|basically|if i(?:'m| am) understanding|the (?:key )?point|to summarize)|in other words|what this means is|so the picture is|putting that together|this means that|therefore)\b/i;
+const clauseConnector = /\b(?:because|but|and if|if|when|while|which means|which makes|therefore|however|instead)\b/gi;
 const relationshipGain = /\b(?:if|would|could|might|why|how|unless|instead|imagine|for example|compare|versus)\b/i;
 const discourseConnectors = /\b(?:so|which makes|which means|however|therefore|but|and if|while|still)\b/gi;
 const stopWords = new Set(['about', 'after', 'again', 'also', 'another', 'because', 'being', 'between', 'candidate', 'candidates', 'chance', 'cluster', 'could', 'does', 'election', 'elections', 'entirely', 'every', 'from', 'have', 'into', 'just', 'leader', 'leaders', 'like', 'makes', 'means', 'more', 'most', 'need', 'only', 'other', 'over', 'really', 'server', 'servers', 'split', 'still', 'system', 'that', 'their', 'there', 'these', 'this', 'those', 'timeout', 'timeouts', 'under', 'what', 'when', 'where', 'which', 'while', 'with', 'would']);
@@ -111,6 +118,24 @@ function opener(text: string) {
   return text.toLowerCase().replace(/^[^a-z]+/, '').split(/\s+/).slice(0, 2).join(' ');
 }
 
+function wordCount(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function hasMultipleClauses(text: string) {
+  const sentences = text.split(/[.!?]+/).filter((sentence) => sentence.trim().length > 0).length;
+  const connectors = Array.from(text.matchAll(clauseConnector)).length;
+  return sentences >= 2 || connectors >= 2;
+}
+
+function restatesPriorConclusion(turns: ProductionDialogueScript['turns'], index: number) {
+  const current = turns[index];
+  const previous = turns[index - 1];
+  if (!previous || previous.speaker !== 'HOST_1' || /\?$/.test(current.spoken_text.trim())) return false;
+  return /^(?:so\b|in other words\b|what this means is\b|therefore\b|this means that\b)/i.test(current.spoken_text.trim())
+    && jaccard(previous.spoken_text, current.spoken_text) >= 0.18;
+}
+
 function intensityIsSupported(phrase: string, evidenceIds: string[], analysis: EpisodeTeachingAnalysis) {
   return evidenceIds.some((id) => {
     const evidence = analysis.evidence_registry.find((item) => item.evidence_id === id);
@@ -125,6 +150,7 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
   const host2 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_2');
   const host1 = dialogue.turns.filter((turn) => turn.speaker === 'HOST_1');
   let leading = 0; let echoes = 0; let passive = 0; let prepackaged = 0;
+  let host2Words = 0; let host2LongTurns = 0; let host2RecapOpeners = 0; let host2MultiClauseTurns = 0; let host2RestatedConclusions = 0;
   let assertedIntensity = 0; let hypothesisIntensity = 0; let negatedIntensity = 0;
   const host1ValidationCounts = { PURE_AFFIRMATION: 0, LEARNER_EVALUATION: 0, META_PRAISE: 0, IDEA_VALIDATION: 0 };
 
@@ -161,6 +187,12 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
     }
 
     if (turn.speaker !== 'HOST_2') return;
+    const words = wordCount(text);
+    host2Words += words;
+    if (words >= 40) host2LongTurns += 1;
+    if (spokenRecapOpener.test(text)) host2RecapOpeners += 1;
+    if (hasMultipleClauses(text)) host2MultiClauseTurns += 1;
+    if (restatesPriorConclusion(dialogue.turns, index)) host2RestatedConclusions += 1;
     const previous = dialogue.turns[index - 1];
     const directLeading = /^(?:so .+\b(?:right|isn't it)\?|which means .+\?|so the answer is .+\?|doesn't that mean .+\?|so really (?:it'?s|it is) just .+\?)/i.test(text);
     const confirmationFrame = /^(?:so )?(?:what you're saying is|you're saying|basically|in other words,? you're saying|the idea is|really)/i.test(text);
@@ -203,6 +235,11 @@ export function validateConversationalQuality(dialogue: ProductionDialogueScript
       affirmation_count: affirmations.length, affirmation_rate: Number((affirmations.length / Math.max(1, dialogue.turns.length)).toFixed(2)), unsupported_intensity_count: assertedIntensity,
       asserted_intensity_count: assertedIntensity, hypothesis_intensity_count: hypothesisIntensity, negated_intensity_count: negatedIntensity,
       repeated_opener_rate: Number((repeatedOpeners.length / Math.max(1, dialogue.turns.length)).toFixed(2)), passive_turn_count: passive, host2_prepackaged_synthesis_count: prepackaged, host2_prepackaged_synthesis_rate: Number((prepackaged / Math.max(1, host2.length)).toFixed(2)),
+      host2_average_words_per_turn: Number((host2Words / Math.max(1, host2.length)).toFixed(2)),
+      host2_long_turn_rate: Number((host2LongTurns / Math.max(1, host2.length)).toFixed(2)),
+      host2_recap_opener_count: host2RecapOpeners,
+      host2_multi_clause_turn_rate: Number((host2MultiClauseTurns / Math.max(1, host2.length)).toFixed(2)),
+      host2_restated_conclusion_rate: Number((host2RestatedConclusions / Math.max(1, host2.length)).toFixed(2)),
       host1_validation_count: host1ValidationCount,
       host1_validation_rate: Number((host1ValidationCount / Math.max(1, host1.length)).toFixed(2)),
       host1_pure_affirmation_count: host1ValidationCounts.PURE_AFFIRMATION,

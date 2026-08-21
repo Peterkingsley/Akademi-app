@@ -117,4 +117,17 @@ describe('conversational quality validator', () => {
     expect(report.issues.some((item) => item.type === 'HOST2_PREPACKAGED_SYNTHESIS')).toBe(false);
     expect(report.metrics.host2_prepackaged_synthesis_count).toBe(0);
   });
+
+  it('measures written Host 2 recap habits without treating the measurements as verdicts', () => {
+    const report = validateConversationalQuality(dialogue([
+      turn('0', 'HOST_1', 'The election fails for that term because no candidate has a majority, so the system begins a new round.'),
+      turn('1', 'HOST_2', 'So, essentially, the election fails for that term because no candidate wins, which means the system has to begin a new round instead.', 'SYNTHESIZE'),
+      turn('2', 'HOST_1', 'Randomized timeouts make simultaneous starts less likely.'),
+      turn('3', 'HOST_2', 'Then the random part is who gets a head start.', 'DEDUCE'),
+    ]), analysis);
+    expect(report.metrics.host2_average_words_per_turn).toBeGreaterThan(0);
+    expect(report.metrics.host2_recap_opener_count).toBe(1);
+    expect(report.metrics.host2_multi_clause_turn_rate).toBe(0.5);
+    expect(report.metrics.host2_restated_conclusion_rate).toBe(0.5);
+  });
 });
