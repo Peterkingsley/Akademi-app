@@ -85,6 +85,17 @@ export function fidelityPrompt(analysis: EpisodeTeachingAnalysis, blueprint: Epi
   return JSON.stringify({ task: 'Create CriticReview', analysis, blueprint, dialogue, certainty_drift_warnings: certaintyDriftWarnings });
 }
 
-export function patchPrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript, defects: unknown[]) {
-  return JSON.stringify({ task: 'Return only replacement dialogue turns', analysis, blueprint, dialogue, defects });
+export function patchPrompt(
+  analysis: EpisodeTeachingAnalysis,
+  blueprint: EpisodeTeachingBlueprint,
+  dialogue: ProductionDialogueScript,
+  defects: unknown[],
+  repairContext: unknown,
+) {
+  return JSON.stringify({
+    task: 'Return only replacement dialogue turns', analysis, blueprint, dialogue, defects,
+    // This compact view is intentionally redundant with the validated objects
+    // above. It makes the patcher's factual boundary explicit for a local fix.
+    repair_context: repairContext,
+  });
 }

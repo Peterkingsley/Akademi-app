@@ -173,6 +173,7 @@ async function main() {
     }
 
     const result = response.body;
+    console.log('FIDELITY_REPAIR_OBSERVATIONS', json(result.fidelityRepairObservations || []));
     const audioBaseline = process.env.TEACHING_AUDIO_BASELINE === 'true'
       ? await teachingAudioRenderer.renderFinalDialogue(result.episodeId, result.dialogue)
       : null;
@@ -217,6 +218,7 @@ async function main() {
       fs.writeFile(path.join(runDir, 'conversational-quality-raw.json'), json(result.rawConversationalQuality)),
       fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),
       fs.writeFile(path.join(runDir, 'certainty-drift-warnings.json'), json({ initial: initialCertaintyWarnings, final: finalCertaintyWarnings, semantic_fidelity_history: semanticFidelityHistory })),
+      fs.writeFile(path.join(runDir, 'fidelity-repair-observations.json'), json(result.fidelityRepairObservations || [])),
       fs.writeFile(path.join(runDir, 'repaired-dialogue.json'), json(result.preRepairDialogue ? { original: result.preRepairDialogue, repaired: result.dialogue } : { repaired: false, dialogue: result.dialogue })),
       ...(audioBaseline ? [
         fs.writeFile(path.join(runDir, 'audio-manifest.json'), json(audioBaseline.manifest)),

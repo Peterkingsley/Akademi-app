@@ -36,6 +36,9 @@ export const config = {
   teachingDialogueModel: process.env.TEACHING_DIALOGUE_MODEL || '',
   teachingFidelityModel: process.env.TEACHING_FIDELITY_MODEL || '',
   teachingPatchModel: process.env.TEACHING_PATCH_MODEL || '',
+  // A fidelity repair is deliberately local and bounded. Two attempts allow a
+  // patcher to correct a visible first-attempt failure without creating a loop.
+  teachingMaxPatchAttempts: Math.max(1, Math.min(2, parseInt(process.env.TEACHING_MAX_PATCH_ATTEMPTS || '2', 10) || 2)),
   teachingSmallSourceTokenLimit: parseInt(process.env.TEACHING_SMALL_SOURCE_TOKEN_LIMIT || '25000', 10),
   teachingMediumSourceTokenLimit: parseInt(process.env.TEACHING_MEDIUM_SOURCE_TOKEN_LIMIT || '150000', 10),
   teachingLargeSourceTokenLimit: parseInt(process.env.TEACHING_LARGE_SOURCE_TOKEN_LIMIT || '500000', 10),

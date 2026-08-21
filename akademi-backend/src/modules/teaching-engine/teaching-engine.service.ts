@@ -10,7 +10,7 @@ import {
 } from './prompts';
 import {
   AnalysisCacheStatus, Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
-  NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
+  FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
   TeachingStageInstrumentation,
 } from './types';
 import {
@@ -32,7 +32,7 @@ import { repairHost1ValidationOpenings } from './host1-opening-repair';
 import { validateBlueprintQuality } from './blueprint-quality.validator';
 import { certaintyHardBlockers, detectPossibleCertaintyDrift } from './certainty-drift.validator';
 
-const MAX_PATCH_ATTEMPTS = 1;
+const MAX_PATCH_ATTEMPTS = config.teachingMaxPatchAttempts || 2;
 
 export class TeachingCallFailureError extends Error {
   constructor(
@@ -43,6 +43,17 @@ export class TeachingCallFailureError extends Error {
   ) {
     super(message);
     this.name = 'TeachingCallFailureError';
+  }
+}
+
+/**
+ * A controlled fidelity failure. Normal clients only receive its 422 message;
+ * the development-only live validator receives the sanitized repair chain.
+ */
+export class TeachingFidelityGateError extends Error {
+  constructor(public readonly diagnostic: Record<string, unknown>) {
+    super('Teaching episode failed the semantic fidelity gate.');
+    this.name = 'TeachingFidelityGateError';
   }
 }
 
@@ -118,6 +129,96 @@ function mergeDeterministicCertaintyBlockers(review: CriticReview, warnings: Ret
         repair_directive: 'Replace only this asserted certainty phrase with source-faithful probabilistic, conditional, or explicitly supported wording. Preserve every turn binding and speaker.',
       })),
     ],
+  };
+}
+
+function normalizedText(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function repairContextFor(
+  analysis: EpisodeTeachingAnalysis,
+  blueprint: EpisodeTeachingBlueprint,
+  dialogue: ProductionDialogueScript,
+  defects: CriticReview['defects'],
+  attempt: number,
+  previousFailure?: FidelityRepairObservation[],
+) {
+  const byTurn = new Map(dialogue.turns.map((turn, index) => [turn.turn_id, { turn, index }]));
+  const invariants = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((invariant) => [invariant.invariant_id, invariant] as const)));
+  const blueprintByTurn = new Map(blueprint.turns.map((turn) => [turn.turn_id, turn]));
+  return {
+    repair_attempt: attempt,
+    prior_failure: previousFailure?.map((item) => ({
+      defect_id: item.defect_id, turn_id: item.turn_id, proposed_text: item.proposed_text,
+      deterministic_result: item.deterministic_post_patch_result, fidelity_result: item.fidelity_post_patch_result,
+      final_status: item.final_status,
+    })) || [],
+    affected_turns: defects.flatMap((defect) => defect.turn_ids.map((turnId) => {
+      const located = byTurn.get(turnId);
+      const turn = located?.turn;
+      const boundInvariants = (turn?.invariant_ids || []).map((id) => invariants.get(id)).filter(Boolean);
+      const analogy = turn?.analogy_id
+        ? analysis.concepts.flatMap((concept) => concept.analogy_candidates).find((item) => item.analogy_id === turn.analogy_id)
+        : undefined;
+      return {
+        defect: {
+          defect_id: defect.defect_id, type: defect.type, description: defect.description,
+          repair_directive: defect.repair_directive, evidence_ids: defect.evidence_ids,
+          invariant_ids: defect.invariant_ids,
+        },
+        failing_turn: turn,
+        previous_turn: located && located.index > 0 ? dialogue.turns[located.index - 1] : null,
+        next_turn: located && located.index < dialogue.turns.length - 1 ? dialogue.turns[located.index + 1] : null,
+        blueprint_payload: blueprintByTurn.get(turnId),
+        source_evidence: analysis.evidence_registry.filter((item) => (turn?.evidence_ids || defect.evidence_ids).includes(item.evidence_id)),
+        invariants: boundInvariants.map((item) => ({
+          invariant_id: item!.invariant_id, statement: item!.statement,
+          forbidden_exaggerations: item!.forbidden_exaggerations,
+          allowed_claim_type: item!.claim_type, epistemic_status: item!.epistemic_status,
+        })),
+        analogy_boundary: analogy ? { analogy_id: analogy.analogy_id, breakdown_boundary: analogy.breakdown_boundary, forbidden_inferences: analogy.forbidden_inferences } : null,
+      };
+    })),
+  };
+}
+
+function deterministicPostPatchValidation(
+  original: ProductionDialogueScript,
+  candidate: ProductionDialogueScript,
+  analysis: EpisodeTeachingAnalysis,
+  blueprint: EpisodeTeachingBlueprint,
+  defects: CriticReview['defects'],
+  replacementTurnIds: string[],
+) {
+  const codes: string[] = [];
+  try {
+    validateDialogue(candidate, blueprint, analysis);
+  } catch (error) {
+    if (error instanceof TeachingValidationError) codes.push(...error.issues.map((issue) => `STRUCTURAL_OR_FORBIDDEN:${issue}`));
+    else codes.push(`STRUCTURAL_OR_FORBIDDEN:${error instanceof Error ? error.message : 'Unknown validation failure'}`);
+  }
+  const affectedTurnIds = [...new Set(defects.flatMap((defect) => defect.turn_ids))];
+  if (!affectedTurnIds.some((id) => replacementTurnIds.includes(id))) codes.push('PATCH_NO_MEANINGFUL_CHANGE');
+  for (const turnId of affectedTurnIds) {
+    const before = original.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '';
+    const after = candidate.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '';
+    if (normalizedText(before) === normalizedText(after)) {
+      codes.push('PATCH_NO_MEANINGFUL_CHANGE', `PATCH_NO_MEANINGFUL_CHANGE:${turnId}`);
+    }
+  }
+  const originalHard = certaintyHardBlockers(detectPossibleCertaintyDrift(original, analysis));
+  const candidateWarnings = detectPossibleCertaintyDrift(candidate, analysis);
+  const candidateHard = certaintyHardBlockers(candidateWarnings);
+  if (candidateHard.some((warning) => affectedTurnIds.includes(warning.turn_id))) codes.push('PATCH_REPEATED_BLOCKED_CLAIM');
+  if (candidateHard.some((warning) => !originalHard.some((prior) => prior.turn_id === warning.turn_id && prior.phrase === warning.phrase))) {
+    codes.push('PATCH_CREATED_NEW_HARD_BLOCKER');
+  }
+  return {
+    verdict: codes.length ? 'REPAIR_REQUIRED' as const : 'PASS' as const,
+    codes: [...new Set(codes)],
+    certaintyWarnings: candidateWarnings,
+    certaintyHardBlockerTurnIds: [...new Set(candidateHard.map((warning) => warning.turn_id))],
   };
 }
 
@@ -289,11 +390,18 @@ export class TeachingEngineService {
   }
 
   private async repairDialogue(
-    analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript, review: CriticReview,
-  ): Promise<{ dialogue: ProductionDialogueScript; trace: TeachingStageInstrumentation }> {
+    analysis: EpisodeTeachingAnalysis,
+    blueprint: EpisodeTeachingBlueprint,
+    dialogue: ProductionDialogueScript,
+    review: CriticReview,
+    attempt: number,
+    previousFailure?: FidelityRepairObservation[],
+  ): Promise<{ dialogue: ProductionDialogueScript; trace: TeachingStageInstrumentation; replacementTurnIds: string[] }> {
     const hardDefects = review.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
     const { artifact: replacement, trace } = await this.callJson({
-      stage: 'targeted_patch', prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects), systemPrompt: patchSystemPrompt,
+      stage: 'targeted_patch',
+      prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects, repairContextFor(analysis, blueprint, dialogue, hardDefects, attempt, previousFailure)),
+      systemPrompt: patchSystemPrompt,
       model: config.teachingPatchModel, maxTokens: 4_000,
       parseResponse: parsePatchResponse,
       validate: (value) => {
@@ -307,10 +415,15 @@ export class TeachingEngineService {
         return { turns };
       },
     });
-    const replacements = new Map(replacement.turns.map((turn) => [turn.turn_id, turn]));
+    const allowedTurnIds = new Set(hardDefects.flatMap((defect) => defect.turn_ids));
+    const replacements = new Map(replacement.turns.filter((turn) => allowedTurnIds.has(turn.turn_id)).map((turn) => [turn.turn_id, turn]));
     return {
-      dialogue: validateDialogue({ ...dialogue, turns: dialogue.turns.map((turn) => replacements.get(turn.turn_id) || turn) }, blueprint, analysis),
+      // Structural binding checks run immediately after the patch and before a
+      // further paid fidelity review. This intentionally does not permit a
+      // repair to touch an unrelated turn.
+      dialogue: { ...dialogue, turns: dialogue.turns.map((turn) => replacements.get(turn.turn_id) || turn) },
       trace,
+      replacementTurnIds: [...replacements.keys()],
     };
   }
 
@@ -346,6 +459,7 @@ export class TeachingEngineService {
     let fidelity: CriticReview | null = null;
     const fidelityHistory: CriticReview[] = [];
     const semanticFidelityHistory: CriticReview[] = [];
+    const fidelityRepairObservations: FidelityRepairObservation[] = [];
     let preRepairDialogue: ProductionDialogueScript | null = null;
     const initialCertaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
     let certaintyDriftWarnings = initialCertaintyDriftWarnings;
@@ -361,23 +475,76 @@ export class TeachingEngineService {
       fidelity = mergeDeterministicCertaintyBlockers(firstFidelity.artifact, certaintyDriftWarnings);
       fidelityHistory.push(fidelity);
       traces.push(firstFidelity.trace);
-      for (let attempt = 0; attempt < MAX_PATCH_ATTEMPTS && fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER'); attempt += 1) {
-        preRepairDialogue = dialogue;
-        const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity);
+      for (let attempt = 1; attempt <= MAX_PATCH_ATTEMPTS && fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER'); attempt += 1) {
+        const hardDefects = fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
+        if (!preRepairDialogue) preRepairDialogue = dialogue;
+        const beforePatch = dialogue;
+        const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity, attempt, fidelityRepairObservations);
         const postPatchOpeningRepair = repairHost1ValidationOpenings(repaired.dialogue);
         host1OpeningRepairs = [...host1OpeningRepairs, ...postPatchOpeningRepair.repairs];
-        dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
-        certaintyDriftWarnings = detectPossibleCertaintyDrift(dialogue, analysis);
         traces.push(repaired.trace);
+        const deterministic = deterministicPostPatchValidation(
+          beforePatch, postPatchOpeningRepair.dialogue, analysis, blueprint, hardDefects, repaired.replacementTurnIds,
+        );
+        const observationBase = hardDefects.flatMap((defect) => defect.turn_ids.map((turnId) => ({
+          defect_id: defect.defect_id,
+          turn_id: turnId,
+          defect_type: defect.type,
+          repair_attempt: attempt,
+          original_text: beforePatch.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '',
+          proposed_text: postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '',
+          deterministic_post_patch_result: {
+            verdict: deterministic.verdict,
+            codes: deterministic.codes,
+            certainty_hard_blocker_turn_ids: deterministic.certaintyHardBlockerTurnIds,
+          },
+        })));
+        if (deterministic.verdict !== 'PASS') {
+          const status: FidelityRepairObservation['final_status'] = deterministic.codes.some((code) => code.startsWith('PATCH_NO_MEANINGFUL_CHANGE'))
+            ? 'PATCH_NO_MEANINGFUL_CHANGE'
+            : deterministic.codes.includes('PATCH_REPEATED_BLOCKED_CLAIM')
+              ? 'PATCH_REPEATED_BLOCKED_CLAIM'
+              : deterministic.codes.includes('PATCH_CREATED_NEW_HARD_BLOCKER')
+                ? 'PATCH_CREATED_NEW_HARD_BLOCKER'
+                : 'PATCH_FAILED_DETERMINISTIC_VALIDATION';
+          fidelityRepairObservations.push(...observationBase.map((item) => ({ ...item, final_status: status })));
+          // Retain the last valid dialogue. Attempt two receives the exact
+          // failed patch diagnostics rather than blindly repeating attempt one.
+          continue;
+        }
+        dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
+        certaintyDriftWarnings = deterministic.certaintyWarnings;
         const repairedFidelity = await runFidelity(dialogue);
         semanticFidelityHistory.push(repairedFidelity.artifact);
-        fidelity = mergeDeterministicCertaintyBlockers(repairedFidelity.artifact, certaintyDriftWarnings);
+        const postPatchFidelity = mergeDeterministicCertaintyBlockers(repairedFidelity.artifact, certaintyDriftWarnings);
+        fidelity = postPatchFidelity;
         fidelityHistory.push(fidelity);
         traces.push(repairedFidelity.trace);
+        const survivorTurnIds = new Set(postPatchFidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER').flatMap((defect) => defect.turn_ids));
+        fidelityRepairObservations.push(...observationBase.map((item) => ({
+          ...item,
+          fidelity_post_patch_result: postPatchFidelity,
+          final_status: (survivorTurnIds.has(item.turn_id) ? 'FIDELITY_BLOCKER_SURVIVED' : 'REPAIRED') as FidelityRepairObservation['final_status'],
+        })));
       }
       if (fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER')) {
-        console.warn('fidelity_gate.failed', { hard_blocker_count: fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER').length });
-        throw new Error('Teaching episode failed the semantic fidelity gate.');
+        const finalHardDefects = fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
+        console.warn('fidelity_gate.failed', {
+          hard_blocker_count: finalHardDefects.length,
+          repair_attempt_count: fidelityRepairObservations.length,
+          final_defect_ids: finalHardDefects.map((defect) => defect.defect_id),
+        });
+        throw new TeachingFidelityGateError({
+          failure_type: 'FIDELITY_GATE',
+          initial_dialogue: preRepairDialogue,
+          final_candidate_dialogue: dialogue,
+          blueprint,
+          analysis,
+          fidelity_history: fidelityHistory,
+          semantic_fidelity_history: semanticFidelityHistory,
+          repair_observations: fidelityRepairObservations,
+          final_hard_defects: finalHardDefects,
+        });
       }
     }
     // This measures the final dialogue, including any bounded fidelity repair.
@@ -392,7 +559,7 @@ export class TeachingEngineService {
     });
     console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
+      episodeId: episode.id, analysis, blueprint, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, fidelityRepairObservations, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

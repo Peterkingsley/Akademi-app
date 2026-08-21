@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { TeachingCallFailureError, teachingEngineService } from './teaching-engine.service';
+import { TeachingCallFailureError, TeachingFidelityGateError, teachingEngineService } from './teaching-engine.service';
 
 export class TeachingEngineController {
   async createEpisode(req: Request, res: Response) {
@@ -9,7 +9,8 @@ export class TeachingEngineController {
     } catch (error: any) {
       const message = error?.message || 'Could not generate the teaching episode.';
       const status = message.includes('not found') ? 404 : message.includes('fidelity gate') ? 422 : 400;
-      const exposeDiagnostic = process.env.TEACHING_ENGINE_LIVE_VALIDATION === 'true' && error instanceof TeachingCallFailureError;
+      const exposeDiagnostic = process.env.TEACHING_ENGINE_LIVE_VALIDATION === 'true'
+        && (error instanceof TeachingCallFailureError || error instanceof TeachingFidelityGateError);
       // Raw model output is only ever made available to the separately-run,
       // development-fixture validation process. It is never a normal API error.
       const exposeRawValidationResponse = exposeDiagnostic

@@ -155,6 +155,31 @@ export interface CriticReview {
   defects: CriticDefect[];
 }
 
+export type FidelityRepairStatus =
+  | 'REPAIRED'
+  | 'PATCH_NO_MEANINGFUL_CHANGE'
+  | 'PATCH_REPEATED_BLOCKED_CLAIM'
+  | 'PATCH_CREATED_NEW_HARD_BLOCKER'
+  | 'PATCH_FAILED_DETERMINISTIC_VALIDATION'
+  | 'FIDELITY_BLOCKER_SURVIVED';
+
+/** A sanitized, per-attempt record used to make bounded local repair auditable. */
+export interface FidelityRepairObservation {
+  defect_id: string;
+  turn_id: string;
+  defect_type: CriticDefect['type'];
+  repair_attempt: number;
+  original_text: string;
+  proposed_text: string;
+  deterministic_post_patch_result: {
+    verdict: 'PASS' | 'REPAIR_REQUIRED';
+    codes: string[];
+    certainty_hard_blocker_turn_ids: string[];
+  };
+  fidelity_post_patch_result?: CriticReview;
+  final_status: FidelityRepairStatus;
+}
+
 export interface TeachingEpisodeRequest {
   materialId?: string;
   sources?: NormalizedSource[];
@@ -180,6 +205,8 @@ export interface TeachingEpisodeResult {
   conversationalQuality: ConversationalQualityReport;
   rawConversationalQuality: ConversationalQualityReport;
   host1OpeningRepairs: Host1OpeningRepair[];
+  /** Per-defect local-repair trace. Included in validation diagnostics on failure. */
+  fidelityRepairObservations: FidelityRepairObservation[];
   /** Warnings supplied to the initial Call 4 review before any patch. */
   initialCertaintyDriftWarnings: CertaintyDriftWarning[];
   certaintyDriftWarnings: CertaintyDriftWarning[];

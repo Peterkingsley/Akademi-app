@@ -13,7 +13,7 @@ jest.mock('../src/modules/ai/ai.provider', () => ({
 
 import prisma from '../src/config/db';
 import { aiProvider } from '../src/modules/ai/ai.provider';
-import { TeachingEngineService } from '../src/modules/teaching-engine/teaching-engine.service';
+import { TeachingEngineService, TeachingFidelityGateError } from '../src/modules/teaching-engine/teaching-engine.service';
 import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, ProductionDialogueScript } from '../src/modules/teaching-engine/types';
 import { EPISODE_TEACHING_ANALYSIS_CONTRACT_VERSION, EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION } from '../src/modules/teaching-engine/schema';
 
@@ -208,5 +208,55 @@ describe('TeachingEngineService fidelity path', () => {
     expect(result.fidelityHistory[0]).toMatchObject({ verdict: 'REPAIR_REQUIRED', defects: [expect.objectContaining({ description: expect.stringContaining('CERTAINTY_DRIFT_HARD_BLOCKER') })] });
     expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('still a small chance');
     expect(result.certaintyDriftWarnings.filter((warning) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER')).toEqual([]);
+  });
+
+  it('rejects a no-op certainty patch before another fidelity call, then succeeds with one bounded retry', async () => {
+    const original = script('Randomized election timeouts ensure leader elections eventually succeed.');
+    const repairedTurn = { ...script('Randomized election timeouts make collisions less likely and give the cluster another chance to elect a leader.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_NOOP', type: 'CLAIM_EXAGGERATION', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The claim turns another chance into a guarantee.', repair_directive: 'Use conditional wording; do not promise eventual success.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [original.turns[2]] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(7);
+    const secondPatchPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
+    expect(secondPatchPrompt.repair_context.repair_attempt).toBe(2);
+    expect(secondPatchPrompt.repair_context.prior_failure[0].deterministic_result.codes).toEqual(expect.arrayContaining(['PATCH_NO_MEANINGFUL_CHANGE']));
+    expect(result.fidelity?.verdict).toBe('PASS');
+    expect(result.fidelityRepairObservations.map((item) => item.final_status)).toEqual(expect.arrayContaining(['PATCH_NO_MEANINGFUL_CHANGE', 'REPAIRED']));
+    expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toContain('another chance');
+  });
+
+  it('returns a controlled diagnostic when the second local repair still leaves a fidelity blocker', async () => {
+    const original = script('A split vote becomes permanently stuck once it happens.');
+    const changedButStillWrong = { ...script('A split vote stays permanently stuck, so no leader can be chosen.').turns[2] };
+    const secondChangedButStillWrong = { ...script('That means the cluster can never escape a split vote once it occurs.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_SURVIVES', type: 'SOURCE_DRIFT', severity: 'HARD_BLOCKER', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The source allows another election; it does not say the system is permanently stuck.', repair_directive: 'Replace permanence with a new election opportunity.',
+    };
+    const responses = [
+      analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [changedButStillWrong] }, { verdict: 'REPAIR_REQUIRED', defects: [defect] },
+      { turns: [secondChangedButStillWrong] }, { verdict: 'REPAIR_REQUIRED', defects: [defect] },
+    ];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    await expect(new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    })).rejects.toMatchObject({
+      name: 'TeachingFidelityGateError',
+      diagnostic: expect.objectContaining({
+        final_hard_defects: [expect.objectContaining({ defect_id: 'DEF_SURVIVES' })],
+        repair_observations: [expect.objectContaining({ repair_attempt: 1, final_status: 'FIDELITY_BLOCKER_SURVIVED' }), expect.objectContaining({ repair_attempt: 2, final_status: 'FIDELITY_BLOCKER_SURVIVED' })],
+      }),
+    } as Partial<TeachingFidelityGateError>);
   });
 });
