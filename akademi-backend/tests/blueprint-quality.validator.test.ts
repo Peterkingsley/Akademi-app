@@ -47,6 +47,17 @@ describe('blueprint quality validator', () => {
     expect(report.metrics.host2_multi_operation_payload_count).toBe(1);
   });
 
+  it('flags the live V0.7 terminal recap across mechanism, qualification, and retry', () => {
+    const report = validateBlueprintQuality(blueprint([
+      turn('1', 'HOST_1', 'EXPLAIN', 'Randomized timeouts make simultaneous starts less likely.'),
+      turn('12', 'HOST_2', 'SYNTHESIZE', 'Randomized election timeouts are a critical strategy in Raft to avoid split votes, but they work by reducing the probability of multiple candidates starting elections at once, rather than guaranteeing a single candidate. The system still relies on repeated election attempts if a split vote occurs.'),
+    ]));
+    expect(report.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'HOST2_OVERCOMPLETE_PAYLOAD', signals: expect.arrayContaining(['QUALIFICATION_CLAUSE', 'RECOVERY_CLAUSE', 'CAUSAL_CONSEQUENCE_CLAUSE']) }),
+      expect.objectContaining({ type: 'HOST2_MULTI_OPERATION_PAYLOAD' }),
+    ]));
+  });
+
   it('flags mechanism plus recovery as two major operations without making Host 2 passive', () => {
     const report = validateBlueprintQuality(blueprint([
       turn('1', 'HOST_1', 'EXPLAIN', 'A split vote can be followed by another election.'),
@@ -109,6 +120,7 @@ describe('blueprint quality validator', () => {
     'Infer that randomized timeout durations reduce simultaneous candidacy.',
     'Infer that randomized timeouts reduce, but do not eliminate, split-vote risk.',
     'Connect the failed election to the next election term: the failure creates another attempt rather than permanent leaderlessness.',
+    'If similar timeouts happen again in the next term, could the collision repeat?',
   ])('does not flag a single local relationship: %s', (payload) => {
     const report = validateBlueprintQuality(blueprint([
       turn('1', 'HOST_1', 'EXPLAIN', 'An election can fail when candidates collide.'),
