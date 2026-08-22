@@ -4,8 +4,9 @@ import path from 'path';
 
 jest.mock('../src/config/env', () => ({
   config: {
-    elevenLabsApiKey: 'test-elevenlabs-key',
-    elevenLabsModelId: 'eleven_flash_v2_5',
+    gcpServiceAccountJson: '{"project_id":"test"}',
+    googleTtsApiKey: '',
+    googleTtsModel: 'google-cloud-tts-v1',
     teachingHost1VoiceId: 'host-1',
     teachingHost2VoiceId: 'host-2',
   },
@@ -32,13 +33,10 @@ const dialogue = (): ProductionDialogueScript => ({
   ],
 });
 
-function pcmResponse(bytes: Buffer, characterCost = '9') {
-  return {
-    ok: true,
-    status: 200,
-    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-    headers: { get: (name: string) => name === 'character-cost' ? characterCost : null },
-  } as unknown as Response;
+function ttsClient(...segments: Buffer[]) {
+  const synthesizeSpeech = jest.fn();
+  segments.forEach((segment) => synthesizeSpeech.mockResolvedValueOnce([{ audioContent: segment }]));
+  return { synthesizeSpeech };
 }
 
 describe('TeachingAudioRenderer', () => {
@@ -63,19 +61,17 @@ describe('TeachingAudioRenderer', () => {
   it('renders ordered immutable turn segments, a timed manifest, then an assembled episode', async () => {
     const firstPcm = Buffer.alloc(882, 1);
     const secondPcm = Buffer.alloc(1_764, 2);
-    const fetchMock = jest.fn()
-      .mockResolvedValueOnce(pcmResponse(firstPcm))
-      .mockResolvedValueOnce(pcmResponse(secondPcm));
-    const renderer = new TeachingAudioRenderer(upload, fetchMock as unknown as typeof fetch, { host1VoiceId: 'voice-a', host2VoiceId: 'voice-b', modelId: 'model' });
+    const client = ttsClient(firstPcm, secondPcm);
+    const renderer = new TeachingAudioRenderer(upload, { host1VoiceId: 'voice-a', host2VoiceId: 'voice-b', modelId: 'model' }, client as any);
     const source = dialogue();
     const original = JSON.stringify(source);
 
     const result = await renderer.renderFinalDialogue('episode-1', source);
 
     expect(JSON.stringify(source)).toBe(original);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toBe('Exact first line.');
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).text).toBe('Exact second line.');
+    expect(client.synthesizeSpeech).toHaveBeenCalledTimes(2);
+    expect(client.synthesizeSpeech.mock.calls[0][0].input.text).toBe('Exact first line.');
+    expect(client.synthesizeSpeech.mock.calls[1][0].input.text).toBe('Exact second line.');
     expect(result.manifest.turns.map((turn) => turn.turn_id)).toEqual(['T1', 'T2']);
     expect(result.manifest.turns.map((turn) => turn.voice_id)).toEqual(['voice-a', 'voice-b']);
     expect(result.manifest.turns[0].pause_class).toBe('NORMAL_HANDOFF');
@@ -93,10 +89,10 @@ describe('TeachingAudioRenderer', () => {
   });
 
   it('retries only the failed turn and preserves earlier stored segments when retries are exhausted', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: false, status: 503, headers: { get: () => null } });
-    const renderer = new TeachingAudioRenderer(upload, fetchMock as unknown as typeof fetch, { host1VoiceId: 'voice-a', host2VoiceId: 'voice-b', modelId: 'model' });
+    const client = { synthesizeSpeech: jest.fn().mockRejectedValue(new Error('unavailable')) };
+    const renderer = new TeachingAudioRenderer(upload, { host1VoiceId: 'voice-a', host2VoiceId: 'voice-b', modelId: 'model' }, client as any);
     await expect(renderer.renderFinalDialogue('episode-fail', dialogue())).rejects.toMatchObject({ turnId: 'T1', attempts: 2 } as Partial<TeachingAudioRenderError>);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(client.synthesizeSpeech).toHaveBeenCalledTimes(2);
     expect(upload).not.toHaveBeenCalled();
   });
 

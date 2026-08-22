@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 
 import { config } from '../../config/env';
 import { uploadFile } from '../../shared/storage/r2.service';
@@ -33,7 +34,7 @@ export interface TeachingAudioManifestTurn {
 export interface TeachingAudioManifest {
   version: '1.0';
   episode_id: string;
-  provider: 'elevenlabs';
+  provider: 'google-cloud-text-to-speech';
   format: 'audio/wav; codec=pcm_s16le; rate=44100; channels=1';
   created_at: string;
   voices: Pick<TeachingAudioVoiceConfig, 'host1VoiceId' | 'host2VoiceId' | 'modelId'>;
@@ -68,6 +69,19 @@ const PCM_BYTES_PER_SECOND = SAMPLE_RATE * CHANNELS * BYTES_PER_SAMPLE;
 const WAV_CONTENT_TYPE = 'audio/wav';
 const MAX_TURN_ATTEMPTS = 2;
 
+type TeachingTextToSpeechClient = Pick<TextToSpeechClient, 'synthesizeSpeech'>;
+
+function createGoogleTtsClient(): TeachingTextToSpeechClient {
+  if (config.gcpServiceAccountJson) {
+    try {
+      return new TextToSpeechClient({ credentials: JSON.parse(config.gcpServiceAccountJson) });
+    } catch {
+      // Fall through to the API-key/default application credential mechanisms.
+    }
+  }
+  return new TextToSpeechClient(config.googleTtsApiKey ? { apiKey: config.googleTtsApiKey } : {});
+}
+
 const PAUSES: Record<PauseClass, number> = {
   NORMAL_HANDOFF: 350,
   QUICK_RESPONSE: 170,
@@ -78,11 +92,11 @@ const PAUSES: Record<PauseClass, number> = {
 export function resolveTeachingAudioVoices(input: Partial<TeachingAudioVoiceConfig> = {}): TeachingAudioVoiceConfig {
   const host1VoiceId = (input.host1VoiceId ?? config.teachingHost1VoiceId).trim();
   const host2VoiceId = (input.host2VoiceId ?? config.teachingHost2VoiceId).trim();
-  const modelId = (input.modelId ?? config.elevenLabsModelId).trim();
-  if (!config.elevenLabsApiKey) throw new TeachingAudioRenderError('ELEVENLABS_API_KEY is required for Teaching Audio Baseline V1.');
+  const modelId = (input.modelId ?? config.googleTtsModel).trim();
+  if (!config.gcpServiceAccountJson && !config.googleTtsApiKey) throw new TeachingAudioRenderError('GCP_SERVICE_ACCOUNT_JSON or GOOGLE_TTS_API_KEY is required for Teaching Audio Baseline V1.');
   if (!host1VoiceId || !host2VoiceId) throw new TeachingAudioRenderError('TEACHING_HOST1_VOICE_ID and TEACHING_HOST2_VOICE_ID must both be configured.');
   if (host1VoiceId === host2VoiceId) throw new TeachingAudioRenderError('Teaching host voices must be distinct.');
-  if (!modelId) throw new TeachingAudioRenderError('ELEVENLABS_MODEL_ID is required for Teaching Audio Baseline V1.');
+  if (!modelId) throw new TeachingAudioRenderError('GOOGLE_TTS_MODEL is required for Teaching Audio Baseline V1.');
   return { host1VoiceId, host2VoiceId, modelId };
 }
 
@@ -118,6 +132,21 @@ export function pcmToWav(pcm: Buffer) {
   return Buffer.concat([header, pcm]);
 }
 
+/** Google LINEAR16 may arrive as a WAV container; normalize to the renderer's PCM contract. */
+export function googleLinear16ToPcm(audio: Buffer) {
+  if (audio.subarray(0, 4).toString('ascii') !== 'RIFF' || audio.subarray(8, 12).toString('ascii') !== 'WAVE') return audio;
+  let offset = 12;
+  while (offset + 8 <= audio.length) {
+    const chunkId = audio.subarray(offset, offset + 4).toString('ascii');
+    const chunkLength = audio.readUInt32LE(offset + 4);
+    const contentStart = offset + 8;
+    const contentEnd = Math.min(contentStart + chunkLength, audio.length);
+    if (chunkId === 'data') return audio.subarray(contentStart, contentEnd);
+    offset = contentStart + chunkLength + (chunkLength % 2);
+  }
+  throw new TeachingAudioRenderError('Google Cloud TTS returned an invalid LINEAR16 WAV payload.');
+}
+
 export async function cleanupTemporaryAudioDirectory(root: string, temporaryDirectory: string) {
   const resolvedRoot = path.resolve(root);
   const resolvedDirectory = path.resolve(temporaryDirectory);
@@ -132,29 +161,25 @@ type SynthesisResult = { pcm: Buffer; latencyMs: number; retryCount: number; cha
 export class TeachingAudioRenderer {
   constructor(
     private readonly upload: typeof uploadFile = uploadFile,
-    private readonly fetchImpl: typeof fetch = fetch,
     private readonly voiceConfig?: Partial<TeachingAudioVoiceConfig>,
+    private readonly ttsClient: TeachingTextToSpeechClient = createGoogleTtsClient(),
   ) {}
 
-  private async synthesizeTurn(turnId: string, text: string, voiceId: string, modelId: string): Promise<SynthesisResult> {
+  private async synthesizeTurn(turnId: string, text: string, voiceId: string): Promise<SynthesisResult> {
     let lastError: unknown;
     for (let attempt = 0; attempt < MAX_TURN_ATTEMPTS; attempt += 1) {
       const startedAt = Date.now();
       try {
-        const response = await this.fetchImpl(
-          `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=pcm_44100`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'xi-api-key': config.elevenLabsApiKey, Accept: 'audio/pcm' },
-            body: JSON.stringify({ text, model_id: modelId, voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.15, use_speaker_boost: true } }),
-          },
-        );
-        if (!response.ok) throw new Error(`ElevenLabs returned HTTP ${response.status}.`);
-        const pcm = Buffer.from(await response.arrayBuffer());
-        if (!pcm.length) throw new Error('ElevenLabs returned an empty audio segment.');
-        const rawCost = response.headers.get('character-cost');
-        const characterCost = rawCost && /^\d+$/.test(rawCost) ? Number(rawCost) : undefined;
-        return { pcm, latencyMs: Date.now() - startedAt, retryCount: attempt, characterCost };
+        const [response] = await this.ttsClient.synthesizeSpeech({
+          input: { text },
+          voice: { languageCode: voiceId.slice(0, 5), name: voiceId },
+          audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: SAMPLE_RATE },
+        });
+        const audioContent = response.audioContent;
+        if (!audioContent) throw new Error('Google Cloud TTS returned an empty audio segment.');
+        const pcm = googleLinear16ToPcm(Buffer.from(audioContent as Uint8Array));
+        if (!pcm.length) throw new Error('Google Cloud TTS returned an empty PCM segment.');
+        return { pcm, latencyMs: Date.now() - startedAt, retryCount: attempt };
       } catch (error) {
         lastError = error;
       }
@@ -179,7 +204,7 @@ export class TeachingAudioRenderer {
       // spoken_text is passed untouched: TTS is a renderer, never a dialogue editor.
       if (!turn.spoken_text.trim()) throw new TeachingAudioRenderError('Cannot synthesize an empty dialogue turn.', turn.turn_id);
       const voiceId = voiceForSpeaker(turn.speaker, voices);
-      const synthesis = await this.synthesizeTurn(turn.turn_id, turn.spoken_text, voiceId, voices.modelId);
+      const synthesis = await this.synthesizeTurn(turn.turn_id, turn.spoken_text, voiceId);
       const durationMs = pcmDurationMs(synthesis.pcm);
       const pauseClass = pauseClassForTurn(turn);
       const pauseAfterMs = index === dialogue.turns.length - 1 ? 0 : PAUSES[pauseClass];
@@ -207,7 +232,7 @@ export class TeachingAudioRenderer {
     const assemblyLatencyMs = Date.now() - assemblyStartedAt;
     const gaps = manifestTurns.slice(0, -1).map((turn) => turn.pause_after_ms);
     const manifest: TeachingAudioManifest = {
-      version: '1.0', episode_id: episodeId, provider: 'elevenlabs',
+      version: '1.0', episode_id: episodeId, provider: 'google-cloud-text-to-speech',
       format: 'audio/wav; codec=pcm_s16le; rate=44100; channels=1', created_at: new Date().toISOString(), voices,
       turns: manifestTurns,
       assembled_episode: { key: assembledKey, url: assembledUrl, duration_ms: cursorMs, assembly_latency_ms: assemblyLatencyMs },

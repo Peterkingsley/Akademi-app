@@ -107,6 +107,7 @@ function parsePatchResponse(raw: string): Record<string, unknown> {
   const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const parsed = JSON.parse(trimmed) as unknown;
   if (Array.isArray(parsed)) return { turns: parsed };
+  if (parsed && typeof parsed === 'object' && 'turn_id' in parsed) return { turns: [parsed] };
   return parseJsonObject(raw);
 }
 
