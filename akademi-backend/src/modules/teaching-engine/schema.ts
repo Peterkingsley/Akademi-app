@@ -155,8 +155,8 @@ export const FIDELITY_RESPONSE_SCHEMA = {
     verdict: { type: 'string', enum: ['PASS', 'REPAIR_REQUIRED'] },
     defects: { type: 'array', items: { type: 'object', properties: {
       defect_id: string,
-      type: { type: 'string', enum: ['BAD_ANALOGY', 'ANALOGY_LEAKAGE', 'MISSING_PREREQUISITE', 'SOURCE_DRIFT', 'CLAIM_EXAGGERATION', 'PASSIVE_HOST2', 'UNEARNED_AHA', 'JARGON_OVERLOAD', 'WEAK_MENTAL_MODEL', 'UNRESOLVED_LOOP', 'PEDAGOGICAL_REDUNDANCY', 'WEAK_SYNTHESIS', 'PAYLOAD_LOSS'] },
-      severity: { type: 'string', enum: ['HARD_BLOCKER', 'SOFT_WARNING'] },
+      type: { type: 'string', enum: ['BAD_ANALOGY', 'ANALOGY_LEAKAGE', 'MISSING_PREREQUISITE', 'SOURCE_DRIFT', 'CLAIM_EXAGGERATION', 'UNSUPPORTED_INTENSITY', 'PASSIVE_HOST2', 'UNEARNED_AHA', 'JARGON_OVERLOAD', 'WEAK_MENTAL_MODEL', 'UNRESOLVED_LOOP', 'PEDAGOGICAL_REDUNDANCY', 'WEAK_SYNTHESIS', 'PAYLOAD_LOSS'] },
+      severity: { type: 'string', enum: ['HARD_BLOCKER', 'MATERIAL_REPAIR', 'SOFT_WARNING'] },
       turn_ids: stringList, concept_ids: stringList, invariant_ids: stringList, evidence_ids: evidenceIdList,
       description: string, repair_directive: string,
     }, required: ['defect_id', 'type', 'severity', 'turn_ids', 'concept_ids', 'invariant_ids', 'evidence_ids', 'description', 'repair_directive'] } },

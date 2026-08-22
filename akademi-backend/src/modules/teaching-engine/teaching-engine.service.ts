@@ -10,7 +10,7 @@ import {
 } from './prompts';
 import {
   AnalysisCacheStatus, Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
-  FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
+  CriticDefect, FidelityPublicationReport, FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
   TeachingStageInstrumentation,
 } from './types';
 import {
@@ -129,6 +129,73 @@ function mergeDeterministicCertaintyBlockers(review: CriticReview, warnings: Ret
         repair_directive: 'Replace only this asserted certainty phrase with source-faithful probabilistic, conditional, or explicitly supported wording. Preserve every turn binding and speaker.',
       })),
     ],
+  };
+}
+
+function textForDefect(defect: CriticDefect, dialogue: ProductionDialogueScript) {
+  return defect.turn_ids.map((turnId) => dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '').join(' ');
+}
+
+function negatesAbsoluteIntensity(text: string) {
+  return /\b(?:cannot|can'?t|does?\s+not|doesn't|do\s+not|don't|never)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/i.test(text);
+}
+
+function assertsAbsoluteElimination(text: string) {
+  return /\b(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/i.test(text)
+    || /\bno\s+(?:\w+\s+){0,4}could\s+possibly\b/i.test(text);
+}
+
+function assertsMaterialIntensity(text: string) {
+  return /\b(?:completely|entirely|fully|absolutely|dramatically|critical(?:ly)?)\b/i.test(text);
+}
+
+/** The provider supplies a useful critique; the engine owns publication severity. */
+function normalizeFidelityReview(review: CriticReview, dialogue: ProductionDialogueScript): CriticReview {
+  return {
+    ...review,
+    defects: review.defects.map((defect) => {
+      const text = textForDefect(defect, dialogue);
+      const negated = negatesAbsoluteIntensity(text);
+      if (defect.type === 'UNSUPPORTED_INTENSITY') {
+        if (negated || !assertsMaterialIntensity(text)) return { ...defect, severity: 'SOFT_WARNING' as const };
+        if (assertsAbsoluteElimination(text)) return { ...defect, severity: 'HARD_BLOCKER' as const };
+        return { ...defect, severity: 'MATERIAL_REPAIR' as const };
+      }
+      if (defect.severity === 'HARD_BLOCKER') return defect;
+      if (!negated && assertsAbsoluteElimination(text)) return { ...defect, severity: 'HARD_BLOCKER' as const };
+      if (!negated && defect.type === 'CLAIM_EXAGGERATION' && assertsMaterialIntensity(text)) {
+        return { ...defect, severity: 'MATERIAL_REPAIR' as const };
+      }
+      return defect;
+    }),
+  };
+}
+
+function isActionableDefect(defect: CriticDefect) {
+  return defect.severity === 'HARD_BLOCKER' || defect.severity === 'MATERIAL_REPAIR';
+}
+
+function publicationFidelityFor(review: CriticReview | null, providerVerdict: CriticReview['verdict'] | 'SKIPPED'): FidelityPublicationReport {
+  const defects = review?.defects || [];
+  const hardBlockerCount = defects.filter((defect) => defect.severity === 'HARD_BLOCKER').length;
+  const materialRepairCount = defects.filter((defect) => defect.severity === 'MATERIAL_REPAIR').length;
+  const softWarningCount = defects.filter((defect) => defect.severity === 'SOFT_WARNING').length;
+  const engineVerdict = hardBlockerCount ? 'FAIL'
+    : materialRepairCount ? 'REPAIR_REQUIRED'
+      : softWarningCount ? 'PASS_WITH_WARNINGS' : 'PASS';
+  return {
+    provider_verdict: providerVerdict,
+    engine_verdict: engineVerdict,
+    hard_blocker_count: hardBlockerCount,
+    material_repair_count: materialRepairCount,
+    soft_warning_count: softWarningCount,
+    publishable_for_audio: engineVerdict === 'PASS' || engineVerdict === 'PASS_WITH_WARNINGS',
+    normalization_reason: providerVerdict === 'REPAIR_REQUIRED' && engineVerdict === 'PASS_WITH_WARNINGS'
+      ? 'ONLY_NON_BLOCKING_SOFT_DEFECTS_REMAIN'
+      : providerVerdict === 'PASS' && hardBlockerCount
+        ? 'DETERMINISTIC_HARD_BLOCKER_OVERRIDES_PROVIDER_PASS'
+        : 'DEFECT_SEVERITY_POLICY',
+    defects,
   };
 }
 
@@ -423,7 +490,7 @@ export class TeachingEngineService {
     attempt: number,
     previousFailure?: FidelityRepairObservation[],
   ): Promise<{ dialogue: ProductionDialogueScript; trace: TeachingStageInstrumentation; replacementTurnIds: string[] }> {
-    const hardDefects = review.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
+    const hardDefects = review.defects.filter(isActionableDefect);
     const { artifact: replacement, trace } = await this.callJson({
       stage: 'targeted_patch',
       prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects, repairContextFor(analysis, blueprint, dialogue, hardDefects, attempt, previousFailure)),
@@ -505,11 +572,11 @@ export class TeachingEngineService {
       });
       const firstFidelity = await runFidelity(dialogue);
       semanticFidelityHistory.push(firstFidelity.artifact);
-      fidelity = mergeDeterministicCertaintyBlockers(firstFidelity.artifact, certaintyDriftWarnings);
+      fidelity = mergeDeterministicCertaintyBlockers(normalizeFidelityReview(firstFidelity.artifact, dialogue), certaintyDriftWarnings);
       fidelityHistory.push(fidelity);
       traces.push(firstFidelity.trace);
-      for (let attempt = 1; attempt <= MAX_PATCH_ATTEMPTS && fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER'); attempt += 1) {
-        const hardDefects = fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
+      for (let attempt = 1; attempt <= MAX_PATCH_ATTEMPTS && fidelity.defects.some(isActionableDefect); attempt += 1) {
+        const hardDefects = fidelity.defects.filter(isActionableDefect);
         if (!preRepairDialogue) preRepairDialogue = dialogue;
         const beforePatch = dialogue;
         const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity, attempt, fidelityRepairObservations);
@@ -556,11 +623,11 @@ export class TeachingEngineService {
         certaintyDriftWarnings = deterministic.certaintyWarnings;
         const repairedFidelity = await runFidelity(dialogue);
         semanticFidelityHistory.push(repairedFidelity.artifact);
-        const postPatchFidelity = mergeDeterministicCertaintyBlockers(repairedFidelity.artifact, certaintyDriftWarnings);
+        const postPatchFidelity = mergeDeterministicCertaintyBlockers(normalizeFidelityReview(repairedFidelity.artifact, dialogue), certaintyDriftWarnings);
         fidelity = postPatchFidelity;
         fidelityHistory.push(fidelity);
         traces.push(repairedFidelity.trace);
-        const survivorTurnIds = new Set(postPatchFidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER').flatMap((defect) => defect.turn_ids));
+        const survivorTurnIds = new Set(postPatchFidelity.defects.filter(isActionableDefect).flatMap((defect) => defect.turn_ids));
         fidelityRepairObservations.push(...observationBase.map((item) => ({
           ...item,
           call4_invoked: true,
@@ -596,19 +663,20 @@ export class TeachingEngineService {
         });
       }
     }
+    const publicationFidelity = publicationFidelityFor(fidelity, semanticFidelityHistory[semanticFidelityHistory.length - 1]?.verdict || 'SKIPPED');
     // This measures the final dialogue, including any bounded fidelity repair.
     const conversationalQuality = validateConversationalQuality(dialogue, analysis);
 
     const episode = await prisma.teachingEpisode.create({
       data: {
-        requested_by: requestedBy, material_id: materialId, source_hash: sourceHash, complexity, status: 'READY_FOR_TTS',
+        requested_by: requestedBy, material_id: materialId, source_hash: sourceHash, complexity, status: publicationFidelity.publishable_for_audio ? 'READY_FOR_TTS' : 'REPAIR_REQUIRED',
         request_config: { learnerLevel, durationMinutes, focus, sourceRoute: sourceRoute(sources) } as any,
-        analysis: analysis as any, blueprint: blueprint as any, dialogue: dialogue as any, fidelity_review: fidelity as any,
+        analysis: analysis as any, blueprint: blueprint as any, dialogue: dialogue as any, fidelity_review: { provider_review: fidelity, publication: publicationFidelity } as any,
       },
     });
-    console.info('episode.ready_for_tts', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length });
+    console.info('teaching_episode.fidelity_resolved', { episode_id: episode.id, complexity, cached_analysis: cached, turn_count: dialogue.turns.length, engine_verdict: publicationFidelity.engine_verdict, publishable_for_audio: publicationFidelity.publishable_for_audio });
     return {
-      episodeId: episode.id, analysis, blueprint, blueprintProvenance, blueprintQuality, dialogue, preRepairDialogue, fidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, fidelityRepairObservations, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
+      episodeId: episode.id, analysis, blueprint, blueprintProvenance, blueprintQuality, dialogue, preRepairDialogue, fidelity, publicationFidelity, fidelityHistory, semanticFidelityHistory, conversationalQuality, rawConversationalQuality, host1OpeningRepairs, fidelityRepairObservations, initialCertaintyDriftWarnings, certaintyDriftWarnings, cachedAnalysis: cached, analysisCacheStatus: analysisTrace.cacheStatus || (cached ? 'HIT_VALID' : 'MISS'),
       tts_handoff: dialogue.turns.map(({ turn_id, speaker, spoken_text }) => ({ turn_id, speaker, spoken_text })),
       instrumentation: {
         totalLatencyMs: Date.now() - generationStartedAt,

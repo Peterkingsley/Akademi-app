@@ -160,10 +160,13 @@ export interface ProductionDialogueScript {
   turns: DialogueTurn[];
 }
 
+export type FidelityDefectSeverity = 'HARD_BLOCKER' | 'MATERIAL_REPAIR' | 'SOFT_WARNING';
+export type EngineFidelityVerdict = 'PASS' | 'PASS_WITH_WARNINGS' | 'REPAIR_REQUIRED' | 'FAIL';
+
 export interface CriticDefect {
   defect_id: string;
-  type: 'BAD_ANALOGY' | 'ANALOGY_LEAKAGE' | 'MISSING_PREREQUISITE' | 'SOURCE_DRIFT' | 'CLAIM_EXAGGERATION' | 'PASSIVE_HOST2' | 'UNEARNED_AHA' | 'JARGON_OVERLOAD' | 'WEAK_MENTAL_MODEL' | 'UNRESOLVED_LOOP' | 'PEDAGOGICAL_REDUNDANCY' | 'WEAK_SYNTHESIS' | 'PAYLOAD_LOSS';
-  severity: 'HARD_BLOCKER' | 'SOFT_WARNING';
+  type: 'BAD_ANALOGY' | 'ANALOGY_LEAKAGE' | 'MISSING_PREREQUISITE' | 'SOURCE_DRIFT' | 'CLAIM_EXAGGERATION' | 'UNSUPPORTED_INTENSITY' | 'PASSIVE_HOST2' | 'UNEARNED_AHA' | 'JARGON_OVERLOAD' | 'WEAK_MENTAL_MODEL' | 'UNRESOLVED_LOOP' | 'PEDAGOGICAL_REDUNDANCY' | 'WEAK_SYNTHESIS' | 'PAYLOAD_LOSS';
+  severity: FidelityDefectSeverity;
   turn_ids: string[];
   concept_ids: string[];
   invariant_ids: string[];
@@ -174,6 +177,18 @@ export interface CriticDefect {
 
 export interface CriticReview {
   verdict: 'PASS' | 'REPAIR_REQUIRED';
+  defects: CriticDefect[];
+}
+
+/** Engine-owned publication decision derived from validated defect severities. */
+export interface FidelityPublicationReport {
+  provider_verdict: CriticReview['verdict'] | 'SKIPPED';
+  engine_verdict: EngineFidelityVerdict;
+  hard_blocker_count: number;
+  material_repair_count: number;
+  soft_warning_count: number;
+  publishable_for_audio: boolean;
+  normalization_reason: string;
   defects: CriticDefect[];
 }
 
@@ -227,6 +242,8 @@ export interface TeachingEpisodeResult {
   /** Present only when the fidelity gate required a targeted repair. */
   preRepairDialogue: ProductionDialogueScript | null;
   fidelity: CriticReview | null;
+  /** The only verdict that authorizes an episode for audio publication. */
+  publicationFidelity: FidelityPublicationReport;
   /** First review and, when applicable, the review after the bounded repair. */
   fidelityHistory: CriticReview[];
   /** Raw Call 4 verdicts before deterministic certainty escalation is merged. */

@@ -11,7 +11,7 @@ export const PROMPT_VERSIONS = {
   analysis: '0.1',
   blueprint: '0.3',
   dialogue: '0.2',
-  fidelity: '0.1',
+  fidelity: '0.2',
   patch: '0.1',
 } as const;
 
@@ -42,8 +42,8 @@ Host 1 responds to the idea, not by grading Host 2. Do not open Host 1 turns wit
 export const fidelitySystemPrompt = `${jsonOnly}
 You are Akademi's Semantic Fidelity and Pedagogical Gate. Review the dialogue against analysis, blueprint, and evidence.
 You are a constrained critic, not a rewriter. Return PASS or REPAIR_REQUIRED with actionable defects only.
-Detect SOURCE_DRIFT, CLAIM_EXAGGERATION, ANALOGY_LEAKAGE, BAD_ANALOGY, MISSING_PREREQUISITE, PASSIVE_HOST2, UNEARNED_AHA, JARGON_OVERLOAD, WEAK_MENTAL_MODEL, UNRESOLVED_LOOP, PEDAGOGICAL_REDUNDANCY, WEAK_SYNTHESIS, and PAYLOAD_LOSS. HARD_BLOCKER defects prevent TTS.
-Recovery capability does not imply guaranteed eventual success. Distinguish carefully between another attempt, high probability, mitigation, rare failure, and an eventual guarantee. If a deterministic POSSIBLE_CERTAINTY_DRIFT warning is supplied, audit that turn against its bound evidence explicitly. Unless the supplied source establishes the same certainty, wording such as “ensures”, “guarantees”, “always”, “will eventually succeed”, “cannot fail”, or “prevents” must produce a CLAIM_EXAGGERATION HARD_BLOCKER. A source saying that a system can retry or gets another opportunity supports another chance, not a guarantee of recovery.`;
+Detect SOURCE_DRIFT, CLAIM_EXAGGERATION, UNSUPPORTED_INTENSITY, ANALOGY_LEAKAGE, BAD_ANALOGY, MISSING_PREREQUISITE, PASSIVE_HOST2, UNEARNED_AHA, JARGON_OVERLOAD, WEAK_MENTAL_MODEL, UNRESOLVED_LOOP, PEDAGOGICAL_REDUNDANCY, WEAK_SYNTHESIS, and PAYLOAD_LOSS. Assign one severity: HARD_BLOCKER for an unsupported guarantee, source contradiction, fabricated claim, false analogy inference, or changed taught invariant; MATERIAL_REPAIR for a locally repairable modifier that materially overstates the evidence; SOFT_WARNING for style or quality issues that do not alter the supported mental model. Only HARD_BLOCKER and MATERIAL_REPAIR require a repair. HARD_BLOCKER defects prevent TTS.
+Recovery capability does not imply guaranteed eventual success. Distinguish carefully between another attempt, high probability, mitigation, rare failure, and an eventual guarantee. If a deterministic POSSIBLE_CERTAINTY_DRIFT warning is supplied, audit that turn against its bound evidence explicitly. Unless the supplied source establishes the same certainty, wording such as “ensures”, “guarantees”, “always”, “will eventually succeed”, “cannot fail”, or “prevents” must produce a CLAIM_EXAGGERATION HARD_BLOCKER. “Completely eliminates/prevents” against probabilistic evidence is also a HARD_BLOCKER; a negated boundary such as “cannot be completely eliminated” is not an overclaim. A source saying that a system can retry or gets another opportunity supports another chance, not a guarantee of recovery.`;
 
 export const patchSystemPrompt = `${jsonOnly}
 You are Akademi's Targeted Dialogue Repair Engine. Replace only the affected dialogue turns.

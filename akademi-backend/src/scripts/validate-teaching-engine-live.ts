@@ -194,11 +194,23 @@ async function main() {
     const initialCertaintyBlockers = initialCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
     const finalCertaintyBlockers = finalCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
     const semanticFidelityHistory = result.semanticFidelityHistory || [];
+    const publicationFidelity = result.publicationFidelity || {};
+    const finalFidelityReport = `\n## Publication fidelity verdict — V0.16\n\n- Raw Call 4 verdict: **${publicationFidelity.provider_verdict || 'SKIPPED'}**
+- Engine final verdict: **${publicationFidelity.engine_verdict || 'SKIPPED'}**
+- HARD_BLOCKER count: **${publicationFidelity.hard_blocker_count ?? 0}**
+- MATERIAL_REPAIR count: **${publicationFidelity.material_repair_count ?? 0}**
+- SOFT_WARNING count: **${publicationFidelity.soft_warning_count ?? 0}**
+- Repair attempts: **${new Set((result.fidelityRepairObservations || []).map((item: any) => item.repair_attempt)).size}**
+- Publishable for audio: **${publicationFidelity.publishable_for_audio === true ? 'true' : 'false'}**
+- Normalization reason: ${publicationFidelity.normalization_reason || 'not exposed'}
+
+${(publicationFidelity.defects || []).map((defect: any) => `- ${defect.turn_ids?.join(', ') || 'no turn'} | ${defect.type} | ${defect.severity}\n  - Evidence: ${defect.evidence_ids?.join(', ') || 'none'}\n  - Finding: ${defect.description}\n  - Action: ${defect.repair_directive}`).join('\n') || 'No remaining fidelity defects.'}
+`;
     const certaintyEscalationReport = `\n## Deterministic certainty escalation — V0.12\n\n- Initial classifications: ${json(initialCertaintyWarnings).trim()}\n- Initial hard blockers: ${initialCertaintyBlockers.length ? initialCertaintyBlockers.map((warning: any) => `${warning.turn_id} (${warning.phrase}; dialogue ${warning.dialogue_strength}; evidence ${warning.evidence_strength})`).join(', ') : 'none'}\n- Semantic Call 4 first-pass verdict: **${semanticFidelityHistory[0]?.verdict || 'SKIPPED'}**\n- Deterministic-combined first-pass verdict: **${result.fidelityHistory?.[0]?.verdict || 'SKIPPED'}**\n- Targeted repaired turns: ${result.preRepairDialogue ? result.preRepairDialogue.turns.filter((turn: any, index: number) => turn.spoken_text !== result.dialogue.turns[index]?.spoken_text).map((turn: any) => turn.turn_id).join(', ') || 'none detected' : 'none'}\n- Semantic Call 4 second-pass verdict: **${semanticFidelityHistory[1]?.verdict || 'not needed'}**\n- Final deterministic blockers: **${finalCertaintyBlockers.length}**\n- Final classifications: ${json(finalCertaintyWarnings).trim()}\n`;
     const audioReport = audioBaseline
       ? `\n## Two-host audio baseline — V1\n\n- Provider: **${audioBaseline.manifest.provider}**\n- Format: ${audioBaseline.manifest.format}\n- Host 1 voice: ${audioBaseline.manifest.voices.host1VoiceId}\n- Host 2 voice: ${audioBaseline.manifest.voices.host2VoiceId}\n- Total audio duration: ${audioBaseline.manifest.assembled_episode.duration_ms}ms\n- Total TTS latency: ${audioBaseline.manifest.metrics.total_tts_latency_ms}ms\n- Assembly latency: ${audioBaseline.manifest.assembled_episode.assembly_latency_ms}ms\n- Average handoff gap: ${audioBaseline.manifest.metrics.average_handoff_gap_ms}ms\n- Quick responses: ${audioBaseline.manifest.metrics.quick_response_count}\n- Reflective pauses: ${audioBaseline.manifest.metrics.reflective_pause_count}\n- Retried turns: ${audioBaseline.manifest.turns.filter((turn: any) => turn.retry_count > 0).map((turn: any) => turn.turn_id).join(', ') || 'none'}\n- Episode artifact: ${audioBaseline.manifest.assembled_episode.url}\n- Manifest artifact: ${audioBaseline.manifest_url}\n\n### Turn timing manifest\n${audioBaseline.manifest.turns.map((turn: any) => `- ${turn.turn_id} | ${turn.speaker} | ${turn.start_ms}–${turn.end_ms}ms | ${turn.duration_ms}ms | ${turn.pause_class} ${turn.pause_after_ms}ms | ${turn.segment_url}`).join('\n')}\n`
       : '';
-    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintProvenanceReport}${certaintyEscalationReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
+    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintProvenanceReport}${certaintyEscalationReport}${finalFidelityReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({
@@ -216,7 +228,7 @@ async function main() {
       fs.writeFile(path.join(runDir, 'blueprint-evidence-provenance.json'), json(result.blueprintProvenance || {})),
       fs.writeFile(path.join(runDir, 'blueprint-quality.json'), json(result.blueprintQuality)),
       fs.writeFile(path.join(runDir, 'dialogue.json'), json(result.dialogue)),
-      fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, history: result.fidelityHistory, semantic_history: result.semanticFidelityHistory, instrumentation: result.instrumentation })),
+      fs.writeFile(path.join(runDir, 'fidelity.json'), json({ final: result.fidelity, publication: result.publicationFidelity, history: result.fidelityHistory, semantic_history: result.semanticFidelityHistory, instrumentation: result.instrumentation })),
       fs.writeFile(path.join(runDir, 'conversational-quality.json'), json(result.conversationalQuality)),
       fs.writeFile(path.join(runDir, 'conversational-quality-raw.json'), json(result.rawConversationalQuality)),
       fs.writeFile(path.join(runDir, 'host1-opening-repairs.json'), json(result.host1OpeningRepairs)),

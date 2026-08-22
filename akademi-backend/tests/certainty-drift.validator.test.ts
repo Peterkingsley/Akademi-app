@@ -58,6 +58,17 @@ describe('certainty-drift validator', () => {
     expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', speaker_function: 'NEGATED_CERTAINTY' }]);
   });
 
+  it('does not treat a negated absolute-elimination boundary as a hard certainty claim', () => {
+    const warnings = detectPossibleCertaintyDrift(
+      dialogue("Randomized election timeouts make split votes rare, but they cannot completely eliminate them."),
+      analysis('Randomized timeouts make split votes rare but do not make them impossible.'),
+    );
+
+    expect(warnings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'HARD_BLOCKER' }),
+    ]));
+  });
+
   it('does not mistake a Host 2 declarative negation for a learner hypothesis', () => {
     const warnings = detectPossibleCertaintyDrift(dialogue("It's not a perfect guarantee.", 'HOST_2'), analysis('The system can retry.'));
     expect(warnings).toMatchObject([{ type: 'POSSIBLE_CERTAINTY_DRIFT', speaker_function: 'NEGATED_CERTAINTY' }]);

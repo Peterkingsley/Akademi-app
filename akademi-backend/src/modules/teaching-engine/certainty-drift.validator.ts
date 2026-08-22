@@ -29,6 +29,7 @@ const certaintyPatterns: Array<{ pattern: RegExp; phrase: string }> = [
   { pattern: /\bcannot fail\b/i, phrase: 'cannot fail' },
   { pattern: /\bimpossible to fail\b/i, phrase: 'impossible to fail' },
   { pattern: /\bnecessarily succeed(?:s|ed|ing)?\b/i, phrase: 'necessarily succeeds' },
+  { pattern: /\b(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/i, phrase: 'absolute elimination' },
   { pattern: /\bprevent(?:s|ed|ing)?\b/i, phrase: 'prevent' },
   { pattern: /\bcannot\s+(?:cast|grant|give)\s+(?:two|more than one)\s+votes?\b/i, phrase: 'cannot vote twice' },
 ];
@@ -54,13 +55,14 @@ function boundContext(turn: ProductionDialogueScript['turns'][number], analysis:
 
 function affirmativeCertaintyText(text: string) {
   return text
+    .replace(/\b(?:does?\s+not|do\s+not|cannot|can'?t)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/gi, '')
     .replace(/\b(?:does?\s+not|do\s+not)\s+(?:\w+\s+){0,5}(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?)\b/gi, '')
     .replace(/\b(?:don't|doesn't|isn't|is\s+not|not)\s+(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?)\b/gi, '');
 }
 
 function strength(text: string): CertaintyStrength {
   const affirmative = affirmativeCertaintyText(text);
-  if (/\b(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?|at most one|only one)\b/i.test(affirmative)) return 'ABSOLUTE';
+  if (/\b(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?|at most one|only one|(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out))\b/i.test(affirmative)) return 'ABSOLUTE';
   if (/\b(?:very rare|strongly reduces?|drastically|significantly)\b/i.test(text)) return 'STRONG';
   if (/\b(?:usually|typically|generally)\b/i.test(text)) return 'TYPICAL';
   if (/\b(?:likely|unlikely)\b/i.test(text)) return 'LIKELY';

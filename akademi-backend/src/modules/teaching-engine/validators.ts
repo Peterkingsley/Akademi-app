@@ -324,6 +324,7 @@ export function validateCriticReview(value: unknown, analysis?: EpisodeTeachingA
     const issues: string[] = [];
     for (const defect of value.defects) {
       if (!isRecord(defect)) { issues.push('Critic review contains an invalid defect.'); continue; }
+      if (!['HARD_BLOCKER', 'MATERIAL_REPAIR', 'SOFT_WARNING'].includes(String(defect.severity))) issues.push(`Critic review defect ${String(defect.defect_id || 'unknown')} has an invalid severity.`);
       for (const id of Array.isArray(defect.turn_ids) ? defect.turn_ids : []) if (!turnIds.has(id)) issues.push(`UNKNOWN_TURN_REFERENCE: Fidelity defect references ${id}, which does not exist in EpisodeTeachingBlueprint.`);
       for (const id of Array.isArray(defect.concept_ids) ? defect.concept_ids : []) if (!conceptIds.has(id)) issues.push(unknownReference('CONCEPT', 'Fidelity defect', id));
       for (const id of Array.isArray(defect.invariant_ids) ? defect.invariant_ids : []) if (!invariantIds.has(id)) issues.push(unknownReference('INVARIANT', 'Fidelity defect', id));

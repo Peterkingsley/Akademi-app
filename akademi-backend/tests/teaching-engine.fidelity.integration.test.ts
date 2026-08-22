@@ -323,6 +323,58 @@ describe('TeachingEngineService fidelity path', () => {
     } as Partial<TeachingFidelityGateError>);
   });
 
+  it('hard-blocks an absolute completely-prevents claim even when Call 4 returns PASS', async () => {
+    const original = script('Randomized election timeouts completely prevent split votes.');
+    const repairedTurn = { ...script('Randomized election timeouts make simultaneous elections and split votes less likely.').turns[2] };
+    const responses = [analysis, blueprint, original, { verdict: 'PASS', defects: [] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.fidelityHistory[0].defects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'HARD_BLOCKER', description: expect.stringContaining('CERTAINTY_DRIFT_HARD_BLOCKER') }),
+    ]));
+    expect(result.publicationFidelity).toMatchObject({ engine_verdict: 'PASS', publishable_for_audio: true, hard_blocker_count: 0 });
+  });
+
+  it('repairs a material intensity defect but does not confuse a soft review with a publication blocker', async () => {
+    const original = script('Randomized timeouts dramatically reduce split votes.');
+    const repairedTurn = { ...script('Randomized timeouts reduce split votes by making simultaneous starts less likely.').turns[2] };
+    const material = {
+      defect_id: 'DEF_MATERIAL', type: 'UNSUPPORTED_INTENSITY', severity: 'MATERIAL_REPAIR', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: '“Dramatically” materially strengthens the source claim.', repair_directive: 'Use the source-supported reduction claim without an unsupported intensity modifier.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [material] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const repaired = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+    expect(repaired.fidelityRepairObservations).toEqual(expect.arrayContaining([expect.objectContaining({ defect_id: 'DEF_MATERIAL', final_status: 'REPAIRED' })]));
+    expect(repaired.publicationFidelity).toMatchObject({ engine_verdict: 'PASS', publishable_for_audio: true });
+
+    const soft = {
+      defect_id: 'DEF_SOFT', type: 'PEDAGOGICAL_REDUNDANCY', severity: 'SOFT_WARNING', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The wording repeats an already-established point.', repair_directive: 'Optional: tighten the phrasing.',
+    };
+    const softResponses = [analysis, blueprint, script('Randomized timers make split votes less likely.'), { verdict: 'REPAIR_REQUIRED', defects: [soft] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(softResponses.shift()), model: 'test-model' }));
+    const warningOnly = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+    expect(warningOnly.fidelityRepairObservations).toEqual([]);
+    expect(warningOnly.publicationFidelity).toMatchObject({
+      provider_verdict: 'REPAIR_REQUIRED', engine_verdict: 'PASS_WITH_WARNINGS', publishable_for_audio: true,
+      normalization_reason: 'ONLY_NON_BLOCKING_SOFT_DEFECTS_REMAIN', soft_warning_count: 1,
+    });
+    expect(prisma.teachingEpisode.create).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'READY_FOR_TTS' }) }));
+  });
+
   it('returns a controlled diagnostic when the second local repair still leaves a fidelity blocker', async () => {
     const original = script('A split vote becomes permanently stuck once it happens.');
     const changedButStillWrong = { ...script('A split vote stays permanently stuck, so no leader can be chosen.').turns[2] };
