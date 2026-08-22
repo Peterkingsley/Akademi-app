@@ -10,7 +10,7 @@ import {
 } from './prompts';
 import {
   AnalysisCacheStatus, Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
-  ClaimModality, ClaimStrength, CriticDefect, FidelityPublicationReport, FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, RepairTarget, TeachingEpisodeRequest, TeachingEpisodeResult,
+  ClaimModality, ClaimPolarity, ClaimStrength, CriticDefect, FidelityPublicationReport, FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, RepairTarget, RepairTargetProposition, TeachingEpisodeRequest, TeachingEpisodeResult,
   TeachingStageInstrumentation,
 } from './types';
 import {
@@ -212,22 +212,76 @@ const modalityRank: Record<ClaimModality, number> = {
   POSSIBILITY: 1, CAPABILITY: 2, TYPICALITY: 3, STRONG_LIKELIHOOD: 4, NECESSITY: 5, GUARANTEE: 6, ABSOLUTE: 7,
 };
 const intensityWords = /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/gi;
+const negatedAbsolutePatterns = [
+  /\b(?:does|do|did)\s+not\s+make\s+[^.?!,;]*?\s+impossible\b/gi,
+  /\b(?:does|do|did)\s+not\s+(?:completely\s+|entirely\s+|fully\s+)?(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b[^.?!,;]*/gi,
+  /\b(?:doesn't|don't|didn't)\s+make\s+[^.?!,;]*?\s+impossible\b/gi,
+  /\b(?:doesn't|don't|didn't)\s+(?:completely\s+|entirely\s+|fully\s+)?(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b[^.?!,;]*/gi,
+  /\b(?:cannot|can't)\s+guarantee\b[^.?!,;]*/gi,
+  /\b(?:does|do|did)\s+not\s+guarantee\b[^.?!,;]*/gi,
+  /\b(?:doesn't|don't|didn't)\s+guarantee\b[^.?!,;]*/gi,
+  /\bnot\s+(?:always|guaranteed|impossible)\b/gi,
+  /\bnever\s+(?:completely\s+|entirely\s+|fully\s+)?(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b[^.?!,;]*/gi,
+];
+
+function polarityFor(text: string): ClaimPolarity {
+  if (/\?/.test(text)) return 'QUESTIONED';
+  if (negatedAbsolutePatterns.some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(text);
+  })) return 'NEGATED';
+  if (/\b(?:if|would|could|might)\b/i.test(text)) return 'HYPOTHETICAL';
+  return 'AFFIRMATIVE';
+}
+
+function affirmativeClaimText(text: string) {
+  return negatedAbsolutePatterns.reduce((current, pattern) => current.replace(pattern, ''), text);
+}
+
 const modalityFor = (text: string): ClaimModality => {
-  const affirmative = text.replace(/\b(?:does?\s+not|do\s+not|doesn'?t|don'?t|cannot|can'?t)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/gi, '');
+  const polarity = polarityFor(text);
+  if (polarity === 'QUESTIONED' || polarity === 'HYPOTHETICAL') return 'POSSIBILITY';
+  const affirmative = affirmativeClaimText(text);
   if (/\b(?:always|never|completely|entirely|absolutely|impossible)\b/i.test(affirmative)) return 'ABSOLUTE';
-  if (/\b(?:guarantee|ensure|will recover|will succeed|must eventually)\b/i.test(affirmative)) return 'GUARANTEE';
+  if (/\b(?:guarantee|ensure|prevent(?:s|ed|ing)?|will recover|will succeed|must eventually)\b/i.test(affirmative)) return 'GUARANTEE';
   if (/\b(?:must|needs? to|required to|have to)\b/i.test(affirmative)) return 'NECESSITY';
   if (/\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(affirmative)) return 'STRONG_LIKELIHOOD';
   if (/\b(?:usually|typically|generally)\b/i.test(affirmative)) return 'TYPICALITY';
   if (/\b(?:can|able to|capable of|another opportunity|helps?)\b/i.test(affirmative)) return 'CAPABILITY';
   return 'POSSIBILITY';
 };
-const strengthFor = (text: string): ClaimStrength => /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/i.test(text)
-  ? 'STRONG' : /\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(text) ? 'STRONG' : 'NEUTRAL';
-const strengthRank: Record<ClaimStrength, number> = { SOURCE_EQUIVALENT: 0, NEUTRAL: 1, STRONG: 2 };
+const strengthFor = (text: string): ClaimStrength => {
+  const affirmative = affirmativeClaimText(text);
+  if (/\b(?:drastically|dramatically|massively|extremely|fundamentally)\b/i.test(affirmative)) return 'EXCESSIVE';
+  if (/\b(?:very rare|rare|greatly|significantly|strongly|much less (?:likely|common)|infrequently)\b/i.test(affirmative)) return 'STRONG';
+  return 'NEUTRAL';
+};
+const strengthRank: Record<ClaimStrength, number> = { SOURCE_EQUIVALENT: 0, NEUTRAL: 1, STRONG: 2, EXCESSIVE: 3 };
+
+function allowedModalities(sourceModality: ClaimModality): ClaimModality[] {
+  return (Object.entries(modalityRank) as Array<[ClaimModality, number]>)
+    .filter(([, rank]) => rank <= modalityRank[sourceModality])
+    .map(([modality]) => modality);
+}
+
+function sourcePropositions(authority: string): RepairTargetProposition[] {
+  const clauses = authority.split(/(?:[.;]|\bbut\b|\bhowever\b|\balthough\b|\bthough\b|\bwhile\b)/i)
+    .map((item) => item.trim()).filter((item) => item.length > 8);
+  return clauses.map((meaning) => {
+    const sourceModality = modalityFor(meaning);
+    const sourceStrength = strengthFor(meaning);
+    return {
+      meaning,
+      polarity: polarityFor(meaning),
+      allowed_modality: allowedModalities(sourceModality),
+      allowed_strength: sourceStrength,
+    };
+  });
+}
 
 function sourceMeaning(evidence: EpisodeTeachingAnalysis['evidence_registry'], invariants: Array<{ statement: string }>) {
-  return [...evidence.map((item) => item.normalized_claim || item.verbatim_span), ...invariants.map((item) => item.statement)].filter(Boolean).join(' ');
+  return [...evidence.flatMap((item) => [item.verbatim_span, item.normalized_claim]), ...invariants.map((item) => item.statement)]
+    .filter(Boolean).filter((item, index, values) => values.indexOf(item) === index).join(' ');
 }
 
 function offendingSpan(text: string) {
@@ -250,13 +304,9 @@ function compileRepairTargets(
     const boundInvariants = preserveInvariantIds.map((id) => invariants.get(id)).filter(Boolean) as Array<{ statement: string; forbidden_exaggerations: string[] }>;
     const evidence = analysis.evidence_registry.filter((item) => evidenceIds.includes(item.evidence_id));
     const authority = sourceMeaning(evidence, boundInvariants);
-    const sourceModality = modalityFor(authority);
-    const allowedModality: ClaimModality[] = sourceModality === 'STRONG_LIKELIHOOD'
-      ? ['POSSIBILITY', 'CAPABILITY', 'TYPICALITY', 'STRONG_LIKELIHOOD']
-      : sourceModality === 'TYPICALITY'
-        ? ['POSSIBILITY', 'CAPABILITY', 'TYPICALITY']
-        : ['POSSIBILITY', 'CAPABILITY'];
-    const allowedStrength: ClaimStrength = strengthFor(authority) === 'STRONG' ? 'STRONG' : 'NEUTRAL';
+    const propositions = sourcePropositions(authority || defect.repair_directive);
+    const allowedModality = [...new Set(propositions.flatMap((item) => item.allowed_modality))];
+    const allowedStrength = propositions.some((item) => item.allowed_strength === 'STRONG') ? 'STRONG' : 'NEUTRAL';
     const forbidden = [...new Set([
       ...boundInvariants.flatMap((item) => item.forbidden_exaggerations),
       ...(allowedModality.includes('CAPABILITY') ? ['must have a way to', 'needs to', 'ensures recovery', 'guarantees recovery'] : []),
@@ -267,8 +317,10 @@ function compileRepairTargets(
       offending_span: offendingSpan(text), proposition: payload?.core_epistemic_payload || defect.description,
       source_supported_meaning: authority || defect.repair_directive,
       source_evidence: evidence.map((item) => ({ evidence_id: item.evidence_id, claim: item.normalized_claim || item.verbatim_span })),
+      source_propositions: propositions,
       allowed_modality: allowedModality, detected_original_modality: modalityFor(text),
-      allowed_strength: allowedStrength === 'STRONG' ? 'SOURCE_EQUIVALENT' : 'NEUTRAL', detected_original_strength: strengthFor(text),
+      detected_original_polarity: polarityFor(text),
+      allowed_strength: allowedStrength, detected_original_strength: strengthFor(text),
       forbidden_forms: forbidden, preserve_invariant_ids: preserveInvariantIds, preserve_evidence_ids: evidenceIds,
     };
   }));
@@ -392,7 +444,7 @@ function deterministicPostPatchValidation(
     if (modalityRank[repairedModality] > permittedRank) {
       codes.push('PATCH_EXCEEDS_ALLOWED_MODALITY', `PATCH_EXCEEDS_ALLOWED_MODALITY:${target.turn_id}`);
     }
-    if (target.allowed_strength === 'NEUTRAL' && strengthRank[repairedStrength] > strengthRank.NEUTRAL) {
+    if (strengthRank[repairedStrength] > strengthRank[target.allowed_strength]) {
       codes.push('PATCH_EXCEEDS_ALLOWED_INTENSITY', `PATCH_EXCEEDS_ALLOWED_INTENSITY:${target.turn_id}`);
     }
     const forbidden = target.forbidden_forms.some((form) => form && new RegExp(`\\b${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&').replace(/\\s+/g, '\\s+')}\\b`, 'i').test(after));
@@ -400,6 +452,11 @@ function deterministicPostPatchValidation(
     const requiredTerms = target.source_supported_meaning.toLowerCase().match(/\b(?:election|leader|split|vote|term|retry|chance|candidate|timeout)\w*\b/g) || [];
     if (requiredTerms.length && !requiredTerms.some((term) => after.toLowerCase().includes(term))) {
       codes.push('PATCH_LOST_REQUIRED_PROPOSITION', `PATCH_LOST_REQUIRED_PROPOSITION:${target.turn_id}`);
+    }
+    const requiresReductionMechanism = target.source_propositions.some((item) => /\b(?:rare|reduce|less likely|less common|infrequent)\b/i.test(item.meaning));
+    if (requiresReductionMechanism && polarityFor(after) !== 'NEGATED' && /\b(?:randomi[sz]|timeout)\b/i.test(target.source_supported_meaning)
+      && !/\b(?:rare|reduc(?:e|es|ed|ing|tion)|less likely|less common|infrequent)\b/i.test(after)) {
+      codes.push('PATCH_LOST_REQUIRED_PROPOSITION', `PATCH_LOST_REQUIRED_PROPOSITION:${target.turn_id}:REDUCTION_MECHANISM`);
     }
   }
   return {

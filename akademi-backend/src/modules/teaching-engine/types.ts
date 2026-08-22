@@ -201,7 +201,16 @@ export type FidelityRepairStatus =
   | 'FIDELITY_BLOCKER_SURVIVED';
 
 export type ClaimModality = 'POSSIBILITY' | 'CAPABILITY' | 'TYPICALITY' | 'STRONG_LIKELIHOOD' | 'NECESSITY' | 'GUARANTEE' | 'ABSOLUTE';
-export type ClaimStrength = 'SOURCE_EQUIVALENT' | 'NEUTRAL' | 'STRONG';
+export type ClaimStrength = 'SOURCE_EQUIVALENT' | 'NEUTRAL' | 'STRONG' | 'EXCESSIVE';
+export type ClaimPolarity = 'AFFIRMATIVE' | 'NEGATED' | 'QUESTIONED' | 'HYPOTHETICAL';
+
+/** One evidence-supported semantic dimension in a bounded repair target. */
+export interface RepairTargetProposition {
+  meaning: string;
+  polarity: ClaimPolarity;
+  allowed_modality: ClaimModality[];
+  allowed_strength: ClaimStrength;
+}
 
 /** Source-derived boundary for a single local fidelity repair. */
 export interface RepairTarget {
@@ -212,7 +221,10 @@ export interface RepairTarget {
   proposition: string;
   source_supported_meaning: string;
   source_evidence: Array<{ evidence_id: string; claim: string }>;
+  /** Source claims are preserved independently so “rare but possible” is not flattened. */
+  source_propositions: RepairTargetProposition[];
   allowed_modality: ClaimModality[];
+  detected_original_polarity: ClaimPolarity;
   detected_original_modality: ClaimModality;
   allowed_strength: ClaimStrength;
   detected_original_strength: ClaimStrength;

@@ -409,6 +409,73 @@ describe('TeachingEngineService fidelity path', () => {
     ]));
   });
 
+  it('preserves “rare but not impossible” as compound source strength and accepts a negated absolute boundary', async () => {
+    const rareButPossible: EpisodeTeachingAnalysis = {
+      ...analysis,
+      evidence_registry: [{
+        ...analysis.evidence_registry[0],
+        verbatim_span: 'Randomized election timeouts make split votes rare but do not make them impossible.',
+        normalized_claim: 'Randomized timeouts strongly reduce split-vote frequency while split votes remain possible.',
+      }],
+    };
+    const original = script('Randomized election timeouts prevent split votes.');
+    const stillAbsolute = { ...script('Randomized election timeouts prevent split votes.').turns[2] };
+    const validRepair = { ...script('Randomized timeouts make split votes rare, but they can still happen.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_RARE_NOT_IMPOSSIBLE', type: 'CLAIM_EXAGGERATION' as const, severity: 'HARD_BLOCKER' as const,
+      turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: '“Prevent” loses the source limitation that split votes remain possible.',
+      repair_directive: 'Preserve both the strong reduction and non-zero possibility.',
+    };
+    const responses = [rareButPossible, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [stillAbsolute] }, { turns: [validRepair] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: rareButPossible.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const secondPatchPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
+    const target = secondPatchPrompt.repair_targets.find((item: { defect_id: string }) => item.defect_id === 'DEF_RARE_NOT_IMPOSSIBLE');
+    expect(target.source_propositions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ polarity: 'AFFIRMATIVE', allowed_strength: 'STRONG' }),
+      expect.objectContaining({ polarity: 'NEGATED', allowed_modality: expect.arrayContaining(['POSSIBILITY']) }),
+    ]));
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ repair_attempt: 1, rejection_reason: expect.stringContaining('PATCH_EXCEEDS_ALLOWED_MODALITY'), call4_invoked: false }),
+      expect.objectContaining({ repair_attempt: 2, call4_invoked: true, final_status: 'REPAIRED' }),
+    ]));
+  });
+
+  it('accepts a source-faithful negated absolute without misclassifying it as an affirmative absolute', async () => {
+    const rareButPossible: EpisodeTeachingAnalysis = {
+      ...analysis,
+      evidence_registry: [{
+        ...analysis.evidence_registry[0],
+        verbatim_span: 'Randomized election timeouts make split votes rare but do not make them impossible.',
+        normalized_claim: 'Randomized timeouts make split votes rare while split votes remain possible.',
+      }],
+    };
+    const original = script('Randomized election timeouts guarantee split votes never happen.');
+    const validRepair = { ...script('Randomized timeouts do not make split votes impossible.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_NEGATED_ABSOLUTE', type: 'CLAIM_EXAGGERATION' as const, severity: 'HARD_BLOCKER' as const,
+      turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The guarantee exceeds the evidence.', repair_directive: 'Keep the non-elimination boundary.',
+    };
+    const responses = [rareButPossible, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [validRepair] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: rareButPossible.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ repair_attempt: 1, call4_invoked: true, final_status: 'REPAIRED', rejection_reason: null }),
+    ]));
+  });
+
   it('escalates invariant-bound payload loss even when the critic calls it a soft warning', async () => {
     const original = script('A server becomes a candidate and asks for votes.');
     const repairedTurn = { ...script('A server increments its term, becomes a candidate, votes for itself, and asks for votes.').turns[2] };
