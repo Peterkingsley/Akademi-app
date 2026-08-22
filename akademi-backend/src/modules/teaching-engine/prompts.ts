@@ -1,4 +1,4 @@
-import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, NormalizedSource, ProductionDialogueScript } from './types';
+import { EpisodeTeachingAnalysis, EpisodeTeachingBlueprint, NormalizedSource, ProductionDialogueScript, RepairTarget } from './types';
 import type { CertaintyDriftWarning } from './certainty-drift.validator';
 import {
   EPISODE_TEACHING_ANALYSIS_SCHEMA_VERSION,
@@ -82,8 +82,23 @@ export function dialoguePrompt(analysis: EpisodeTeachingAnalysis, blueprint: Epi
   });
 }
 
-export function fidelityPrompt(analysis: EpisodeTeachingAnalysis, blueprint: EpisodeTeachingBlueprint, dialogue: ProductionDialogueScript, certaintyDriftWarnings: CertaintyDriftWarning[] = []) {
-  return JSON.stringify({ task: 'Create CriticReview', analysis, blueprint, dialogue, certainty_drift_warnings: certaintyDriftWarnings });
+export function fidelityPrompt(
+  analysis: EpisodeTeachingAnalysis,
+  blueprint: EpisodeTeachingBlueprint,
+  dialogue: ProductionDialogueScript,
+  certaintyDriftWarnings: CertaintyDriftWarning[] = [],
+  repairTargets: RepairTarget[] = [],
+) {
+  return JSON.stringify({
+    task: 'Create CriticReview', analysis, blueprint, dialogue, certainty_drift_warnings: certaintyDriftWarnings,
+    // Structured context only: the Call 4 system instruction remains unchanged.
+    repaired_turn_proposition_context: repairTargets.map((target) => ({
+      turn_id: target.turn_id,
+      required_propositions: target.source_propositions,
+      allowed_modality: target.allowed_modality,
+      allowed_strength: target.allowed_strength,
+    })),
+  });
 }
 
 export function patchPrompt(

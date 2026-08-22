@@ -296,26 +296,34 @@ function compileRepairTargets(
 ): RepairTarget[] {
   const invariants = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((item) => [item.invariant_id, item] as const)));
   const blueprintByTurn = new Map(blueprint.turns.map((turn) => [turn.turn_id, turn]));
-  return defects.flatMap((defect) => defect.turn_ids.map((turn_id) => {
+  const defectsByTurn = new Map<string, CriticReview['defects']>();
+  for (const defect of defects) for (const turnId of defect.turn_ids) {
+    const grouped = defectsByTurn.get(turnId) || [];
+    grouped.push(defect);
+    defectsByTurn.set(turnId, grouped);
+  }
+  return [...defectsByTurn.entries()].map(([turn_id, turnDefects]) => {
     const turn = dialogue.turns.find((item) => item.turn_id === turn_id);
     const payload = blueprintByTurn.get(turn_id);
-    const evidenceIds = [...new Set([...(defect.evidence_ids || []), ...(turn?.evidence_ids || []), ...(payload?.evidence_ids || [])])];
-    const preserveInvariantIds = [...new Set([...(defect.invariant_ids || []), ...(turn?.invariant_ids || []), ...(payload?.invariant_ids || [])])];
+    const evidenceIds = [...new Set([...turnDefects.flatMap((defect) => defect.evidence_ids || []), ...(turn?.evidence_ids || []), ...(payload?.evidence_ids || [])])];
+    const preserveInvariantIds = [...new Set([...turnDefects.flatMap((defect) => defect.invariant_ids || []), ...(turn?.invariant_ids || []), ...(payload?.invariant_ids || [])])];
     const boundInvariants = preserveInvariantIds.map((id) => invariants.get(id)).filter(Boolean) as Array<{ statement: string; forbidden_exaggerations: string[] }>;
     const evidence = analysis.evidence_registry.filter((item) => evidenceIds.includes(item.evidence_id));
     const authority = sourceMeaning(evidence, boundInvariants);
-    const propositions = sourcePropositions(authority || defect.repair_directive);
-    const allowedModality = [...new Set(propositions.flatMap((item) => item.allowed_modality))];
+    const propositions = sourcePropositions(authority || turnDefects.map((defect) => defect.repair_directive).join(' '));
+    const allowedModality = [...new Set(propositions.flatMap((item) => item.allowed_modality))] as ClaimModality[];
+    if (!allowedModality.length) allowedModality.push('POSSIBILITY');
     const allowedStrength = propositions.some((item) => item.allowed_strength === 'STRONG') ? 'STRONG' : 'NEUTRAL';
     const forbidden = [...new Set([
       ...boundInvariants.flatMap((item) => item.forbidden_exaggerations),
+      ...turnDefects.flatMap((defect) => (defect.description.match(/\b(?:always|never|prevent(?:s|ed|ing)?|ensure(?:s|d|ing)?|guarantee(?:s|d|ing)?|must|needs? to)\b/gi) || [])),
       ...(allowedModality.includes('CAPABILITY') ? ['must have a way to', 'needs to', 'ensures recovery', 'guarantees recovery'] : []),
     ])];
     const text = turn?.spoken_text || '';
     return {
-      turn_id, defect_id: defect.defect_id, defect_type: defect.type,
-      offending_span: offendingSpan(text), proposition: payload?.core_epistemic_payload || defect.description,
-      source_supported_meaning: authority || defect.repair_directive,
+      turn_id, defect_id: turnDefects[0].defect_id, defect_ids: turnDefects.map((defect) => defect.defect_id), defect_type: turnDefects[0].type,
+      offending_span: offendingSpan(text), proposition: payload?.core_epistemic_payload || turnDefects.map((defect) => defect.description).join(' '),
+      source_supported_meaning: authority || turnDefects.map((defect) => defect.repair_directive).join(' '),
       source_evidence: evidence.map((item) => ({ evidence_id: item.evidence_id, claim: item.normalized_claim || item.verbatim_span })),
       source_propositions: propositions,
       allowed_modality: allowedModality, detected_original_modality: modalityFor(text),
@@ -323,7 +331,7 @@ function compileRepairTargets(
       allowed_strength: allowedStrength, detected_original_strength: strengthFor(text),
       forbidden_forms: forbidden, preserve_invariant_ids: preserveInvariantIds, preserve_evidence_ids: evidenceIds,
     };
-  }));
+  });
 }
 
 function repairContextFor(
@@ -358,25 +366,26 @@ function repairContextFor(
     retry_instruction: priorFailure.length
       ? 'Your previous patch did not materially remove the blocked claim and violated the supplied repair target. Do not repeat or lightly paraphrase the claim. Use only the allowed modality and strength recorded in the target; rewrite the minimum necessary text.'
       : undefined,
-    affected_turns: defects.flatMap((defect) => defect.turn_ids.map((turnId) => {
+    affected_turns: [...new Set(defects.flatMap((defect) => defect.turn_ids))].map((turnId) => {
       const located = byTurn.get(turnId);
       const turn = located?.turn;
+      const turnDefects = defects.filter((defect) => defect.turn_ids.includes(turnId));
       const boundInvariants = (turn?.invariant_ids || []).map((id) => invariants.get(id)).filter(Boolean);
       const analogy = turn?.analogy_id
         ? analysis.concepts.flatMap((concept) => concept.analogy_candidates).find((item) => item.analogy_id === turn.analogy_id)
         : undefined;
       return {
-        defect: {
+        defects: turnDefects.map((defect) => ({
           defect_id: defect.defect_id, type: defect.type, description: defect.description,
           repair_directive: defect.repair_directive, evidence_ids: defect.evidence_ids,
           invariant_ids: defect.invariant_ids,
-        },
-        repair_target: repairTargets.find((target) => target.defect_id === defect.defect_id && target.turn_id === turnId),
+        })),
+        repair_target: repairTargets.find((target) => target.turn_id === turnId),
         failing_turn: turn,
         previous_turn: located && located.index > 0 ? dialogue.turns[located.index - 1] : null,
         next_turn: located && located.index < dialogue.turns.length - 1 ? dialogue.turns[located.index + 1] : null,
         blueprint_payload: blueprintByTurn.get(turnId),
-        source_evidence: analysis.evidence_registry.filter((item) => (turn?.evidence_ids || defect.evidence_ids).includes(item.evidence_id)),
+        source_evidence: analysis.evidence_registry.filter((item) => (turn?.evidence_ids || turnDefects.flatMap((defect) => defect.evidence_ids)).includes(item.evidence_id)),
         invariants: boundInvariants.map((item) => ({
           invariant_id: item!.invariant_id, statement: item!.statement,
           forbidden_exaggerations: item!.forbidden_exaggerations,
@@ -384,7 +393,7 @@ function repairContextFor(
         })),
         analogy_boundary: analogy ? { analogy_id: analogy.analogy_id, breakdown_boundary: analogy.breakdown_boundary, forbidden_inferences: analogy.forbidden_inferences } : null,
       };
-    })),
+    }),
   };
 }
 
@@ -398,6 +407,7 @@ function deterministicPostPatchValidation(
   replacementTurnIds: string[],
 ) {
   const codes: string[] = [];
+  const possiblePayloadLossTurnIds: string[] = [];
   try {
     validateDialogue(candidate, blueprint, analysis);
   } catch (error) {
@@ -451,12 +461,12 @@ function deterministicPostPatchValidation(
     if (forbidden) codes.push('PATCH_PRESERVES_MATERIAL_OVERSTATEMENT', `PATCH_PRESERVES_MATERIAL_OVERSTATEMENT:${target.turn_id}`);
     const requiredTerms = target.source_supported_meaning.toLowerCase().match(/\b(?:election|leader|split|vote|term|retry|chance|candidate|timeout)\w*\b/g) || [];
     if (requiredTerms.length && !requiredTerms.some((term) => after.toLowerCase().includes(term))) {
-      codes.push('PATCH_LOST_REQUIRED_PROPOSITION', `PATCH_LOST_REQUIRED_PROPOSITION:${target.turn_id}`);
+      possiblePayloadLossTurnIds.push(target.turn_id);
     }
     const requiresReductionMechanism = target.source_propositions.some((item) => /\b(?:rare|reduce|less likely|less common|infrequent)\b/i.test(item.meaning));
     if (requiresReductionMechanism && polarityFor(after) !== 'NEGATED' && /\b(?:randomi[sz]|timeout)\b/i.test(target.source_supported_meaning)
       && !/\b(?:rare|reduc(?:e|es|ed|ing|tion)|less likely|less common|infrequent)\b/i.test(after)) {
-      codes.push('PATCH_LOST_REQUIRED_PROPOSITION', `PATCH_LOST_REQUIRED_PROPOSITION:${target.turn_id}:REDUCTION_MECHANISM`);
+      possiblePayloadLossTurnIds.push(target.turn_id);
     }
   }
   return {
@@ -465,6 +475,7 @@ function deterministicPostPatchValidation(
     certaintyWarnings: candidateWarnings,
     certaintyHardBlockerTurnIds: [...new Set(candidateHard.map((warning) => warning.turn_id))],
     targetCodes: codes.filter((code) => /^PATCH_(?:EXCEEDS_ALLOWED_MODALITY|EXCEEDS_ALLOWED_INTENSITY|PRESERVES_MATERIAL_OVERSTATEMENT|LOST_REQUIRED_PROPOSITION)/.test(code)),
+    possiblePayloadLossTurnIds: [...new Set(possiblePayloadLossTurnIds)],
   };
 }
 
@@ -642,48 +653,57 @@ export class TeachingEngineService {
     review: CriticReview,
     attempt: number,
     previousFailure?: FidelityRepairObservation[],
-  ): Promise<{ dialogue: ProductionDialogueScript; trace?: TeachingStageInstrumentation; replacementTurnIds: string[]; repairTargets: RepairTarget[]; repairMethod: 'TARGETED_MODEL' | 'DETERMINISTIC_INTENSITY_REMOVAL' }> {
+  ): Promise<{ dialogue: ProductionDialogueScript; traces: TeachingStageInstrumentation[]; replacementTurnIds: string[]; repairTargets: RepairTarget[]; repairMethod: 'TARGETED_MODEL' | 'DETERMINISTIC_INTENSITY_REMOVAL' }> {
     const hardDefects = review.defects.filter(isActionableDefect);
     const repairTargets = compileRepairTargets(analysis, blueprint, dialogue, hardDefects);
-    const intensityOnly = hardDefects.length > 0 && hardDefects.every((defect) => defect.type === 'UNSUPPORTED_INTENSITY');
-    if (intensityOnly) {
-      const turns = dialogue.turns.map((turn) => {
-        if (!repairTargets.some((target) => target.turn_id === turn.turn_id)) return turn;
-        return { ...turn, spoken_text: turn.spoken_text.replace(intensityWords, '').replace(/\s{2,}/g, ' ').trim() };
-      });
-      const replacementTurnIds = turns.filter((turn, index) => turn.spoken_text !== dialogue.turns[index].spoken_text).map((turn) => turn.turn_id);
-      if (replacementTurnIds.length) {
-        return { dialogue: { ...dialogue, turns }, replacementTurnIds, repairTargets, repairMethod: 'DETERMINISTIC_INTENSITY_REMOVAL' };
-      }
+    const defectsByTurn = new Map<string, CriticReview['defects']>();
+    for (const defect of hardDefects) for (const turnId of defect.turn_ids) {
+      const grouped = defectsByTurn.get(turnId) || [];
+      grouped.push(defect);
+      defectsByTurn.set(turnId, grouped);
     }
-    const { artifact: replacement, trace } = await this.callJson({
-      stage: 'targeted_patch',
-      prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects, repairContextFor(analysis, blueprint, dialogue, hardDefects, repairTargets, attempt, previousFailure)),
-      systemPrompt: patchSystemPrompt,
-      model: config.teachingPatchModel, maxTokens: 4_000,
-      parseResponse: parsePatchResponse,
-      validate: (value) => {
-        if (!value || typeof value !== 'object') throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
-        const candidate = value as { turns?: ProductionDialogueScript['turns']; replacement_dialogue_turns?: ProductionDialogueScript['turns'] };
-        const turns = candidate.turns || candidate.replacement_dialogue_turns;
-        if (!Array.isArray(turns)) throw new TeachingValidationError(['Patch must return { turns: [...] }.']);
-        // Some providers name the requested replacement collection explicitly.
-        // Normalize that transport detail before the existing binding validator
-        // verifies every returned turn against the approved blueprint.
-        return { turns };
-      },
-    });
-    const allowedTurnIds = new Set(hardDefects.flatMap((defect) => defect.turn_ids));
-    const replacements = new Map(replacement.turns.filter((turn) => allowedTurnIds.has(turn.turn_id)).map((turn) => [turn.turn_id, turn]));
+    const replacements = new Map<string, ProductionDialogueScript['turns'][number]>();
+    const traces: TeachingStageInstrumentation[] = [];
+    let repairMethod: 'TARGETED_MODEL' | 'DETERMINISTIC_INTENSITY_REMOVAL' = 'TARGETED_MODEL';
+    for (const [turnId, turnDefects] of defectsByTurn) {
+      const target = repairTargets.find((item) => item.turn_id === turnId)!;
+      const original = dialogue.turns.find((turn) => turn.turn_id === turnId)!;
+      if (turnDefects.every((defect) => defect.type === 'UNSUPPORTED_INTENSITY')) {
+        const spoken_text = original.spoken_text.replace(intensityWords, '').replace(/\s{2,}/g, ' ').trim();
+        if (spoken_text !== original.spoken_text) {
+          replacements.set(turnId, { ...original, spoken_text });
+          repairMethod = 'DETERMINISTIC_INTENSITY_REMOVAL';
+          continue;
+        }
+      }
+      const { artifact: replacement, trace } = await this.callJson({
+        stage: 'targeted_patch',
+        prompt: patchPrompt(analysis, blueprint, dialogue, turnDefects, repairContextFor(analysis, blueprint, dialogue, turnDefects, [target], attempt, previousFailure?.filter((item) => item.turn_id === turnId))),
+        systemPrompt: patchSystemPrompt,
+        model: config.teachingPatchModel, maxTokens: 1_500,
+        parseResponse: parsePatchResponse,
+        validate: (value) => {
+          if (!value || typeof value !== 'object') throw new TeachingValidationError(['Patch must return exactly one replacement turn.']);
+          const candidate = value as { turns?: ProductionDialogueScript['turns']; replacement_dialogue_turns?: ProductionDialogueScript['turns'] };
+          const turns = candidate.turns || candidate.replacement_dialogue_turns;
+          if (!Array.isArray(turns) || turns.length !== 1) throw new TeachingValidationError([`Patch for ${turnId} must return exactly one replacement turn.`]);
+          if (turns[0].turn_id !== turnId) throw new TeachingValidationError([`Patch returned ${turns[0].turn_id}; expected ${turnId}.`]);
+          if (!turns[0].spoken_text?.trim()) throw new TeachingValidationError([`Patch for ${turnId} returned empty spoken_text.`]);
+          return { turns };
+        },
+      });
+      traces.push(trace);
+      replacements.set(turnId, replacement.turns[0]);
+    }
     return {
       // Structural binding checks run immediately after the patch and before a
       // further paid fidelity review. This intentionally does not permit a
       // repair to touch an unrelated turn.
       dialogue: { ...dialogue, turns: dialogue.turns.map((turn) => replacements.get(turn.turn_id) || turn) },
-      trace,
+      traces,
       replacementTurnIds: [...replacements.keys()],
       repairTargets,
-      repairMethod: 'TARGETED_MODEL',
+      repairMethod,
     };
   }
 
@@ -732,8 +752,8 @@ export class TeachingEngineService {
     let certaintyDriftWarnings = initialCertaintyDriftWarnings;
 
     if (complexity !== 'FAST' || certaintyHardBlockers(certaintyDriftWarnings).length) {
-      const runFidelity = async (candidate: ProductionDialogueScript) => this.callJson({
-        stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate, certaintyDriftWarnings), systemPrompt: fidelitySystemPrompt,
+      const runFidelity = async (candidate: ProductionDialogueScript, repairedTargets: RepairTarget[] = []) => this.callJson({
+        stage: 'fidelity', prompt: fidelityPrompt(analysis, blueprint, candidate, certaintyDriftWarnings, repairedTargets), systemPrompt: fidelitySystemPrompt,
         model: config.teachingFidelityModel, maxTokens: 4_000, validate: (value) => validateCriticReview(value, analysis, blueprint),
         structuredOutput: FIDELITY_STRUCTURED_OUTPUT,
       });
@@ -749,7 +769,7 @@ export class TeachingEngineService {
         const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity, attempt, fidelityRepairObservations);
         const postPatchOpeningRepair = repairHost1ValidationOpenings(repaired.dialogue);
         host1OpeningRepairs = [...host1OpeningRepairs, ...postPatchOpeningRepair.repairs];
-        if (repaired.trace) traces.push(repaired.trace);
+        traces.push(...repaired.traces);
         const deterministic = deterministicPostPatchValidation(
           beforePatch, postPatchOpeningRepair.dialogue, analysis, blueprint, hardDefects, repaired.repairTargets, repaired.replacementTurnIds,
         );
@@ -757,7 +777,7 @@ export class TeachingEngineService {
           defect_id: defect.defect_id,
           turn_id: turnId,
           defect_type: defect.type,
-          repair_target: repaired.repairTargets.find((target) => target.defect_id === defect.defect_id && target.turn_id === turnId),
+          repair_target: repaired.repairTargets.find((target) => target.turn_id === turnId),
           repair_method: repaired.repairMethod,
           repair_attempt: attempt,
           original_text: beforePatch.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '',
@@ -767,6 +787,7 @@ export class TeachingEngineService {
             codes: deterministic.codes,
             certainty_hard_blocker_turn_ids: deterministic.certaintyHardBlockerTurnIds,
             target_codes: deterministic.targetCodes,
+            possible_payload_loss_turn_ids: deterministic.possiblePayloadLossTurnIds,
           },
           detected_repaired_modality: modalityFor(postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || ''),
           detected_repaired_strength: strengthFor(postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || ''),
@@ -793,7 +814,7 @@ export class TeachingEngineService {
         }
         dialogue = validateDialogue(postPatchOpeningRepair.dialogue, blueprint, analysis);
         certaintyDriftWarnings = deterministic.certaintyWarnings;
-        const repairedFidelity = await runFidelity(dialogue);
+        const repairedFidelity = await runFidelity(dialogue, repaired.repairTargets);
         semanticFidelityHistory.push(repairedFidelity.artifact);
         const postPatchFidelity = mergeDeterministicCertaintyBlockers(normalizeFidelityReview(repairedFidelity.artifact, dialogue), certaintyDriftWarnings);
         fidelity = postPatchFidelity;

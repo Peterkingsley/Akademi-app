@@ -476,6 +476,70 @@ describe('TeachingEngineService fidelity path', () => {
     ]));
   });
 
+  it('sends a source-faithful wording change to Call 4 instead of hard-rejecting it for token overlap', async () => {
+    const original = script('Randomized timeouts prevent collisions.');
+    const repairedTurn = { ...script('Randomized timeouts reduce the chance of collisions.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_SEMANTIC_EQUIVALENCE', type: 'CLAIM_EXAGGERATION' as const, severity: 'HARD_BLOCKER' as const,
+      turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'Prevention exceeds the source-supported reduction claim.', repair_directive: 'Use a reduction-in-likelihood relationship.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ repair_attempt: 1, call4_invoked: true, final_status: 'REPAIRED' }),
+    ]));
+    const repairFidelityPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
+    expect(repairFidelityPrompt.repaired_turn_proposition_context).toEqual(expect.arrayContaining([
+      expect.objectContaining({ turn_id: 'T3', required_propositions: expect.any(Array) }),
+    ]));
+  });
+
+  it('repairs each affected turn independently and combines multiple defects on the same turn', async () => {
+    const original = script('Randomized timeouts dramatically prevent split votes.');
+    const twoTurnOriginal: ProductionDialogueScript = {
+      ...original,
+      turns: original.turns.map((turn) => turn.turn_id === 'T2'
+        ? { ...turn, spoken_text: 'Equal timeouts always prevent a clear leader.' }
+        : turn),
+    };
+    const repairedT2 = { ...twoTurnOriginal.turns[1], spoken_text: 'Equal timeouts can create competing candidates and split votes.' };
+    const repairedT3 = { ...twoTurnOriginal.turns[2], spoken_text: 'Randomized timeouts make split votes rare, but they can still occur.' };
+    const t2Defect = {
+      defect_id: 'DEF_T2', type: 'CLAIM_EXAGGERATION' as const, severity: 'HARD_BLOCKER' as const,
+      turn_ids: ['T2'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'], description: 'Always overstates the source.', repair_directive: 'Use a conditional relationship.',
+    };
+    const t3ClaimDefect = {
+      defect_id: 'DEF_T3_CLAIM', type: 'CLAIM_EXAGGERATION' as const, severity: 'HARD_BLOCKER' as const,
+      turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'], description: 'Prevent overstates the source.', repair_directive: 'Use rare but possible wording.',
+    };
+    const t3IntensityDefect = { ...t3ClaimDefect, defect_id: 'DEF_T3_INTENSITY', type: 'UNSUPPORTED_INTENSITY' as const, severity: 'MATERIAL_REPAIR' as const, description: 'Avoid unsupported intensity.' };
+    const responses = [analysis, blueprint, twoTurnOriginal, { verdict: 'REPAIR_REQUIRED', defects: [t2Defect, t3ClaimDefect, t3IntensityDefect] }, { turns: [repairedT2] }, { turns: [repairedT3] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const firstPatch = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[4][0]);
+    const secondPatch = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
+    expect(firstPatch.repair_context.affected_turns).toHaveLength(1);
+    expect(secondPatch.repair_context.affected_turns).toHaveLength(1);
+    expect(firstPatch.repair_context.affected_turns[0].failing_turn.turn_id).toBe('T2');
+    expect(secondPatch.repair_context.affected_turns[0].failing_turn.turn_id).toBe('T3');
+    expect(secondPatch.repair_targets).toHaveLength(1);
+    expect(secondPatch.repair_targets[0].defect_ids).toEqual(expect.arrayContaining(['DEF_T3_CLAIM', 'DEF_T3_INTENSITY']));
+    expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T2')?.spoken_text).toBe(repairedT2.spoken_text);
+    expect(result.dialogue.turns.find((turn) => turn.turn_id === 'T3')?.spoken_text).toBe(repairedT3.spoken_text);
+  });
+
   it('escalates invariant-bound payload loss even when the critic calls it a soft warning', async () => {
     const original = script('A server becomes a candidate and asks for votes.');
     const repairedTurn = { ...script('A server increments its term, becomes a candidate, votes for itself, and asks for votes.').turns[2] };

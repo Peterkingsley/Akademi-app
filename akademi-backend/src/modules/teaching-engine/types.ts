@@ -216,6 +216,8 @@ export interface RepairTargetProposition {
 export interface RepairTarget {
   turn_id: string;
   defect_id: string;
+  /** All actionable defects combined into this single turn-level repair unit. */
+  defect_ids: string[];
   defect_type: CriticDefect['type'];
   offending_span: string | null;
   proposition: string;
@@ -248,6 +250,7 @@ export interface FidelityRepairObservation {
     codes: string[];
     certainty_hard_blocker_turn_ids: string[];
     target_codes?: string[];
+    possible_payload_loss_turn_ids?: string[];
   };
   detected_repaired_modality?: ClaimModality;
   detected_repaired_strength?: ClaimStrength;
