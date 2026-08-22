@@ -137,7 +137,7 @@ function textForDefect(defect: CriticDefect, dialogue: ProductionDialogueScript)
 }
 
 function negatesAbsoluteIntensity(text: string) {
-  return /\b(?:cannot|can'?t|does?\s+not|doesn't|do\s+not|don't|never)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/i.test(text);
+  return /\b(?:cannot|can'?t|does?\s+not|doesn'?t|do\s+not|don'?t|never)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/i.test(text);
 }
 
 function assertsAbsoluteElimination(text: string) {

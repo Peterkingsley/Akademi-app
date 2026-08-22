@@ -59,14 +59,19 @@ describe('certainty-drift validator', () => {
   });
 
   it('does not treat a negated absolute-elimination boundary as a hard certainty claim', () => {
-    const warnings = detectPossibleCertaintyDrift(
-      dialogue("Randomized election timeouts make split votes rare, but they cannot completely eliminate them."),
-      analysis('Randomized timeouts make split votes rare but do not make them impossible.'),
-    );
+    for (const spoken of [
+      'Randomized election timeouts make split votes rare, but they cannot completely eliminate them.',
+      "Randomized election timeouts make split votes rare, but they don't completely eliminate them.",
+    ]) {
+      const warnings = detectPossibleCertaintyDrift(
+        dialogue(spoken),
+        analysis('Randomized timeouts make split votes rare but do not make them impossible.'),
+      );
 
-    expect(warnings).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'HARD_BLOCKER' }),
-    ]));
+      expect(warnings).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ severity: 'HARD_BLOCKER' }),
+      ]));
+    }
   });
 
   it('does not mistake a Host 2 declarative negation for a learner hypothesis', () => {

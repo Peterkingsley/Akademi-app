@@ -55,7 +55,7 @@ function boundContext(turn: ProductionDialogueScript['turns'][number], analysis:
 
 function affirmativeCertaintyText(text: string) {
   return text
-    .replace(/\b(?:does?\s+not|do\s+not|cannot|can'?t)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/gi, '')
+    .replace(/\b(?:does?\s+not|do\s+not|doesn'?t|don'?t|cannot|can'?t)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)?|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/gi, '')
     .replace(/\b(?:does?\s+not|do\s+not)\s+(?:\w+\s+){0,5}(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?)\b/gi, '')
     .replace(/\b(?:don't|doesn't|isn't|is\s+not|not)\s+(?:always|never|guarantee(?:s|d)?|ensur(?:e|es|ed|ing)|impossible|cannot fail|must eventually|will eventually|eventually succeed(?:s|ed|ing)?)\b/gi, '');
 }
