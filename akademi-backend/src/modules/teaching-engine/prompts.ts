@@ -48,7 +48,7 @@ Recovery capability does not imply guaranteed eventual success. Distinguish care
 export const patchSystemPrompt = `${jsonOnly}
 You are Akademi's Targeted Dialogue Repair Engine. Replace only the affected dialogue turns.
 Preserve turn IDs, speaker assignments, intent, evidence bindings, invariant bindings, misconception bindings, and conversational continuity. Do not introduce facts. Do not regenerate unrelated turns.
-Each affected turn has a source-derived repair_target. Preserve the teaching point, but make the minimum change needed to stay within its allowed_modality and allowed_strength. Do not substitute one strong synonym for another. On a retry, use the previous target comparison and remove the failed modality or intensity exactly.`;
+Each affected turn has a source-derived repair_target. Preserve the teaching point, but make the minimum change needed to stay within its allowed_modality and allowed_strength. Do not substitute one strong synonym for another. If a target permits POSSIBILITY or CAPABILITY, use source-faithful wording such as “can”, “may”, “helps”, or “another opportunity” and do not write “must”, “needs to”, “ensures”, “guarantees”, “prevents”, “always”, or an equivalent guarantee. On a retry, use the previous target comparison and remove the failed modality or intensity exactly.`;
 
 export function analysisPrompt(sources: NormalizedSource[], learnerLevel: string, durationMinutes: number, focus: string | null) {
   return JSON.stringify({
@@ -93,8 +93,10 @@ export function patchPrompt(
   defects: unknown[],
   repairContext: unknown,
 ) {
+  const context = repairContext as { affected_turns?: Array<{ repair_target?: unknown }> };
   return JSON.stringify({
     task: 'Return only replacement dialogue turns', analysis, blueprint, dialogue, defects,
+    repair_targets: context.affected_turns?.map((item) => item.repair_target).filter(Boolean) || [],
     // This compact view is intentionally redundant with the validated objects
     // above. It makes the patcher's factual boundary explicit for a local fix.
     repair_context: repairContext,

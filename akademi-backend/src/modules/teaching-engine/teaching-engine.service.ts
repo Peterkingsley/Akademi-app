@@ -213,12 +213,13 @@ const modalityRank: Record<ClaimModality, number> = {
 };
 const intensityWords = /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/gi;
 const modalityFor = (text: string): ClaimModality => {
-  if (/\b(?:always|never|completely|entirely|absolutely|impossible)\b/i.test(text)) return 'ABSOLUTE';
-  if (/\b(?:guarantee|ensure|will recover|will succeed|must eventually)\b/i.test(text)) return 'GUARANTEE';
-  if (/\b(?:must|needs? to|required to|have to)\b/i.test(text)) return 'NECESSITY';
-  if (/\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(text)) return 'STRONG_LIKELIHOOD';
-  if (/\b(?:usually|typically|generally)\b/i.test(text)) return 'TYPICALITY';
-  if (/\b(?:can|able to|capable of|another opportunity)\b/i.test(text)) return 'CAPABILITY';
+  const affirmative = text.replace(/\b(?:does?\s+not|do\s+not|doesn'?t|don'?t|cannot|can'?t)\s+(?:\w+\s+){0,3}(?:completely|entirely|fully|absolutely)\s+(?:eliminat(?:e|es|ed|ing)|prevent(?:s|ed|ing)?|avoid(?:s|ed|ing)|remov(?:e|es|ed|ing)|rule(?:s|d)?\s+out)\b/gi, '');
+  if (/\b(?:always|never|completely|entirely|absolutely|impossible)\b/i.test(affirmative)) return 'ABSOLUTE';
+  if (/\b(?:guarantee|ensure|will recover|will succeed|must eventually)\b/i.test(affirmative)) return 'GUARANTEE';
+  if (/\b(?:must|needs? to|required to|have to)\b/i.test(affirmative)) return 'NECESSITY';
+  if (/\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(affirmative)) return 'STRONG_LIKELIHOOD';
+  if (/\b(?:usually|typically|generally)\b/i.test(affirmative)) return 'TYPICALITY';
+  if (/\b(?:can|able to|capable of|another opportunity|helps?)\b/i.test(affirmative)) return 'CAPABILITY';
   return 'POSSIBILITY';
 };
 const strengthFor = (text: string): ClaimStrength => /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/i.test(text)

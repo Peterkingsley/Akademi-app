@@ -400,6 +400,9 @@ describe('TeachingEngineService fidelity path', () => {
     expect(secondPatchPrompt.repair_context.affected_turns[0].repair_target).toMatchObject({
       detected_original_modality: 'NECESSITY', allowed_modality: expect.arrayContaining(['CAPABILITY']),
     });
+    expect(secondPatchPrompt.repair_targets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ allowed_modality: expect.arrayContaining(['CAPABILITY']) }),
+    ]));
     expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
       expect.objectContaining({ repair_attempt: 1, call4_invoked: false, rejection_reason: expect.stringContaining('PATCH_EXCEEDS_ALLOWED_MODALITY') }),
       expect.objectContaining({ repair_attempt: 2, call4_invoked: true, final_status: 'REPAIRED' }),
