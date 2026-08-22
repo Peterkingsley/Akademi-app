@@ -93,7 +93,144 @@ export interface MockHistoryItem {
   question_count?: number;
 }
 
+export interface ExamPrepMaterialItem {
+  id: string;
+  title: string;
+  courseCode: string | null;
+  questionCount: number;
+  status: "READY" | "BUILDING" | "UNAVAILABLE";
+}
+
+export interface GuidedExamPrepQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  difficulty: "EASY" | "MEDIUM" | "HARD";
+  questionType: "RECALL" | "APPLICATION" | "CALCULATION" | "REASONING" | "MISCONCEPTION";
+}
+
+export interface ReasoningAssessment {
+  qualityScore: number | null;
+  summary: string;
+  whatYouGotRight: string[];
+  whatYouMissed: string[];
+  misconception: string | null;
+}
+
+export interface OptionTeachingFeedback {
+  option: string;
+  isCorrect: boolean;
+  whyItFitsOrDoesNotFit: string;
+  whatItRepresents: string;
+  whenItWouldBeCorrect: string | null;
+}
+
+export interface ExamPrepTeachingFeedback {
+  isCorrect: boolean;
+  selectedAnswer: string;
+  correctAnswer: string;
+  verdict: "CORRECT" | "INCORRECT";
+  reasoningAssessment: ReasoningAssessment;
+  teachingExplanation: {
+    whyCorrect: string;
+    keyConcept: string;
+    conciseLesson: string;
+  };
+  optionBreakdown: OptionTeachingFeedback[];
+  takeaway: string;
+  personalized: boolean;
+}
+
+export interface GuidedExamPrepProgress {
+  current: number;
+  total: number;
+  completed: number;
+  correct: number;
+}
+
+export interface GuidedExamPrepSession {
+  id: string;
+  material: { id: string; title: string; courseCode: string | null };
+  currentIndex: number;
+  totalQuestions: number;
+  completedCount: number;
+  currentQuestion: GuidedExamPrepQuestion | null;
+  currentAttempt: {
+    id: string;
+    reasoning: string;
+    feedback: ExamPrepTeachingFeedback;
+  } | null;
+  progress: GuidedExamPrepProgress;
+  isComplete: boolean;
+}
+
+export interface GuidedExamPrepSubmission extends ExamPrepTeachingFeedback {
+  attemptId: string;
+  questionId: string;
+  reasoning: string;
+  progress: GuidedExamPrepProgress;
+  isComplete: boolean;
+}
+
+export interface ExamPrepSessionSummary {
+  sessionId: string;
+  material: { id: string; title: string; courseCode: string | null };
+  questionsStudied: number;
+  correctAnswers: number;
+  percentage: number;
+  averageReasoningQuality: number | null;
+  needsReview: string[];
+  completedAt: string | null;
+}
+
 const examPrepService = {
+  getMaterials: async () => {
+    const { data } = await api.get<ExamPrepMaterialItem[]>("/exam-prep/materials");
+    return data;
+  },
+
+  startGuidedSession: async (materialId: string) => {
+    const { data } = await api.post<GuidedExamPrepSession>(
+      `/exam-prep/materials/${encodeURIComponent(materialId)}/sessions`,
+    );
+    return data;
+  },
+
+  getGuidedSession: async (sessionId: string) => {
+    const { data } = await api.get<GuidedExamPrepSession>(
+      `/exam-prep/sessions/${encodeURIComponent(sessionId)}`,
+    );
+    return data;
+  },
+
+  submitGuidedQuestion: async (
+    sessionId: string,
+    questionId: string,
+    selectedAnswer: string,
+    reasoning: string,
+  ) => {
+    const { data } = await api.post<GuidedExamPrepSubmission>(
+      `/exam-prep/sessions/${encodeURIComponent(sessionId)}/questions/${encodeURIComponent(questionId)}/submit`,
+      { selectedAnswer, reasoning },
+    );
+    return data;
+  },
+
+  advanceGuidedSession: async (sessionId: string, questionId: string) => {
+    const { data } = await api.post<GuidedExamPrepSession>(
+      `/exam-prep/sessions/${encodeURIComponent(sessionId)}/next`,
+      { questionId },
+    );
+    return data;
+  },
+
+  getGuidedSummary: async (sessionId: string) => {
+    const { data } = await api.get<ExamPrepSessionSummary>(
+      `/exam-prep/sessions/${encodeURIComponent(sessionId)}/summary`,
+    );
+    return data;
+  },
+
   getCourseHub: async () => {
     const { data } = await api.get<CourseHubItem[]>("/exam-prep/courses");
     return data;

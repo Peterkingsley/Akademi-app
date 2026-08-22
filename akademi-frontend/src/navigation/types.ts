@@ -119,6 +119,7 @@ export type MainStackParamList = {
   AIProcessing: { type: "assignment"; sessionId?: string; reply_mode?: string };
   BoardReplay: { sessionId: string; questionIndex?: number };
   ExamPrep: undefined;
+  ExamPrepSession: { sessionId: string };
   AddExam: { courseCode?: string };
   PrepPlan: { examId: string };
   MockExam: { examId: string; mockExamId?: string };

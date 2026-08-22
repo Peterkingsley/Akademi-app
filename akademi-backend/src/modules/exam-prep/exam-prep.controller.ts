@@ -3,7 +3,72 @@ import { ExamPrepService } from './exam-prep.service';
 
 const examPrepService = new ExamPrepService();
 
+function guidedErrorStatus(error: any, fallback = 400) {
+  return typeof error?.statusCode === 'number' ? error.statusCode : fallback;
+}
+
 export class ExamPrepController {
+  async getGuidedMaterials(req: Request, res: Response) {
+    try {
+      const materials = await examPrepService.listGuidedMaterials(req.user!.userId);
+      res.status(200).json(materials);
+    } catch (error: any) {
+      res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to load Exam Prep materials' });
+    }
+  }
+
+  async startGuidedSession(req: Request, res: Response) {
+    try {
+      const session = await examPrepService.startGuidedSession(req.user!.userId, req.params.materialId);
+      res.status(201).json(session);
+    } catch (error: any) {
+      res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to start guided Exam Prep' });
+    }
+  }
+
+  async getGuidedSession(req: Request, res: Response) {
+    try {
+      const session = await examPrepService.getGuidedSession(req.user!.userId, req.params.sessionId);
+      res.status(200).json(session);
+    } catch (error: any) {
+      res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to load guided Exam Prep' });
+    }
+  }
+
+  async submitGuidedQuestion(req: Request, res: Response) {
+    try {
+      const result = await examPrepService.submitGuidedQuestion(
+        req.user!.userId,
+        req.params.sessionId,
+        req.params.questionId,
+        req.body,
+      );
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to submit guided question' });
+    }
+  }
+
+  async advanceGuidedSession(req: Request, res: Response) {
+    try {
+      const questionId = typeof req.body?.questionId === 'string' ? req.body.questionId : '';
+      if (!questionId) return res.status(400).json({ message: 'Completed question is required' });
+      const session = await examPrepService.advanceGuidedSession(req.user!.userId, req.params.sessionId, questionId);
+      return res.status(200).json(session);
+    } catch (error: any) {
+      return res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to continue guided Exam Prep' });
+    }
+  }
+
+  async getGuidedSummary(req: Request, res: Response) {
+    try {
+      const summary = await examPrepService.getGuidedSummary(req.user!.userId, req.params.sessionId);
+      res.status(200).json(summary);
+    } catch (error: any) {
+      res.status(guidedErrorStatus(error, 500)).json({ message: error.message || 'Failed to load guided Exam Prep summary' });
+    }
+  }
+
   async getCourseHub(req: Request, res: Response) {
     try {
       const userId = (req.user as any).userId;

@@ -16,6 +16,7 @@ import { CropConfirmScreen } from "../screens/main/CropConfirmScreen";
 import { AIProcessingScreen } from "../screens/main/AIProcessingScreen";
 import { BoardReplayScreen } from "../screens/main/BoardReplayScreen";
 import { ExamPrepScreen } from "../screens/main/ExamPrepScreen";
+import { ExamPrepSessionScreen } from "../screens/main/ExamPrepSessionScreen";
 import { AddExamScreen } from "../screens/main/AddExamScreen";
 import { PrepPlanScreen } from "../screens/main/PrepPlanScreen";
 import { MockExamScreen } from "../screens/main/MockExamScreen";
@@ -84,6 +85,7 @@ export const MainStack = () => {
       <Stack.Screen name="AIProcessing" component={AIProcessingScreen} />
       <Stack.Screen name="BoardReplay" component={BoardReplayScreen} />
       <Stack.Screen name="ExamPrep" component={ExamPrepScreen} />
+      <Stack.Screen name="ExamPrepSession" component={ExamPrepSessionScreen} />
       <Stack.Screen name="AddExam" component={AddExamScreen} />
       <Stack.Screen name="PrepPlan" component={PrepPlanScreen} />
       <Stack.Screen name="MockExam" component={MockExamScreen} />

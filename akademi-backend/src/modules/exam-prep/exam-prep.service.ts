@@ -1,13 +1,74 @@
 import prisma from '../../config/db';
-import { Difficulty, VerificationStatus, UsageMetric } from '@prisma/client';
+import {
+  Difficulty,
+  Feature,
+  Prisma,
+  SessionType,
+  VerificationStatus,
+  UsageMetric,
+} from '@prisma/client';
 import { orchestrateAIResponse } from '../../shared/utils/ai-orchestrator';
 import { generateQuestionsJob } from '../../jobs/generateQuestions.job';
 import { resolveDepartmentId, findOrCreateCourse } from '../../shared/utils/department-resolver';
 import { UsersService } from '../users/users.service';
 import { usageService } from '../usage/usage.service';
+import { checkFeatureAccess } from '../../shared/utils/feature-access';
+import { MaterialsService } from '../materials/materials.service';
+import { ExamPrepFeedbackService, buildFallbackFeedback } from './exam-prep-feedback.service';
+import {
+  ExamPrepError,
+  ExamPrepMaterialItem,
+  ExamPrepSessionSummary,
+  ExamPrepTeachingFeedback,
+  FeedbackGenerationInput,
+  GUIDED_EXAM_PREP_MODE,
+  GUIDED_EXAM_PREP_QUESTION_COUNT,
+  GUIDED_EXAM_PREP_VERSION,
+  GuidedExamPrepProgress,
+  GuidedExamPrepQuestion,
+  GuidedExamPrepSession,
+  GuidedSessionMetadata,
+} from './exam-prep.types';
 
-function normalizeAnswer(answer: string) {
+export function normalizeExamPrepAnswer(answer: string) {
   return answer.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+const normalizeAnswer = normalizeExamPrepAnswer;
+
+export function resolveCanonicalAnswer(optionsValue: unknown, storedAnswer: string | null | undefined) {
+  const options = Array.isArray(optionsValue)
+    ? optionsValue.map((option) => String(option).trim()).filter(Boolean)
+    : [];
+  const answer = String(storedAnswer || '').trim();
+  if (!answer || options.length === 0) return null;
+
+  const exact = options.find((option) => normalizeExamPrepAnswer(option) === normalizeExamPrepAnswer(answer));
+  if (exact) return exact;
+
+  // Legacy questions stored A/B/C/D, while current generation stores the full option text.
+  const labelMatch = answer.match(/^\s*([A-D])(?:[.)\]:-])?\s*$/i);
+  if (labelMatch) {
+    return options[labelMatch[1].toUpperCase().charCodeAt(0) - 65] || null;
+  }
+
+  return null;
+}
+
+export function sanitizeGuidedExamPrepQuestion(question: {
+  id: string;
+  question_text: string;
+  options: Prisma.JsonValue;
+  difficulty: Difficulty;
+  question_type: GuidedExamPrepQuestion['questionType'];
+}): GuidedExamPrepQuestion {
+  return {
+    id: question.id,
+    text: question.question_text,
+    options: Array.isArray(question.options) ? question.options.map(String) : [],
+    difficulty: question.difficulty,
+    questionType: question.question_type,
+  };
 }
 
 function toAnswerMap(answers: { questionId: string; answer: string }[] | Record<string, string>) {
@@ -33,6 +94,9 @@ const DIFFICULTY_WEIGHTS = { [Difficulty.EASY]: 1, [Difficulty.MEDIUM]: 2, [Diff
 
 export class ExamPrepService {
   private usersService = new UsersService();
+  private materialsService = new MaterialsService();
+
+  constructor(private readonly feedbackService = new ExamPrepFeedbackService()) {}
 
   private normalizeAssessmentType(value?: string | null) {
     return value?.toUpperCase() === 'TEST' ? 'TEST' : 'EXAM';
@@ -595,6 +659,540 @@ export class ExamPrepService {
           isLocked: false,
         };
       }),
+    };
+  }
+
+  private readGuidedMetadata(value: Prisma.JsonValue): GuidedSessionMetadata {
+    const metadata = value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : {};
+    const questionIds = Array.isArray(metadata.questionIds)
+      ? metadata.questionIds.map(String).filter(Boolean)
+      : [];
+    const currentIndex = Number(metadata.currentIndex);
+    if (
+      metadata.mode !== GUIDED_EXAM_PREP_MODE ||
+      metadata.version !== GUIDED_EXAM_PREP_VERSION ||
+      questionIds.length === 0 ||
+      !Number.isInteger(currentIndex) ||
+      currentIndex < 0
+    ) {
+      throw new ExamPrepError('Guided Exam Prep session is invalid', 409, 'INVALID_SESSION_METADATA');
+    }
+    return {
+      mode: GUIDED_EXAM_PREP_MODE,
+      version: GUIDED_EXAM_PREP_VERSION,
+      entitlementFeature: 'EXAM_PREP',
+      questionIds,
+      currentIndex: Math.min(currentIndex, questionIds.length - 1),
+    };
+  }
+
+  private toSanitizedGuidedQuestion(question: {
+    id: string;
+    question_text: string;
+    options: Prisma.JsonValue;
+    difficulty: Difficulty;
+    question_type: GuidedExamPrepQuestion['questionType'];
+  }): GuidedExamPrepQuestion {
+    return sanitizeGuidedExamPrepQuestion(question);
+  }
+
+  private isUsableGuidedQuestion(question: { options: Prisma.JsonValue; correct_answer: string | null }) {
+    const options = Array.isArray(question.options)
+      ? question.options.map((option) => String(option).trim()).filter(Boolean)
+      : [];
+    return options.length === 4 && new Set(options.map(normalizeExamPrepAnswer)).size === 4 &&
+      Boolean(resolveCanonicalAnswer(options, question.correct_answer));
+  }
+
+  async listGuidedMaterials(userId: string): Promise<ExamPrepMaterialItem[]> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { university: true, faculty: true, department: true, level: true },
+    });
+    if (!user) throw new ExamPrepError('User not found', 404, 'USER_NOT_FOUND');
+
+    // Reuse Library's verified-material scope rules, including nationally pooled courses.
+    const materials = await this.materialsService.listMaterials({
+      university: user.university,
+      faculty: user.faculty,
+      department: user.department,
+      level: user.level,
+    });
+    if (materials.length === 0) return [];
+
+    const questions = await prisma.question.findMany({
+      where: { material_id: { in: materials.map((material) => material.id) } },
+      select: { material_id: true, options: true, correct_answer: true },
+    });
+    const counts = new Map<string, number>();
+    for (const question of questions) {
+      if (this.isUsableGuidedQuestion(question)) {
+        counts.set(question.material_id, (counts.get(question.material_id) || 0) + 1);
+      }
+    }
+
+    return materials.map((material) => {
+      const questionCount = counts.get(material.id) || 0;
+      const canPrepare = Boolean(material.content?.trim()) &&
+        material.processing_status !== 'FAILED' &&
+        material.question_generation_status !== 'FAILED';
+      return {
+        id: material.id,
+        title: material.title,
+        courseCode: material.course_code,
+        questionCount,
+        status: questionCount > 0 ? 'READY' : canPrepare ? 'BUILDING' : 'UNAVAILABLE',
+      };
+    });
+  }
+
+  private async loadGuidedQuestionPool(materialId: string, userId: string) {
+    const load = () => prisma.question.findMany({
+      where: { material_id: materialId },
+      select: {
+        id: true,
+        question_text: true,
+        options: true,
+        correct_answer: true,
+        explanation: true,
+        approach_guide: true,
+        difficulty: true,
+        question_type: true,
+        source_page_start: true,
+        source_page_end: true,
+      },
+      orderBy: { generated_at: 'desc' },
+    });
+
+    let pool = (await load()).filter((question) => this.isUsableGuidedQuestion(question));
+    if (pool.length < GUIDED_EXAM_PREP_QUESTION_COUNT) {
+      try {
+        await generateQuestionsJob(materialId, {
+          count: Math.min(Math.max(GUIDED_EXAM_PREP_QUESTION_COUNT - pool.length + 5, 5), 30),
+          excludeQuestionTexts: pool.map((question) => question.question_text),
+        });
+        pool = (await load()).filter((question) => this.isUsableGuidedQuestion(question));
+      } catch (error) {
+        // Existing usable questions still provide a valid revision session.
+        console.error(`Could not top up guided Exam Prep questions for material ${materialId}:`, error);
+      }
+    }
+    if (pool.length === 0) {
+      throw new ExamPrepError(
+        'No study questions are available for this material yet.',
+        409,
+        'QUESTIONS_UNAVAILABLE',
+      );
+    }
+
+    const attempted = await prisma.questionAttempt.findMany({
+      where: { user_id: userId, question_id: { in: pool.map((question) => question.id) } },
+      select: { question_id: true },
+      distinct: ['question_id'],
+    });
+    const attemptedIds = new Set(attempted.map((attempt) => attempt.question_id));
+    const unseen = shuffle(pool.filter((question) => !attemptedIds.has(question.id)));
+    const revisits = shuffle(pool.filter((question) => attemptedIds.has(question.id)));
+    return [...unseen, ...revisits].slice(0, GUIDED_EXAM_PREP_QUESTION_COUNT);
+  }
+
+  async startGuidedSession(userId: string, materialId: string): Promise<GuidedExamPrepSession> {
+    const normalizedMaterialId = materialId?.trim();
+    if (!normalizedMaterialId) {
+      throw new ExamPrepError('Material is required', 400, 'MATERIAL_REQUIRED');
+    }
+
+    const activeSessions = await prisma.session.findMany({
+      where: {
+        user_id: userId,
+        material_id: normalizedMaterialId,
+        session_type: SessionType.EXAM_PREP,
+        ended_at: null,
+      },
+      orderBy: { started_at: 'desc' },
+      take: 5,
+    });
+    const resumable = activeSessions.find((session) => {
+      const metadata = session.metadata as Record<string, unknown> | null;
+      return metadata?.mode === GUIDED_EXAM_PREP_MODE;
+    });
+    if (resumable) return this.getGuidedSession(userId, resumable.id);
+
+    let material: Awaited<ReturnType<MaterialsService['getMaterial']>>;
+    try {
+      material = await this.materialsService.getMaterial(normalizedMaterialId, { requestingUserId: userId });
+    } catch {
+      // Ownership-safe: callers cannot distinguish a missing material from one outside scope.
+      throw new ExamPrepError('Material not found', 404, 'MATERIAL_NOT_FOUND');
+    }
+    if (
+      material.verification_status !== VerificationStatus.VERIFIED ||
+      material.unpublished_at
+    ) {
+      throw new ExamPrepError('Material not found', 404, 'MATERIAL_NOT_FOUND');
+    }
+
+    const selectedQuestions = await this.loadGuidedQuestionPool(material.id, userId);
+
+    // Feature entitlement is consumed once for the whole guided session, never per question.
+    await usageService.assertAvailable(userId, UsageMetric.CBT_SESSION);
+    const hasAccess = await checkFeatureAccess(userId, Feature.EXAM_PREP);
+    if (!hasAccess) {
+      throw new ExamPrepError('Exam Prep access required', 403, 'EXAM_PREP_ACCESS_REQUIRED');
+    }
+    await usageService.consume(userId, UsageMetric.CBT_SESSION);
+
+    const metadata: GuidedSessionMetadata = {
+      mode: GUIDED_EXAM_PREP_MODE,
+      version: GUIDED_EXAM_PREP_VERSION,
+      entitlementFeature: 'EXAM_PREP',
+      questionIds: selectedQuestions.map((question) => question.id),
+      currentIndex: 0,
+    };
+    const session = await prisma.session.create({
+      data: {
+        user_id: userId,
+        material_id: material.id,
+        session_type: SessionType.EXAM_PREP,
+        course_code: material.course_code,
+        topic: material.title,
+        metadata: metadata as unknown as Prisma.InputJsonValue,
+        university: material.university,
+        department: material.department,
+      },
+    });
+    return this.getGuidedSession(userId, session.id);
+  }
+
+  private async loadOwnedGuidedSession(userId: string, sessionId: string) {
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, user_id: userId, session_type: SessionType.EXAM_PREP },
+      include: {
+        material: {
+          select: {
+            id: true,
+            title: true,
+            course_code: true,
+            content: true,
+            reader_structure: true,
+          },
+        },
+        question_attempts: { orderBy: { created_at: 'asc' } },
+      },
+    });
+    const material = session?.material;
+    if (!session || !material) {
+      throw new ExamPrepError('Session not found', 404, 'SESSION_NOT_FOUND');
+    }
+    return {
+      session: { ...session, material },
+      metadata: this.readGuidedMetadata(session.metadata),
+    };
+  }
+
+  private buildProgress(metadata: GuidedSessionMetadata, attempts: Array<{ is_correct: boolean }>): GuidedExamPrepProgress {
+    return {
+      current: Math.min(metadata.currentIndex + 1, metadata.questionIds.length),
+      total: metadata.questionIds.length,
+      completed: attempts.length,
+      correct: attempts.filter((attempt) => attempt.is_correct).length,
+    };
+  }
+
+  async getGuidedSession(userId: string, sessionId: string): Promise<GuidedExamPrepSession> {
+    const { session, metadata } = await this.loadOwnedGuidedSession(userId, sessionId);
+    const currentQuestionId = metadata.questionIds[metadata.currentIndex];
+    const currentQuestion = currentQuestionId
+      ? await prisma.question.findFirst({
+          where: { id: currentQuestionId, material_id: session.material!.id },
+          select: {
+            id: true,
+            question_text: true,
+            options: true,
+            difficulty: true,
+            question_type: true,
+          },
+        })
+      : null;
+    if (!currentQuestion) {
+      throw new ExamPrepError('Current question not found', 409, 'CURRENT_QUESTION_NOT_FOUND');
+    }
+    const attempt = session.question_attempts.find((item) => item.question_id === currentQuestion.id) || null;
+    const feedback = attempt?.feedback_payload as unknown as ExamPrepTeachingFeedback | null;
+    const isComplete = Boolean(session.ended_at);
+
+    return {
+      id: session.id,
+      material: {
+        id: session.material.id,
+        title: session.material.title,
+        courseCode: session.material.course_code,
+      },
+      currentIndex: metadata.currentIndex,
+      totalQuestions: metadata.questionIds.length,
+      completedCount: session.question_attempts.length,
+      currentQuestion: this.toSanitizedGuidedQuestion(currentQuestion),
+      currentAttempt: attempt && feedback ? {
+        id: attempt.id,
+        reasoning: attempt.reasoning || '',
+        feedback,
+      } : null,
+      progress: this.buildProgress(metadata, session.question_attempts),
+      isComplete,
+    };
+  }
+
+  private relevantSourceContext(
+    material: { content: string | null; reader_structure: Prisma.JsonValue },
+    question: { source_page_start: number | null; source_page_end: number | null },
+  ) {
+    const reader = material.reader_structure && typeof material.reader_structure === 'object' && !Array.isArray(material.reader_structure)
+      ? material.reader_structure as Record<string, unknown>
+      : null;
+    const pages = Array.isArray(reader?.pages) ? reader.pages : [];
+    if (question.source_page_start != null && pages.length > 0) {
+      const end = question.source_page_end ?? question.source_page_start;
+      const pageContext = pages
+        .filter((page) => {
+          const number = Number((page as Record<string, unknown>)?.pageNumber);
+          return number >= question.source_page_start! && number <= end;
+        })
+        .map((page) => String((page as Record<string, unknown>)?.content || '').trim())
+        .filter(Boolean)
+        .join('\n\n')
+        .trim();
+      if (pageContext) return pageContext.slice(0, 8_000);
+    }
+    return material.content?.trim().slice(0, 8_000) || null;
+  }
+
+  private submissionResponse(
+    attempt: {
+      id: string;
+      question_id: string;
+      reasoning: string | null;
+      feedback_payload: Prisma.JsonValue | null;
+    },
+    feedback: ExamPrepTeachingFeedback,
+    progress: GuidedExamPrepProgress,
+    isComplete: boolean,
+  ) {
+    return {
+      attemptId: attempt.id,
+      questionId: attempt.question_id,
+      reasoning: attempt.reasoning || '',
+      ...feedback,
+      progress,
+      isComplete,
+    };
+  }
+
+  async submitGuidedQuestion(
+    userId: string,
+    sessionId: string,
+    questionId: string,
+    body: { selectedAnswer?: unknown; reasoning?: unknown },
+  ) {
+    const selectedAnswer = typeof body?.selectedAnswer === 'string' ? body.selectedAnswer.trim() : '';
+    const reasoning = typeof body?.reasoning === 'string' ? body.reasoning.trim() : '';
+    if (reasoning.length < 5 || reasoning.length > 2_000) {
+      throw new ExamPrepError('Reasoning must be between 5 and 2,000 characters', 400, 'INVALID_REASONING');
+    }
+
+    const { session, metadata } = await this.loadOwnedGuidedSession(userId, sessionId);
+    if (!metadata.questionIds.includes(questionId)) {
+      throw new ExamPrepError('Question not found in this session', 404, 'QUESTION_NOT_FOUND');
+    }
+
+    const existing = session.question_attempts.find((attempt) => attempt.question_id === questionId);
+    if (existing?.feedback_payload) {
+      return this.submissionResponse(
+        existing,
+        existing.feedback_payload as unknown as ExamPrepTeachingFeedback,
+        this.buildProgress(metadata, session.question_attempts),
+        Boolean(session.ended_at),
+      );
+    }
+    if (session.ended_at) {
+      throw new ExamPrepError('This guided session is complete', 409, 'SESSION_COMPLETE');
+    }
+    if (metadata.questionIds[metadata.currentIndex] !== questionId) {
+      throw new ExamPrepError('This question is not currently eligible for submission', 409, 'QUESTION_NOT_CURRENT');
+    }
+
+    const question = await prisma.question.findFirst({
+      where: { id: questionId, material_id: session.material.id },
+      select: {
+        id: true,
+        question_text: true,
+        options: true,
+        correct_answer: true,
+        explanation: true,
+        approach_guide: true,
+        source_page_start: true,
+        source_page_end: true,
+      },
+    });
+    if (!question) throw new ExamPrepError('Question not found in this session', 404, 'QUESTION_NOT_FOUND');
+
+    const options = Array.isArray(question.options) ? question.options.map(String) : [];
+    const matchedSelection = options.find((option) => normalizeExamPrepAnswer(option) === normalizeExamPrepAnswer(selectedAnswer));
+    if (!matchedSelection) {
+      throw new ExamPrepError('Selected answer must match one of the question options', 400, 'INVALID_OPTION');
+    }
+    const canonicalCorrectAnswer = resolveCanonicalAnswer(options, question.correct_answer);
+    if (!canonicalCorrectAnswer) {
+      throw new ExamPrepError('This question does not have a usable answer key', 409, 'INVALID_ANSWER_KEY');
+    }
+    const isCorrect = normalizeExamPrepAnswer(matchedSelection) === normalizeExamPrepAnswer(canonicalCorrectAnswer);
+    const feedbackInput: FeedbackGenerationInput = {
+      questionText: question.question_text,
+      options,
+      canonicalCorrectAnswer,
+      canonicalExplanation: question.explanation,
+      approachGuide: question.approach_guide,
+      studentSelectedAnswer: matchedSelection,
+      backendDeterminedIsCorrect: isCorrect,
+      studentReasoning: reasoning,
+      relevantSourceContext: this.relevantSourceContext(session.material, question),
+      materialTitle: session.material.title,
+      courseCode: session.material.course_code,
+    };
+    const fallback = buildFallbackFeedback(feedbackInput);
+
+    // Persist deterministic scoring and canonical fallback before the live model call. The
+    // unique session/question key makes retries safe and prevents repeated AI/quota usage.
+    let attempt;
+    try {
+      attempt = await prisma.questionAttempt.create({
+        data: {
+          session_id: session.id,
+          question_id: question.id,
+          user_id: userId,
+          answer: matchedSelection,
+          is_correct: isCorrect,
+          reasoning,
+          reasoning_quality: null,
+          feedback: fallback.reasoningAssessment.summary,
+          feedback_payload: fallback as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch (error: any) {
+      if (error?.code !== 'P2002') throw error;
+      const racedAttempt = await prisma.questionAttempt.findUnique({
+        where: { session_id_question_id: { session_id: session.id, question_id: question.id } },
+      });
+      if (!racedAttempt?.feedback_payload) throw error;
+      const refreshed = await this.loadOwnedGuidedSession(userId, sessionId);
+      return this.submissionResponse(
+        racedAttempt,
+        racedAttempt.feedback_payload as unknown as ExamPrepTeachingFeedback,
+        this.buildProgress(refreshed.metadata, refreshed.session.question_attempts),
+        Boolean(refreshed.session.ended_at),
+      );
+    }
+
+    const feedback = await this.feedbackService.generate(feedbackInput);
+    attempt = await prisma.questionAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        reasoning_quality: feedback.reasoningAssessment.qualityScore,
+        feedback: feedback.reasoningAssessment.summary,
+        feedback_payload: feedback as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const isFinalQuestion = metadata.currentIndex === metadata.questionIds.length - 1;
+    if (isFinalQuestion) {
+      await prisma.session.updateMany({
+        where: { id: session.id, user_id: userId, ended_at: null },
+        data: { ended_at: new Date() },
+      });
+    }
+    const refreshed = await this.loadOwnedGuidedSession(userId, sessionId);
+    return this.submissionResponse(
+      attempt,
+      feedback,
+      this.buildProgress(refreshed.metadata, refreshed.session.question_attempts),
+      Boolean(refreshed.session.ended_at),
+    );
+  }
+
+  async advanceGuidedSession(userId: string, sessionId: string, completedQuestionId: string) {
+    const { session, metadata } = await this.loadOwnedGuidedSession(userId, sessionId);
+    const currentQuestionId = metadata.questionIds[metadata.currentIndex];
+
+    // A retried Next request is idempotent: once the server has advanced beyond the supplied
+    // completed question, simply return the already-current state instead of skipping again.
+    if (currentQuestionId !== completedQuestionId) {
+      if (metadata.questionIds.indexOf(completedQuestionId) < metadata.currentIndex) {
+        return this.getGuidedSession(userId, sessionId);
+      }
+      throw new ExamPrepError('Question is not current for this session', 409, 'QUESTION_NOT_CURRENT');
+    }
+    if (session.ended_at) return this.getGuidedSession(userId, sessionId);
+    const attempt = session.question_attempts.find((item) => item.question_id === currentQuestionId);
+    if (!attempt?.feedback_payload) {
+      throw new ExamPrepError('Submit your answer and reasoning before continuing', 409, 'QUESTION_NOT_SUBMITTED');
+    }
+    if (metadata.currentIndex >= metadata.questionIds.length - 1) {
+      await prisma.session.updateMany({
+        where: { id: session.id, ended_at: null },
+        data: { ended_at: new Date() },
+      });
+      return this.getGuidedSession(userId, sessionId);
+    }
+
+    const nextMetadata: GuidedSessionMetadata = { ...metadata, currentIndex: metadata.currentIndex + 1 };
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { metadata: nextMetadata as unknown as Prisma.InputJsonValue },
+    });
+    return this.getGuidedSession(userId, sessionId);
+  }
+
+  async getGuidedSummary(userId: string, sessionId: string): Promise<ExamPrepSessionSummary> {
+    const { session } = await this.loadOwnedGuidedSession(userId, sessionId);
+    if (!session.ended_at) {
+      throw new ExamPrepError('Complete the current study questions before viewing the summary', 409, 'SESSION_NOT_COMPLETE');
+    }
+    const attempts = session.question_attempts;
+    const correctAnswers = attempts.filter((attempt) => attempt.is_correct).length;
+    const qualityScores = attempts
+      .map((attempt) => attempt.reasoning_quality)
+      .filter((score): score is number => score !== null);
+    const needsReviewIds = attempts
+      .filter((attempt) => !attempt.is_correct || (attempt.reasoning_quality !== null && attempt.reasoning_quality < 60))
+      .map((attempt) => attempt.question_id)
+      .slice(0, 5);
+    const needsReviewQuestions = needsReviewIds.length > 0
+      ? await prisma.question.findMany({
+          where: { id: { in: needsReviewIds } },
+          select: { id: true, question_text: true },
+        })
+      : [];
+    const needsReviewById = new Map(needsReviewQuestions.map((question) => [question.id, question.question_text]));
+
+    return {
+      sessionId: session.id,
+      material: {
+        id: session.material.id,
+        title: session.material.title,
+        courseCode: session.material.course_code,
+      },
+      questionsStudied: attempts.length,
+      correctAnswers,
+      percentage: attempts.length > 0 ? Math.round((correctAnswers / attempts.length) * 100) : 0,
+      averageReasoningQuality: qualityScores.length > 0
+        ? Math.round(qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length)
+        : null,
+      needsReview: needsReviewIds
+        .map((questionId) => needsReviewById.get(questionId))
+        .filter((text): text is string => Boolean(text))
+        .map((text) => text.length > 120 ? `${text.slice(0, 117)}…` : text),
+      completedAt: session.ended_at?.toISOString() || null,
     };
   }
 }

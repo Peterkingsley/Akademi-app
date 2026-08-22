@@ -420,61 +420,61 @@ model CommunityPattern {
 }
 
 model Material {
-  id                      String                   @id @default(uuid())
-  title                   String
-  course_code             String?
-  course_id               String?
-  university              String
-  faculty                 String
-  department              String
-  level                   Int
-  semester                Int?
-  semester_start          DateTime?
-  semester_end            DateTime?
-  academic_year           String?
-  file_ref                String
-  file_type               FileType
-  pdf_file_ref            String?
-  pdf_generated_at        DateTime?
-  verification_status     VerificationStatus       @default(PENDING)
-  processing_status       MaterialProcessingStatus @default(UPLOADED)
-  processing_attempts     Int                      @default(0)
-  processing_error        String?                  @db.Text
-  processing_started_at   DateTime?
-  processing_completed_at DateTime?
-  next_retry_at           DateTime?
-  question_generation_status       QuestionGenerationStatus @default(PENDING)
-  question_generation_attempts     Int                      @default(0)
-  question_generation_error        String?                  @db.Text
-  question_generation_started_at   DateTime?
-  question_generation_completed_at DateTime?
-  question_generation_next_retry_at DateTime?
-  question_bank_inventory_status     QuestionBankInventoryStatus @default(BUILDING)
-  question_bank_last_refill_at       DateTime?
-  question_bank_refill_cooldown_until DateTime?
+  id                                   String                      @id @default(uuid())
+  title                                String
+  course_code                          String?
+  course_id                            String?
+  university                           String
+  faculty                              String
+  department                           String
+  level                                Int
+  semester                             Int?
+  semester_start                       DateTime?
+  semester_end                         DateTime?
+  academic_year                        String?
+  file_ref                             String
+  file_type                            FileType
+  pdf_file_ref                         String?
+  pdf_generated_at                     DateTime?
+  verification_status                  VerificationStatus          @default(PENDING)
+  processing_status                    MaterialProcessingStatus    @default(UPLOADED)
+  processing_attempts                  Int                         @default(0)
+  processing_error                     String?                     @db.Text
+  processing_started_at                DateTime?
+  processing_completed_at              DateTime?
+  next_retry_at                        DateTime?
+  question_generation_status           QuestionGenerationStatus    @default(PENDING)
+  question_generation_attempts         Int                         @default(0)
+  question_generation_error            String?                     @db.Text
+  question_generation_started_at       DateTime?
+  question_generation_completed_at     DateTime?
+  question_generation_next_retry_at    DateTime?
+  question_bank_inventory_status       QuestionBankInventoryStatus @default(BUILDING)
+  question_bank_last_refill_at         DateTime?
+  question_bank_refill_cooldown_until  DateTime?
   question_bank_hour_window_started_at DateTime?
-  question_bank_hour_batch_count     Int @default(0)
-  upload_count            Int                      @default(1)
-  contributor_ids         Json                     @default("[]")
-  verified_at             DateTime?
-  uploaded_by             String
-  admin_reviewed_by       String?
-  admin_reviewed_at       DateTime?
-  created_at              DateTime                 @default(now())
-  content                 String?                  @db.Text
-  reader_structure        Json?
+  question_bank_hour_batch_count       Int                         @default(0)
+  upload_count                         Int                         @default(1)
+  contributor_ids                      Json                        @default("[]")
+  verified_at                          DateTime?
+  uploaded_by                          String
+  admin_reviewed_by                    String?
+  admin_reviewed_at                    DateTime?
+  created_at                           DateTime                    @default(now())
+  content                              String?                     @db.Text
+  reader_structure                     Json?
   // True for the single, national, system-authored textbook per course code (see
   // GeneratedTextbookOutline). Never set by the student-upload path.
-  is_akademi_generated    Boolean                  @default(false)
-  generated_outline_id    String?                  @unique
+  is_akademi_generated                 Boolean                     @default(false)
+  generated_outline_id                 String?                     @unique
   // Set when an Akademi-generated textbook is retired by the reset pipeline (see
   // scripts/reset-generated-textbooks.ts). Null means currently live/visible. Never set on
   // student-uploaded materials — that flow uses verification_status instead.
-  unpublished_at          DateTime?
+  unpublished_at                       DateTime?
   // Count of worked examples found by the verbatim extraction pass used by the archetype
   // pipeline (scripts/compute-material-example-density.ts). Null = not yet computed. Density
   // (content.length / this) gates whether archetype extraction is worth attempting on a course.
-  extracted_example_count Int?
+  extracted_example_count              Int?
 
   user                          User                         @relation("UploadedBy", fields: [uploaded_by], references: [id])
   course                        Course?                      @relation(fields: [course_id], references: [id])
@@ -633,6 +633,7 @@ model Session {
   teaching_reflections          TeachingReflection[]
   learning_intelligence_records LearningIntelligenceRecord[]
   tutor_turn_traces             TutorTurnTrace[]
+  question_attempts             QuestionAttempt[]
 
   @@index([user_id])
   @@index([material_id])
@@ -947,7 +948,7 @@ model TutorTurnTrace {
 }
 
 model Question {
-  id                String     @id @default(uuid())
+  id                String       @id @default(uuid())
   material_id       String
   course_code       String?
   course_id         String?
@@ -957,14 +958,14 @@ model Question {
   question_text     String
   approach_guide    String
   // Stores ["A. ...", "B. ...", "C. ...", "D. ..."] (or similar). Non-null for simpler reads.
-  options           Json       @default("[]")
+  options           Json         @default("[]")
   // Stores "A", "B", "C", or "D" (or similar label). Nullable for legacy questions.
   correct_answer    String?
   // Why that answer is correct. Nullable.
   explanation       String?
   difficulty        Difficulty
   question_type     QuestionType @default(APPLICATION)
-  generated_at      DateTime   @default(now())
+  generated_at      DateTime     @default(now())
   // Global reader page range this question was generated from. Nullable for legacy questions
   // and questions generated from the full material (no page scope requested).
   source_page_start Int?
@@ -1767,16 +1768,25 @@ model PaystackWebhookLog {
 }
 
 model QuestionAttempt {
-  id          String   @id @default(uuid())
-  question_id String
-  question    Question @relation(fields: [question_id], references: [id])
-  user_id     String
-  user        User     @relation(fields: [user_id], references: [id])
-  answer      String
-  is_correct  Boolean
-  feedback    String?
-  created_at  DateTime @default(now())
+  id                String   @id @default(uuid())
+  question_id       String
+  question          Question @relation(fields: [question_id], references: [id])
+  user_id           String
+  user              User     @relation(fields: [user_id], references: [id])
+  session_id        String?
+  session           Session? @relation(fields: [session_id], references: [id], onDelete: SetNull)
+  answer            String
+  is_correct        Boolean
+  feedback          String?
+  reasoning         String?  @db.Text
+  reasoning_quality Int?
+  feedback_payload  Json?
+  created_at        DateTime @default(now())
 
+  // PostgreSQL treats NULL values as distinct, so historical non-session attempts remain
+  // unrestricted while a guided session can have only one attempt for each question.
+  @@unique([session_id, question_id])
+  @@index([session_id])
   @@map("question_attempts")
 }
 
