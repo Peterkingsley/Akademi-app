@@ -195,6 +195,12 @@ async function main() {
     const finalCertaintyBlockers = finalCertaintyWarnings.filter((warning: any) => warning.type === 'CERTAINTY_DRIFT_HARD_BLOCKER');
     const semanticFidelityHistory = result.semanticFidelityHistory || [];
     const publicationFidelity = result.publicationFidelity || {};
+    const repairObservations = result.fidelityRepairObservations || [];
+    const repairTargetReport = `\n## Evidence-bounded repair targets — V0.17\n\n- Deterministic repairs: **${repairObservations.filter((item: any) => item.repair_method === 'DETERMINISTIC_INTENSITY_REMOVAL').length}**
+- Targeted model repair attempts: **${new Set(repairObservations.filter((item: any) => item.repair_method === 'TARGETED_MODEL').map((item: any) => item.repair_attempt)).size}**
+- Attempt-2 repairs: **${repairObservations.filter((item: any) => item.repair_attempt === 2).length}**
+
+${repairObservations.map((item: any) => `- ${item.turn_id} | ${item.defect_type} | ${item.repair_method || 'TARGETED_MODEL'} | attempt ${item.repair_attempt}\n  - Target: ${json(item.repair_target || {}).trim()}\n  - Repaired modality/strength: ${item.detected_repaired_modality || 'not measured'} / ${item.detected_repaired_strength || 'not measured'}\n  - Deterministic target result: ${item.deterministic_post_patch_result?.verdict || 'not measured'} (${item.deterministic_post_patch_result?.target_codes?.join(', ') || 'no target mismatch'})\n  - Call 4: ${item.call4_invoked ? item.call4_result?.verdict || 'invoked' : 'skipped'}\n  - Final status: ${item.final_status}`).join('\n') || 'No material repairs were required.'}\n`;
     const finalFidelityReport = `\n## Publication fidelity verdict — V0.16\n\n- Raw Call 4 verdict: **${publicationFidelity.provider_verdict || 'SKIPPED'}**
 - Engine final verdict: **${publicationFidelity.engine_verdict || 'SKIPPED'}**
 - HARD_BLOCKER count: **${publicationFidelity.hard_blocker_count ?? 0}**
@@ -210,7 +216,7 @@ ${(publicationFidelity.defects || []).map((defect: any) => `- ${defect.turn_ids?
     const audioReport = audioBaseline
       ? `\n## Two-host audio baseline — V1\n\n- Provider: **${audioBaseline.manifest.provider}**\n- Format: ${audioBaseline.manifest.format}\n- Host 1 voice: ${audioBaseline.manifest.voices.host1VoiceId}\n- Host 2 voice: ${audioBaseline.manifest.voices.host2VoiceId}\n- Total audio duration: ${audioBaseline.manifest.assembled_episode.duration_ms}ms\n- Total TTS latency: ${audioBaseline.manifest.metrics.total_tts_latency_ms}ms\n- Assembly latency: ${audioBaseline.manifest.assembled_episode.assembly_latency_ms}ms\n- Average handoff gap: ${audioBaseline.manifest.metrics.average_handoff_gap_ms}ms\n- Quick responses: ${audioBaseline.manifest.metrics.quick_response_count}\n- Reflective pauses: ${audioBaseline.manifest.metrics.reflective_pause_count}\n- Retried turns: ${audioBaseline.manifest.turns.filter((turn: any) => turn.retry_count > 0).map((turn: any) => turn.turn_id).join(', ') || 'none'}\n- Episode artifact: ${audioBaseline.manifest.assembled_episode.url}\n- Manifest artifact: ${audioBaseline.manifest_url}\n\n### Turn timing manifest\n${audioBaseline.manifest.turns.map((turn: any) => `- ${turn.turn_id} | ${turn.speaker} | ${turn.start_ms}–${turn.end_ms}ms | ${turn.duration_ms}ms | ${turn.pause_class} ${turn.pause_after_ms}ms | ${turn.segment_url}`).join('\n')}\n`
       : '';
-    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintProvenanceReport}${certaintyEscalationReport}${finalFidelityReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
+    const report = `${reportFor(result)}${referenceIntegrityReport}${blueprintProvenanceReport}${certaintyEscalationReport}${repairTargetReport}${finalFidelityReport}${audioReport}${blueprintQualityReport}${qualityReport}`;
     await Promise.all([
       fs.writeFile(path.join(runDir, 'analysis.json'), json(result.analysis)),
       fs.writeFile(path.join(runDir, 'reference-graph-integrity.json'), json({

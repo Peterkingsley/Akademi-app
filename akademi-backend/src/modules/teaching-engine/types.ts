@@ -200,11 +200,34 @@ export type FidelityRepairStatus =
   | 'PATCH_FAILED_DETERMINISTIC_VALIDATION'
   | 'FIDELITY_BLOCKER_SURVIVED';
 
+export type ClaimModality = 'POSSIBILITY' | 'CAPABILITY' | 'TYPICALITY' | 'STRONG_LIKELIHOOD' | 'NECESSITY' | 'GUARANTEE' | 'ABSOLUTE';
+export type ClaimStrength = 'SOURCE_EQUIVALENT' | 'NEUTRAL' | 'STRONG';
+
+/** Source-derived boundary for a single local fidelity repair. */
+export interface RepairTarget {
+  turn_id: string;
+  defect_id: string;
+  defect_type: CriticDefect['type'];
+  offending_span: string | null;
+  proposition: string;
+  source_supported_meaning: string;
+  source_evidence: Array<{ evidence_id: string; claim: string }>;
+  allowed_modality: ClaimModality[];
+  detected_original_modality: ClaimModality;
+  allowed_strength: ClaimStrength;
+  detected_original_strength: ClaimStrength;
+  forbidden_forms: string[];
+  preserve_invariant_ids: string[];
+  preserve_evidence_ids: string[];
+}
+
 /** A sanitized, per-attempt record used to make bounded local repair auditable. */
 export interface FidelityRepairObservation {
   defect_id: string;
   turn_id: string;
   defect_type: CriticDefect['type'];
+  repair_target?: RepairTarget;
+  repair_method?: 'TARGETED_MODEL' | 'DETERMINISTIC_INTENSITY_REMOVAL';
   repair_attempt: number;
   original_text: string;
   proposed_text: string;
@@ -212,7 +235,10 @@ export interface FidelityRepairObservation {
     verdict: 'PASS' | 'REPAIR_REQUIRED';
     codes: string[];
     certainty_hard_blocker_turn_ids: string[];
+    target_codes?: string[];
   };
+  detected_repaired_modality?: ClaimModality;
+  detected_repaired_strength?: ClaimStrength;
   /** Why deterministic validation declined this patch, when it did. */
   rejection_reason: string | null;
   /** A provable no-op skips the paid semantic review and spends the final local retry. */

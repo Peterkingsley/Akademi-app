@@ -10,7 +10,7 @@ import {
 } from './prompts';
 import {
   AnalysisCacheStatus, Complexity, CriticReview, EpisodeTeachingAnalysis, EpisodeTeachingBlueprint,
-  CriticDefect, FidelityPublicationReport, FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, TeachingEpisodeRequest, TeachingEpisodeResult,
+  ClaimModality, ClaimStrength, CriticDefect, FidelityPublicationReport, FidelityRepairObservation, NormalizedSource, ProductionDialogueScript, RepairTarget, TeachingEpisodeRequest, TeachingEpisodeResult,
   TeachingStageInstrumentation,
 } from './types';
 import {
@@ -208,11 +208,77 @@ function normalizedText(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 }
 
+const modalityRank: Record<ClaimModality, number> = {
+  POSSIBILITY: 1, CAPABILITY: 2, TYPICALITY: 3, STRONG_LIKELIHOOD: 4, NECESSITY: 5, GUARANTEE: 6, ABSOLUTE: 7,
+};
+const intensityWords = /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/gi;
+const modalityFor = (text: string): ClaimModality => {
+  if (/\b(?:always|never|completely|entirely|absolutely|impossible)\b/i.test(text)) return 'ABSOLUTE';
+  if (/\b(?:guarantee|ensure|will recover|will succeed|must eventually)\b/i.test(text)) return 'GUARANTEE';
+  if (/\b(?:must|needs? to|required to|have to)\b/i.test(text)) return 'NECESSITY';
+  if (/\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(text)) return 'STRONG_LIKELIHOOD';
+  if (/\b(?:usually|typically|generally)\b/i.test(text)) return 'TYPICALITY';
+  if (/\b(?:can|able to|capable of|another opportunity)\b/i.test(text)) return 'CAPABILITY';
+  return 'POSSIBILITY';
+};
+const strengthFor = (text: string): ClaimStrength => /\b(?:drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b/i.test(text)
+  ? 'STRONG' : /\b(?:very rare|rare|greatly|significantly|strongly)\b/i.test(text) ? 'STRONG' : 'NEUTRAL';
+const strengthRank: Record<ClaimStrength, number> = { SOURCE_EQUIVALENT: 0, NEUTRAL: 1, STRONG: 2 };
+
+function sourceMeaning(evidence: EpisodeTeachingAnalysis['evidence_registry'], invariants: Array<{ statement: string }>) {
+  return [...evidence.map((item) => item.normalized_claim || item.verbatim_span), ...invariants.map((item) => item.statement)].filter(Boolean).join(' ');
+}
+
+function offendingSpan(text: string) {
+  return text.match(/\b(?:must have a way to|needs? to|have to|must|ensur(?:e|es|ed|ing)|guarantee(?:s|d|ing)?|drastically|dramatically|massively|completely|entirely|extremely|fundamentally)\b[^.?!]*/i)?.[0] || null;
+}
+
+function compileRepairTargets(
+  analysis: EpisodeTeachingAnalysis,
+  blueprint: EpisodeTeachingBlueprint,
+  dialogue: ProductionDialogueScript,
+  defects: CriticReview['defects'],
+): RepairTarget[] {
+  const invariants = new Map(analysis.concepts.flatMap((concept) => concept.invariants.map((item) => [item.invariant_id, item] as const)));
+  const blueprintByTurn = new Map(blueprint.turns.map((turn) => [turn.turn_id, turn]));
+  return defects.flatMap((defect) => defect.turn_ids.map((turn_id) => {
+    const turn = dialogue.turns.find((item) => item.turn_id === turn_id);
+    const payload = blueprintByTurn.get(turn_id);
+    const evidenceIds = [...new Set([...(defect.evidence_ids || []), ...(turn?.evidence_ids || []), ...(payload?.evidence_ids || [])])];
+    const preserveInvariantIds = [...new Set([...(defect.invariant_ids || []), ...(turn?.invariant_ids || []), ...(payload?.invariant_ids || [])])];
+    const boundInvariants = preserveInvariantIds.map((id) => invariants.get(id)).filter(Boolean) as Array<{ statement: string; forbidden_exaggerations: string[] }>;
+    const evidence = analysis.evidence_registry.filter((item) => evidenceIds.includes(item.evidence_id));
+    const authority = sourceMeaning(evidence, boundInvariants);
+    const sourceModality = modalityFor(authority);
+    const allowedModality: ClaimModality[] = sourceModality === 'STRONG_LIKELIHOOD'
+      ? ['POSSIBILITY', 'CAPABILITY', 'TYPICALITY', 'STRONG_LIKELIHOOD']
+      : sourceModality === 'TYPICALITY'
+        ? ['POSSIBILITY', 'CAPABILITY', 'TYPICALITY']
+        : ['POSSIBILITY', 'CAPABILITY'];
+    const allowedStrength: ClaimStrength = strengthFor(authority) === 'STRONG' ? 'STRONG' : 'NEUTRAL';
+    const forbidden = [...new Set([
+      ...boundInvariants.flatMap((item) => item.forbidden_exaggerations),
+      ...(allowedModality.includes('CAPABILITY') ? ['must have a way to', 'needs to', 'ensures recovery', 'guarantees recovery'] : []),
+    ])];
+    const text = turn?.spoken_text || '';
+    return {
+      turn_id, defect_id: defect.defect_id, defect_type: defect.type,
+      offending_span: offendingSpan(text), proposition: payload?.core_epistemic_payload || defect.description,
+      source_supported_meaning: authority || defect.repair_directive,
+      source_evidence: evidence.map((item) => ({ evidence_id: item.evidence_id, claim: item.normalized_claim || item.verbatim_span })),
+      allowed_modality: allowedModality, detected_original_modality: modalityFor(text),
+      allowed_strength: allowedStrength === 'STRONG' ? 'SOURCE_EQUIVALENT' : 'NEUTRAL', detected_original_strength: strengthFor(text),
+      forbidden_forms: forbidden, preserve_invariant_ids: preserveInvariantIds, preserve_evidence_ids: evidenceIds,
+    };
+  }));
+}
+
 function repairContextFor(
   analysis: EpisodeTeachingAnalysis,
   blueprint: EpisodeTeachingBlueprint,
   dialogue: ProductionDialogueScript,
   defects: CriticReview['defects'],
+  repairTargets: RepairTarget[],
   attempt: number,
   previousFailure?: FidelityRepairObservation[],
 ) {
@@ -223,6 +289,9 @@ function repairContextFor(
     defect_id: item.defect_id,
     turn_id: item.turn_id,
     proposed_text: item.proposed_text,
+    repair_target: item.repair_target,
+    detected_repaired_modality: item.detected_repaired_modality,
+    detected_repaired_strength: item.detected_repaired_strength,
     deterministic_result: item.deterministic_post_patch_result,
     rejection_reason: item.rejection_reason,
     call4_invoked: item.call4_invoked,
@@ -234,7 +303,7 @@ function repairContextFor(
     repair_attempt: attempt,
     prior_failure: priorFailure,
     retry_instruction: priorFailure.length
-      ? 'Your previous patch did not materially remove the blocked claim. Do not repeat or lightly paraphrase that claim. Rewrite only the minimum text necessary to satisfy the repair directive.'
+      ? 'Your previous patch did not materially remove the blocked claim and violated the supplied repair target. Do not repeat or lightly paraphrase the claim. Use only the allowed modality and strength recorded in the target; rewrite the minimum necessary text.'
       : undefined,
     affected_turns: defects.flatMap((defect) => defect.turn_ids.map((turnId) => {
       const located = byTurn.get(turnId);
@@ -249,6 +318,7 @@ function repairContextFor(
           repair_directive: defect.repair_directive, evidence_ids: defect.evidence_ids,
           invariant_ids: defect.invariant_ids,
         },
+        repair_target: repairTargets.find((target) => target.defect_id === defect.defect_id && target.turn_id === turnId),
         failing_turn: turn,
         previous_turn: located && located.index > 0 ? dialogue.turns[located.index - 1] : null,
         next_turn: located && located.index < dialogue.turns.length - 1 ? dialogue.turns[located.index + 1] : null,
@@ -271,6 +341,7 @@ function deterministicPostPatchValidation(
   analysis: EpisodeTeachingAnalysis,
   blueprint: EpisodeTeachingBlueprint,
   defects: CriticReview['defects'],
+  repairTargets: RepairTarget[],
   replacementTurnIds: string[],
 ) {
   const codes: string[] = [];
@@ -312,11 +383,30 @@ function deterministicPostPatchValidation(
   if (candidateHard.some((warning) => !originalHard.some((prior) => prior.turn_id === warning.turn_id && prior.phrase === warning.phrase))) {
     codes.push('PATCH_CREATED_NEW_HARD_BLOCKER');
   }
+  for (const target of repairTargets) {
+    const after = candidate.turns.find((turn) => turn.turn_id === target.turn_id)?.spoken_text || '';
+    const repairedModality = modalityFor(after);
+    const repairedStrength = strengthFor(after);
+    const permittedRank = Math.max(...target.allowed_modality.map((item) => modalityRank[item]));
+    if (modalityRank[repairedModality] > permittedRank) {
+      codes.push('PATCH_EXCEEDS_ALLOWED_MODALITY', `PATCH_EXCEEDS_ALLOWED_MODALITY:${target.turn_id}`);
+    }
+    if (target.allowed_strength === 'NEUTRAL' && strengthRank[repairedStrength] > strengthRank.NEUTRAL) {
+      codes.push('PATCH_EXCEEDS_ALLOWED_INTENSITY', `PATCH_EXCEEDS_ALLOWED_INTENSITY:${target.turn_id}`);
+    }
+    const forbidden = target.forbidden_forms.some((form) => form && new RegExp(`\\b${form.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&').replace(/\\s+/g, '\\s+')}\\b`, 'i').test(after));
+    if (forbidden) codes.push('PATCH_PRESERVES_MATERIAL_OVERSTATEMENT', `PATCH_PRESERVES_MATERIAL_OVERSTATEMENT:${target.turn_id}`);
+    const requiredTerms = target.source_supported_meaning.toLowerCase().match(/\b(?:election|leader|split|vote|term|retry|chance|candidate|timeout)\w*\b/g) || [];
+    if (requiredTerms.length && !requiredTerms.some((term) => after.toLowerCase().includes(term))) {
+      codes.push('PATCH_LOST_REQUIRED_PROPOSITION', `PATCH_LOST_REQUIRED_PROPOSITION:${target.turn_id}`);
+    }
+  }
   return {
     verdict: codes.length ? 'REPAIR_REQUIRED' as const : 'PASS' as const,
     codes: [...new Set(codes)],
     certaintyWarnings: candidateWarnings,
     certaintyHardBlockerTurnIds: [...new Set(candidateHard.map((warning) => warning.turn_id))],
+    targetCodes: codes.filter((code) => /^PATCH_(?:EXCEEDS_ALLOWED_MODALITY|EXCEEDS_ALLOWED_INTENSITY|PRESERVES_MATERIAL_OVERSTATEMENT|LOST_REQUIRED_PROPOSITION)/.test(code)),
   };
 }
 
@@ -494,11 +584,23 @@ export class TeachingEngineService {
     review: CriticReview,
     attempt: number,
     previousFailure?: FidelityRepairObservation[],
-  ): Promise<{ dialogue: ProductionDialogueScript; trace: TeachingStageInstrumentation; replacementTurnIds: string[] }> {
+  ): Promise<{ dialogue: ProductionDialogueScript; trace?: TeachingStageInstrumentation; replacementTurnIds: string[]; repairTargets: RepairTarget[]; repairMethod: 'TARGETED_MODEL' | 'DETERMINISTIC_INTENSITY_REMOVAL' }> {
     const hardDefects = review.defects.filter(isActionableDefect);
+    const repairTargets = compileRepairTargets(analysis, blueprint, dialogue, hardDefects);
+    const intensityOnly = hardDefects.length > 0 && hardDefects.every((defect) => defect.type === 'UNSUPPORTED_INTENSITY');
+    if (intensityOnly) {
+      const turns = dialogue.turns.map((turn) => {
+        if (!repairTargets.some((target) => target.turn_id === turn.turn_id)) return turn;
+        return { ...turn, spoken_text: turn.spoken_text.replace(intensityWords, '').replace(/\s{2,}/g, ' ').trim() };
+      });
+      const replacementTurnIds = turns.filter((turn, index) => turn.spoken_text !== dialogue.turns[index].spoken_text).map((turn) => turn.turn_id);
+      if (replacementTurnIds.length) {
+        return { dialogue: { ...dialogue, turns }, replacementTurnIds, repairTargets, repairMethod: 'DETERMINISTIC_INTENSITY_REMOVAL' };
+      }
+    }
     const { artifact: replacement, trace } = await this.callJson({
       stage: 'targeted_patch',
-      prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects, repairContextFor(analysis, blueprint, dialogue, hardDefects, attempt, previousFailure)),
+      prompt: patchPrompt(analysis, blueprint, dialogue, hardDefects, repairContextFor(analysis, blueprint, dialogue, hardDefects, repairTargets, attempt, previousFailure)),
       systemPrompt: patchSystemPrompt,
       model: config.teachingPatchModel, maxTokens: 4_000,
       parseResponse: parsePatchResponse,
@@ -522,6 +624,8 @@ export class TeachingEngineService {
       dialogue: { ...dialogue, turns: dialogue.turns.map((turn) => replacements.get(turn.turn_id) || turn) },
       trace,
       replacementTurnIds: [...replacements.keys()],
+      repairTargets,
+      repairMethod: 'TARGETED_MODEL',
     };
   }
 
@@ -587,14 +691,16 @@ export class TeachingEngineService {
         const repaired = await this.repairDialogue(analysis, blueprint, dialogue, fidelity, attempt, fidelityRepairObservations);
         const postPatchOpeningRepair = repairHost1ValidationOpenings(repaired.dialogue);
         host1OpeningRepairs = [...host1OpeningRepairs, ...postPatchOpeningRepair.repairs];
-        traces.push(repaired.trace);
+        if (repaired.trace) traces.push(repaired.trace);
         const deterministic = deterministicPostPatchValidation(
-          beforePatch, postPatchOpeningRepair.dialogue, analysis, blueprint, hardDefects, repaired.replacementTurnIds,
+          beforePatch, postPatchOpeningRepair.dialogue, analysis, blueprint, hardDefects, repaired.repairTargets, repaired.replacementTurnIds,
         );
         const observationBase = hardDefects.flatMap((defect) => defect.turn_ids.map((turnId) => ({
           defect_id: defect.defect_id,
           turn_id: turnId,
           defect_type: defect.type,
+          repair_target: repaired.repairTargets.find((target) => target.defect_id === defect.defect_id && target.turn_id === turnId),
+          repair_method: repaired.repairMethod,
           repair_attempt: attempt,
           original_text: beforePatch.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '',
           proposed_text: postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || '',
@@ -602,7 +708,10 @@ export class TeachingEngineService {
             verdict: deterministic.verdict,
             codes: deterministic.codes,
             certainty_hard_blocker_turn_ids: deterministic.certaintyHardBlockerTurnIds,
+            target_codes: deterministic.targetCodes,
           },
+          detected_repaired_modality: modalityFor(postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || ''),
+          detected_repaired_strength: strengthFor(postPatchOpeningRepair.dialogue.turns.find((turn) => turn.turn_id === turnId)?.spoken_text || ''),
           rejection_reason: deterministic.verdict === 'PASS' ? null : deterministic.codes.join(', '),
           no_op_retry_triggered: false,
           call4_invoked: false,
@@ -643,7 +752,7 @@ export class TeachingEngineService {
       }
       if (fidelity.defects.some((defect) => defect.severity === 'HARD_BLOCKER')) {
         const finalHardDefects = fidelity.defects.filter((defect) => defect.severity === 'HARD_BLOCKER');
-        const patchAttemptCount = traces.filter((trace) => trace.stage === 'targeted_patch').length;
+        const patchAttemptCount = new Set(fidelityRepairObservations.map((item) => item.repair_attempt)).size;
         const repairAttemptsExhausted = patchAttemptCount >= MAX_PATCH_ATTEMPTS;
         const finalRepairObservation = fidelityRepairObservations[fidelityRepairObservations.length - 1];
         console.warn('fidelity_gate.failed', {

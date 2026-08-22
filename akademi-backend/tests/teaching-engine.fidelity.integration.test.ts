@@ -347,7 +347,7 @@ describe('TeachingEngineService fidelity path', () => {
       defect_id: 'DEF_MATERIAL', type: 'UNSUPPORTED_INTENSITY', severity: 'MATERIAL_REPAIR', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
       description: '“Dramatically” materially strengthens the source claim.', repair_directive: 'Use the source-supported reduction claim without an unsupported intensity modifier.',
     };
-    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [material] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [material] }, { verdict: 'PASS', defects: [] }];
     (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
 
     const repaired = await new TeachingEngineService().generate('admin-user', {
@@ -355,6 +355,8 @@ describe('TeachingEngineService fidelity path', () => {
       complexity: 'STANDARD', durationMinutes: 8,
     });
     expect(repaired.fidelityRepairObservations).toEqual(expect.arrayContaining([expect.objectContaining({ defect_id: 'DEF_MATERIAL', final_status: 'REPAIRED' })]));
+    expect(repaired.fidelityRepairObservations).toEqual(expect.arrayContaining([expect.objectContaining({ repair_method: 'DETERMINISTIC_INTENSITY_REMOVAL' })]));
+    expect(aiProvider.generateResponseWithModel).toHaveBeenCalledTimes(5);
     expect(repaired.publicationFidelity).toMatchObject({ engine_verdict: 'PASS', publishable_for_audio: true });
 
     const soft = {
@@ -373,6 +375,35 @@ describe('TeachingEngineService fidelity path', () => {
       normalization_reason: 'ONLY_NON_BLOCKING_SOFT_DEFECTS_REMAIN', soft_warning_count: 1,
     });
     expect(prisma.teachingEpisode.create).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'READY_FOR_TTS' }) }));
+  });
+
+  it('compiles a capability-only target and rejects a necessity-preserving first patch before Call 4', async () => {
+    const original = script('The system must have a way to handle these rare cases after a split vote.');
+    const stillNecessary = { ...script('The system needs to handle these rare cases after a split vote.').turns[2] };
+    const capabilityRepair = { ...script('After a split vote, the cluster can start another election and get another opportunity to elect a leader.').turns[2] };
+    const defect = {
+      defect_id: 'DEF_CAPABILITY', type: 'CLAIM_EXAGGERATION', severity: 'MATERIAL_REPAIR', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: '“Must have a way” asserts required guaranteed handling beyond the source-supported recovery capability.',
+      repair_directive: 'Use only the supported capability that another election can occur.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [defect] }, { turns: [stillNecessary] }, { turns: [capabilityRepair] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: 'After a split vote, another election can occur and give the cluster another opportunity to elect a leader.' }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    const secondPatchPrompt = JSON.parse((aiProvider.generateResponseWithModel as jest.Mock).mock.calls[5][0]);
+    expect(secondPatchPrompt.repair_context.prior_failure[0].deterministic_result.target_codes)
+      .toEqual(expect.arrayContaining(['PATCH_EXCEEDS_ALLOWED_MODALITY', 'PATCH_PRESERVES_MATERIAL_OVERSTATEMENT']));
+    expect(secondPatchPrompt.repair_context.affected_turns[0].repair_target).toMatchObject({
+      detected_original_modality: 'NECESSITY', allowed_modality: expect.arrayContaining(['CAPABILITY']),
+    });
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ repair_attempt: 1, call4_invoked: false, rejection_reason: expect.stringContaining('PATCH_EXCEEDS_ALLOWED_MODALITY') }),
+      expect.objectContaining({ repair_attempt: 2, call4_invoked: true, final_status: 'REPAIRED' }),
+    ]));
   });
 
   it('escalates invariant-bound payload loss even when the critic calls it a soft warning', async () => {
@@ -415,7 +446,10 @@ describe('TeachingEngineService fidelity path', () => {
       name: 'TeachingFidelityGateError',
       diagnostic: expect.objectContaining({
         final_hard_defects: [expect.objectContaining({ defect_id: 'DEF_SURVIVES' })],
-        repair_observations: [expect.objectContaining({ repair_attempt: 1, final_status: 'FIDELITY_BLOCKER_SURVIVED' }), expect.objectContaining({ repair_attempt: 2, final_status: 'FIDELITY_BLOCKER_SURVIVED' })],
+        repair_observations: [
+          expect.objectContaining({ repair_attempt: 1, final_status: 'FIDELITY_BLOCKER_SURVIVED' }),
+          expect.objectContaining({ repair_attempt: 2, final_status: 'PATCH_FAILED_DETERMINISTIC_VALIDATION', rejection_reason: expect.stringContaining('PATCH_EXCEEDS_ALLOWED_MODALITY') }),
+        ],
       }),
     } as Partial<TeachingFidelityGateError>);
   });

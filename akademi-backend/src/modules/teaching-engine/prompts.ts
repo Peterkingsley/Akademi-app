@@ -12,7 +12,7 @@ export const PROMPT_VERSIONS = {
   blueprint: '0.3',
   dialogue: '0.2',
   fidelity: '0.2',
-  patch: '0.1',
+  patch: '0.2',
 } as const;
 
 const jsonOnly = 'Return one valid JSON object only. Do not use Markdown or reveal private reasoning.';
@@ -47,7 +47,8 @@ Recovery capability does not imply guaranteed eventual success. Distinguish care
 
 export const patchSystemPrompt = `${jsonOnly}
 You are Akademi's Targeted Dialogue Repair Engine. Replace only the affected dialogue turns.
-Preserve turn IDs, speaker assignments, intent, evidence bindings, invariant bindings, misconception bindings, and conversational continuity. Do not introduce facts. Do not regenerate unrelated turns.`;
+Preserve turn IDs, speaker assignments, intent, evidence bindings, invariant bindings, misconception bindings, and conversational continuity. Do not introduce facts. Do not regenerate unrelated turns.
+Each affected turn has a source-derived repair_target. Preserve the teaching point, but make the minimum change needed to stay within its allowed_modality and allowed_strength. Do not substitute one strong synonym for another. On a retry, use the previous target comparison and remove the failed modality or intensity exactly.`;
 
 export function analysisPrompt(sources: NormalizedSource[], learnerLevel: string, durationMinutes: number, focus: string | null) {
   return JSON.stringify({
