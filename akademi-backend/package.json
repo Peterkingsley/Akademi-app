@@ -27,6 +27,7 @@
     "check:elevenlabs": "tsx src/scripts/check-elevenlabs-voice.ts",
     "teaching:validate-live": "ts-node src/scripts/validate-teaching-engine-live.ts",
     "teaching:validate-audio-live": "TEACHING_AUDIO_BASELINE=true ts-node src/scripts/validate-teaching-engine-live.ts",
+    "teaching:render-audio": "ts-node src/scripts/render-frozen-teaching-audio.ts",
     "sync:typesense": "tsx src/shared/search/sync-all.ts",
     "migrate:dev": "prisma migrate dev",
     "test": "jest --runInBand",
