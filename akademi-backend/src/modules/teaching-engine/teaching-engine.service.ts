@@ -156,6 +156,11 @@ function normalizeFidelityReview(review: CriticReview, dialogue: ProductionDialo
     defects: review.defects.map((defect) => {
       const text = textForDefect(defect, dialogue);
       const negated = negatesAbsoluteIntensity(text);
+      // A critic may call this a warning, but omitting an invariant-bound payload
+      // leaves the learner with a changed mental model and is never publishable.
+      if (defect.type === 'PAYLOAD_LOSS' && defect.invariant_ids.length) {
+        return { ...defect, severity: 'HARD_BLOCKER' as const };
+      }
       if (defect.type === 'UNSUPPORTED_INTENSITY') {
         if (negated || !assertsMaterialIntensity(text)) return { ...defect, severity: 'SOFT_WARNING' as const };
         if (assertsAbsoluteElimination(text)) return { ...defect, severity: 'HARD_BLOCKER' as const };

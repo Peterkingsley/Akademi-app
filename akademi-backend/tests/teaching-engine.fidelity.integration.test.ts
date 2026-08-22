@@ -375,6 +375,25 @@ describe('TeachingEngineService fidelity path', () => {
     expect(prisma.teachingEpisode.create).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'READY_FOR_TTS' }) }));
   });
 
+  it('escalates invariant-bound payload loss even when the critic calls it a soft warning', async () => {
+    const original = script('A server becomes a candidate and asks for votes.');
+    const repairedTurn = { ...script('A server increments its term, becomes a candidate, votes for itself, and asks for votes.').turns[2] };
+    const payloadLoss = {
+      defect_id: 'DEF_PAYLOAD', type: 'PAYLOAD_LOSS', severity: 'SOFT_WARNING', turn_ids: ['T3'], concept_ids: ['CON_001'], invariant_ids: ['INV_001'], evidence_ids: ['EV_001'],
+      description: 'The turn omits a core invariant-bound candidate action.', repair_directive: 'Restore the omitted candidate action without changing the turn bindings.',
+    };
+    const responses = [analysis, blueprint, original, { verdict: 'REPAIR_REQUIRED', defects: [payloadLoss] }, { turns: [repairedTurn] }, { verdict: 'PASS', defects: [] }];
+    (aiProvider.generateResponseWithModel as jest.Mock).mockImplementation(async () => ({ text: JSON.stringify(responses.shift()), model: 'test-model' }));
+
+    const result = await new TeachingEngineService().generate('admin-user', {
+      sources: [{ source_id: 'SRC_001', type: 'PASTED_TEXT', title: 'Raft excerpt', segments: [{ segment_id: 'SEG_001', text: analysis.evidence_registry[0].verbatim_span }] }],
+      complexity: 'STANDARD', durationMinutes: 8,
+    });
+
+    expect(result.fidelityRepairObservations).toEqual(expect.arrayContaining([expect.objectContaining({ defect_id: 'DEF_PAYLOAD', final_status: 'REPAIRED' })]));
+    expect(result.publicationFidelity).toMatchObject({ engine_verdict: 'PASS', publishable_for_audio: true });
+  });
+
   it('returns a controlled diagnostic when the second local repair still leaves a fidelity blocker', async () => {
     const original = script('A split vote becomes permanently stuck once it happens.');
     const changedButStillWrong = { ...script('A split vote stays permanently stuck, so no leader can be chosen.').turns[2] };
