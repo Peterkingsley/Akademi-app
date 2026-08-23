@@ -53,15 +53,15 @@ test("API content is inserted as text rather than unsafe HTML", () => {
   assert.match(script, /aria-checked/);
 });
 
-test("direct try and future exam-prep paths rewrite to the demo document", () => {
+test("direct try redirects to the canonical route and nested paths rewrite to the demo document", () => {
   const redirects = read("_redirects");
-  assert.match(redirects, /^\/try\s+\/try\/index\.html\s+200/m);
+  assert.match(redirects, /^\/try\s+\/try\/\s+301/m);
   assert.match(redirects, /^\/try\/\*\s+\/try\/index\.html\s+200/m);
 });
 
 test("the landing hero leads with Try Akademi and preserves the waitlist", () => {
   const html = read("index.html");
-  const tryPosition = html.indexOf('<a class="button primary" href="/try">Try Akademi</a>');
+  const tryPosition = html.indexOf('<a class="button primary" href="/try/">Try Akademi</a>');
   const waitlistPosition = html.indexOf('<a class="button secondary" href="#waitlist">Join the waitlist</a>');
   assert.ok(tryPosition >= 0);
   assert.ok(waitlistPosition > tryPosition);

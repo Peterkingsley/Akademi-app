@@ -1,3 +1,3 @@
-/try             /try/index.html   200
+/try             /try/             301
 /try/*           /try/index.html   200
 /*    /index.html   200
