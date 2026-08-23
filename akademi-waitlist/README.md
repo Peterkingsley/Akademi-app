@@ -2,6 +2,20 @@
 
 This folder is a standalone static landing page for the Akademi beta waitlist.
 
+## Public guided demo
+
+The interactive guided Exam Prep experience is available at `/try` and
+`/try/exam-prep`. It uses the backend's anonymous `/demo/exam-prep` API and
+keeps the existing waitlist form as the post-demo conversion.
+
+The backend must be configured with a comma-separated allowlist of verified,
+Akademi-generated material UUIDs in `DEMO_EXAM_PREP_MATERIAL_IDS`. An empty
+allowlist safely shows no public materials. Demo sessions are stored in Redis,
+expire after 45 minutes by default, and allow three evaluated questions.
+
+The existing first-party analytics endpoint accepts the demo funnel events
+documented in the repository's public-demo implementation notes.
+
 ## Render Static Site Settings
 
 - Root Directory: `akademi-waitlist`

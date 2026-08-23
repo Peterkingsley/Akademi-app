@@ -18,6 +18,14 @@ services:
         value: "JBFqnCBsd6RMkjVDRZzb"
       - key: ENABLE_REDIS
         value: "true"
+      - key: DEMO_EXAM_PREP_MATERIAL_IDS
+        sync: false
+      - key: DEMO_EXAM_PREP_QUESTION_LIMIT
+        value: "3"
+      - key: DEMO_EXAM_PREP_SESSION_TTL_SECONDS
+        value: "2700"
+      - key: DEMO_EXAM_PREP_QUESTION_POOL_SIZE
+        value: "12"
       - key: ENABLE_TUTOR_IMAGE_GENERATION
         value: "true"
       - key: EXPO_PUBLIC_SENTRY_DSN

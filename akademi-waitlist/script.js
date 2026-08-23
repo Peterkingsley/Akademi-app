@@ -170,7 +170,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = LOOKUP_FETCH_TIME
   }
 }
 
-const RESERVED_PATH_CODES = new Set(["index.html", "styles.css", "script.js", "assets", "favicon.ico"]);
+const RESERVED_PATH_CODES = new Set(["index.html", "styles.css", "script.js", "assets", "favicon.ico", "try"]);
 
 function getPathReferralCode() {
   const segments = window.location.pathname.split("/").filter(Boolean);

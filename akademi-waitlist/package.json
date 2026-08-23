@@ -1,0 +1,8 @@
+{
+  "name": "akademi-waitlist",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/try-page.test.js",
+    "check": "node --check script.js && node --check try/script.js && npm test"
+  }
+}

@@ -176,6 +176,30 @@ export const generalOptionalApiLimiter = createRateLimiter({
   strategy: 'hybrid',
 });
 
+export const demoExamPrepGeneralRateLimiter = createRateLimiter({
+  namespace: 'demo-exam-prep-general',
+  windowMs: 15 * 60 * 1000,
+  max: 90,
+  strategy: 'ip',
+  message: 'Too many demo requests. Please wait a moment and try again.',
+});
+
+export const demoExamPrepSessionRateLimiter = createRateLimiter({
+  namespace: 'demo-exam-prep-session',
+  windowMs: 60 * 60 * 1000,
+  max: 8,
+  strategy: 'ip',
+  message: 'You have started several demos. Please try again later.',
+});
+
+export const demoExamPrepSubmitRateLimiter = createRateLimiter({
+  namespace: 'demo-exam-prep-submit',
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  strategy: 'ip',
+  message: 'You have reached the public demo limit. Please try again later.',
+});
+
 export const authLoginRateLimiter = createRateLimiter({
   namespace: 'auth-login',
   windowMs: 10 * 60 * 1000,

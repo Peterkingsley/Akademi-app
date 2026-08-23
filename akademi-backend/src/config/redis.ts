@@ -9,7 +9,7 @@ type RedisLike = {
   duplicate: () => RedisLike;
   get: (key: string) => Promise<string | null>;
   setEx: (key: string, ttlSeconds: number, value: string) => Promise<void>;
-  set: (key: string, value: string, options?: { EX?: number }) => Promise<void>;
+  set: (key: string, value: string, options?: { EX?: number; NX?: boolean }) => Promise<string | null>;
   incr: (key: string) => Promise<number>;
   expire: (key: string, ttlSeconds: number) => Promise<void>;
   ttl: (key: string) => Promise<number>;
@@ -60,11 +60,13 @@ function createInMemoryRedis(): RedisLike {
       store.set(key, { value, expiresAt: getNow() + ttlSeconds * 1000 });
     },
     async set(key, value, options) {
+      if (options?.NX && getEntry(key)) return null;
       const ttlSeconds = options?.EX;
       store.set(key, {
         value,
         expiresAt: typeof ttlSeconds === 'number' ? getNow() + ttlSeconds * 1000 : undefined,
       });
+      return 'OK';
     },
     async incr(key) {
       const cur = Number(getEntry(key)?.value ?? 0) + 1;
@@ -199,7 +201,7 @@ const redisClient: RedisLike = {
     await withRedisFallback('setEx', undefined, client => client.setEx(key, ttlSeconds, value));
   },
   async set(key, value, options) {
-    await withRedisFallback('set', undefined, client => client.set(key, value, options));
+    return withRedisFallback('set', null, client => client.set(key, value, options as any));
   },
   async incr(key) {
     return withRedisFallback('incr', 0, client => client.incr(key));

@@ -42,6 +42,15 @@ const ALLOWED_WAITLIST_EVENTS = new Set([
   'waitlist_school_selected',
   'waitlist_submit_success',
   'waitlist_redirect_whatsapp',
+  'try_page_viewed',
+  'demo_material_selected',
+  'demo_question_answered',
+  'demo_reasoning_submitted',
+  'demo_feedback_viewed',
+  'demo_retry_yes',
+  'demo_retry_no',
+  'demo_completed',
+  'demo_conversion_clicked',
 ]);
 
 export class WaitlistService {

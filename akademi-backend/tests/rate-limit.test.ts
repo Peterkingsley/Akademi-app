@@ -24,7 +24,7 @@ jest.mock('../src/config/redis', () => ({
   },
 }));
 
-import { createRateLimiter } from '../src/shared/middleware/rate-limit';
+import { createRateLimiter, demoExamPrepSessionRateLimiter } from '../src/shared/middleware/rate-limit';
 
 function createMockReq(overrides: Record<string, any> = {}) {
   return {
@@ -139,6 +139,25 @@ describe('createRateLimiter', () => {
       reason: 'rate_limited',
     });
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it('enforces the dedicated public demo session budget', async () => {
+    let count = 0;
+    incrMock.mockImplementation(async () => ++count);
+    expireMock.mockResolvedValue(undefined);
+    ttlMock.mockResolvedValue(3600);
+    const req = createMockReq({ path: '/demo/exam-prep/sessions', originalUrl: '/demo/exam-prep/sessions', method: 'POST' });
+    const next = jest.fn();
+
+    for (let index = 0; index < 8; index += 1) {
+      await demoExamPrepSessionRateLimiter(req, createMockRes(), next);
+    }
+    const blocked = createMockRes();
+    await demoExamPrepSessionRateLimiter(req, blocked, next);
+
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.jsonBody).toMatchObject({ limitScope: 'demo-exam-prep-session', reason: 'rate_limited' });
+    expect(next).toHaveBeenCalledTimes(8);
   });
 
   it('falls back to the in-memory bucket (fail closed) when Redis incr signals unavailability', async () => {

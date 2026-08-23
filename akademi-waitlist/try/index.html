@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b0b" />
+    <meta
+      name="description"
+      content="Try a real Akademi guided Exam Prep question. Explain your thinking and learn what to study next."
+    />
+    <meta property="og:title" content="Don't take our word for it. Try Akademi." />
+    <meta
+      property="og:description"
+      content="Answer a real question, explain your reasoning, and see how Akademi teaches the weakness."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://akademi.study/assets/hero-phone.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>Try Akademi</title>
+    <link rel="preconnect" href="https://api.fontshare.com" />
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/try/styles.css" />
+  </head>
+  <body>
+    <div class="try-page">
+      <header class="try-header">
+        <a href="/" class="try-brand" aria-label="Akademi home">
+          <img src="/assets/akademi-logo.png" alt="Akademi" />
+        </a>
+        <a href="/#waitlist" class="header-join" data-conversion="header">Join the waitlist</a>
+      </header>
+
+      <main>
+        <section class="try-intro" aria-labelledby="try-title">
+          <p class="eyebrow">A real guided Exam Prep experience</p>
+          <h1 id="try-title">Don't take our word for it.</h1>
+          <h2>Try a question.</h2>
+          <p>See how Akademi studies how you think, not just whether you picked the right answer.</p>
+        </section>
+
+        <section class="device-stage" aria-label="Interactive Akademi demo">
+          <div class="phone-shell">
+            <div class="phone-sensor" aria-hidden="true"></div>
+            <div class="app-window">
+              <div class="app-status" aria-hidden="true">
+                <span>AKADEMI</span>
+                <span class="status-dot"></span>
+                <span>GUIDED STUDY</span>
+              </div>
+              <div id="demoScreen" class="demo-screen" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <p id="announcer" class="sr-only" role="status" aria-live="polite"></p>
+      <noscript>You need JavaScript enabled to try the interactive Akademi demo.</noscript>
+    </div>
+    <script src="/try/script.js"></script>
+  </body>
+</html>
