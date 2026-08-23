@@ -3,7 +3,7 @@ import { Difficulty, Prisma, QuestionType, VerificationStatus } from '@prisma/cl
 import prisma from '../../config/db';
 import redisClient, { getRedisHealth } from '../../config/redis';
 import { semanticSimilarity } from '../../jobs/generateQuestions.job';
-import { ExamPrepFeedbackService } from '../exam-prep/exam-prep-feedback.service';
+import { buildFallbackFeedback, ExamPrepFeedbackService } from '../exam-prep/exam-prep-feedback.service';
 import { ExamPrepTeachingFeedback } from '../exam-prep/exam-prep.types';
 import {
   normalizeExamPrepAnswer,
@@ -38,6 +38,7 @@ const LOCK_PREFIX = 'demo:exam-prep:submit-lock:';
 const fallbackSessions = new Map<string, DemoSessionState>();
 const fallbackLocks = new Set<string>();
 const MAX_FALLBACK_SESSIONS = 1_000;
+const DEMO_FEEDBACK_DEADLINE_MS = 25_000;
 
 function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number) {
   const parsed = Number.parseInt(value || '', 10);
@@ -86,7 +87,30 @@ function sessionKey(id: string) {
 }
 
 export class DemoExamPrepService {
-  constructor(private readonly feedbackService = new ExamPrepFeedbackService()) {}
+  constructor(
+    private readonly feedbackService = new ExamPrepFeedbackService(),
+    private readonly feedbackDeadlineMs = DEMO_FEEDBACK_DEADLINE_MS,
+  ) {}
+
+  private async generateFeedback(
+    input: Parameters<ExamPrepFeedbackService['generate']>[0],
+  ): Promise<ExamPrepTeachingFeedback> {
+    let deadline: ReturnType<typeof setTimeout> | null = null;
+    const canonicalFallback = new Promise<ExamPrepTeachingFeedback>((resolve) => {
+      deadline = setTimeout(() => {
+        console.warn('Public Exam Prep feedback exceeded its deadline; returning canonical feedback.');
+        resolve(buildFallbackFeedback(input));
+      }, this.feedbackDeadlineMs);
+    });
+    try {
+      return await Promise.race([
+        this.feedbackService.generate(input),
+        canonicalFallback,
+      ]);
+    } finally {
+      if (deadline) clearTimeout(deadline);
+    }
+  }
 
   private async saveSession(state: DemoSessionState) {
     const config = getDemoExamPrepConfig();
@@ -379,7 +403,7 @@ export class DemoExamPrepService {
         courseCode: material.course_code,
         requiresCalculationTeaching: question.question_type === QuestionType.CALCULATION,
       };
-      const feedback = await this.feedbackService.generate(feedbackInput);
+      const feedback = await this.generateFeedback(feedbackInput);
       const correctionMessage = state.activeRetry && feedback.isCorrect &&
         (feedback.reasoningAssessment.qualityScore === null || feedback.reasoningAssessment.qualityScore >= 60)
         ? 'You corrected it.'

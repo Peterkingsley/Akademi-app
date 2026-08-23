@@ -30,6 +30,7 @@ const state = {
   attempt: null,
   loading: true,
   busy: false,
+  feedbackSlow: false,
   error: "",
   view: "materials",
 };
@@ -365,7 +366,9 @@ function renderReasoningCard() {
   input.setAttribute("aria-label", "Explain why you chose this answer");
   const count = create("span", "character-count", `${state.reasoning.length}/2,000`);
   const submit = button(
-    state.busy ? "Checking your reasoning..." : "Check my reasoning",
+    state.busy
+      ? (state.feedbackSlow ? "Still preparing your feedback..." : "Checking your reasoning...")
+      : "Check my reasoning",
     "primary-button",
     () => void submitReasoning(),
     { disabled: state.busy || Boolean(state.attempt) || state.reasoning.trim().length < 5 },
@@ -514,8 +517,15 @@ async function startDemo(material) {
 async function submitReasoning() {
   if (state.busy || !state.session?.currentQuestion || state.reasoning.trim().length < 5) return;
   state.busy = true;
+  state.feedbackSlow = false;
   state.error = "";
   renderSession();
+  const slowFeedbackTimer = window.setTimeout(() => {
+    if (!state.busy || state.attempt) return;
+    state.feedbackSlow = true;
+    renderSession();
+    announce("Akademi is still preparing your feedback.");
+  }, 8000);
   const question = state.session.currentQuestion;
   void track("demo_reasoning_submitted", {
     material_id: state.session.material.id,
@@ -549,7 +559,9 @@ async function submitReasoning() {
       state.session = null;
     }
   } finally {
+    window.clearTimeout(slowFeedbackTimer);
     state.busy = false;
+    state.feedbackSlow = false;
     if (state.session) renderSession();
     else void loadMaterials();
   }

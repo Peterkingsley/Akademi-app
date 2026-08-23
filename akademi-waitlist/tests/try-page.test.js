@@ -45,6 +45,8 @@ test("reasoning feedback has a longer timeout and never exposes a raw abort erro
   assert.match(script, /FEEDBACK_API_TIMEOUT_MS,\s*\);/);
   assert.match(script, /error\?\.name === "AbortError"/);
   assert.match(script, /Akademi is taking longer than expected to prepare your feedback/);
+  assert.match(script, /Still preparing your feedback/);
+  assert.match(script, /}, 8000\);/);
 });
 
 test("all requested funnel analytics hooks are present", () => {

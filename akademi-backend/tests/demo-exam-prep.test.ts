@@ -128,6 +128,26 @@ describe('public guided Exam Prep demo', () => {
     });
   });
 
+  it('returns grounded canonical feedback when personalized generation exceeds the demo deadline', async () => {
+    const { generate } = arrangeCatalog();
+    generate.mockImplementation(() => new Promise(() => undefined));
+    const service = new DemoExamPrepService({ generate } as any, 5);
+    const session = await service.startSession(material.id);
+    const questionId = session.currentQuestion!.id;
+
+    const attempt = await service.submit(session.id, questionId, {
+      selectedAnswer: correctAnswer(questionId),
+      reasoning: 'I applied the force and acceleration relationship from the material.',
+    });
+
+    expect(attempt.feedback).toMatchObject({
+      isCorrect: true,
+      personalized: false,
+      verdict: 'CORRECT',
+    });
+    expect(attempt.feedback.teachingExplanation.whyCorrect).toBeTruthy();
+  });
+
   it('returns an existing evaluation idempotently without consuming another feedback call', async () => {
     const { service, generate } = arrangeCatalog();
     const session = await service.startSession(material.id);
