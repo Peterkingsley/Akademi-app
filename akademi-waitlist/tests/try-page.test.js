@@ -15,6 +15,15 @@ test("the public try route contains the focused interactive product shell", () =
   assert.match(html, /viewport-fit=cover/);
 });
 
+test("the mobile layout preserves the visible phone frame", () => {
+  const styles = read("try/styles.css");
+  const mobileRules = styles.slice(styles.indexOf("@media (max-width: 600px)"));
+  assert.match(mobileRules, /\.phone-shell\s*\{[\s\S]*?border:\s*1px solid/);
+  assert.match(mobileRules, /\.phone-shell\s*\{[\s\S]*?border-radius:\s*38px/);
+  assert.match(mobileRules, /\.phone-sensor\s*\{\s*display:\s*block/);
+  assert.doesNotMatch(mobileRules, /\.phone-shell\s*\{[^}]*border:\s*0/);
+});
+
 test("the browser journey covers material, reasoning, retry, continue, and conversion calls", () => {
   const script = read("try/script.js");
   [

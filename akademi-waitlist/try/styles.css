@@ -254,21 +254,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .sr-only { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0,0,0,0); white-space: nowrap; }
 
 @media (max-width: 600px) {
-  body { background: var(--app); }
-  .try-page { padding: 0; }
-  .try-header { background: var(--app); padding: max(14px, env(safe-area-inset-top)) 18px 12px; }
+  .try-page { padding: max(14px, env(safe-area-inset-top)) 12px 42px; }
+  .try-header { padding: 0 4px 12px; }
   .try-brand img { height: 32px; }
   .header-join { font-size: 11px; padding: 9px 12px; }
-  .try-intro { background: var(--app); margin: 0; padding: 24px 22px 22px; }
+  .try-intro { margin: 0; padding: 24px 10px 22px; }
   .try-intro .eyebrow { font-size: 9px; }
   .try-intro h1, .try-intro h2 { font-size: 34px; }
   .try-intro > p:last-child { font-size: 13px; margin-top: 14px; }
-  .phone-shell { border: 0; border-radius: 0; box-shadow: none; max-width: none; min-height: 0; padding: 0; }
-  .phone-sensor, .app-status { display: none; }
-  .app-window { border-radius: 0; min-height: 0; }
-  .demo-screen { min-height: calc(100vh - 235px); }
-  .screen-content { padding-bottom: max(36px, env(safe-area-inset-bottom)); }
-  .conversion { min-height: calc(100vh - 235px); }
+  .device-stage { padding: 0 2px; }
+  .phone-shell {
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 38px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.65), 0 0 38px rgba(74,222,128,.07), inset 0 0 0 5px #171a18;
+    max-width: 430px;
+    min-height: 0;
+    padding: 10px;
+  }
+  .phone-sensor { display: block; height: 21px; top: 8px; width: 96px; }
+  .app-status { display: flex; min-height: 38px; padding-top: 7px; }
+  .app-window { border-radius: 29px; min-height: 0; }
+  .demo-screen { min-height: calc(100vh - 300px); }
+  .screen-content { padding: 18px 15px max(36px, env(safe-area-inset-bottom)); }
+  .conversion { min-height: calc(100vh - 300px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
