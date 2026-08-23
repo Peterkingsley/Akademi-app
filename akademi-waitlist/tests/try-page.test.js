@@ -39,6 +39,14 @@ test("the browser journey covers material, reasoning, retry, continue, and conve
   ].forEach((contract) => assert.ok(script.includes(contract), `missing ${contract}`));
 });
 
+test("reasoning feedback has a longer timeout and never exposes a raw abort error", () => {
+  const script = read("try/script.js");
+  assert.match(script, /const FEEDBACK_API_TIMEOUT_MS = 60000/);
+  assert.match(script, /FEEDBACK_API_TIMEOUT_MS,\s*\);/);
+  assert.match(script, /error\?\.name === "AbortError"/);
+  assert.match(script, /Akademi is taking longer than expected to prepare your feedback/);
+});
+
 test("all requested funnel analytics hooks are present", () => {
   const script = read("try/script.js");
   [

@@ -15,6 +15,8 @@ const API_URLS = parseUrls(
 );
 const SESSION_STORAGE_KEY = "akademi_demo_exam_prep_session";
 const VISITOR_STORAGE_KEY = "akademi_waitlist_visitor_id";
+const DEFAULT_API_TIMEOUT_MS = 15000;
+const FEEDBACK_API_TIMEOUT_MS = 60000;
 const analyticsSessionId = `demo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const trackedSelections = new Set();
 let currentApiBaseUrl = API_URLS[0];
@@ -68,7 +70,7 @@ function attribution() {
   };
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_API_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -102,14 +104,14 @@ async function track(eventName, metadata = {}, options = {}) {
   return false;
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, timeoutMs = DEFAULT_API_TIMEOUT_MS) {
   let lastError = null;
   for (const baseUrl of API_URLS) {
     try {
       const response = await fetchWithTimeout(`${baseUrl}${path}`, {
         ...options,
         headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      });
+      }, timeoutMs);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new DemoApiError(
@@ -121,7 +123,13 @@ async function api(path, options = {}) {
       currentApiBaseUrl = baseUrl;
       return data;
     } catch (error) {
-      lastError = error;
+      lastError = error?.name === "AbortError"
+        ? new DemoApiError(
+          "Akademi is taking longer than expected to prepare your feedback. Please try again.",
+          "DEMO_REQUEST_TIMEOUT",
+          504,
+        )
+        : error;
       if (error instanceof DemoApiError && error.status < 500) throw error;
     }
   }
@@ -521,6 +529,7 @@ async function submitReasoning() {
         method: "POST",
         body: JSON.stringify({ selectedAnswer: state.selectedAnswer, reasoning: state.reasoning }),
       },
+      FEEDBACK_API_TIMEOUT_MS,
     );
     state.attempt = attempt;
     state.session.currentAttempt = attempt;
