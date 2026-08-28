@@ -80,6 +80,7 @@ export interface UserListFilter {
   level?: string | number;
   courseCode?: string;
   featureUsed?: 'assignment' | 'study' | 'exam_prep' | 'uploads' | 'cbt';
+  supportCandidates?: boolean | string;
   page?: number;
   limit?: number;
   sortBy?: string;

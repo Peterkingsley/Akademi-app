@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Audio } from "expo-av";
+import { type AudioRecorder, useAudioRecorder } from "expo-audio";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { Mic, Route as RouteIcon, Send, Upload, X } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -39,6 +39,7 @@ import {
 import { useTheme } from "../../theme/ThemeContext";
 import { typography } from "../../theme/typography";
 import {
+  akademiRecordingOptions,
   prepareAudioRecording,
   requestMicrophonePermission,
   speakAiTextStream,
@@ -221,7 +222,8 @@ export const StudyCompanionScreen: React.FC = () => {
   const [startingMode, setStartingMode] = useState<StartMode | null>(null);
   const [selectedStartMode, setSelectedStartMode] = useState<StartMode>("beginning");
   const [specificSection, setSpecificSection] = useState("");
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(akademiRecordingOptions);
+  const [recording, setRecording] = useState<AudioRecorder | null>(null);
   const [recordingStatus, setRecordingStatus] = useState("");
   const [voiceUnavailable, setVoiceUnavailable] = useState<{ messageId: string; content: string } | null>(null);
   const [composerVisible, setComposerVisible] = useState(true);
@@ -566,7 +568,7 @@ export const StudyCompanionScreen: React.FC = () => {
   useEffect(() => {
     return () => {
       if (recording) {
-        recording.stopAndUnloadAsync().catch(() => undefined);
+        recording.stop().catch(() => undefined);
       }
       void stopAiSpeech();
       cancelRevealTimer();
@@ -643,7 +645,7 @@ export const StudyCompanionScreen: React.FC = () => {
           await stopPlaybackNow();
         }
 
-        const nextRecording = await prepareAudioRecording();
+        const nextRecording = await prepareAudioRecording(recorder);
         setRecording(nextRecording);
         setRecordingStatus("Recording...");
         setTutorState("recording");
@@ -1547,4 +1549,3 @@ const createStyles = (colors: typeof import("../../theme/colors").darkPalette) =
       height: 34,
     },
   });
-

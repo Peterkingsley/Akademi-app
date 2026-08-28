@@ -10,7 +10,7 @@ import { AdminStackParamList } from "../../../navigation/types";
 import { Badge } from "../../../components/ui/Badge";
 import api from "../../../services/api";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { LinearGradient } from "expo-linear-gradient";
 
 // Dedicated screen for the one specific case DisciplineDocumentsScreen's general-purpose

@@ -12,7 +12,7 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { useAuthStore } from "../../../store/useAuthStore";
 import api from "../../../services/api";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { LinearGradient } from "expo-linear-gradient";
 
 type UniversityOption = { id: string; name: string; location?: string; type?: string };

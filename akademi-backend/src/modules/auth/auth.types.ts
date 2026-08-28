@@ -15,22 +15,10 @@ export interface AuthResponse {
 
 export interface RegisterRequest {
   name: string;
+  phoneNumber: string;
   email: string;
-  university: string;
-  faculty: string;
-  department: string;
-  level: number;
-  semester?: number;
-  semesterStart?: string;
-  semesterEnd?: string;
-  password?: string;
-  courses?: string[];
-  academicCourses?: Array<{
-    code: string;
-    name?: string;
-    level?: number;
-    semester?: number;
-  }>;
+  password: string;
+  supportContactOptIn?: boolean;
 }
 
 export interface LoginRequest {

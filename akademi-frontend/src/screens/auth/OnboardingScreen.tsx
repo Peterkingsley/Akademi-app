@@ -42,7 +42,7 @@ export const OnboardingScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate("UniversityPicker");
+    navigation.navigate("Register");
   };
 
   const handleLogin = () => {

@@ -12,10 +12,10 @@ export interface UpdateProfileRequest {
 export interface AcademicCourseInput {
   code: string;
   name?: string | null;
-  level: number;
-  semester: number;
-  semester_start: string;
-  semester_end: string;
+  level?: number;
+  semester?: number;
+  semester_start?: string;
+  semester_end?: string;
 }
 
 export interface UpdateAcademicProfileRequest {
@@ -40,10 +40,11 @@ export interface UserProfileResponse {
   id: string;
   name: string;
   email: string;
-  university: string;
-  faculty: string;
-  department: string;
-  level: number;
+  university: string | null;
+  faculty: string | null;
+  department: string | null;
+  level: number | null;
+  needs_onboarding: boolean;
   profile_photo_url: string | null;
   created_at: Date;
   updated_at: Date;

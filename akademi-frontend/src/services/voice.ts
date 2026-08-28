@@ -1,6 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system";
+import {
+  AudioQuality,
+  createAudioPlayer,
+  IOSOutputFormat,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  type AudioPlayer,
+  type AudioRecorder,
+  type AudioStatus,
+  type RecordingOptions,
+} from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
 import api, { currentApiBaseUrl, refreshAccessToken } from "./api";
 import { readAccessToken } from "./tokenStorage";
 
@@ -23,15 +33,46 @@ type SpeechRecognitionModuleLike = {
   ) => { remove: () => void };
 };
 
+type AudioPlayerWithEvents = AudioPlayer & {
+  addListener: (
+    eventName: "playbackStatusUpdate",
+    listener: (status: AudioStatus) => void,
+  ) => { remove: () => void };
+};
+
 let speechRecognitionBridgeCache:
   | {
       module: SpeechRecognitionModuleLike | null;
       isAvailable: boolean;
     }
   | null = null;
-let activeAiSound: Audio.Sound | null = null;
+let activeAiPlayer: AudioPlayer | null = null;
 let activeAiAudioUri: string | null = null;
 let activeAiPlaybackResolver: (() => void) | null = null;
+
+export const akademiRecordingOptions: RecordingOptions = {
+  extension: ".m4a",
+  sampleRate: 44100,
+  numberOfChannels: 1,
+  bitRate: 128000,
+  android: {
+    extension: ".m4a",
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
+  },
+  ios: {
+    extension: ".m4a",
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.HIGH,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {
+    mimeType: "audio/mp4",
+    bitsPerSecond: 128000,
+  },
+};
 
 export const appendTranscript = (existing: string, transcript: string, multiline = false) => {
   const trimmed = transcript.trim();
@@ -44,52 +85,29 @@ export const appendTranscript = (existing: string, transcript: string, multiline
 };
 
 export const requestMicrophonePermission = async () => {
-  const permission = await Audio.requestPermissionsAsync();
+  const permission = await requestRecordingPermissionsAsync();
   return permission.granted;
 };
 
-export const prepareAudioRecording = async () => {
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
+export const prepareAudioRecording = async (recorder: AudioRecorder) => {
+  await setAudioModeAsync({
+    allowsRecording: true,
+    playsInSilentMode: true,
   });
 
-  const recording = new Audio.Recording();
-  await recording.prepareToRecordAsync({
-    android: {
-      extension: ".m4a",
-      outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-      audioEncoder: Audio.AndroidAudioEncoder.AAC,
-      sampleRate: 44100,
-      numberOfChannels: 1,
-      bitRate: 128000,
-    },
-    ios: {
-      extension: ".m4a",
-      outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-      audioQuality: Audio.IOSAudioQuality.HIGH,
-      sampleRate: 44100,
-      numberOfChannels: 1,
-      bitRate: 128000,
-      linearPCMBitDepth: 16,
-      linearPCMIsBigEndian: false,
-      linearPCMIsFloat: false,
-    },
-    web: {},
-  });
-
-  await recording.startAsync();
-  return recording;
+  await recorder.prepareToRecordAsync(akademiRecordingOptions);
+  recorder.record();
+  return recorder;
 };
 
-export const stopRecording = async (recording: Audio.Recording) => {
-  await recording.stopAndUnloadAsync();
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: false,
-    playsInSilentModeIOS: true,
+export const stopRecording = async (recorder: AudioRecorder) => {
+  await recorder.stop();
+  await setAudioModeAsync({
+    allowsRecording: false,
+    playsInSilentMode: true,
   });
 
-  return recording.getURI();
+  return recorder.uri;
 };
 
 export const transcribeAudioUri = async (uri: string, name = "voice-input.m4a") => {
@@ -121,11 +139,11 @@ export const setAiVoiceEnabled = async (enabled: boolean) => {
 export const stopAiSpeech = async () => {
   activeAiPlaybackResolver?.();
   activeAiPlaybackResolver = null;
-  if (activeAiSound) {
-    const sound = activeAiSound;
-    activeAiSound = null;
-    await sound.stopAsync().catch(() => undefined);
-    await sound.unloadAsync().catch(() => undefined);
+  if (activeAiPlayer) {
+    const player = activeAiPlayer;
+    activeAiPlayer = null;
+    player.pause();
+    player.remove();
   }
   if (activeAiAudioUri) {
     const uri = activeAiAudioUri;
@@ -260,23 +278,16 @@ export const speakAiText = async (content: string) => {
     });
 
     activeAiAudioUri = uri;
-    const { sound } = await Audio.Sound.createAsync(
-      { uri },
-      {
-        shouldPlay: true,
-        volume: 1,
-      },
-    );
-    activeAiSound = sound;
+    const player = createAudioPlayer({ uri }, { updateInterval: 100 });
+    activeAiPlayer = player;
+    player.volume = 1;
+    player.play();
 
     await new Promise<void>((resolve) => {
       activeAiPlaybackResolver = resolve;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) {
-          resolve();
-          return;
-        }
+      const subscription = (player as AudioPlayerWithEvents).addListener("playbackStatusUpdate", (status) => {
         if (status.didJustFinish) {
+          subscription.remove();
           resolve();
         }
       });
@@ -285,10 +296,10 @@ export const speakAiText = async (content: string) => {
     console.warn("tts_unavailable", { source: "speakAiText", error });
   } finally {
     activeAiPlaybackResolver = null;
-    if (activeAiSound) {
-      const sound = activeAiSound;
-      activeAiSound = null;
-      await sound.unloadAsync().catch(() => undefined);
+    if (activeAiPlayer) {
+      const player = activeAiPlayer;
+      activeAiPlayer = null;
+      player.remove();
     }
     if (activeAiAudioUri) {
       const uri = activeAiAudioUri;
@@ -311,7 +322,7 @@ type FailureInfo = {
   resetSeconds?: number;
 };
 
-// The Audio.Sound request below hits the raw stream URL directly and never
+// The expo-audio request below hits the raw stream URL directly and never
 // goes through axios, so a 429 (rate limited), 503 (backend/upstream busy),
 // or 404 (stream record missing/expired on this replica) never gets the
 // retry/refresh treatment axios calls get automatically. This does a
@@ -362,7 +373,7 @@ const probeStreamAudioStatus = async (url: string, token: string): Promise<Failu
 };
 
 // axios rejects with error.response for non-2xx, carrying the same JSON body
-// and rate-limit headers the raw fetch probe above reads for Audio.Sound
+// and rate-limit headers the raw fetch probe above reads for native playback
 // failures - unify both into the same shape so the retry loop doesn't need
 // to know which path a failure came from.
 const extractAxiosFailureInfo = (error: any): FailureInfo => {
@@ -417,55 +428,51 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
     let firstChunkLogged = false;
     let playbackStartedLogged = false;
 
-    const { sound } = await Audio.Sound.createAsync(
+    const player = createAudioPlayer(
       {
         uri: streamUrl,
         headers: {
           Authorization: `Bearer ${token}`,
         },
       },
-      {
-        shouldPlay: true,
-        volume: 1,
-      },
+      { updateInterval: 100 },
     );
-    activeAiSound = sound;
+    activeAiPlayer = player;
+    player.volume = 1;
+    player.play();
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       activeAiPlaybackResolver = resolve;
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) {
-          if ((status as any).error) {
-            console.warn("tts_stream_failed", (status as any).error);
-          }
-          resolve();
-          return;
-        }
-
+      const subscription = (player as AudioPlayerWithEvents).addListener("playbackStatusUpdate", (status) => {
         if (!firstChunkLogged && status.isPlaying) {
           firstChunkLogged = true;
           console.log("tts_first_audio_chunk", {
             sessionId,
-            positionMillis: status.positionMillis,
+            positionMillis: Math.round(status.currentTime * 1000),
           });
         }
 
         if (!playbackStartedLogged && status.isPlaying) {
           playbackStartedLogged = true;
-          console.log("tts_playback_started", {
-            sessionId,
-            positionMillis: status.positionMillis,
+            console.log("tts_playback_started", {
+              sessionId,
+            positionMillis: Math.round(status.currentTime * 1000),
           });
         }
 
         if (status.didJustFinish) {
           console.log("tts_playback_finished", {
             sessionId,
-            durationMillis: status.durationMillis ?? null,
+            durationMillis: Math.round(status.duration * 1000),
           });
+          subscription.remove();
           resolve();
         }
       });
+      setTimeout(() => {
+        subscription.remove();
+        reject(new Error("Audio stream did not begin playback in time."));
+      }, 45_000);
     });
   };
 
@@ -578,10 +585,10 @@ export const speakAiTextStream = async (sessionId: string, content: string): Pro
     return { ok: false, reason: lastReason, statusCode: lastStatusCode };
   } finally {
     activeAiPlaybackResolver = null;
-    if (activeAiSound) {
-      const sound = activeAiSound;
-      activeAiSound = null;
-      await sound.unloadAsync().catch(() => undefined);
+    if (activeAiPlayer) {
+      const player = activeAiPlayer;
+      activeAiPlayer = null;
+      player.remove();
     }
   }
 };

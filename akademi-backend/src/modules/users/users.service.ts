@@ -5,6 +5,7 @@ import { UpdateAcademicProfileRequest, UpdateProfileRequest } from './users.type
 import { Feature, AccessType } from '@prisma/client';
 import { resolveDepartmentId } from '../../shared/utils/department-resolver';
 import { triggerTextbookGenerationForCourseCodes, autoEnrollStudentInDepartmentCourses } from '../textbooks/textbook-trigger';
+import { isAcademicProfileComplete } from '../../shared/utils/academic-profile';
 
 import { s3Client } from '../../shared/storage/r2.client';
 
@@ -17,10 +18,11 @@ export class UsersService {
         faculty: true,
         department: true,
         level: true,
+        needs_onboarding: true,
       },
     });
 
-    if (!user?.university || !user.department || !user.level) {
+    if (!user || !isAcademicProfileComplete(user)) {
       throw new Error('Complete your academic profile first');
     }
 
@@ -57,6 +59,9 @@ export class UsersService {
         faculty: true,
         department: true,
         level: true,
+        needs_onboarding: true,
+        is_verified: true,
+        support_contact_opt_in: true,
         profile_photo_url: true,
         created_at: true,
         updated_at: true,
@@ -121,6 +126,7 @@ export class UsersService {
         faculty: true,
         department: true,
         level: true,
+        needs_onboarding: true,
         profile_photo_url: true,
         created_at: true,
         updated_at: true,
@@ -201,6 +207,7 @@ export class UsersService {
         faculty: true,
         department: true,
         level: true,
+        needs_onboarding: true,
         courses: true,
         student_courses: {
           select: {
@@ -277,9 +284,11 @@ export class UsersService {
     }
 
     return Array.from(merged.values()).sort((a, b) => {
-      if (a.code !== b.code) return a.code.localeCompare(b.code);
-      if (a.semester !== b.semester) return a.semester - b.semester;
-      return a.level - b.level;
+      const sourceRank = (source?: string) => (source?.includes('seeded') ? 0 : 1);
+      const rankDifference = sourceRank(a.source) - sourceRank(b.source);
+      if (rankDifference) return rankDifference;
+      if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
+      return a.code.localeCompare(b.code);
     });
   }
 
@@ -297,14 +306,15 @@ export class UsersService {
     const faculty = data.faculty?.trim() || currentUser.faculty;
     const departmentName = data.department?.trim() || currentUser.department;
     const level = data.level || currentUser.level;
+    const hasCourseUpdate = Array.isArray(data.courses);
     const courseInputs = (data.courses || [])
       .map((course) => ({
-        code: course.code?.trim().toUpperCase(),
+        code: course.code?.trim().toUpperCase().replace(/\s+/g, ' '),
         name: course.name?.trim() || null,
         level: course.level || level,
-        semester: course.semester,
-        semester_start: new Date(course.semester_start),
-        semester_end: new Date(course.semester_end),
+        semester: course.semester || 1,
+        semester_start: course.semester_start ? new Date(course.semester_start) : null,
+        semester_end: course.semester_end ? new Date(course.semester_end) : null,
       }))
       .filter((course) => !!course.code);
 
@@ -317,10 +327,13 @@ export class UsersService {
       if (![1, 2].includes(course.semester)) {
         throw new Error('Semester must be 1 or 2');
       }
-      if (Number.isNaN(course.semester_start.getTime()) || Number.isNaN(course.semester_end.getTime())) {
+      if ((course.semester_start && !course.semester_end) || (!course.semester_start && course.semester_end)) {
+        throw new Error('Provide both semester dates or leave both blank');
+      }
+      if ((course.semester_start && Number.isNaN(course.semester_start.getTime())) || (course.semester_end && Number.isNaN(course.semester_end.getTime()))) {
         throw new Error('Enter valid semester start and end dates');
       }
-      if (course.semester_start >= course.semester_end) {
+      if (course.semester_start && course.semester_end && course.semester_start >= course.semester_end) {
         throw new Error('Semester end date must be after start date');
       }
     }
@@ -332,27 +345,26 @@ export class UsersService {
     let resolvedUniversityId: string | undefined;
 
     return prisma.$transaction(async (tx) => {
-      const university = await tx.university.upsert({
+      const university = await tx.university.findUnique({
         where: { name: universityName },
-        update: {},
-        create: { name: universityName, location: 'Nigeria' },
+        select: { id: true, name: true },
       });
+      if (!university) {
+        throw new Error('Select a university from the Akademi list');
+      }
       resolvedUniversityId = university.id;
 
-      const department = await tx.department.upsert({
+      const department = await tx.department.findFirst({
         where: {
-          name_university_id: {
-            name: departmentName,
-            university_id: university.id,
-          },
-        },
-        update: { faculty },
-        create: {
           name: departmentName,
-          university_id: university.id,
           faculty,
+          university_id: university.id,
         },
+        select: { id: true },
       });
+      if (!department) {
+        throw new Error('Select a department from the chosen faculty');
+      }
 
       await tx.user.update({
         where: { id: userId },
@@ -361,36 +373,44 @@ export class UsersService {
           faculty,
           department: departmentName,
           level,
-          courses: uniqueCourseInputs.map((course) => course.code),
+          ...(hasCourseUpdate ? { courses: uniqueCourseInputs.map((course) => course.code) } : {}),
           // Completing the academic profile is what "onboarding" means —
           // clears the flag set for Google accounts auto-created without one.
           needs_onboarding: false,
         },
       });
 
-      await tx.studentCourse.deleteMany({ where: { user_id: userId } });
-      await tx.studentCourse.createMany({
-        data: uniqueCourseInputs.map((course) => ({
-          user_id: userId,
-          department_id: department.id,
-          code: course.code,
-          name: course.name,
-          level: course.level,
-          semester: course.semester,
-          semester_start: course.semester_start,
-          semester_end: course.semester_end,
-          source: 'student',
-        })),
-      });
+      if (hasCourseUpdate) {
+        await tx.studentCourse.deleteMany({ where: { user_id: userId } });
+        if (uniqueCourseInputs.length > 0) {
+          await tx.studentCourse.createMany({
+            data: uniqueCourseInputs.map((course) => ({
+              user_id: userId,
+              department_id: department.id,
+              code: course.code,
+              name: course.name,
+              level: course.level,
+              semester: course.semester,
+              semester_start: course.semester_start,
+              semester_end: course.semester_end,
+              source: 'student',
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
 
       return tx.user.findUnique({
         where: { id: userId },
         select: {
           id: true,
+          name: true,
+          email: true,
           university: true,
           faculty: true,
           department: true,
           level: true,
+          needs_onboarding: true,
           courses: true,
           student_courses: {
             select: {

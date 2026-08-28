@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { Audio } from "expo-av";
+import { type AudioRecorder, useAudioRecorder } from "expo-audio";
 import {
+  akademiRecordingOptions,
   prepareAudioRecording,
   requestMicrophonePermission,
   stopRecording,
@@ -23,13 +24,14 @@ export const useVoiceComposer = ({
   startErrorTitle = "Could not start recording",
   stopErrorTitle = "Voice input failed",
 }: UseVoiceComposerOptions) => {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recorder = useAudioRecorder(akademiRecordingOptions);
+  const [recording, setRecording] = useState<AudioRecorder | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   useEffect(() => {
     return () => {
       if (recording) {
-        recording.stopAndUnloadAsync().catch(() => undefined);
+        recording.stop().catch(() => undefined);
       }
     };
   }, [recording]);
@@ -65,7 +67,7 @@ export const useVoiceComposer = ({
         return;
       }
 
-      const nextRecording = await prepareAudioRecording();
+      const nextRecording = await prepareAudioRecording(recorder);
       setRecording(nextRecording);
     } catch (error: any) {
       Alert.alert(startErrorTitle, error?.message || "Please check microphone access and try again.");

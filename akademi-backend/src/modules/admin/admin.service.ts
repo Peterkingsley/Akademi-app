@@ -317,9 +317,15 @@ export class AdminService {
       where.is_banned = false;
       where.is_verified = true;
     }
+    if (filter.supportCandidates === true || filter.supportCandidates === 'true') {
+      where.is_verified = true;
+      where.needs_onboarding = true;
+      where.support_contact_opt_in = true;
+      where.created_at = { lte: new Date(Date.now() - 5 * 60 * 1000) };
+    }
 
     if (filter.startDate || filter.endDate || filter.joinedWithinDays) {
-      where.created_at = {};
+      where.created_at = { ...(where.created_at || {}) };
       if (filter.joinedWithinDays) {
         const days = Math.max(Number(filter.joinedWithinDays) || 0, 0);
         if (days > 0) {
@@ -356,6 +362,23 @@ export class AdminService {
 
     return prisma.user.findMany({
       where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone_number: true,
+        university: true,
+        faculty: true,
+        department: true,
+        level: true,
+        is_verified: true,
+        needs_onboarding: true,
+        support_contact_opt_in: true,
+        is_banned: true,
+        created_at: true,
+        updated_at: true,
+        learning_profile: { select: { last_active: true } },
+      },
       orderBy: { created_at: 'desc' },
       take: limit,
       skip: (page - 1) * limit
@@ -840,8 +863,10 @@ export class AdminService {
       })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 8);
 
+    const { password_hash: _passwordHash, refresh_tokens: _refreshTokens, ...safeUser } = user;
+
     return {
-      user,
+      user: safeUser,
       analytics: {
         onlineStatus: lastActivityAt && now.getTime() - lastActivityAt.getTime() < 15 * 60 * 1000 ? 'online' : 'offline',
         lastActivityAt,

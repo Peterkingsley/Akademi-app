@@ -15,6 +15,8 @@ export interface UserProfile {
   avatar_url?: string | null;
   courses?: string[];
   is_verified?: boolean;
+  needs_onboarding?: boolean;
+  support_contact_opt_in?: boolean;
   admin_role?: string | null;
   date_of_birth?: string | null;
   stats?: {
@@ -137,17 +139,18 @@ export interface StudentAcademicCourse {
   name?: string | null;
   level: number;
   semester: number;
-  semester_start: string;
-  semester_end: string;
+  semester_start?: string | null;
+  semester_end?: string | null;
   source?: string;
 }
 
 export interface AcademicProfile {
   id: string;
-  university: string;
-  faculty: string;
-  department: string;
-  level: number;
+  university: string | null;
+  faculty: string | null;
+  department: string | null;
+  level: number | null;
+  needs_onboarding: boolean;
   courses: string[];
   student_courses: StudentAcademicCourse[];
 }
@@ -184,12 +187,13 @@ export const userService = {
   },
 
   updateAcademicProfile: async (data: Partial<AcademicProfile> & { student_courses?: StudentAcademicCourse[]; courses?: StudentAcademicCourse[] }) => {
+    const courses = data.student_courses || data.courses;
     const response = await api.patch<AcademicProfile>("/users/me/academic-profile", {
       university: data.university,
       faculty: data.faculty,
       department: data.department,
       level: data.level,
-      courses: data.student_courses || data.courses || [],
+      ...(courses ? { courses } : {}),
     });
     return response.data;
   },

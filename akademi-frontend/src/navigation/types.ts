@@ -4,62 +4,10 @@ import { NavigatorScreenParams } from "@react-navigation/native";
 // created (or an existing account still needs its academic profile) so the
 // tokens issued by /auth/google can be persisted once the picker flow
 // finishes, instead of authenticating before onboarding is complete.
-export type PendingAuth = {
-  user: Record<string, any>;
-  accessToken: string;
-  refreshToken: string;
-  adminAccessToken?: string | null;
-};
-
 export type AuthStackParamList = {
   Onboarding: undefined;
-  Register: {
-    university: string;
-    faculty: string;
-    department: string;
-    level: string;
-    semester: number;
-    semesterStart: string;
-    semesterEnd: string;
-    selectedCourses?: string[];
-    academicCourses?: Array<{
-      code: string;
-      name?: string | null;
-      level: number;
-      semester: number;
-    }>;
-  };
-  UniversityPicker: { pendingAuth?: PendingAuth } | undefined;
-  DepartmentPicker: { universityId: string; universityName: string; pendingAuth?: PendingAuth };
-  CoursePicker: {
-    universityId: string;
-    departmentId: string;
-    university: string;
-    faculty: string;
-    department: string;
-    level: string;
-    selectedCourses?: string[];
-    pendingAuth?: PendingAuth;
-  };
+  Register: undefined;
   EmailVerification: { email?: string };
-  SetupComplete: {
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      university?: string;
-      faculty?: string;
-      department?: string;
-      level?: number;
-      courses?: string[];
-      profile_photo_url?: string | null;
-      is_verified?: boolean;
-      admin_role?: string | null;
-    };
-    accessToken: string;
-    refreshToken: string;
-    adminAccessToken?: string | null;
-  };
   Login: undefined;
   ForgotPassword: { email?: string };
   PrivacyData: undefined;
@@ -99,6 +47,9 @@ export type AdminStackParamList = {
 
 export type MainStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList>;
+  Welcome: undefined;
+  AcademicSetupGate: { destination?: ProtectedDestination } | undefined;
+  AcademicSetup: undefined;
   AITutor: undefined;
   StudyCompanion: {
     sessionId: string;
@@ -164,6 +115,16 @@ export type MainStackParamList = {
     }>;
   };
 };
+
+export type ProtectedDestination =
+  | { screen: "AITutor" }
+  | { screen: "SolveCoursePicker"; params?: { selectedCourseCode?: string | null } }
+  | { screen: "StudyMode"; params?: { sessionId?: string; materialId?: string; autoOpenTutor?: boolean } }
+  | { screen: "MaterialPractice"; params: { materialId: string; title?: string } }
+  | { screen: "ExamPrep" }
+  | { screen: "CreateCompetition" }
+  | { screen: "CompetitionJoinCode" }
+  | { screen: "StudyCompanion"; params: { sessionId: string; materialTitle: string; courseCode: string } };
 
 export type RootStackParamList = {
   Splash: undefined;

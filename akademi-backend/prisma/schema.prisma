@@ -290,11 +290,13 @@ model User {
   name                          String
   email                         String       @unique
   password_hash                 String?
-  university                    String
-  faculty                       String
-  department                    String
-  level                         Int
+  university                    String?
+  faculty                       String?
+  department                    String?
+  level                         Int?
   needs_onboarding              Boolean      @default(false)
+  phone_number                  String?
+  support_contact_opt_in        Boolean      @default(false)
   profile_photo_url             String?
   auth_provider                 AuthProvider @default(EMAIL)
   is_verified                   Boolean      @default(false)
@@ -1837,9 +1839,9 @@ model StudentCourse {
   code           String
   name           String?
   level          Int
-  semester       Int
-  semester_start DateTime
-  semester_end   DateTime
+  semester       Int      @default(1)
+  semester_start DateTime?
+  semester_end   DateTime?
   source         String   @default("student")
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt

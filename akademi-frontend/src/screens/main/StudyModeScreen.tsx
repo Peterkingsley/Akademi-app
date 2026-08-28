@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { X, Download, CheckCircle2, ClipboardList, BookOpen, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react-native";
 import { WebView } from "react-native-webview";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { BlurView } from "expo-blur";
 import { Screen } from "../../components/layout/Screen";
 import { colors } from "../../theme/colors";

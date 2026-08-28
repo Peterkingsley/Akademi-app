@@ -15,7 +15,7 @@ import { Platform } from "react-native";
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
-const EAS_PROJECT_ID = "d1d7eb95-0f0a-44e4-b839-7f19fa7ef667";
+const EAS_PROJECT_ID = "5a830460-e300-4bbd-b702-3697ed8291be";
 
 if (typeof window !== 'undefined') {
   (window as any).navigationRef = navigationRef;
@@ -49,13 +49,13 @@ export const RootNavigator = () => {
         });
       }
 
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+      const existingPermission = await Notifications.getPermissionsAsync();
+      let granted = existingPermission.granted;
+      if (!granted) {
+        const requestedPermission = await Notifications.requestPermissionsAsync();
+        granted = requestedPermission.granted;
       }
-      if (finalStatus !== "granted") return;
+      if (!granted) return;
 
       const token = (await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID })).data;
       await userService.updatePushToken(token);

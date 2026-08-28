@@ -14,10 +14,12 @@ import { typography } from "../../theme/typography";
 import { Button } from "../../components/ui/Button";
 import { Screen } from "../../components/layout/Screen";
 import api from "../../services/api";
+import { useAuthStore } from "../../store/useAuthStore";
 
 export const EmailVerificationScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const setAuth = useAuthStore((state) => state.setAuth);
   const email: string | undefined = route.params?.email;
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -93,7 +95,7 @@ export const EmailVerificationScreen: React.FC = () => {
       });
 
       const { user, accessToken, refreshToken, adminAccessToken } = response.data;
-      navigation.navigate("SetupComplete", { user, accessToken, refreshToken, adminAccessToken });
+      setAuth({ ...user, showWelcome: true }, accessToken, refreshToken, adminAccessToken);
     } catch (err: any) {
       setError(err.response?.data?.message || "That code didn't work. Check it and try again.");
       setCode(["", "", "", "", "", ""]);
@@ -165,7 +167,9 @@ export const EmailVerificationScreen: React.FC = () => {
               error && styles.otpBoxError,
             ]}>
               <TextInput
-                ref={(ref) => (inputs.current[index] = ref as TextInput)}
+                ref={(ref) => {
+                  inputs.current[index] = ref;
+                }}
                 style={styles.otpInput}
                 maxLength={6}
                 keyboardType="number-pad"

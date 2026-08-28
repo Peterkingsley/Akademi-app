@@ -51,28 +51,46 @@ import { TournamentDetailScreen } from "../screens/main/TournamentDetailScreen";
 import { AITutorScreen } from "../screens/main/AITutorScreen";
 import { StudyCompanionScreen } from "../screens/main/StudyCompanionScreen";
 import { SolveCoursePickerScreen } from "../screens/main/SolveCoursePickerScreen";
+import { WelcomeScreen } from "../screens/main/WelcomeScreen";
+import { AcademicSetupScreen } from "../screens/main/AcademicSetupScreen";
+import { AcademicSetupGateScreen } from "../screens/main/AcademicSetupGateScreen";
+import { withAcademicSetupGuard } from "../components/auth/withAcademicSetupGuard";
+import { useAuthStore } from "../store/useAuthStore";
 
 const Stack = createStackNavigator<MainStackParamList>();
+const GuardedAITutorScreen = withAcademicSetupGuard(AITutorScreen, { screen: "AITutor" });
+const GuardedSolveCoursePickerScreen = withAcademicSetupGuard(SolveCoursePickerScreen, { screen: "SolveCoursePicker" });
+const GuardedStudyModeScreen = withAcademicSetupGuard(StudyModeScreen, { screen: "StudyMode" });
+const GuardedExamPrepScreen = withAcademicSetupGuard(ExamPrepScreen, { screen: "ExamPrep" });
+const GuardedCreateCompetitionScreen = withAcademicSetupGuard(CreateCompetitionScreen, { screen: "CreateCompetition" });
+const GuardedCompetitionJoinCodeScreen = withAcademicSetupGuard(CompetitionJoinCodeScreen, { screen: "CompetitionJoinCode" });
+const GuardedMaterialPracticeScreen = withAcademicSetupGuard(MaterialPracticeScreen, (props) => ({ screen: "MaterialPractice", params: props.route.params }));
+const GuardedStudyCompanionScreen = withAcademicSetupGuard(StudyCompanionScreen, (props) => ({ screen: "StudyCompanion", params: props.route.params }));
 
 export const MainStack = () => {
+  const showWelcome = useAuthStore((state) => state.user?.showWelcome);
   return (
     <Stack.Navigator
+      initialRouteName={showWelcome ? "Welcome" : "MainTabs"}
       screenOptions={{
         headerShown: false,
         cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
-      <Stack.Screen name="AITutor" component={AITutorScreen} />
-      <Stack.Screen name="StudyCompanion" component={StudyCompanionScreen} />
-      <Stack.Screen name="SolveCoursePicker" component={SolveCoursePickerScreen} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="AcademicSetupGate" component={AcademicSetupGateScreen} />
+      <Stack.Screen name="AcademicSetup" component={AcademicSetupScreen} />
+      <Stack.Screen name="AITutor" component={GuardedAITutorScreen} />
+      <Stack.Screen name="StudyCompanion" component={GuardedStudyCompanionScreen} />
+      <Stack.Screen name="SolveCoursePicker" component={GuardedSolveCoursePickerScreen} />
       <Stack.Screen
         name="AssignmentResult"
         component={AssignmentResultScreen}
       />
       <Stack.Screen name="MultiQuestionSolve" component={MultiQuestionSolveScreen} />
-      <Stack.Screen name="StudyMode" component={StudyModeScreen} />
-      <Stack.Screen name="MaterialPractice" component={MaterialPracticeScreen} />
+      <Stack.Screen name="StudyMode" component={GuardedStudyModeScreen} />
+      <Stack.Screen name="MaterialPractice" component={GuardedMaterialPracticeScreen} />
       <Stack.Screen name="ChallengeResult" component={ChallengeResultScreen} />
       <Stack.Screen
         name="Camera"
@@ -84,7 +102,7 @@ export const MainStack = () => {
       <Stack.Screen name="CropConfirm" component={CropConfirmScreen} />
       <Stack.Screen name="AIProcessing" component={AIProcessingScreen} />
       <Stack.Screen name="BoardReplay" component={BoardReplayScreen} />
-      <Stack.Screen name="ExamPrep" component={ExamPrepScreen} />
+      <Stack.Screen name="ExamPrep" component={GuardedExamPrepScreen} />
       <Stack.Screen name="ExamPrepSession" component={ExamPrepSessionScreen} />
       <Stack.Screen name="AddExam" component={AddExamScreen} />
       <Stack.Screen name="PrepPlan" component={PrepPlanScreen} />
@@ -95,13 +113,13 @@ export const MainStack = () => {
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="CompetitionHub" component={CompetitionHubScreen} />
       <Stack.Screen name="CompetitionMatches" component={CompetitionMatchesScreen} />
-      <Stack.Screen name="CompetitionJoinCode" component={CompetitionJoinCodeScreen} />
+      <Stack.Screen name="CompetitionJoinCode" component={GuardedCompetitionJoinCodeScreen} />
       <Stack.Screen name="CompetitionLeaderboard" component={CompetitionLeaderboardScreen} />
       <Stack.Screen name="KoinWallet" component={KoinWalletScreen} />
       <Stack.Screen name="SellKoin" component={SellKoinScreen} />
       <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} />
       <Stack.Screen name="TournamentDetail" component={TournamentDetailScreen} />
-      <Stack.Screen name="CreateCompetition" component={CreateCompetitionScreen} />
+      <Stack.Screen name="CreateCompetition" component={GuardedCreateCompetitionScreen} />
       <Stack.Screen name="CompetitionLobby" component={CompetitionLobbyScreen} />
       <Stack.Screen name="CompetitionResult" component={CompetitionResultScreen} />
       <Stack.Screen

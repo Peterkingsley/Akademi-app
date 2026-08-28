@@ -712,18 +712,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   container: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 32,
-    gap: 16,
+    gap: 14,
   },
   banner: {
     width: "100%",
-    height: 200,
-    borderRadius: 18,
+    height: 152,
+    borderRadius: 16,
     backgroundColor: colors.surfaceElevated,
   },
   heroCopy: {
-    gap: 8,
+    gap: 6,
   },
   eyebrow: {
     ...typography.caption,
@@ -733,13 +733,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   title: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.textPrimary,
+    lineHeight: 21,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    lineHeight: 24,
+    lineHeight: 20,
   },
   detailCard: {
     gap: 12,

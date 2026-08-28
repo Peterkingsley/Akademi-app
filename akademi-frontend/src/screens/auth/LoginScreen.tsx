@@ -145,7 +145,7 @@ export const LoginScreen: React.FC = () => {
             <Animated.View entering={reduceMotion ? undefined : FadeIn.delay(420).duration(180)} style={styles.newUserPrompt}>
               <Text style={styles.newUserText}>New to Akademi?</Text>
               <TouchableOpacity
-                onPress={() => navigation.navigate("UniversityPicker")}
+                onPress={() => navigation.navigate("Register")}
                 style={styles.createProfileButton}
                 activeOpacity={0.75}
                 accessibilityRole="link"

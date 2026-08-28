@@ -9,7 +9,7 @@ import { RegisterRequest, LoginRequest, AuthResponse, JwtPayload, ChangePassword
 import { AdminRole, AuthProvider, DeviceType, VocabularyLevel } from '@prisma/client';
 import crypto from 'crypto';
 import redisClient from '../../config/redis';
-import { triggerTextbookGenerationForCourseCodes, autoEnrollStudentInDepartmentCourses } from '../textbooks/textbook-trigger';
+import { normalizePhoneNumber } from '../../shared/utils/academic-profile';
 
 const resend = new Resend(config.resendApiKey);
 const googleClient = new OAuth2Client(config.googleOauthClientId);
@@ -100,16 +100,85 @@ export class AuthService {
   }
 
   async register(data: RegisterRequest): Promise<void> {
-    // Validation
-    if (!data.name || !data.email || !data.university || !data.faculty || !data.department || !data.level) {
-      throw new Error("All registration fields are required");
+    const name = data.name?.trim();
+    const email = data.email?.trim().toLowerCase();
+    const phoneNumber = normalizePhoneNumber(data.phoneNumber || '');
+
+    if (!name || !email || !data.password || !phoneNumber) {
+      throw new Error('Name, phone number, email, and password are required');
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-      throw new Error("Invalid email format");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error('Invalid email format');
     }
 
+    if (data.password.length < 8) {
+      throw new Error('Use at least 8 characters for your password');
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      if (existingUser.is_verified) {
+        throw new Error('Email already registered');
+      }
+
+      await prisma.$transaction([
+        prisma.studentCourse.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.learningProfile.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.refreshToken.deleteMany({ where: { user_id: existingUser.id } }),
+        prisma.user.delete({ where: { id: existingUser.id } }),
+      ]);
+    }
+
+    const verificationToken = this.generateVerificationCode();
+    const verificationTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name,
+          email,
+          phone_number: phoneNumber,
+          password_hash: await bcrypt.hash(data.password, 12),
+          support_contact_opt_in: data.supportContactOptIn === true,
+          auth_provider: AuthProvider.EMAIL,
+          is_verified: false,
+          needs_onboarding: true,
+          verification_token: verificationToken,
+          verification_token_expires_at: verificationTokenExpiresAt,
+        },
+      });
+
+      await tx.learningProfile.create({
+        data: {
+          user_id: createdUser.id,
+          subject_strengths: {},
+          subject_weaknesses: {},
+          question_patterns: {},
+          vocabulary_level: VocabularyLevel.BASIC,
+        },
+      });
+
+      return createdUser;
+    });
+
+    if (config.nodeEnv !== 'test' && !this.isDummyResendKey()) {
+      try {
+        await resend.emails.send({
+          from: 'Akademi <noreply@akademi.study>',
+          to: user.email,
+          subject: 'Verify your email',
+          html: `<p>Your verification code is: <strong>${verificationToken}</strong></p>`,
+        });
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+      }
+    } else if (this.isDummyResendKey()) {
+      console.log(`Skipping email send due to dummy Resend API key. Verification token for ${user.email} is: ${verificationToken}`);
+    }
+
+    return;
+
+    /*
     const rawAcademicCourses: Array<{ code: string; name?: string; level?: number; semester?: number }> =
       data.academicCourses || data.courses?.map((code) => ({ code })) || [];
 
@@ -271,6 +340,9 @@ export class AuthService {
     } else if (this.isDummyResendKey()) {
       console.log(`Skipping email send due to dummy Resend API key. Verification token for ${user.email} is: ${verificationToken}`);
     }
+  }
+
+    */
   }
 
   async verifyEmail(data: VerifyEmailRequest): Promise<AuthResponse> {

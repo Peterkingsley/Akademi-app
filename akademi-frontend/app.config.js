@@ -12,13 +12,24 @@ const plugins = [
     },
   ],
   [
-    "expo-av",
+    "expo-audio",
     {
       microphonePermission: "Allow Akademi to capture your spoken assignment questions.",
+      recordAudioAndroid: true,
+      enableBackgroundRecording: false,
+      enableBackgroundPlayback: false,
     },
   ],
   "expo-font",
   "expo-asset",
+  [
+    "expo-speech-recognition",
+    {
+      microphonePermission: "Allow Akademi to capture your spoken assignment questions.",
+      speechRecognitionPermission: "Allow Akademi to transcribe your spoken assignment questions.",
+      androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
+    },
+  ],
   "@react-native-community/datetimepicker",
   "@react-native-google-signin/google-signin",
 ];
@@ -60,7 +71,7 @@ module.exports = {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#000000",
       },
-      permissions: ["android.permission.CAMERA", "android.permission.RECORD_AUDIO"],
+      permissions: ["android.permission.CAMERA"],
     },
     web: {
       favicon: "./assets/favicon.png",

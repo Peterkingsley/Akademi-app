@@ -15,8 +15,10 @@ interface User {
   profile_photo_url?: string | null;
   avatar_url?: string | null;
   is_verified?: boolean;
-  onboarding_complete?: boolean;
   needs_onboarding?: boolean;
+  phone_number?: string | null;
+  support_contact_opt_in?: boolean;
+  showWelcome?: boolean;
   admin_role?: string | null;
 }
 
