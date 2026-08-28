@@ -9,13 +9,20 @@ import { SplashScreen } from "../screens/main/SplashScreen";
 import { useAuthStore } from "../store/useAuthStore";
 import { userService } from "../services/user";
 import { socketService } from "../services/socket";
-import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 
 const Stack = createStackNavigator<RootStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 const EAS_PROJECT_ID = "5a830460-e300-4bbd-b702-3697ed8291be";
+const isRunningInExpoGo = () => {
+  try {
+    return Boolean(require("expo").isRunningInExpoGo());
+  } catch {
+    return false;
+  }
+};
+const notifications: any = isRunningInExpoGo() ? null : require("expo-notifications");
 
 if (typeof window !== 'undefined') {
   (window as any).navigationRef = navigationRef;
@@ -38,26 +45,26 @@ export const RootNavigator = () => {
 
   const registerForPushNotificationsAsync = async () => {
     try {
-      if (!Device.isDevice) return;
+      if (!notifications || !Device.isDevice) return;
 
       if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("default", {
+        await notifications.setNotificationChannelAsync("default", {
           name: "default",
-          importance: Notifications.AndroidImportance.MAX,
+          importance: notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: "#16A34A",
         });
       }
 
-      const existingPermission = await Notifications.getPermissionsAsync();
+      const existingPermission = await notifications.getPermissionsAsync();
       let granted = existingPermission.granted;
       if (!granted) {
-        const requestedPermission = await Notifications.requestPermissionsAsync();
+        const requestedPermission = await notifications.requestPermissionsAsync();
         granted = requestedPermission.granted;
       }
       if (!granted) return;
 
-      const token = (await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID })).data;
+      const token = (await notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID })).data;
       await userService.updatePushToken(token);
     } catch (error) {
       console.warn("Push notifications are not configured for this build yet:", error);
