@@ -6,7 +6,8 @@
   },
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --go --tunnel",
+    "start:go": "expo start --go --tunnel --clear",
     "dev": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
