@@ -22,6 +22,7 @@ import { timingSafeEqual } from '../../shared/utils/secure-compare';
 import { aiProvider } from '../ai/ai.provider';
 import { isContentFaithfulToSource } from '../../shared/utils/content-similarity';
 import { parseDisciplineDocumentSplitResponse } from '../../shared/utils/discipline-document-split';
+import { isAcademicProfileComplete } from '../../shared/utils/academic-profile';
 import {
   AdminLoginRequest,
   AdminAuthResponse,
@@ -1709,6 +1710,8 @@ export class AdminService {
 
         await Promise.allSettled(
           batch.map(async (u) => {
+            if (!isAcademicProfileComplete(u)) return;
+
             let uniId = universityIdCache.get(u.university);
             if (uniId === undefined) {
               const uni = await prisma.university.findUnique({ where: { name: u.university } });

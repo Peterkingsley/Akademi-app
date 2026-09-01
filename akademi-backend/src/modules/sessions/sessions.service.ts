@@ -14,6 +14,7 @@ import { questionReconstructionSystemPrompt } from '../ai/ai.prompts';
 import { studyCompanionService } from './study-companion.service';
 import { elevenLabsStreamService } from '../voice/elevenlabs-stream.service';
 import { usageService } from '../usage/usage.service';
+import { isAcademicProfileComplete } from '../../shared/utils/academic-profile';
 
 let visionClient: vision.ImageAnnotatorClient | null = null;
 
@@ -359,6 +360,9 @@ export class SessionsService {
     });
 
     if (!user) throw new Error('User not found');
+    if (!isAcademicProfileComplete(user)) {
+      throw new Error('Complete your academic profile before starting a session');
+    }
 
     return prisma.session.create({
       data: {

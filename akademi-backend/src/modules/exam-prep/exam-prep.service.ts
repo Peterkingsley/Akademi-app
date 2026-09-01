@@ -15,6 +15,7 @@ import { usageService } from '../usage/usage.service';
 import { checkFeatureAccess } from '../../shared/utils/feature-access';
 import { MaterialsService } from '../materials/materials.service';
 import { ExamPrepFeedbackService, buildFallbackFeedback } from './exam-prep-feedback.service';
+import { isAcademicProfileComplete } from '../../shared/utils/academic-profile';
 import {
   ExamPrepError,
   ExamPrepMaterialItem,
@@ -712,6 +713,13 @@ export class ExamPrepService {
       select: { university: true, faculty: true, department: true, level: true },
     });
     if (!user) throw new ExamPrepError('User not found', 404, 'USER_NOT_FOUND');
+    if (!isAcademicProfileComplete(user)) {
+      throw new ExamPrepError(
+        'Complete your academic profile before starting guided exam prep',
+        400,
+        'ACADEMIC_PROFILE_INCOMPLETE',
+      );
+    }
 
     // Reuse Library's verified-material scope rules, including nationally pooled courses.
     const materials = await this.materialsService.listMaterials({

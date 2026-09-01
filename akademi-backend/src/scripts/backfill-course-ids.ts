@@ -5,8 +5,8 @@ const BATCH_SIZE = 200;
 
 type Summary = { resolved: number; unresolved: number };
 
-async function resolveCourseId(university: string | null, department: string | null, level: number, courseCode: string) {
-  if (!university || !department) return null;
+async function resolveCourseId(university: string | null, department: string | null, level: number | null, courseCode: string) {
+  if (!university || !department || level === null) return null;
   const departmentId = await resolveDepartmentId(university, department);
   if (!departmentId) return null;
   const course = await findOrCreateCourse({ departmentId, code: courseCode, level });

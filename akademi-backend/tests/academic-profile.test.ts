@@ -4,6 +4,8 @@ describe('academic profile helpers', () => {
   it('requires all core academic fields', () => {
     expect(isAcademicProfileComplete({ university: 'UNILAG', faculty: 'Science', department: 'Computer Science', level: 200 })).toBe(true);
     expect(isAcademicProfileComplete({ university: 'UNILAG', faculty: 'Science', department: 'Computer Science', level: null })).toBe(false);
+    expect(isAcademicProfileComplete({ university: '  ', faculty: 'Science', department: 'Computer Science', level: 200 })).toBe(false);
+    expect(isAcademicProfileComplete({ university: 'UNILAG', faculty: 'Science', department: 'Computer Science', level: 0 })).toBe(false);
   });
 
   it('normalizes Nigerian numbers without rejecting E.164 numbers', () => {

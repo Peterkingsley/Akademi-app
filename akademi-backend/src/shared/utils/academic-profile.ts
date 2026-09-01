@@ -5,14 +5,25 @@ export type AcademicProfileFields = {
   level?: number | null;
 };
 
-export const isAcademicProfileComplete = (profile: AcademicProfileFields): boolean =>
-  Boolean(
-    profile.university?.trim() &&
-      profile.faculty?.trim() &&
-      profile.department?.trim() &&
-      Number.isInteger(profile.level) &&
-      (profile.level || 0) > 0,
-  );
+export type CompleteAcademicProfile<T extends AcademicProfileFields = AcademicProfileFields> = T & {
+  university: string;
+  faculty: string;
+  department: string;
+  level: number;
+};
+
+export const isAcademicProfileComplete = <T extends AcademicProfileFields>(
+  profile: T,
+): profile is CompleteAcademicProfile<T> =>
+  typeof profile.university === 'string' &&
+  profile.university.trim().length > 0 &&
+  typeof profile.faculty === 'string' &&
+  profile.faculty.trim().length > 0 &&
+  typeof profile.department === 'string' &&
+  profile.department.trim().length > 0 &&
+  typeof profile.level === 'number' &&
+  Number.isInteger(profile.level) &&
+  profile.level > 0;
 
 export const normalizePhoneNumber = (value: string): string | null => {
   const compact = value.trim().replace(/[\s().-]/g, '');

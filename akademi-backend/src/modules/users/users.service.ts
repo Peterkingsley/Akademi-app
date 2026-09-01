@@ -272,6 +272,9 @@ export class UsersService {
     for (const course of studentCourses) {
       const key = `${course.code}-${course.level}-${course.semester}`;
       const existing = merged.get(key);
+      const usageCount = typeof course._count === 'object' && course._count !== null
+        ? course._count.code || 0
+        : 0;
       merged.set(key, {
         id: existing?.id || key,
         code: course.code,
@@ -279,7 +282,7 @@ export class UsersService {
         level: course.level,
         semester: course.semester,
         source: existing ? 'seeded_and_crowdsourced' : 'crowdsourced',
-        usageCount: course._count.code,
+        usageCount,
       });
     }
 
@@ -302,10 +305,23 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    const universityName = data.university?.trim() || currentUser.university;
-    const faculty = data.faculty?.trim() || currentUser.faculty;
-    const departmentName = data.department?.trim() || currentUser.department;
-    const level = data.level || currentUser.level;
+    const nextAcademicProfile = {
+      university: data.university?.trim() || currentUser.university,
+      faculty: data.faculty?.trim() || currentUser.faculty,
+      department: data.department?.trim() || currentUser.department,
+      level: data.level ?? currentUser.level,
+    };
+
+    if (!isAcademicProfileComplete(nextAcademicProfile)) {
+      throw new Error('University, faculty, department, and level are required');
+    }
+
+    const {
+      university: universityName,
+      faculty,
+      department: departmentName,
+      level,
+    } = nextAcademicProfile;
     const hasCourseUpdate = Array.isArray(data.courses);
     const courseInputs = (data.courses || [])
       .map((course) => ({
@@ -317,10 +333,6 @@ export class UsersService {
         semester_end: course.semester_end ? new Date(course.semester_end) : null,
       }))
       .filter((course) => !!course.code);
-
-    if (!universityName || !faculty || !departmentName || !level) {
-      throw new Error('University, faculty, department, and level are required');
-    }
 
     // If courseInputs is empty, that's fine. We will auto-enroll based on department + level.
     for (const course of courseInputs) {

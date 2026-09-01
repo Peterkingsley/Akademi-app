@@ -1,5 +1,6 @@
 import prisma from '../config/db';
 import { autoEnrollStudentInDepartmentCourses } from '../modules/textbooks/textbook-trigger';
+import { isAcademicProfileComplete } from '../shared/utils/academic-profile';
 
 const BATCH_SIZE = 8;
 const DELAY_BETWEEN_BATCHES_MS = 5000;
@@ -37,6 +38,8 @@ async function backfillCCMASAutoEnroll() {
 
     await Promise.allSettled(
       batch.map(async (u) => {
+        if (!isAcademicProfileComplete(u)) return;
+
         let uniId = universityIdCache.get(u.university);
         if (uniId === undefined) {
           const uni = await prisma.university.findUnique({

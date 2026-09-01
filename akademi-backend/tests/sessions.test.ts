@@ -94,7 +94,7 @@ describe('Sessions Module', () => {
 
   it('should not start a session without access', async () => {
     const sessionData = {
-      session_type: SessionType.TUTOR,
+      session_type: SessionType.EXAM_PREP,
       course_code: 'ENG203',
     };
 
