@@ -6,8 +6,8 @@
   },
   "main": "index.ts",
   "scripts": {
-    "start": "expo start --go --tunnel",
-    "start:go": "expo start --go --tunnel --clear",
+    "start": "cross-env EXPO_NO_REDIRECT_PAGE=1 expo start --go --lan",
+    "start:go": "cross-env EXPO_NO_REDIRECT_PAGE=1 expo start --go --lan --clear",
     "dev": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -79,6 +79,7 @@
     "@babel/core": "^7.25.2",
     "@playwright/test": "^1.61.0",
     "@types/react": "~19.2.4",
+    "cross-env": "^10.1.0",
     "typescript": "~6.0.3"
   },
   "expo": {
