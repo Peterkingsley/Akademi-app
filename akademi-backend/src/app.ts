@@ -26,6 +26,7 @@ import notificationRoutes from './modules/notifications/notifications.routes';
 import waitlistRoutes from './modules/waitlist/waitlist.routes';
 import koinRoutes from './modules/koin/koin.routes';
 import usageRoutes from './modules/usage/usage.routes';
+import legalRoutes from './modules/legal/legal.routes';
 import { initWebSocket, shutdownWebSocket } from './modules/websocket/websocket.server';
 import { startCompetitionScheduler, stopCompetitionScheduler } from './modules/competitions/competition.scheduler';
 import { recoverPendingMaterials, recoverQuestionBanks, startMaterialRetryScheduler, stopMaterialRetryScheduler } from './modules/materials/material-processing';
@@ -78,6 +79,7 @@ app.use((req, _res, next) => {
   next();
 });
 
+app.use(legalRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/materials', materialsRoutes);

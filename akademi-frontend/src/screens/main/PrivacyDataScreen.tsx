@@ -59,7 +59,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
     <View style={styles.contentContainer}>
       <Text style={styles.mainTitle}>Privacy Policy - Akademi</Text>
       <Text style={styles.lastUpdated}>Effective Date: March 22, 2026</Text>
-      <Text style={styles.lastUpdated}>Last Updated: March 22, 2026</Text>
+      <Text style={styles.lastUpdated}>Last Updated: November 6, 2026</Text>
 
       <View style={styles.divider} />
 
@@ -83,7 +83,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.paragraph}>When you create an account, we collect:</Text>
       <BulletItem text="Full name" colors={colors} />
       <BulletItem text="Email address" colors={colors} />
-      <BulletItem text="Password (stored in encrypted form - we never store your plain password)" colors={colors} />
+      <BulletItem text="Password (stored as a bcrypt hash, never as your plain password)" colors={colors} />
       <BulletItem text="Phone number (optional)" colors={colors} />
       <BulletItem text="University, faculty, department, and academic level" colors={colors} />
       <BulletItem text="Profile photo (optional)" colors={colors} />
@@ -98,10 +98,14 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <BulletItem text="Course materials you upload" colors={colors} />
       <BulletItem text="Your learning profile data (subject strengths, weaknesses, study patterns)" colors={colors} />
       <BulletItem text="Device type (Android or iOS) for session management" colors={colors} />
+      <BulletItem text="Voice input transcripts when you use speech recognition, and images or files you choose to upload" colors={colors} />
+      <Text style={styles.paragraph}>
+        Camera, photo library, microphone, and notification access is requested when needed for the features you choose. Speech recognition may be processed by your device's speech service. You can manage permissions in your device settings.
+      </Text>
 
       <Text style={styles.subSectionTitle}>2.3 Payment Information</Text>
       <Text style={styles.paragraph}>
-        When you make a payment, transactions are processed by Paystack. We do not store your card details. We only receive a payment reference and confirmation from Paystack after a successful transaction.
+        When you make a payment, transactions are processed by Paystack. Card details are entered through Paystack's payment flow. We store transaction records such as payment references, amounts, status, and payment event details received from Paystack.
       </Text>
 
       <Text style={styles.subSectionTitle}>2.4 Automatically Collected Information</Text>
@@ -113,7 +117,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.paragraph}>We use the information we collect to:</Text>
       <BulletItem text="Create and manage your Akademi account" colors={colors} />
       <BulletItem text="Personalize your study experience based on your learning profile" colors={colors} />
-      <BulletItem text="Generate AI responses to your academic questions using Gemini (Google)" colors={colors} />
+      <BulletItem text="Generate AI responses to your academic questions using OpenAI and Google Gemini, depending on the feature and service configuration" colors={colors} />
       <BulletItem text="Provide verified course materials relevant to your department and university" colors={colors} />
       <BulletItem text="Process your payments for premium features" colors={colors} />
       <BulletItem text="Send you email notifications including account verification, password resets, and material upload confirmations" colors={colors} />
@@ -141,12 +145,15 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
           </View>
         </View>
         {[
-          { provider: "Google (Gemini API)", purpose: "AI-powered responses", data: "Question text and context" },
+          { provider: "OpenAI and Google Gemini", purpose: "AI-powered responses", data: "Question text, relevant conversation and learning context, and submitted material content" },
+          { provider: "Google Cloud", purpose: "Document text recognition and speech output, where enabled", data: "Submitted document images and text to be spoken" },
+          { provider: "ElevenLabs", purpose: "Speech output, where enabled", data: "Text to be spoken" },
           { provider: "Paystack", purpose: "Payment processing", data: "Email and amount" },
           { provider: "Resend", purpose: "Transactional emails", data: "Email and name" },
           { provider: "Cloudflare R2", purpose: "File storage", data: "Uploaded files" },
-          { provider: "Sentry", purpose: "Error monitoring", data: "Anonymized logs" },
+          { provider: "Sentry", purpose: "Error monitoring", data: "Diagnostic events and, where attached, account identifiers; sensitive fields are filtered" },
           { provider: "Render", purpose: "Cloud hosting", data: "All platform data" },
+          { provider: "Typesense", purpose: "Search", data: "Search index content used to find schools, courses, and materials" },
         ].map((row, index) => (
           <View key={index} style={styles.tableRow}>
             <View style={[styles.tableCell, { flex: 1 }]}>
@@ -164,7 +171,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.subSectionTitle}>4.2 Community Features</Text>
       <Text style={styles.paragraph}>
-        When you upload course materials, your contribution is anonymized. Other students can access the verified material but cannot see your personal identity as the uploader unless you choose to make this visible.
+        Course materials you submit may be made available to other students after review. Avoid including personal information in shared materials. Contact us if a shared material contains personal information that you want removed.
       </Text>
 
       <Text style={styles.subSectionTitle}>4.3 Legal Requirements</Text>
@@ -180,21 +187,21 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.sectionTitle}>5. Data Storage and Security</Text>
       <Text style={styles.subSectionTitle}>5.1 Where Your Data is Stored</Text>
       <Text style={styles.paragraph}>
-        Your data is stored on secure servers hosted on Render.com and Cloudflare. Our primary database server is located in Europe (closest available region to Nigeria). We take steps to ensure your data is handled in compliance with Nigeria's NDPR.
+        Platform data is stored using Render and Cloudflare infrastructure and processed by the service providers listed above. Processing and storage may take place outside Nigeria, depending on the providers and deployment regions in use.
       </Text>
 
       <Text style={styles.subSectionTitle}>5.2 How We Protect Your Data</Text>
-      <BulletItem text="All data is encrypted in transit using TLS 1.3" colors={colors} />
-      <BulletItem text="All data is encrypted at rest using AES-256 encryption" colors={colors} />
+      <BulletItem text="Connections to the hosted API use HTTPS to protect data in transit" colors={colors} />
       <BulletItem text="Passwords are hashed using bcrypt before storage" colors={colors} />
-      <BulletItem text="Access tokens expire after 15 minutes" colors={colors} />
+      <BulletItem text="Authenticated API access uses access tokens and refresh tokens" colors={colors} />
       <BulletItem text="We use rate limiting to prevent unauthorized access attempts" colors={colors} />
 
       <Text style={styles.subSectionTitle}>5.3 Data Retention</Text>
       <BulletItem text="Your account data is retained for as long as your account is active" colors={colors} />
-      <BulletItem text="If you delete your account, your personal data is permanently deleted within 30 days" colors={colors} />
-      <BulletItem text="Session history and AI conversation logs are retained for 12 months then automatically deleted" colors={colors} />
-      <BulletItem text="Course materials you uploaded remain in the library even after account deletion (contributor identity is removed)" colors={colors} />
+      <BulletItem text="The current in-app Delete Account action disables your account and revokes its refresh tokens; it does not automatically erase all account records or study history" colors={colors} />
+      <BulletItem text="Account records, session history, AI conversation logs, uploaded materials, and transaction records can remain stored after account deactivation until separately erased" colors={colors} />
+      <BulletItem text="To request permanent account and personal data deletion, contact support@akademi.app from your registered email address. We may need to verify your identity before handling the request" colors={colors} />
+      <BulletItem text="Where data must be retained for security, fraud prevention, or legal obligations, we will explain the applicable retention when handling your request" colors={colors} />
 
       <Text style={styles.sectionTitle}>6. Your Rights Under Nigeria's NDPR</Text>
       <Text style={styles.paragraph}>Under Nigeria's Data Protection Regulation (NDPR), you have the following rights:</Text>
@@ -205,7 +212,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <BulletItem text="Right to Object: You can object to processing of your data for certain purposes" colors={colors} />
       <BulletItem text="Right to Withdraw Consent: You can withdraw consent for non-essential data processing at any time" colors={colors} />
       <Text style={[styles.paragraph, { marginTop: 8 }]}>
-        To exercise any of these rights, contact us at privacy@akademi.app
+        To exercise any of these rights, contact us at support@akademi.app
       </Text>
 
       <Text style={styles.sectionTitle}>7. Children's Privacy</Text>
@@ -215,11 +222,11 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.sectionTitle}>8. AI and Automated Decision Making</Text>
       <Text style={styles.paragraph}>
-        Akademi uses artificial intelligence (Gemini by Google) to generate responses to your academic questions. The AI:
+        Akademi uses OpenAI and Google Gemini to generate responses to your academic questions, depending on the feature and service configuration. The AI:
       </Text>
       <BulletItem text="Does not make decisions that have legal or significant effects on you" colors={colors} />
       <BulletItem text="Uses your learning profile and course context to personalize responses" colors={colors} />
-      <BulletItem text="Does not store your conversations directly - conversation history is stored in our own database and referenced when needed" colors={colors} />
+      <BulletItem text="Receives the question and relevant context needed for the feature. Conversation history is also stored in Akademi's database. External providers process requests under their own data handling terms" colors={colors} />
       <BulletItem text="Is guided by discipline-specific documents we have created to ensure academically accurate responses for your department" colors={colors} />
       <Text style={[styles.paragraph, { marginTop: 8 }]}>
         You can request to opt out of learning profile personalization by contacting us, though this will significantly reduce the quality of AI responses you receive.
@@ -227,7 +234,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
 
       <Text style={styles.sectionTitle}>9. Cookies and Tracking</Text>
       <Text style={styles.paragraph}>
-        Akademi is a mobile application and does not use browser cookies. We use AsyncStorage on your device to store your login tokens and preferences. This data never leaves your device except as part of authorized API calls to our servers.
+        Akademi uses secure device storage where supported for login tokens, with local storage fallbacks where needed. Preferences and cached app data may be kept in local device storage. Tokens are sent to our servers to authenticate API requests. The public privacy policy page does not set cookies or load analytics scripts.
       </Text>
 
       <Text style={styles.sectionTitle}>10. Third Party Links</Text>
@@ -244,7 +251,7 @@ const PrivacyPolicyContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.paragraph}>
         If you have any questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact us:
       </Text>
-      <Text style={[styles.paragraph, { fontWeight: "700" }]}>Email: privacy@akademi.app</Text>
+      <Text style={[styles.paragraph, { fontWeight: "700" }]}>Email: support@akademi.app</Text>
       <Text style={[styles.paragraph, { fontWeight: "700" }]}>Address: Lagos, Nigeria</Text>
       <Text style={styles.paragraph}>We will respond to all privacy-related requests within 14 business days.</Text>
     </View>
@@ -257,7 +264,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
     <View style={styles.contentContainer}>
       <Text style={styles.mainTitle}>Terms of Service - Akademi</Text>
       <Text style={styles.lastUpdated}>Effective Date: March 22, 2026</Text>
-      <Text style={styles.lastUpdated}>Last Updated: March 22, 2026</Text>
+      <Text style={styles.lastUpdated}>Last Updated: November 6, 2026</Text>
 
       <View style={styles.divider} />
 
@@ -435,7 +442,7 @@ const TermsOfServiceContent: React.FC<{ colors: any }> = ({ colors }) => {
       <Text style={styles.sectionTitle}>10. Termination</Text>
       <Text style={styles.subSectionTitle}>10.1 Termination by You</Text>
       <Text style={styles.paragraph}>
-        You may delete your account at any time from the Profile settings screen. Upon deletion, your personal data will be removed within 30 days in accordance with our Privacy Policy.
+        You may disable your account using Delete Account in the Profile settings screen. To request permanent deletion of account records and personal data, contact support@akademi.app as described in our Privacy Policy. The in-app action alone does not erase all stored data.
       </Text>
 
       <Text style={styles.subSectionTitle}>10.2 Termination by Us</Text>
