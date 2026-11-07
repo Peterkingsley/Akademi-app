@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// One-time P3005 repair. Verifies the existing schema, then records migration
-// history through Prisma. Never resets, pushes, or changes application tables.
+// One-time P3005 repair. Optionally restores missing foreign keys, then
+// verifies the schema before recording migration history through Prisma.
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -44,16 +44,49 @@ END
 $akademi_baseline$;`;
 }
 
+const schemaPath = 'prisma/schema.prisma';
+const compareSchema = ['migrate', 'diff', '--from-schema-datasource', schemaPath,
+  '--to-schema-datamodel', schemaPath];
+
+function sqlStatements(sql) {
+  return sql.split(/\r?\n/).map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('--'));
+}
+
+function repairMissingForeignKeys(run, log) {
+  const pending = sqlStatements(run([...compareSchema, '--script']));
+  if (!pending.length) return;
+
+  // Compare with Prisma's own SQL for the target schema. Only complete ADD
+  // FOREIGN KEY statements already present in that schema can be executed.
+  const normalize = (statement) => statement.replaceAll('"public".', '');
+  const expected = new Set(sqlStatements(run([
+    'migrate', 'diff', '--from-empty', '--to-schema-datamodel', schemaPath, '--script',
+  ])).filter((statement) => statement.startsWith('ALTER TABLE ')
+    && statement.includes(' ADD CONSTRAINT ') && statement.includes(' FOREIGN KEY ('))
+    .map(normalize));
+  if (pending.some((statement) => !expected.has(normalize(statement)))) {
+    log(run(compareSchema));
+    throw new Error('Baseline refused: the diff contains changes other than missing foreign keys. No schema changes were made.');
+  }
+
+  log(`Restoring ${pending.length} missing foreign keys in one transaction...`);
+  run(['db', 'execute', '--schema', schemaPath, '--stdin'], [
+    'BEGIN;', 'SET LOCAL lock_timeout = \'5s\';', 'SET LOCAL statement_timeout = \'30s\';',
+    ...pending, 'COMMIT;',
+  ].join('\n'));
+}
+
 function baseline({ databaseUrl, args, migrations, run, log = console.log }) {
   const target = validateBaselineTarget(databaseUrl, args);
   if (!migrations.length) throw new Error('No migration files found; no history was changed.');
   log(`Baseline target: ${target.host}/${target.database}. Application records will be preserved.`);
   run(['db', 'execute', '--schema', 'prisma/schema.prisma', '--stdin'], historyGuard(target.database, migrations));
+  if (args.includes('--repair-missing-foreign-keys')) repairMissingForeignKeys(run, log);
   log('Verifying that existing tables, columns, enums, indexes, and relations match the current Prisma schema...');
   // --exit-code fails with status 2 if ANY supported schema differences exist.
   // No migration can be marked as applied before this read-only check passes.
-  run(['migrate', 'diff', '--from-schema-datasource', 'prisma/schema.prisma',
-    '--to-schema-datamodel', 'prisma/schema.prisma', '--exit-code']);
+  run([...compareSchema, '--exit-code']);
   for (const [index, migration] of migrations.entries()) {
     log(`Recording baseline ${index + 1}/${migrations.length}: ${migration.name}`);
     try {
@@ -77,15 +110,17 @@ function executePrisma(cliPath, args, input) {
   if (result.error || result.status !== 0) {
     const details = `${result.stdout || ''}\n${result.stderr || ''}`;
     const refusal = details.match(/Baseline refused:[^\r\n]*/);
+    const foreignKey = details.match(/violates foreign key constraint "([a-zA-Z0-9_]+)"/);
     const code = details.match(/\bP\d{4}\b/)?.[0];
     const isDifferentSchema = args[0] === 'migrate' && args[1] === 'diff' && result.status === 2;
-    const message = refusal?.[0] || (isDifferentSchema
+    const message = refusal?.[0] || (foreignKey && `Baseline refused: existing rows violate ${foreignKey[1]}. The foreign key repair was rolled back.`) || (isDifferentSchema
       ? 'Baseline refused: the database does not match prisma/schema.prisma. No migration history was changed. Send this message for a schema-specific repair.'
       : `Prisma ${args.slice(0, 2).join(' ')} failed${code ? ` (${code})` : ''}. Baseline stopped; application data was not reset.`);
     const error = new Error(message);
     error.prismaCode = code;
     throw error;
   }
+  return result.stdout;
 }
 
 function main() {

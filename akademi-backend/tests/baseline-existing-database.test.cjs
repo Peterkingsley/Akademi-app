@@ -45,3 +45,29 @@ test('resumes an already partially recorded baseline but stops on other errors',
 test('an empty migration list cannot change the database', () => {
   assert.throws(() => baseline({ databaseUrl, args, migrations: [], run() { assert.fail(); } }), /No migration files/);
 });
+
+test('repairs only expected foreign keys in a transaction and verifies before recording history', () => {
+  const fk = 'ALTER TABLE "child" ADD CONSTRAINT "child_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "parent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;';
+  for (const unexpected of ['', '\nALTER TABLE "child" DROP COLUMN "parent_id";']) {
+    const calls = [];
+    const task = () => baseline({ databaseUrl, args: [...args, '--repair-missing-foreign-keys'], migrations, log() {},
+      run(command, input) {
+        calls.push({ command, input });
+        if (command.includes('--from-empty')) return `CREATE TABLE "parent" ("id" TEXT);\n-- AddForeignKey\n${fk}`;
+        if (command.includes('--script')) return `-- AddForeignKey\n${fk}${unexpected}`;
+      },
+    });
+    if (unexpected) {
+      assert.throws(task, /changes other than missing foreign keys/);
+      assert.equal(calls.length, 4);
+      assert.equal(calls[3].command[1], 'diff');
+      assert.equal(calls[3].input, undefined);
+    } else {
+      task();
+      assert.match(calls[3].input, /^BEGIN;[\s\S]*COMMIT;$/);
+      assert.ok(calls[3].input.includes(fk));
+      assert.ok(calls[4].command.includes('--exit-code'));
+      assert.equal(calls[5].command[1], 'resolve');
+    }
+  }
+});
